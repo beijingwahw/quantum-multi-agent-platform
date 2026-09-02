@@ -8,7 +8,13 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { GrowthSchedulerBrain, type MarketBrain, type GrowthAgentSpec } from './brain';
+import {
+  GrowthSchedulerBrain,
+  type MarketBrain,
+  type BrainAssignment,
+  type GrowthAgentSpec,
+  type GrowthSchedulerConfig
+} from './brain';
 
 export { GrowthSchedulerBrain } from './brain';
 export type { MarketBrain, BrainAssignment, BrainState, GrowthAgentSpec } from './brain';
@@ -22,15 +28,25 @@ export interface MonitorEvent {
   type: string;
   source: string;
   timestamp: Date;
-  data: any;
+  /** 事件载荷（形状随事件类型变化，规则按「类型.字段」路径读取） */
+  data: Record<string, unknown>;
   severity: 'info' | 'warning' | 'error' | 'critical';
 }
 
 export interface DecisionContext {
   events: MonitorEvent[];
-  currentState: any;
-  history: any[];
+  /** 当前系统状态（形状由宿主决定，规则按「a.b」路径读取） */
+  currentState: unknown;
+  history: DecisionRecord[];
   rules: Rule[];
+}
+
+/** 单次决策的历史记录（DecisionEngine.getDecisionHistory 返回项） */
+export interface DecisionRecord {
+  timestamp: Date;
+  context: DecisionContext;
+  triggeredRules: string[];
+  actions: Array<[string, Action[]]>;
 }
 
 export interface Rule {
@@ -50,14 +66,16 @@ export interface Condition {
   operator: 'equals' | 'notEquals' | 'contains' | 'notContains' |
             'greaterThan' | 'lessThan' | 'between' | 'matches';
   field: string;
-  value: any;
+  /** 比较目标值：随 operator 语义可为标量、[下限, 上限] 二元组或正则 */
+  value: unknown;
   logicalOperator?: 'AND' | 'OR';
 }
 
 export interface Action {
   type: 'command' | 'notification' | 'workflow' | 'custom' | 'assignment';
   name: string;
-  parameters: any;
+  /** 动作参数（形状随 type 变化：title/message、command/args、handler 等） */
+  parameters: Record<string, unknown>;
   timeout?: number;
   retryPolicy?: {
     maxRetries: number;
@@ -70,7 +88,7 @@ export interface ActionExecution {
   ruleId: string;
   action: Action;
   status: 'pending' | 'running' | 'completed' | 'failed';
-  result?: any;
+  result?: unknown;
   error?: Error;
   startTime: Date;
   endTime?: Date;
@@ -101,12 +119,28 @@ export interface Metrics {
 // 状态监控器 (Observer)
 // ============================================================================
 
+/** 状态监控器配置 */
+export interface StateMonitorConfig {
+  maxBufferSize?: number;
+  retentionMs?: number;
+}
+
+/** 状态监控聚合统计 */
+export interface MonitorStatistics {
+  total: number;
+  byType: Record<string, number>;
+  bySeverity: Record<string, number>;
+  /** 最近 1 分钟事件数 */
+  recent: number;
+  critical: number;
+}
+
 export class StateMonitor extends EventEmitter {
   private eventBuffer: MonitorEvent[] = [];
   private maxBufferSize: number = 10000;
   private retentionMs: number = 3600000; // 1小时
 
-  constructor(private config: any = {}) {
+  constructor(private config: StateMonitorConfig = {}) {
     super();
     if (config.maxBufferSize) {
       this.maxBufferSize = config.maxBufferSize;
@@ -170,7 +204,7 @@ export class StateMonitor extends EventEmitter {
   /**
    * 获取聚合统计
    */
-  getStatistics(): any {
+  getStatistics(): MonitorStatistics {
     const events = this.eventBuffer;
     const now = Date.now();
 
@@ -223,7 +257,7 @@ export class StateMonitor extends EventEmitter {
 
 export class DecisionEngine extends EventEmitter {
   private rules: Map<string, Rule> = new Map();
-  private decisionHistory: any[] = [];
+  private decisionHistory: DecisionRecord[] = [];
   private metrics: Metrics = {
     totalEventsProcessed: 0,
     totalDecisionsMade: 0,
@@ -235,7 +269,7 @@ export class DecisionEngine extends EventEmitter {
     rulesTriggered: {}
   };
 
-  constructor(private config: any = {}) {
+  constructor(private config: Record<string, unknown> = {}) {
     super();
   }
 
@@ -413,7 +447,7 @@ export class DecisionEngine extends EventEmitter {
     condition: Condition,
     context: DecisionContext
   ): boolean {
-    let value: any;
+    let value: unknown;
 
     // 根据条件类型获取值
     switch (condition.type) {
@@ -453,7 +487,8 @@ export class DecisionEngine extends EventEmitter {
         return Number(value) >= condition.value[0] &&
                Number(value) <= condition.value[1];
       case 'matches':
-        return new RegExp(condition.value).test(String(value));
+        // matches 语义下规则值约定为字符串或 RegExp 字面量
+        return new RegExp(condition.value as string | RegExp).test(String(value));
       default:
         return false;
     }
@@ -465,7 +500,7 @@ export class DecisionEngine extends EventEmitter {
    * 解析不到时回落到事件载荷 event.data（规则字段 'system_metrics.cpu'
    * 实际读取的是 data.cpu——修复此前只查事件根导致预设规则永不触发的缺陷）。
    */
-  private extractEventValue(events: MonitorEvent[], field: string): any {
+  private extractEventValue(events: MonitorEvent[], field: string): unknown {
     if (events.length === 0) return null;
 
     const [eventType, ...path] = field.split('.');
@@ -484,7 +519,7 @@ export class DecisionEngine extends EventEmitter {
   /**
    * 从状态中提取值
    */
-  private extractStateValue(state: any, field: string): any {
+  private extractStateValue(state: unknown, field: string): unknown {
     const path = field.split('.');
     return this.extractNestedValue(state, path);
   }
@@ -492,7 +527,7 @@ export class DecisionEngine extends EventEmitter {
   /**
    * 提取时间值
    */
-  private extractTimeValue(field: string): any {
+  private extractTimeValue(field: string): number | boolean | null {
     const now = new Date();
 
     switch (field) {
@@ -513,11 +548,12 @@ export class DecisionEngine extends EventEmitter {
   /**
    * 提取嵌套值
    */
-  private extractNestedValue(obj: any, path: string[]): any {
+  private extractNestedValue(obj: unknown, path: string[]): unknown {
     let value = obj;
     for (const key of path) {
       if (value == null) return null;
-      value = value[key];
+      // 载荷形状动态：按字符串键逐层取值（非对象值同样透传，行为与旧实现一致）
+      value = (value as Record<string, unknown>)[key];
     }
     return value;
   }
@@ -567,7 +603,7 @@ export class DecisionEngine extends EventEmitter {
   /**
    * 获取决策历史
    */
-  getDecisionHistory(limit?: number): any[] {
+  getDecisionHistory(limit?: number): DecisionRecord[] {
     if (limit) {
       return this.decisionHistory.slice(-limit);
     }
@@ -679,7 +715,7 @@ export class ActionExecutor extends EventEmitter {
   private async performAction(
     action: Action,
     execution: ActionExecution
-  ): Promise<any> {
+  ): Promise<unknown> {
     const timeout = action.timeout || this.config.actionTimeoutMs;
     const retryPolicy = action.retryPolicy || { maxRetries: 0, backoffMs: 1000 };
 
@@ -728,7 +764,7 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 根据类型执行动作
    */
-  private async executeByType(action: Action): Promise<any> {
+  private async executeByType(action: Action): Promise<unknown> {
     switch (action.type) {
       case 'command':
         return this.executeCommand(action);
@@ -748,8 +784,8 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 执行市场分配动作（来自增长调度器 Brain 的 VCG 定价分配）
    */
-  private async executeAssignment(action: Action): Promise<any> {
-    const { assignment } = action.parameters;
+  private async executeAssignment(action: Action): Promise<unknown> {
+    const assignment = action.parameters.assignment as BrainAssignment | undefined;
 
     if (!assignment || !assignment.taskId || !assignment.winnerId) {
       throw new Error('Assignment action requires "assignment" parameter with taskId and winnerId');
@@ -770,7 +806,7 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 执行命令
    */
-  private async executeCommand(action: Action): Promise<any> {
+  private async executeCommand(action: Action): Promise<unknown> {
     const { command, args } = action.parameters;
 
     if (!command) {
@@ -793,7 +829,7 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 执行通知
    */
-  private async executeNotification(action: Action): Promise<any> {
+  private async executeNotification(action: Action): Promise<unknown> {
     const { title, message, level } = action.parameters;
 
     if (!title || !message) {
@@ -813,7 +849,7 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 执行工作流
    */
-  private async executeWorkflow(action: Action): Promise<any> {
+  private async executeWorkflow(action: Action): Promise<unknown> {
     const { workflowId, parameters } = action.parameters;
 
     if (!workflowId) {
@@ -834,7 +870,7 @@ export class ActionExecutor extends EventEmitter {
   /**
    * 执行自定义动作
    */
-  private async executeCustom(action: Action): Promise<any> {
+  private async executeCustom(action: Action): Promise<unknown> {
     const { handler } = action.parameters;
 
     if (!handler || typeof handler !== 'function') {
@@ -950,6 +986,38 @@ export class ActionExecutor extends EventEmitter {
 // 主插件类
 // ============================================================================
 
+/** 插件配置：各组件配置透传；brain 为市场大脑（实例或调度器配置，duck typing 识别） */
+export interface ProactiveIntelligencePluginConfig {
+  monitor?: StateMonitorConfig;
+  /** 决策引擎配置（当前未消费，预留扩展） */
+  engine?: Record<string, unknown>;
+  executor?: Partial<PolicyConfig>;
+  brain?: MarketBrain | Partial<GrowthSchedulerConfig>;
+  /** 初始市场参与者（config.brain 存在时经 registerAgent 注册） */
+  brainAgents?: GrowthAgentSpec[];
+}
+
+/** 插件状态快照（getCurrentState 产出，注入规则条件的 currentState） */
+interface CurrentSystemState {
+  timestamp: Date;
+  monitorStats: MonitorStatistics;
+  engineMetrics: Metrics;
+  executorConfig: PolicyConfig;
+  runningExecutions: ActionExecution[];
+  brain: object | null;
+}
+
+/** 插件聚合统计信息 */
+export interface PluginStatistics {
+  monitor: MonitorStatistics;
+  engine: Metrics;
+  executor: {
+    running: number;
+    history: number;
+  };
+  running: boolean;
+}
+
 export class ProactiveIntelligencePlugin extends EventEmitter {
   private monitor: StateMonitor;
   private engine: DecisionEngine;
@@ -960,7 +1028,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   private decisionScheduled = false;
   private pendingEvents: MonitorEvent[] = [];
 
-  constructor(config: any = {}) {
+  constructor(config: ProactiveIntelligencePluginConfig = {}) {
     super();
 
     this.monitor = new StateMonitor(config.monitor);
@@ -973,9 +1041,9 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     // config.brainAgents 为初始 agent（经 brain.registerAgent 注册）。
     if (config.brain) {
       this.brain =
-        typeof config.brain.submitTask === 'function'
+        typeof (config.brain as MarketBrain).submitTask === 'function'
           ? (config.brain as MarketBrain)
-          : new GrowthSchedulerBrain(config.brain);
+          : new GrowthSchedulerBrain(config.brain as Partial<GrowthSchedulerConfig>);
       const brain = this.brain;
       if (brain) {
         for (const agent of config.brainAgents ?? []) {
@@ -1067,7 +1135,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   /**
    * 获取当前状态（含 Brain 市场状态，供规则条件 'brain.*' 联动）
    */
-  private getCurrentState(): any {
+  private getCurrentState(): CurrentSystemState {
     return {
       timestamp: new Date(),
       monitorStats: this.monitor.getStatistics(),
@@ -1131,7 +1199,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   /**
    * 获取统计信息
    */
-  getStatistics(): any {
+  getStatistics(): PluginStatistics {
     return {
       monitor: this.monitor.getStatistics(),
       engine: this.engine.getMetrics(),

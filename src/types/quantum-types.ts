@@ -58,6 +58,8 @@ export interface Task {
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
+  // 任务终结后由completeTask附加的执行结果，内容由调用方定义
+  result?: unknown;
 }
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -66,7 +68,7 @@ export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'fai
 export interface TaskRequirement {
   type: 'capability' | 'resource' | 'location' | 'quantum';
   name: string;
-  value: any;
+  value: unknown;
   weight: number;
 }
 
@@ -76,7 +78,7 @@ export interface QuantumMessage {
   sourceAgentId: string;
   targetAgentId?: string;
   targetAgentIds?: string[];
-  content: any;
+  content: unknown;
   timestamp: Date;
   priority: MessagePriority;
   quantumState: QuantumState;
@@ -124,7 +126,7 @@ export interface SystemMetrics {
 
 export interface Config {
   scheduling: {
-    quantumAlgorithm: 'wave-function' | 'probability' | 'hybrid';
+    quantumAlgorithm: 'wave-function' | 'probability' | 'hybrid' | 'quantum-qaoa' | 'quantum-annealing';
     maxConcurrentTasks: number;
     taskTimeout: number;
     loadBalancingStrategy: 'round-robin' | 'least-loaded' | 'capability-based';
@@ -164,7 +166,7 @@ export interface TaskResult {
   taskId: string;
   agentId: string;
   success: boolean;
-  result: any;
+  result: unknown;
   duration: number;
   quantumCoherence: number;
   energyConsumed: number;

@@ -362,6 +362,20 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
     return this.scheduler.completeTask(taskId, success, result);
   }
 
+  /**
+   * 批量联合量子调度：一批挂起任务 × 空闲agent 的联合分配编码为哈密顿量，
+   * 叠加态上演化（QAOA/绝热退火）后测量坍缩。纠缠agent对以耦合项进入能量。
+   * 返回报告含 Born 概率与（规模允许时的）穷举最优对照。
+   */
+  scheduleBatchQuantum(taskIds?: string[]) {
+    return this.scheduler.scheduleBatchQuantum(taskIds);
+  }
+
+  /** 量子引擎运行统计（真实量子路径的决策数、Born概率、最优率） */
+  getQuantumMetrics() {
+    return this.scheduler.getQuantumMetrics();
+  }
+
   registerAgent(agent: {
     name: string;
     type: AgentType;
@@ -412,6 +426,21 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
 
 // 导出主要类和接口
 export { QuantumScheduler } from './core/quantum-scheduler';
+export type { QuantumSchedulerConfig, QuantumAlgorithm, QuantumEngineConfig, QuantumBatchReport } from './core/quantum-scheduler';
+export {
+  QuantumStateVector, qaoaSolve, annealSolve, bruteForceOptimum,
+  defaultPenalties, couplingKey, toIsing, computeEnergies,
+  decodeAssignment, isValidAssignment, welfareOf
+} from './core/quantum-optimizer';
+export type {
+  AssignmentProblem, QuantumSolverOptions, QuantumSolution, QuantumCandidate,
+  QuantumEngineKind, CollapseMode, ProblemEnergies, IsingModel, BruteForceResult
+} from './core/quantum-optimizer';
+export {
+  buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace, SubspaceState
+} from './core/subspace-optimizer';
+export type { SubspaceModel, SubspaceSolution, SubspaceBuildOptions } from './core/subspace-optimizer';
+export { hungarianAssignment, localSearchAssignment } from './core/classical-baselines';
 export { AgentManager } from './core/agent-manager';
 export { QuantumBus } from './communication/quantum-bus';
 export { DSHIntegration } from './dsh/dsh-integration';

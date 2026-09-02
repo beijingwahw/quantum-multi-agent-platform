@@ -1,14 +1,40 @@
 import { Agent, AgentState, AgentType, QuantumEntanglement, Vector3D } from '../types/quantum-types';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import { logInfo } from '../utils/logger';
+
+// AgentManager所需配置切片：平台配置的可选子集（心跳间隔）
+export interface AgentManagerConfig {
+  communication?: {
+    heartbeatInterval?: number;
+  };
+}
+
+// agent统计指标快照（getAgentMetrics返回结构）
+export interface AgentManagerMetrics {
+  totalAgents: number;
+  agentsByState: Record<string, number>;
+  agentsByType: Record<string, number>;
+  averageLoad: number;
+  entanglementCount: number;
+}
+
+// 系统健康检查报告（checkSystemHealth返回结构）
+export interface SystemHealthReport {
+  totalAgents: number;
+  healthyAgents: number;
+  offlineAgents: number;
+  overloadedAgents: number;
+  systemHealth: number;
+}
 
 export class AgentManager extends EventEmitter {
   private agents: Map<string, Agent> = new Map();
   private entanglements: Map<string, QuantumEntanglement> = new Map();
   private heartbeatIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private config: any;
+  private config: AgentManagerConfig;
 
-  constructor(config: any) {
+  constructor(config: AgentManagerConfig) {
     super();
     this.config = config;
   }
@@ -46,7 +72,7 @@ export class AgentManager extends EventEmitter {
     }
 
     this.emit('agent_registered', agent);
-    console.log(`[AgentManager] Agent registered: ${agent.name} (${agent.id})`);
+    logInfo('AgentManager', `Agent registered: ${agent.name} (${agent.id})`);
     
     return agent;
   }
@@ -63,7 +89,7 @@ export class AgentManager extends EventEmitter {
     
     this.agents.delete(agentId);
     this.emit('agent_unregistered', agent);
-    console.log(`[AgentManager] Agent unregistered: ${agent.name} (${agentId})`);
+    logInfo('AgentManager', `Agent unregistered: ${agent.name} (${agentId})`);
     
     return true;
   }
@@ -206,7 +232,7 @@ export class AgentManager extends EventEmitter {
     }
 
     this.emit('entanglement_created', entanglement);
-    console.log(`[AgentManager] Entanglement created between ${agent1.name} and ${agent2.name}`);
+    logInfo('AgentManager', `Entanglement created between ${agent1.name} and ${agent2.name}`);
     return true;
   }
 
@@ -275,7 +301,7 @@ export class AgentManager extends EventEmitter {
   }
 
   // 统计和监控
-  getAgentMetrics(): any {
+  getAgentMetrics(): AgentManagerMetrics {
     const totalAgents = this.agents.size;
     const agentsByState = Array.from(this.agents.values()).reduce((acc, agent) => {
       acc[agent.state] = (acc[agent.state] || 0) + 1;
@@ -301,7 +327,7 @@ export class AgentManager extends EventEmitter {
   }
 
   // 健康检查
-  checkSystemHealth(): any {
+  checkSystemHealth(): SystemHealthReport {
     const now = new Date();
     const agentsArray = Array.from(this.agents.values());
 
@@ -337,7 +363,7 @@ export class AgentManager extends EventEmitter {
     });
 
     offlineAgents.forEach(agent => {
-      console.log(`[AgentManager] Cleaning up offline agent: ${agent.name}`);
+      logInfo('AgentManager', `Cleaning up offline agent: ${agent.name}`);
       this.unregisterAgent(agent.id);
     });
   }

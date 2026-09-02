@@ -1,11 +1,20 @@
 import { Agent, Task, QuantumMessage, MessageType } from '../types/quantum-types';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import { logInfo, logWarn } from '../utils/logger';
+
+// DSH工具参数描述
+interface DSHToolParameter {
+  name: string;
+  type: string;
+  required?: boolean;
+  default?: unknown;
+}
 
 export interface DSHTool {
   name: string;
   description: string;
-  parameters: any[];
+  parameters: DSHToolParameter[];
   returnType: string;
   category: string;
 }
@@ -16,9 +25,17 @@ export interface DSHWorkflow {
   steps: Array<{
     id: string;
     tool: string;
-    parameters: any;
+    parameters: Record<string, unknown>;
     dependsOn?: string[];
   }>;
+}
+
+// DSH集成运行指标
+interface DSHIntegrationMetrics {
+  toolsCount: number;
+  workflowsCount: number;
+  agentMappingsCount: number;
+  isInitialized: boolean;
 }
 
 export class DSHIntegration extends EventEmitter {

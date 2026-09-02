@@ -394,7 +394,9 @@ async function safeModeExample() {
   const history = plugin.getExecutor().getExecutionHistory();
   history.slice(-3).forEach(exec => {
     console.log(`- ${exec.action.type}.${exec.action.name}: ${exec.status}`);
-    if (exec.result?.safeMode) {
+    // result 形状随动作类型变化（安全模式下为 { safeMode, skipped }），此处按记录读取
+    const result = exec.result as Record<string, unknown> | undefined;
+    if (result?.safeMode) {
       console.log(`  (安全模式跳过实际执行)`);
     }
   });

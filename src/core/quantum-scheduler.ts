@@ -2,6 +2,13 @@ import { Agent, Task, SchedulingDecision, QuantumState, TaskPriority, TaskStatus
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { logDebug, logInfo } from '../utils/logger';
+import {
+  AssignmentProblem, QuantumSolverOptions, CollapseMode,
+  qaoaSolve, annealSolve, bruteForceOptimum, defaultPenalties, couplingKey
+} from './quantum-optimizer';
+import {
+  buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace, SubspaceModel, SubspaceSolution
+} from './subspace-optimizer';
 
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   critical: 4,
@@ -15,9 +22,108 @@ const PRIORITY_ORDER: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
 
 const DEFAULT_MAX_HISTORY = 10000;
 
+/** 量子调度算法：hybrid 为经典启发式热路径；quantum-* 为真实量子算法（态矢量模拟） */
+export type QuantumAlgorithm = 'hybrid' | 'wave-function' | 'probability' | 'quantum-qaoa' | 'quantum-annealing';
+
+/** 量子引擎配置（态矢量规模与坍缩协议） */
+export interface QuantumEngineConfig {
+  /** QAOA 层数 p */
+  layers?: number;
+  /** 测量采样次数 */
+  shots?: number;
+  /** 单块量子比特上限（态矢量指数内存，默认 12 = 4096 维希尔伯特空间） */
+  qubitCap?: number;
+  /** 纠缠耦合的福利加成系数（作用于两任务优先级权重的较小者） */
+  entanglementBonus?: number;
+  /** 坍缩模式 */
+  select?: CollapseMode;
+  /** 随机种子 */
+  seed?: number;
+  /** 退火参数 */
+  anneal?: { tau?: number; steps?: number };
+  /**
+   * 约束子空间维度上限（默认 2^20 ≈ 100万合法分配，内存~150MB）。
+   * 子空间引擎在合法分配集合上做精确量子演化：维度 P(n,m) 而非 2^(m·n)，
+   * 可联合调度的批量远超全空间态矢量的能力（8任务×10agent 等效 2^80 全空间）。
+   */
+  subspaceCap?: number;
+}
+
 interface AgentScheduleStats {
   total: number;
   byType: Map<string, number>;
+}
+
+// QuantumScheduler所需配置切片：平台配置的可选子集（调度与保留策略）
+export interface QuantumSchedulerConfig {
+  scheduling?: {
+    maxHistorySize?: number;
+    maxConcurrentTasks?: number;
+    sweepInterval?: number;
+    taskTimeout?: number;
+    quantumAlgorithm?: QuantumAlgorithm;
+    quantum?: QuantumEngineConfig;
+    /**
+     * 事件驱动的即时调度（默认true）。设为false时提交/注册/完成
+     * 不再自动逐任务分配，改由 scheduleBatchQuantum 做联合量子调度——
+     * 批量模式需要把任务攒起来联合编码，逐任务贪心会破坏联合最优。
+     */
+    autoSchedule?: boolean;
+  };
+  performance?: {
+    retentionMs?: number;
+    retentionDays?: number;
+  };
+}
+
+/** 批量量子调度报告 */
+export interface QuantumBatchReport {
+  engine: 'qaoa' | 'annealing';
+  /** 演化载体：subspace = 约束子空间精确模拟；fullspace = 全空间态矢量（分块） */
+  representation: 'subspace' | 'fullspace';
+  chunks: number;
+  assigned: number;
+  assignments: Array<{ taskId: string; taskName: string; agentId: string; probability: number }>;
+  /** 末态在合法分配子空间上的概率质量（电路质量） */
+  validMass: number;
+  /** 所选联合分配的 Born 概率（各块平均） */
+  meanProbability: number;
+  /** 纠缠耦合条数（进入哈密顿量的纠缠对） */
+  entanglementCouplings: number;
+  /** 与穷举最优的福利对比（问题规模允许时提供） */
+  optimality?: {
+    achieved: number;
+    optimal: number;
+    ratio: number;
+  };
+  /** 子空间引擎信息（representation=subspace 时提供） */
+  subspace?: {
+    dimension: number;
+    /** 等效全空间维度 2^(m·n) 的对数（量子比特数） */
+    equivalentQubits: number;
+  };
+  /** 各块求解详情 */
+  solutions: Array<{
+    taskIds: string[];
+    welfare: number;
+    probability: number;
+    validMass: number;
+    layers: number;
+    evaluations: number;
+  }>;
+}
+
+// 调度器系统指标快照（getSystemMetrics返回结构，计数器化O(1)读取）
+export interface SchedulerSystemMetrics {
+  totalAgents: number;
+  activeAgents: number;
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  pendingTasks: number;
+  systemLoad: number;
+  quantumEfficiency: number;
+  schedulingHistoryLength: number;
 }
 
 export class QuantumScheduler extends EventEmitter {
@@ -25,7 +131,7 @@ export class QuantumScheduler extends EventEmitter {
   private tasks: Map<string, Task> = new Map();
   private quantumState: Map<string, QuantumState> = new Map();
   private schedulingHistory: SchedulingDecision[] = [];
-  private config: any;
+  private config: QuantumSchedulerConfig;
 
   // 性能索引：能力 → 具备该能力的agentId集合（候选集O(要求数)求交）
   private capabilityIndex: Map<string, Set<string>> = new Map();
@@ -45,8 +151,14 @@ export class QuantumScheduler extends EventEmitter {
   private activeAssignments = 0;
   // 周期巡检：超时回收 + 已终结任务保留清理
   private sweepTimer: NodeJS.Timeout | null = null;
+  // 量子引擎统计：真实量子路径的运行计数与Born概率累积
+  private quantumSingleDecisions = 0;
+  private quantumBatchRuns = 0;
+  private quantumBatchAssigned = 0;
+  private quantumProbabilitySum = 0;
+  private lastOptimalityRatio: number | null = null;
 
-  constructor(config: any) {
+  constructor(config: QuantumSchedulerConfig) {
     super();
     this.config = config;
   }
@@ -65,7 +177,9 @@ export class QuantumScheduler extends EventEmitter {
     logInfo('QuantumScheduler', `Agent registered: ${agent.name} (${agent.id})`);
 
     // 新agent加入后，尝试调度之前无agent可用的挂起任务
-    this.reschedulePendingTasks();
+    if (this.config?.scheduling?.autoSchedule !== false) {
+      this.reschedulePendingTasks();
+    }
   }
 
   unregisterAgent(agentId: string): void {
@@ -130,8 +244,10 @@ export class QuantumScheduler extends EventEmitter {
     this.tasks.set(fullTask.id, fullTask);
     this.emit('task_submitted', fullTask);
 
-    // 立即尝试调度
-    this.scheduleTask(fullTask.id);
+    // 立即尝试调度（批量模式下攒起来等联合量子调度）
+    if (this.config?.scheduling?.autoSchedule !== false) {
+      this.scheduleTask(fullTask.id);
+    }
 
     // 未被分配则进入对应优先级分桶等待
     if (fullTask.status === 'pending') {
@@ -160,7 +276,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   // 任务完成/失败：更新状态、释放agent、触发挂起任务重调度
-  completeTask(taskId: string, success: boolean = true, result?: any): boolean {
+  completeTask(taskId: string, success: boolean = true, result?: unknown): boolean {
     const task = this.tasks.get(taskId);
     if (!task) return false;
 
@@ -183,7 +299,7 @@ export class QuantumScheduler extends EventEmitter {
     task.updatedAt = now;
     task.actualDuration = now.getTime() - task.createdAt.getTime();
     if (result !== undefined) {
-      (task as any).result = result;
+      task.result = result;
     }
     this.tasks.set(taskId, task);
 
@@ -210,8 +326,10 @@ export class QuantumScheduler extends EventEmitter {
 
     logDebug('QuantumScheduler', `Task ${success ? 'completed' : 'failed'}: ${task.name} (${taskId})`);
 
-    // 释放出的容量立即用于挂起任务
-    this.reschedulePendingTasks();
+    // 释放出的容量立即用于挂起任务（批量模式下留待联合调度）
+    if (this.config?.scheduling?.autoSchedule !== false) {
+      this.reschedulePendingTasks();
+    }
     return true;
   }
 
@@ -276,7 +394,12 @@ export class QuantumScheduler extends EventEmitter {
     }
 
     const decision = this.makeQuantumDecision(task, candidates);
+    return this.applyAssignmentDecision(task, decision);
+  }
 
+  // 应用一次已生成的调度决策：占用agent、入历史、广播事件
+  // （经典单任务路径与量子批量路径共用）
+  private applyAssignmentDecision(task: Task, decision: SchedulingDecision): SchedulingDecision {
     this.assignTaskToAgent(task.id, decision.agentId);
     this.schedulingHistory.push(decision);
     this.totalDecisions++;
@@ -404,7 +527,7 @@ export class QuantumScheduler extends EventEmitter {
     const interval = this.config?.scheduling?.sweepInterval ?? 5000;
     this.sweepTimer = setInterval(() => this.sweep(), interval);
     // 不阻止进程退出
-    (this.sweepTimer as any).unref?.();
+    this.sweepTimer.unref?.();
   }
 
   private sweep(): void {
@@ -459,6 +582,10 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private makeQuantumDecision(task: Task, agents: Agent[]): SchedulingDecision {
+    const algorithm = this.config?.scheduling?.quantumAlgorithm ?? 'hybrid';
+    if (algorithm === 'quantum-qaoa' || algorithm === 'quantum-annealing') {
+      return this.makeTrueQuantumDecision(task, agents, algorithm);
+    }
     // 量子波函数调度算法
     const scores = agents.map(agent => {
       const agentQuantumState = this.quantumState.get(agent.id);
@@ -502,6 +629,488 @@ export class QuantumScheduler extends EventEmitter {
     const dy = q1.position.y - q2.position.y;
     const dz = q1.position.z - q2.position.z;
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  // ============ 真正的量子调度路径 ============
+  // 单任务：任务在候选agent集合上建立 one-hot 叠加态，量子演化（QAOA/
+  // 绝热退火）放大高福利分支的振幅，测量坍缩得到分配；
+  // decision.probability 是所选基态的真实 Born 概率 |ψ(x)|²。
+
+  /** agent-任务亲和度：经典评分四要素（能力/负载/相关性/量子距离）的加权和，进入哈密顿量 */
+  private agentAffinity(agent: Agent, task: Task): number {
+    const distance = this.calculateQuantumDistance(this.quantumState.get(agent.id)!, task.quantumState);
+    const capabilityScore = this.calculateCapabilityScore(agent, task);
+    const loadScore = 1 / (agent.load + 0.1);
+    const stats = this.agentStats.get(agent.id);
+    const correlationScore = stats && stats.total > 0
+      ? (stats.byType.get(task.type) || 0) / stats.total
+      : 0;
+    const distanceScore = 1 / (1 + distance); // 距离越近越高（归一化到(0,1]）
+    return (0.4 * capabilityScore) + (0.2 * loadScore) + (0.1 * correlationScore) + (0.3 * distanceScore);
+  }
+
+  private buildSolverOptions(): QuantumSolverOptions {
+    const q = this.config?.scheduling?.quantum ?? {};
+    return {
+      layers: q.layers,
+      shots: q.shots,
+      select: q.select,
+      seed: q.seed,
+      anneal: q.anneal
+    };
+  }
+
+  private makeTrueQuantumDecision(task: Task, agents: Agent[], algorithm: 'quantum-qaoa' | 'quantum-annealing'): SchedulingDecision {
+    // 单候选：平凡坍缩，无需演化
+    if (agents.length === 1) {
+      this.quantumSingleDecisions++;
+      return {
+        taskId: task.id,
+        agentId: agents[0].id,
+        probability: 1,
+        confidence: 1,
+        reasoning: 'trivial collapse: single candidate',
+        alternatives: []
+      };
+    }
+
+    const priorityWeight = PRIORITY_WEIGHT[task.priority] / 4; // 0.25..1
+    const problem: AssignmentProblem = {
+      taskIds: [task.id],
+      agentIds: agents.map(a => a.id),
+      weights: [agents.map(a => priorityWeight * this.agentAffinity(a, task))],
+      ineligible: [agents.map(() => false)],
+      couplings: new Map(),
+      penaltyOneHot: 0,
+      penaltyCapacity: 0
+    };
+    const penalties = defaultPenalties(problem);
+    problem.penaltyOneHot = penalties.oneHot;
+    problem.penaltyCapacity = penalties.capacity;
+
+    const solution = algorithm === 'quantum-qaoa'
+      ? qaoaSolve(problem, this.buildSolverOptions())
+      : annealSolve(problem, this.buildSolverOptions());
+
+    const agentIndex = solution.assignment[0] ?? -1;
+    const chosen = agentIndex >= 0 ? agents[agentIndex] : agents[0];
+    this.quantumSingleDecisions++;
+    this.quantumProbabilitySum += solution.probability;
+
+    return {
+      taskId: task.id,
+      agentId: chosen.id,
+      probability: solution.probability,
+      confidence: solution.validMass,
+      reasoning: `${solution.engine}: superposition over ${agents.length} agents, ` +
+        `evolution (${solution.layers} ${solution.engine === 'qaoa' ? 'layers' : 'steps'}), ` +
+        `Born collapse p=${solution.probability.toFixed(3)}`,
+      alternatives: solution.candidates.slice(1, 3).map(c => ({
+        agentId: agents[c.assignment[0]]?.id ?? chosen.id,
+        probability: c.probability
+      }))
+    };
+  }
+
+  /**
+   * 批量联合量子调度（量子态调度的完整形态）：
+   * 把一批挂起任务与空闲agent的**联合分配问题**编码为哈密顿量——
+   * 所有分配组合同时存在于叠加态中，纠缠的agent对以耦合项进入能量，
+   * 演化后测量坍缩得到联合分配。这是逐任务贪心无法表达的联合最优。
+   *
+   * @param taskIds 指定任务（缺省取全部挂起任务，按优先级）
+   */
+  scheduleBatchQuantum(taskIds?: string[]): QuantumBatchReport {
+    const algorithm: 'quantum-qaoa' | 'quantum-annealing' =
+      this.config?.scheduling?.quantumAlgorithm === 'quantum-annealing'
+        ? 'quantum-annealing'
+        : 'quantum-qaoa';
+    const engineKind = algorithm === 'quantum-qaoa' ? 'qaoa' as const : 'annealing' as const;
+
+    // 1) 收集可调度任务：显式ID或按优先级桶顺序的全部挂起任务
+    let candidates: Task[];
+    if (taskIds) {
+      candidates = taskIds
+        .map(id => this.tasks.get(id))
+        .filter((t): t is Task => !!t && t.status === 'pending' && this.dependenciesMet(t));
+    } else {
+      candidates = [];
+      for (const priority of PRIORITY_ORDER) {
+        for (const id of this.pendingBuckets.get(priority) ?? []) {
+          const task = this.tasks.get(id);
+          if (task && task.status === 'pending' && this.dependenciesMet(task)) {
+            candidates.push(task);
+          }
+        }
+      }
+    }
+
+    // 2) 空闲agent池与并发余量
+    const idlePool = this.getAgents().filter(a => a.state === 'idle');
+    const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
+    const slots = maxConcurrent != null
+      ? Math.max(0, maxConcurrent - this.activeAssignments)
+      : Infinity;
+
+    if (candidates.length === 0 || idlePool.length === 0 || slots === 0) {
+      return {
+        engine: engineKind, representation: 'fullspace', chunks: 0, assigned: 0, assignments: [],
+        validMass: 0, meanProbability: 0, entanglementCouplings: 0,
+        solutions: []
+      };
+    }
+
+    // 3) 能力过滤：无可匹配agent的任务出局
+    const schedulable = candidates.filter(task =>
+      idlePool.some(agent => this.checkCapabilityMatch(agent, task))
+    );
+
+    // 4) 首选：约束子空间精确引擎（多轮）—— 每轮把至多 min(空闲数, 维度
+    //    上限允许的任务数) 个任务联合编码进子空间精确求解。任务多于空闲
+    //    agent（m > n）时自动分轮，联合窗口保持最大，不再退化到全空间小分块。
+    //    可联合调度的批量远超全空间态矢量（例：8任务×10agent = 181万维
+    //    子空间，等效全空间 2^80 维）。
+    const subspaceCap = this.config?.scheduling?.quantum?.subspaceCap ?? (1 << 20);
+    if (schedulable.length > 0 && idlePool.length >= 2) {
+      const subspaceReport = this.runSubspaceRounds(schedulable, algorithm, subspaceCap, slots, maxConcurrent ?? null);
+      if (subspaceReport) return subspaceReport;
+    }
+
+    // 5) 回退：全空间态矢量分块路径（子空间超维或不定时使用）
+    //    任务数×agent数 ≤ qubitCap（态矢量内存上限）
+    const qubitCap = this.config?.scheduling?.quantum?.qubitCap ?? 12;
+    const chunks: Task[][] = [];
+    let current: Task[] = [];
+    for (const task of schedulable) {
+      if (current.length > 0 && (current.length + 1) * idlePool.length > qubitCap) {
+        chunks.push(current);
+        current = [];
+      }
+      current.push(task);
+    }
+    if (current.length > 0) chunks.push(current);
+
+    // 6) 逐块求解：构建哈密顿量（亲和度+纠缠耦合）→ 演化 → 坍缩
+    const report: QuantumBatchReport = {
+      engine: engineKind,
+      representation: 'fullspace',
+      chunks: chunks.length,
+      assigned: 0,
+      assignments: [],
+      validMass: 0,
+      meanProbability: 0,
+      entanglementCouplings: 0,
+      solutions: []
+    };
+
+    let achievedWelfare = 0;
+    let optimalWelfare = 0;
+    let optimalityKnown = true;
+
+    for (const chunk of chunks) {
+      if (this.activeAssignments >= slots && maxConcurrent != null) break;
+      const remainingSlots = maxConcurrent != null ? slots - this.activeAssignments : Infinity;
+
+      const { problem, couplingCount, nqubits } = this.buildBatchProblem(chunk, idlePool);
+      report.entanglementCouplings += couplingCount;
+
+      const solverOptions = this.buildSolverOptions();
+      const solution = algorithm === 'quantum-qaoa'
+        ? qaoaSolve(problem, solverOptions)
+        : annealSolve(problem, solverOptions);
+
+      // 精确最优对照（问题规模允许时）：量子解 vs 穷举最优的诚实自检
+      const brute = nqubits <= 16 ? bruteForceOptimum(problem) : null;
+      achievedWelfare += solution.welfare;
+      if (brute) {
+        optimalWelfare += brute.welfare;
+      } else {
+        optimalityKnown = false;
+      }
+
+      report.solutions.push({
+        taskIds: chunk.map(t => t.id),
+        welfare: solution.welfare,
+        probability: solution.probability,
+        validMass: solution.validMass,
+        layers: solution.layers,
+        evaluations: solution.evaluations
+      });
+      report.validMass += solution.validMass;
+
+      // 6) 应用坍缩结果：仍受并发上限约束
+      for (let t = 0; t < chunk.length; t++) {
+        if (report.assigned >= remainingSlots) break;
+        const task = chunk[t];
+        if (task.status !== 'pending') continue; // 并发块内前序已占用
+        const agentIndex = solution.assignment[t];
+        if (agentIndex == null || agentIndex < 0) continue;
+        if (problem.ineligible[t][agentIndex]) continue;
+        const agent = idlePool[agentIndex];
+        if (agent.state !== 'idle') continue; // 同块内被占用
+
+        const decision: SchedulingDecision = {
+          taskId: task.id,
+          agentId: agent.id,
+          probability: solution.probability, // 联合分配的Born概率
+          confidence: solution.validMass,
+          reasoning: `batch ${solution.engine}: joint superposition of ${chunk.length} tasks × ` +
+            `${idlePool.length} agents${couplingCount > 0 ? `, ${couplingCount} entanglement couplings` : ''}, ` +
+            `Born collapse p=${solution.probability.toFixed(3)}`,
+          alternatives: []
+        };
+        this.applyAssignmentDecision(task, decision);
+        report.assigned++;
+        report.assignments.push({
+          taskId: task.id,
+          taskName: task.name,
+          agentId: agent.id,
+          probability: solution.probability
+        });
+        this.quantumProbabilitySum += solution.probability;
+      }
+    }
+
+    this.quantumBatchRuns++;
+    this.quantumBatchAssigned += report.assigned;
+    if (report.solutions.length > 0) {
+      report.validMass /= report.solutions.length;
+      report.meanProbability = report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
+    }
+    if (optimalityKnown && optimalWelfare > 0) {
+      report.optimality = {
+        achieved: achievedWelfare,
+        optimal: optimalWelfare,
+        ratio: achievedWelfare / optimalWelfare
+      };
+      this.lastOptimalityRatio = report.optimality.ratio;
+    }
+
+    logInfo('QuantumScheduler',
+      `Quantum batch (${algorithm}/fullspace): ${report.assigned}/${candidates.length} tasks assigned ` +
+      `in ${report.chunks} chunk(s), meanBornP=${report.meanProbability.toFixed(3)}` +
+      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
+    return report;
+  }
+
+  /**
+   * 子空间多轮求解：每轮取至多 P(空闲数, k) ≤ subspaceCap 的最大 k 个
+   * 挂起任务，与当前空闲池联合编码进约束子空间精确求解，应用坍缩结果后
+   * 进入下一轮（前轮占用的agent自动出池）。任何一轮都不可行时返回 null
+   * 交由调用方回退全空间路径。
+   */
+  private runSubspaceRounds(
+    tasks: Task[],
+    algorithm: 'quantum-qaoa' | 'quantum-annealing',
+    subspaceCap: number,
+    slots: number,
+    maxConcurrent: number | null
+  ): QuantumBatchReport | null {
+    const report: QuantumBatchReport = {
+      engine: algorithm === 'quantum-qaoa' ? 'qaoa' : 'annealing',
+      representation: 'subspace',
+      chunks: 0,
+      assigned: 0,
+      assignments: [],
+      validMass: 1, // 子空间全部基态合法：概率质量恒为1
+      meanProbability: 0,
+      entanglementCouplings: 0,
+      solutions: []
+    };
+
+    let achieved = 0;
+    let optimal = 0;
+    let maxDim = 0;
+    let maxQubits = 0;
+    let pending = tasks.filter(t => t.status === 'pending');
+    let anyRound = false;
+
+    while (pending.length > 0) {
+      if (maxConcurrent != null && this.activeAssignments >= slots) break;
+      const pool = this.getAgents().filter(a => a.state === 'idle');
+      if (pool.length < 1) break;
+
+      // 本轮可行任务：当前空闲池中至少一个能力匹配的agent
+      const feasible = pending.filter(t => pool.some(a => this.checkCapabilityMatch(a, t)));
+      if (feasible.length === 0) break;
+
+      // 维度上限允许的最大联合任务数 k：P(n,k) ≤ subspaceCap
+      let k = 0;
+      let d = 1;
+      while (k < pool.length) {
+        const next = d * (pool.length - k);
+        if (next > subspaceCap) break;
+        d = next;
+        k++;
+      }
+      k = Math.max(1, k);
+
+      const remainingSlots = maxConcurrent != null ? slots - this.activeAssignments : Infinity;
+      const round = feasible.slice(0, Math.min(k, pool.length, remainingSlots));
+      if (round.length === 0) break;
+
+      const built = this.buildBatchProblem(round, pool);
+      const model = buildSubspaceModel(built.problem, { dimensionCap: subspaceCap });
+      if (!model || model.dimension === 0) break;
+
+      // QAOA 变分训练成本随维度线性放大，大子空间自动改用退火（一次演化）
+      const useQaoa = algorithm === 'quantum-qaoa' && model.dimension <= (1 << 16);
+      const solution = useQaoa
+        ? qaoaSolveSubspace(model, this.buildSolverOptions())
+        : annealSolveSubspace(model, this.buildSolverOptions());
+
+      report.engine = solution.engine;
+      report.chunks++;
+      report.entanglementCouplings += built.couplingCount;
+      achieved += solution.welfare;
+      optimal += model.optimalWelfare;
+      maxDim = Math.max(maxDim, model.dimension);
+      maxQubits = Math.max(maxQubits, round.length * pool.length);
+      report.solutions.push({
+        taskIds: round.map(t => t.id),
+        welfare: solution.welfare,
+        probability: solution.probability,
+        validMass: 1,
+        layers: solution.layers,
+        evaluations: solution.evaluations
+      });
+      anyRound = true;
+
+      let assignedThisRound = 0;
+      for (let t = 0; t < round.length; t++) {
+        const task = round[t];
+        if (task.status !== 'pending') continue;
+        const agentIndex = solution.assignment[t];
+        if (agentIndex == null || agentIndex < 0) continue;
+        const agent = pool[agentIndex];
+        if (agent.state !== 'idle') continue;
+
+        const decision: SchedulingDecision = {
+          taskId: task.id,
+          agentId: agent.id,
+          probability: solution.probability, // 联合分配的Born概率
+          confidence: 1,
+          reasoning: `subspace ${solution.engine}: exact evolution over P(${pool.length},${round.length})` +
+            `=${model.dimension} valid assignments (equiv. ${round.length * pool.length} qubits full space)` +
+            `${built.couplingCount > 0 ? `, ${built.couplingCount} entanglement couplings` : ''}, ` +
+            `Born collapse p=${solution.probability.toExponential(2)}`,
+          alternatives: []
+        };
+        this.applyAssignmentDecision(task, decision);
+        report.assigned++;
+        report.assignments.push({
+          taskId: task.id,
+          taskName: task.name,
+          agentId: agent.id,
+          probability: solution.probability
+        });
+        this.quantumProbabilitySum += solution.probability;
+        assignedThisRound++;
+      }
+      if (assignedThisRound === 0) break; // 防御：无进展即退出
+
+      pending = pending.filter(t => t.status === 'pending');
+    }
+
+    if (!anyRound) return null;
+
+    if (report.solutions.length > 0) {
+      report.meanProbability = report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
+    }
+    if (optimal > 0) {
+      report.optimality = { achieved, optimal, ratio: achieved / optimal };
+    }
+    report.subspace = { dimension: maxDim, equivalentQubits: maxQubits };
+
+    this.quantumBatchRuns++;
+    this.quantumBatchAssigned += report.assigned;
+    if (report.optimality) {
+      this.lastOptimalityRatio = report.optimality.ratio;
+    }
+
+    logInfo('QuantumScheduler',
+      `Quantum batch (${report.engine}/subspace, ${report.chunks} round(s)): ` +
+      `${report.assigned} tasks, maxDim=${maxDim} (equiv ${maxQubits} qubits)` +
+      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
+    return report;
+  }
+
+  /**
+   * 批量哈密顿量构建（子空间与全空间两条路径共用）：
+   * 福利权重 = 优先级 × 亲和度；能力不符 → 不合格；
+   * 纠缠agent对 → 二次耦合福利加成（物理意义上的哈密顿量耦合项）。
+   */
+  private buildBatchProblem(chunk: Task[], idlePool: Agent[]): {
+    problem: AssignmentProblem;
+    couplingCount: number;
+    nqubits: number;
+  } {
+    const entanglementBonus = this.config?.scheduling?.quantum?.entanglementBonus ?? 0.15;
+    const problem: AssignmentProblem = {
+      taskIds: chunk.map(t => t.id),
+      agentIds: idlePool.map(a => a.id),
+      weights: [],
+      ineligible: [],
+      couplings: new Map(),
+      penaltyOneHot: 0,
+      penaltyCapacity: 0
+    };
+    const nqubits = chunk.length * idlePool.length;
+
+    // 福利权重：优先级 × 亲和度；能力不符 → 不合格
+    for (const task of chunk) {
+      const pw = PRIORITY_WEIGHT[task.priority] / 4;
+      problem.weights.push(idlePool.map(agent => pw * this.agentAffinity(agent, task)));
+      problem.ineligible.push(idlePool.map(agent => !this.checkCapabilityMatch(agent, task)));
+    }
+
+    // 纠缠耦合：任意两任务落在纠缠agent对上 → 福利加成（哈密顿量的物理耦合项）
+    let couplingCount = 0;
+    for (let t1 = 0; t1 < chunk.length; t1++) {
+      for (let t2 = t1 + 1; t2 < chunk.length; t2++) {
+        const pwMin = Math.min(PRIORITY_WEIGHT[chunk[t1].priority], PRIORITY_WEIGHT[chunk[t2].priority]) / 4;
+        for (let a1 = 0; a1 < idlePool.length; a1++) {
+          for (let a2 = 0; a2 < idlePool.length; a2++) {
+            if (a1 === a2) continue;
+            if (idlePool[a1].quantumEntanglement.includes(idlePool[a2].id) &&
+                !problem.ineligible[t1][a1] && !problem.ineligible[t2][a2]) {
+              problem.couplings.set(
+                couplingKey(t1 * idlePool.length + a1, t2 * idlePool.length + a2, nqubits),
+                entanglementBonus * pwMin
+              );
+              couplingCount++;
+            }
+          }
+        }
+      }
+    }
+
+    // 全空间路径需要罚项（子空间路径忽略罚项——约束内建于子空间本身）
+    const penalties = defaultPenalties(problem);
+    problem.penaltyOneHot = penalties.oneHot;
+    problem.penaltyCapacity = penalties.capacity;
+
+    return { problem, couplingCount, nqubits };
+  }
+
+  /** 量子引擎运行统计 */
+  getQuantumMetrics(): {
+    algorithm: QuantumAlgorithm;
+    singleDecisions: number;
+    batchRuns: number;
+    batchAssigned: number;
+    meanProbability: number | null;
+    lastOptimalityRatio: number | null;
+  } {
+    const total = this.quantumSingleDecisions + this.quantumBatchAssigned;
+    return {
+      algorithm: this.config?.scheduling?.quantumAlgorithm ?? 'hybrid',
+      singleDecisions: this.quantumSingleDecisions,
+      batchRuns: this.quantumBatchRuns,
+      batchAssigned: this.quantumBatchAssigned,
+      meanProbability: total > 0 ? this.quantumProbabilitySum / total : null,
+      lastOptimalityRatio: this.lastOptimalityRatio
+    };
   }
 
   private calculateCapabilityScore(agent: Agent, task: Task): number {
@@ -567,7 +1176,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   // 统计和监控（全部计数器化，无全表扫描）
-  getSystemMetrics(): any {
+  getSystemMetrics(): SchedulerSystemMetrics {
     const totalAgents = this.agents.size;
     let activeAgents = 0;
     for (const agent of this.agents.values()) {
