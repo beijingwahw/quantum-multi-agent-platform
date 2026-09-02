@@ -268,8 +268,8 @@ flowchart LR
 ## 🚀 快速开始 | Quick Start
 
 ```bash
-git clone https://github.com/beijingwahw/compound-brain-multi-agent-platform.git
-cd compound-brain-multi-agent-platform
+git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
+cd quantum-multi-agent-platform
 npm install
 
 npm test                # 158 用例全通过 | all tests pass
