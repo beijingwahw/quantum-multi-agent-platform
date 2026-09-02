@@ -441,6 +441,14 @@ export {
 } from './core/subspace-optimizer';
 export type { SubspaceModel, SubspaceSolution, SubspaceBuildOptions } from './core/subspace-optimizer';
 export { hungarianAssignment, localSearchAssignment } from './core/classical-baselines';
+export { LocalQuantumBackend, registerBackend, getBackend, listBackends } from './core/qpu/quantum-backend';
+export type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './core/qpu/quantum-backend';
+export { DWaveBackend } from './core/qpu/dwave-backend';
+export type { DWaveConfig } from './core/qpu/dwave-backend';
+export { solveAssignmentOnBackend } from './core/qpu/solve';
+export type { QpuAssignmentResult } from './core/qpu/solve';
+export { toQiskitProgram } from './core/qpu/qiskit-export';
+export type { QiskitExportOptions } from './core/qpu/qiskit-export';
 export { AgentManager } from './core/agent-manager';
 export { QuantumBus } from './communication/quantum-bus';
 export { DSHIntegration } from './dsh/dsh-integration';

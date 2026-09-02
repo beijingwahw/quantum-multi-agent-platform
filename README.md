@@ -2,8 +2,8 @@
 
 # Quantum Multi-Agent Development & Scheduling Platform
 
-![version](https://img.shields.io/badge/version-1.3.0-blue)
-![tests](https://img.shields.io/badge/tests-146%2F146-brightgreen)
+![version](https://img.shields.io/badge/version-1.4.0-blue)
+![tests](https://img.shields.io/badge/tests-158%2F158-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D18-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -39,6 +39,7 @@
 | 🌌 | **约束子空间突破**：在合法分配集合（维度 P(n,m)）上精确演化，零罚项、纤维混合器闭式解，等效 80 量子比特 | **Constraint-subspace breakthrough**: exact evolution over valid assignments (dim P(n,m)), penalty-free, closed-form fiber mixers, 80 equivalent qubits |
 | 🔗 | **纠缠 = 物理耦合**：agent 纠缠对进入哈密顿量耦合项，实测可翻转联合最优解 | **Entanglement = physical coupling**: entangled agent pairs enter the Hamiltonian and demonstrably flip the joint optimum |
 | 🏆 | **认证经典基线**：线性赛道与匈牙利算法 O(n³) 逐点一致（独立算法互证）；NP-hard 耦合赛道 5/5 全胜 | **Certified classical baselines**: point-wise agreement with Hungarian O(n³) on linear instances; 5/5 wins on NP-hard coupled instances |
+| 🔌 | **真 QPU 后端层**：D-Wave Leap REST 客户端（真量子退火硬件）+ IBM Qiskit 程序导出 + 本地精确引擎自动回退 | **Real QPU backend layer**: D-Wave Leap REST client (real quantum annealing hardware) + IBM Qiskit program export + automatic fallback to the local exact engine |
 | 🧠 | **市场机制研究线**：CompoundBrain 增长复利大脑（DSIC 定理 + 在线学习曲线校准）、批量 VCG、相变定律 | **Market-mechanism research**: CompoundBrain (DSIC theorem + online learning-curve calibration), batch VCG, phase-transition laws |
 | 🔌 | **完整平台能力**：WebSocket 总线、DSH 工具/工作流集成、Web 控制台、主动智能规则插件 | **Full platform**: WebSocket bus, DSH tool/workflow integration, web console, proactive-intelligence rule engine |
 
@@ -164,6 +165,23 @@ sequenceDiagram
 | 约束处理 | 二次罚项（能量尺度压缩风险） | **内建于子空间（零罚项）** |
 | 混合算符 | X 旋转（逐比特） | **纤维完全图旋转（闭式精确）** |
 
+### 真 QPU 后端 | Real QPU Backends
+
+```mermaid
+flowchart LR
+    S["QuantumScheduler<br/>scheduleBatchQuantumQpu()"] --> B["QuantumBackend<br/>接口 + 注册表"]
+    B --> DW["🌊 D-Wave Leap<br/>真 QPU（REST）<br/>toIsing() 原生输入"]
+    B --> LC["💻 LocalQuantumBackend<br/>约束子空间精确引擎<br/>回退 + 对照基准"]
+    DW --> G["🛡️ 三道闸门<br/>合法性 · 噪声过滤 · 最优率对照"]
+    LC --> G
+    G --> O["📤 调度分配落地"]
+    QK["🐍 toQiskitProgram()<br/>IBM 门型机导出<br/>（内嵌 QAOA 训练角度）"] -.-> DW
+```
+
+**接入真机三步**：[cloud.dwavesys.com/leap](https://cloud.dwavesys.com/leap) 注册（免费额度）→ `set DWAVE_API_TOKEN=<token>` → `npm run example:qpu`。无凭据时自动回退本地精确引擎（功能不中断）；真机采样经合法性校验/噪声过滤/最优率对照三道闸门后才进调度器。
+
+> 🇬🇧 **English** | Three steps to real hardware: register at D-Wave Leap (free tier) → set `DWAVE_API_TOKEN` → `npm run example:qpu`. Without credentials it falls back to the local exact engine; real-hardware samples must pass three gates (validity, noise filtering, optimality cross-check) before reaching the scheduler. `toQiskitProgram()` exports a runnable IBM Qiskit program with our trained QAOA angles baked in.
+
 ---
 
 ## 🧠 市场机制研究线 | Market Mechanism Line
@@ -254,8 +272,9 @@ git clone https://github.com/beijingwahw/compound-brain-multi-agent-platform.git
 cd compound-brain-multi-agent-platform
 npm install
 
-npm test                # 146 用例 / 43 套件全通过 | all tests pass
+npm test                # 158 用例全通过 | all tests pass
 npm run example:quantum # 量子突破基准（7 部分）| quantum benchmark (7 parts)
+npm run example:qpu     # 真 QPU 入口（自动检测 DWAVE_API_TOKEN）| real-QPU entry
 npm run dev             # 启动平台 | start the platform (WS :8080)
 ```
 
@@ -297,12 +316,13 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | `quantum-optimizer.test.ts` | 18 | 解析振幅 · 幺正性 · Born 分布 · Ising 导出逐点一致 |
 | `subspace-optimizer.test.ts` | 10 | 维度 = P(n,m) · 纤维可逆性(机器精度) · 双引擎交叉验证 |
 | `classical-baselines.test.ts` | 5 | **量子×匈牙利逐点一致** · 多轮调度 · 超维回退 |
+| `qpu-backend.test.ts` | 12 | D-Wave 客户端**真实 HTTP 往返**(stub) · 双格式解析 · 轮询 · 调度器异步入口 |
 | 调度/管理/通信/集成 | 24 | 平台全链路回归 |
 | 市场机制（CompoundBrain/VCG/相变） | 89 | DSIC · 校准 · 定律验证 |
 
 ```bash
 npm run build   # TypeScript 严格模式，0 错误 | strict mode, 0 errors
-npm test        # 146/146 ✅
+npm test        # 158/158 ✅
 ```
 
 ---
@@ -315,6 +335,7 @@ npm test        # 146/146 ✅
 │   │   ├── quantum-optimizer.ts      # ⚛️ v1.1 全空间量子引擎（QAOA/退火/Ising）
 │   │   ├── subspace-optimizer.ts     # 🌌 v1.2 约束子空间引擎（纤维闭式混合器）
 │   │   ├── classical-baselines.ts    # 🏆 v1.3 匈牙利 + 局部搜索基线
+│   │   ├── qpu/                      # 🔌 v1.4 真 QPU 后端层（D-Wave/Qiskit/本地）
 │   │   ├── quantum-scheduler.ts      # 调度器（单任务坍缩 + 批量联合 + 多轮）
 │   │   ├── compound-brain.ts         # 🧠 增长复利大脑（DSIC）
 │   │   ├── batch-vcg-scheduler.ts    # 批量 VCG 三层机制
@@ -344,6 +365,7 @@ timeline
     v1.1 真实量子物理 : 复振幅态矢量与幺正演化 : QAOA + 绝热退火 : Born 规则坍缩 : 纠缠成为哈密顿量耦合
     v1.2 约束子空间 : 纤维完全图闭式混合器 : 零罚项编码 : 等效 80 量子比特 · 100% 最优
     v1.3 认证基线 : 与匈牙利算法逐点互证 : NP-hard 赛道 5/5 全胜 : 多轮子空间调度
+    v1.4 真 QPU 后端 : D-Wave Leap 客户端 : Qiskit 程序导出 : 三道闸门验证
 ```
 
 ---

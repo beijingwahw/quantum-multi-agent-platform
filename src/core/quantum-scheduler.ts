@@ -9,6 +9,9 @@ import {
 import {
   buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace, SubspaceModel, SubspaceSolution
 } from './subspace-optimizer';
+import type { QuantumBackend } from './qpu/quantum-backend';
+import { getBackend } from './qpu/quantum-backend';
+import { solveAssignmentOnBackend } from './qpu/solve';
 
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   critical: 4,
@@ -78,9 +81,9 @@ export interface QuantumSchedulerConfig {
 
 /** 批量量子调度报告 */
 export interface QuantumBatchReport {
-  engine: 'qaoa' | 'annealing';
-  /** 演化载体：subspace = 约束子空间精确模拟；fullspace = 全空间态矢量（分块） */
-  representation: 'subspace' | 'fullspace';
+  engine: 'qaoa' | 'annealing' | 'qpu';
+  /** 演化载体：subspace = 约束子空间精确模拟；fullspace = 全空间态矢量（分块）；qpu = 真实量子硬件 */
+  representation: 'subspace' | 'fullspace' | 'qpu';
   chunks: number;
   assigned: number;
   assignments: Array<{ taskId: string; taskName: string; agentId: string; probability: number }>;
@@ -1091,6 +1094,113 @@ export class QuantumScheduler extends EventEmitter {
     problem.penaltyCapacity = penalties.capacity;
 
     return { problem, couplingCount, nqubits };
+  }
+
+  /**
+   * 在真实量子硬件上执行批量联合调度（异步——云端 QPU 是网络调用）：
+   * 联合分配编码为 Ising → 提交 D-Wave Leap（或其它 QuantumBackend）→
+   * 采样 → 合法性校验 → 与本地精确最优对照 → 应用分配。
+   * 后端缺省自动选择：有 DWAVE_API_TOKEN 凭据时用真 QPU，否则本地精确引擎。
+   * 真实硬件噪声由三道闸门兜底（非法样本丢弃 / 能量核对 / 最优率报告）。
+   */
+  async scheduleBatchQuantumQpu(
+    backend?: QuantumBackend,
+    options: { numReads?: number; timeoutMs?: number } = {}
+  ): Promise<QuantumBatchReport> {
+    const engine = backend ?? getBackend();
+
+    // 收集可调度任务（与 scheduleBatchQuantum 相同语义：优先级桶顺序）
+    const candidates: Task[] = [];
+    for (const priority of PRIORITY_ORDER) {
+      for (const id of this.pendingBuckets.get(priority) ?? []) {
+        const task = this.tasks.get(id);
+        if (task && task.status === 'pending' && this.dependenciesMet(task)) {
+          candidates.push(task);
+        }
+      }
+    }
+    const idlePool = this.getAgents().filter(a => a.state === 'idle');
+    const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
+    const slots = maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
+
+    if (candidates.length === 0 || idlePool.length === 0 || slots === 0) {
+      return {
+        engine: 'qpu', representation: 'qpu', chunks: 0, assigned: 0, assignments: [],
+        validMass: 0, meanProbability: 0, entanglementCouplings: 0, solutions: []
+      };
+    }
+
+    const feasible = candidates.filter(task =>
+      idlePool.some(agent => this.checkCapabilityMatch(agent, task))
+    );
+    // 真 QPU 不受本地态矢量内存限制（Ising 变量数即规模），一轮吃满空闲池
+    const round = feasible.slice(0, Math.min(idlePool.length, slots === Infinity ? idlePool.length : slots));
+
+    const built = this.buildBatchProblem(round, idlePool);
+    const result = await solveAssignmentOnBackend(built.problem, engine, options);
+
+    const report: QuantumBatchReport = {
+      engine: 'qpu',
+      representation: 'qpu',
+      chunks: 1,
+      assigned: 0,
+      assignments: [],
+      validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
+      meanProbability: result.sampleFrequency,
+      entanglementCouplings: built.couplingCount,
+      solutions: [{
+        taskIds: round.map(t => t.id),
+        welfare: result.welfare,
+        probability: result.sampleFrequency,
+        validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
+        layers: result.totalReads,
+        evaluations: 1
+      }]
+    };
+    if (result.optimality) {
+      report.optimality = result.optimality;
+    }
+
+    for (let t = 0; t < round.length; t++) {
+      const task = round[t];
+      const agentIndex = result.assignment[t];
+      if (agentIndex == null || agentIndex < 0) continue;
+      const agent = idlePool[agentIndex];
+      if (agent.state !== 'idle') continue;
+
+      const decision: SchedulingDecision = {
+        taskId: task.id,
+        agentId: agent.id,
+        probability: result.sampleFrequency, // 采样频率 = 量子分布的频率估计
+        confidence: report.validMass,
+        reasoning: `${engine.name}${engine.realHardware ? ' (real QPU)' : ''}: solver=${result.solver}, ` +
+          `${result.totalReads} reads, sample frequency=${(result.sampleFrequency * 100).toFixed(2)}%` +
+          (result.optimality ? `, optimality=${(result.optimality.ratio * 100).toFixed(1)}%` : ''),
+        alternatives: []
+      };
+      this.applyAssignmentDecision(task, decision);
+      report.assigned++;
+      report.assignments.push({
+        taskId: task.id,
+        taskName: task.name,
+        agentId: agent.id,
+        probability: result.sampleFrequency
+      });
+      this.quantumProbabilitySum += result.sampleFrequency;
+    }
+
+    this.quantumBatchRuns++;
+    this.quantumBatchAssigned += report.assigned;
+    if (report.optimality) {
+      this.lastOptimalityRatio = report.optimality.ratio;
+    }
+
+    logInfo('QuantumScheduler',
+      `Quantum batch on ${engine.name}${engine.realHardware ? ' [REAL QPU]' : ' [local exact]'}: ` +
+      `${report.assigned} tasks, solver=${result.solver}, ` +
+      `invalidSamples=${result.invalidSamples}/${result.totalReads}` +
+      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
+    return report;
   }
 
   /** 量子引擎运行统计 */

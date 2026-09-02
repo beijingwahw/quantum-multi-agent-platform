@@ -17,6 +17,14 @@
 > 线性赛道与匈牙利算法（O(n³) 精确解，1955）逐点一致（两个完全独立的
 > 精确算法互证，5/5 种子）；耦合赛道（纠缠耦合 → QAP 型 NP-hard）贪心与
 > 局部搜索 0/5 命中，**量子 5/5 精确命中**（福利高出局部搜索最多 7.4%）。
+>
+> **v1.4 —— 真 QPU 后端层**：调度核心接入**真实量子硬件**——
+> `src/core/qpu/`：D-Wave Leap REST 客户端（`toIsing()` 的 (h,J) 即其原生
+> 输入，混合求解器内含真 QPU；经典 ising 与 qp 压缩响应、异步轮询全支持）、
+> IBM Qiskit QAOA 程序导出（内嵌本仓库训练角度）、`QuantumBackend` 注册表
+> （无凭据自动回退本地精确引擎）。`scheduleBatchQuantumQpu()` 异步入口：
+> 真机采样 → 三道闸门（合法性校验/非法样本过滤/能量与最优率对照）→ 调度。
+> 客户端经本地 stub 服务器做**真实 HTTP 往返**测试（12 用例），无需凭据。
 
 ## 一、过去与现在
 
@@ -169,7 +177,37 @@ v1.3 补上两条赛道的最强经典对手：
 维度上限的最大 k 个任务），剩余任务在 agent 释放后由后续调用继续以子空间
 精度调度——不再退化到全空间小分块（测试覆盖 6任务×3agent 两轮场景）。
 
-## 七、诚实的边界
+## 七、v1.4 真 QPU 后端层（`src/core/qpu/`）
+
+```mermaid
+flowchart LR
+    S["QuantumScheduler<br/>scheduleBatchQuantumQpu()"] --> B["QuantumBackend<br/>接口 + 注册表"]
+    B --> D["D-Wave Leap<br/>真 QPU（REST）<br/>混合求解器 / 结构化"]
+    B --> L["LocalQuantumBackend<br/>约束子空间精确引擎<br/>（回退 + 对照基准）"]
+    D --> G["三道闸门<br/>合法性校验 · 非法样本过滤 · 最优率对照"]
+    L --> G
+    G --> O["调度分配落地<br/>采样频率 = 量子分布估计"]
+    Q["toQiskitProgram()<br/>IBM 门型机导出<br/>（内嵌训练角度）"] -.-> D
+```
+
+**接入真 QPU 三步**：`cloud.dwavesys.com/leap` 注册（免费开发者额度）→
+`set DWAVE_API_TOKEN=<token>` → `npm run example:qpu`（自动切真机形态：
+采样 → 校验 → 与本地精确最优对照，报告最优率与非法样本数）。
+
+```typescript
+import { DWaveBackend } from './src/index.js';
+const report = await scheduler.scheduleBatchQuantumQpu();   // 有凭据自动上真机
+// 无凭据 → 本地精确引擎（功能不中断）；真机失败 → 显式报错，不静默回退
+```
+
+**诚实边界**：结构化 QPU 求解器（Advantage）要求拓扑嵌入，建议经 Ocean
+`EmbeddingComposite`；本客户端默认 Leap 混合求解器（接受任意 BQM，内部以
+真 QPU 求解难核）。客户端对 D-Wave SAPI 的请求编码（bqm 三元组/ising
+字典）、异步轮询、经典与 qp 压缩响应解析均经**本地 stub 服务器真实 HTTP
+往返**测试（`tests/qpu-backend.test.ts`，12 用例）——离线可复现，有凭据
+即上真机。
+
+## 八、诚实的边界
 
 1. 这是量子力学的**经典模拟**（含时薛定谔方程数值积分），不是真 QPU。
    全空间路径 O(2^nq)（默认单块 ≤12 量子比特）；子空间路径 O(P(n,m))
@@ -187,7 +225,7 @@ v1.3 补上两条赛道的最强经典对手：
    自动回退全空间分块或贪心。8×10 规模的构建+求解约 42 秒——质量模式，
    不是热路径。
 
-## 八、测试覆盖（34 个量子/基线用例 / 全套 146 用例）
+## 九、测试覆盖（46 个量子/基线/QPU 用例 / 全套 158 用例）
 
 **v1.1 全空间（`tests/quantum-optimizer.test.ts`，18 用例）**——
 物理层：混合算符解析振幅、对角幺正保概率、\|−⟩^n 本征态与符号、
@@ -209,8 +247,15 @@ QAOA 末态干涉集中、Born 坍缩分布合理性。
 （独立算法对照认证）、局部搜索对照（量子 ≥ 局部搜索且命中最优）、
 多轮子空间调度（6任务×3agent 两轮）、维度超限回退全空间。
 
+**v1.4 真 QPU 后端（`tests/qpu-backend.test.ts`，12 用例）**——
+本地精确引擎回退、默认后端选择、D-Wave 客户端**真实 HTTP 往返**
+（bqm/ising 两种请求编码、经典与 qp 两种响应解析、异步轮询、
+非法样本过滤、全非法防护）、Qiskit 导出结构、调度器异步入口
+（本地后端 + stub 注入真机后端全链路）、注册表契约。
+
 ```bash
 npm run build           # TypeScript 严格模式零错误
-npm test                # 146 用例全通过（含 34 个量子/基线用例）
-npm run example:quantum # 量子突破基准（七部分，含经典最强基线对照）
+npm test                # 158 用例全通过（含 46 个量子/基线/QPU 用例）
+npm run example:quantum # 量子突破基准（七部分）
+npm run example:qpu     # 真 QPU 执行入口（自动检测凭据）
 ```

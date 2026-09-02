@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 .env
 *.log
+__pycache__/
+*.pyc
+qaoa_schedule.py
