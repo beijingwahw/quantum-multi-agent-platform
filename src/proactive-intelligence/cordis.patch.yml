@@ -1,0 +1,162 @@
+# Cordis Bundle配置
+# 用于将主动智能插件集成到DeepSeek Harness
+
+services:
+  # 主插件服务
+  proactiveIntelligence:
+    plugin: dsh-proactive-intelligence
+
+  # 监控器服务
+  proactiveMonitor:
+    plugin: dsh-proactive-intelligence
+    service: StateMonitor
+
+  # 决策引擎服务
+  proactiveEngine:
+    plugin: dsh-proactive-intelligence
+    service: DecisionEngine
+
+  # 执行器服务
+  proactiveExecutor:
+    plugin: dsh-proactive-intelligence
+    service: ActionExecutor
+
+config:
+  # 插件配置
+  proactiveIntelligence:
+    enabled: true
+    autoStart: true
+
+    # 监控器配置
+    monitor:
+      maxBufferSize: 10000
+      retentionMs: 3600000
+
+    # 决策引擎配置
+    engine:
+      maxRules: 1000
+      decisionHistoryLimit: 1000
+
+    # 执行器配置
+    executor:
+      enabled: true
+      safeMode: false
+      maxConcurrentActions: 10
+      actionTimeoutMs: 30000
+      auditLogEnabled: true
+      allowedActions:
+        - "notification:*"
+        - "workflow:*"
+        - "command:nuke:*"
+      blockedActions:
+        - "command:rm"
+        - "command:delete"
+
+  # 预设规则配置
+  proactiveRules:
+    # 系统监控规则
+    systemMonitoring:
+      enabled: true
+      rules:
+        - cpuHighUsage
+        - lowMemoryWarning
+        - lowDiskSpace
+
+    # Agent管理规则
+    agentManagement:
+      enabled: true
+      rules:
+        - agentOffline
+        - agentOverloaded
+
+    # 任务调度规则
+    taskScheduling:
+      enabled: true
+      rules:
+        - taskTimeout
+        - taskRetry
+
+    # 安全监控规则
+    securityMonitoring:
+      enabled: true
+      rules:
+        - suspiciousLogin
+        - privilegeEscalation
+
+    # 业务逻辑规则
+    businessLogic:
+      enabled: true
+      rules:
+        - autoScaleUp
+        - autoScaleDown
+        - backupReminder
+
+  # 事件订阅配置
+  proactiveEvents:
+    # 订阅系统指标事件
+    systemMetrics:
+      enabled: true
+      sources:
+        - system_monitor
+        - prometheus
+        - cloudwatch
+
+    # 订阅Agent状态事件
+    agentStatus:
+      enabled: true
+      sources:
+        - agent_manager
+        - quantum_bus
+
+    # 订阅任务事件
+    taskEvents:
+      enabled: true
+      sources:
+        - task_scheduler
+        - workflow_engine
+
+    # 订阅安全事件
+    securityEvents:
+      enabled: true
+      sources:
+        - auth_service
+        - firewall
+        - ids
+
+    # 订阅DSH工具事件
+    dshEvents:
+      enabled: true
+      sources:
+        - nuke
+        - agent_tools
+        - workflow
+
+  # 集成配置
+  integrations:
+    # DSH集成
+    dsh:
+      enabled: true
+      apiEndpoint: "http://127.0.0.1:3080"
+      workflowEngine: true
+      toolIntegration: true
+
+    # 通知集成
+    notifications:
+      enabled: true
+      channels:
+        - console
+        - email
+        - slack
+        - webhook
+
+    # 工作流集成
+    workflows:
+      enabled: true
+      engine: dsh
+      timeoutMs: 300000
+
+    # 命令集成
+    commands:
+      enabled: true
+      shell: true
+      sandbox: true

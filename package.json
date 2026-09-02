@@ -1,0 +1,37 @@
+{
+  "name": "quantum-multi-agent-platform",
+  "version": "1.0.0",
+  "description": "宏大多agent开发调度平台 - 量子态协同架构",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "example:basic": "tsx examples/basic-usage.js",
+    "example:advanced": "tsx examples/advanced-workflow.js",
+    "performance": "tsx performance-test.mjs"
+  },
+  "keywords": [
+    "multi-agent",
+    "quantum",
+    "scheduling",
+    "deepseek-harness",
+    "ai",
+    "orchestration"
+  ],
+  "author": "Quantum Agent Team",
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^9.0.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@types/uuid": "^9.0.2",
+    "@types/ws": "^8.5.5",
+    "typescript": "^5.1.6",
+    "tsx": "^4.19.2"
+  }
+}
