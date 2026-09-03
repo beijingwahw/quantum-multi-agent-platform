@@ -26,15 +26,10 @@
  *   - 同 profile 已安装则幂等跳过
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import {
-  join,
-  resolve,
-  dirname,
-  delimiter as PATH_DELIM,
-} from 'node:path';
+import { join, resolve, dirname, delimiter as PATH_DELIM } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -50,21 +45,35 @@ const IS_WIN = platform === 'win32';
 
 // 子进程必须保留的环境变量白名单
 const SAFE_ENV_KEYS = [
-  'PATH', 'Path', 'PATHEXT', 'SystemRoot', 'SYSTEMROOT', 'WINDIR',
-  'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
-  'TMP', 'TEMP', 'TMPDIR',
-  'LANG', 'LC_ALL', 'LC_CTYPE',
-  'NODE_ENV', 'NODE_PATH',
-  'npm_config_*', 'npm_lifecycle_event', 'npm_lifecycle_script',
-  'PNPM_HOME', 'pnpm_config_*',
+  'PATH',
+  'Path',
+  'PATHEXT',
+  'SystemRoot',
+  'SYSTEMROOT',
+  'WINDIR',
+  'HOME',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'TMP',
+  'TEMP',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'NODE_ENV',
+  'NODE_PATH',
+  'npm_config_*',
+  'npm_lifecycle_event',
+  'npm_lifecycle_script',
+  'PNPM_HOME',
+  'pnpm_config_*',
   'DSH_HOME',
   'SHELL',
 ];
 
 // ─── 颜色 ────────────────────────────────────────────────────────────────
-const useColor = IS_WIN
-  ? process.stdout.isTTY !== false
-  : process.stdout.isTTY === true;
+const useColor = IS_WIN ? process.stdout.isTTY !== false : process.stdout.isTTY === true;
 const c = (code, s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
 const ok = (s) => c('32', s);
 const warn = (s) => c('33', s);
@@ -90,9 +99,16 @@ function parseArgs(argv) {
     else if (a === '--dsh-home') out.dshHome = argv[++i];
     else if (a.startsWith('--dsh-home=')) out.dshHome = a.slice('--dsh-home='.length);
     else if (a === '--profiles') {
-      out.profiles = argv[++i].split(',').map((s) => s.trim()).filter(Boolean);
+      out.profiles = argv[++i]
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else if (a.startsWith('--profiles=')) {
-      out.profiles = a.slice('--profiles='.length).split(',').map((s) => s.trim()).filter(Boolean);
+      out.profiles = a
+        .slice('--profiles='.length)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else if (a === '--postinstall') out.isPostinstall = true;
     else if (a === '--help' || a === '-h') out.cmd = 'help';
   }
@@ -176,7 +192,9 @@ async function readDshHomeFromCmd() {
           const candidate = m[1];
           if (existsSync(join(candidate, 'profiles'))) return candidate;
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
   return null;
@@ -288,10 +306,13 @@ async function backupIfFirst(manifestPath) {
 function pickSafeEnv() {
   const env = {};
   for (const key of Object.keys(process.env)) {
-    if (SAFE_ENV_KEYS.some((pattern) => {
-      if (pattern.endsWith('*')) return key.startsWith(pattern.slice(0, -1));
-      return key === pattern;
-    })) env[key] = process.env[key];
+    if (
+      SAFE_ENV_KEYS.some((pattern) => {
+        if (pattern.endsWith('*')) return key.startsWith(pattern.slice(0, -1));
+        return key === pattern;
+      })
+    )
+      env[key] = process.env[key];
   }
   return env;
 }
@@ -333,18 +354,18 @@ async function installToDsh(options = {}) {
     ...options,
   };
 
-  const home = opts.dshHome
-    ? { path: opts.dshHome, source: '--dsh-home' }
-    : await detectDshHome();
+  const home = opts.dshHome ? { path: opts.dshHome, source: '--dsh-home' } : await detectDshHome();
 
   if (!home) {
     if (opts.isPostinstall || process.env.CI) {
       console.warn(dim(`[dsh-proactive] no DSH install detected, skipping auto-install`));
-      console.warn(dim(`[dsh-proactive] run \`dsh-proactive-install\` manually after configuring DSH_HOME`));
+      console.warn(
+        dim(`[dsh-proactive] run \`dsh-proactive-install\` manually after configuring DSH_HOME`),
+      );
       return { skipped: true };
     }
     throw new Error(
-      'DSH install not found. Set DSH_HOME environment variable, or pass --dsh-home <path>.'
+      'DSH install not found. Set DSH_HOME environment variable, or pass --dsh-home <path>.',
     );
   }
   console.log(info(`[dsh-proactive] DSH_HOME = ${home.path} (source: ${home.source})`));
@@ -358,7 +379,11 @@ async function installToDsh(options = {}) {
     : allProfiles.filter((p) => DEFAULT_PROFILES.includes(p.name));
 
   if (targets.length === 0) {
-    console.warn(warn(`[dsh-proactive] No target profiles matched. Available: ${allProfiles.map((p) => p.name).join(', ')}`));
+    console.warn(
+      warn(
+        `[dsh-proactive] No target profiles matched. Available: ${allProfiles.map((p) => p.name).join(', ')}`,
+      ),
+    );
     return { skipped: true, reason: 'no matching profiles' };
   }
   console.log(info(`[dsh-proactive] target profiles: ${targets.map((p) => p.name).join(', ')}`));
@@ -427,9 +452,7 @@ async function processProfile(profile, opts) {
 
 async function listStatus(options = {}) {
   const opts = { dryRun: false, dshHome: null, ...options };
-  const home = opts.dshHome
-    ? { path: opts.dshHome, source: '--dsh-home' }
-    : await detectDshHome();
+  const home = opts.dshHome ? { path: opts.dshHome, source: '--dsh-home' } : await detectDshHome();
   if (!home) {
     console.warn(warn('DSH install not found.'));
     return;
@@ -452,7 +475,10 @@ async function listStatus(options = {}) {
 // ─── CLI 入口 ────────────────────────────────────────────────────────────
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  if (opts.cmd === 'help') { printHelp(); return; }
+  if (opts.cmd === 'help') {
+    printHelp();
+    return;
+  }
 
   try {
     if (opts.cmd === 'list') {
@@ -486,15 +512,17 @@ export {
 };
 
 // ─── 直接执行入口 ────────────────────────────────────────────────────────
-const invokedDirectly = process.argv[1] && (
-  process.argv[1].endsWith('install-to-dsh.mjs') ||
-  process.env.npm_lifecycle_event === 'postinstall'
-);
+const invokedDirectly =
+  process.argv[1] &&
+  (process.argv[1].endsWith('install-to-dsh.mjs') ||
+    process.env.npm_lifecycle_event === 'postinstall');
 if (invokedDirectly) {
   if (process.env.npm_lifecycle_event === 'postinstall') {
     const opts = parseArgs(process.argv.slice(2));
     opts.isPostinstall = true;
-    await installToDsh(opts).catch(() => { /* swallow in postinstall */ });
+    await installToDsh(opts).catch(() => {
+      /* swallow in postinstall */
+    });
   } else {
     await main();
   }

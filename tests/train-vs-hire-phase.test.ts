@@ -6,7 +6,7 @@ import {
   theoreticalDiffRate,
   cumulativeAdvantage,
   PHASE_DEFAULTS,
-  type PhaseParams
+  type PhaseParams,
 } from '../experiments/train-vs-hire-phase/run.js';
 import {
   cumulativeAdvantageClosed,
@@ -19,7 +19,7 @@ import {
   trainingBetaInterval,
   loadLLMBuckets,
   fitLearningCurve,
-  type LawParams
+  type LawParams,
 } from '../experiments/train-vs-hire-phase/scaling-law.js';
 
 /**
@@ -45,11 +45,11 @@ describe('TrainVsHire 相变 · 闭式理论 vs 模拟', () => {
         const emp = counterfactual(p).diffRate;
         assert.ok(
           Math.sign(th) === Math.sign(emp),
-          `α=${alpha} β=${beta}: 理论 ${th.toFixed(3)} vs 经验 ${emp.toFixed(3)} 符号不一致`
+          `α=${alpha} β=${beta}: 理论 ${th.toFixed(3)} vs 经验 ${emp.toFixed(3)} 符号不一致`,
         );
         assert.ok(
           Math.abs(th - emp) <= 0.04,
-          `α=${alpha} β=${beta}: |理论−经验|=${Math.abs(th - emp).toFixed(3)} 超容差`
+          `α=${alpha} β=${beta}: |理论−经验|=${Math.abs(th - emp).toFixed(3)} 超容差`,
         );
       }
     }
@@ -79,7 +79,10 @@ describe('TrainVsHire 相变 · 口袋结构（β 非单调）', () => {
     const d5 = counterfactual(cell(0.5, 0.03)).diffRate;
     const d7 = counterfactual(cell(0.7, 0.03)).diffRate;
     const d9 = counterfactual(cell(0.9, 0.03)).diffRate;
-    assert.ok(d9 > d7 && d7 > d5, `α 单调性破坏: ${d5.toFixed(3)} ${d7.toFixed(3)} ${d9.toFixed(3)}`);
+    assert.ok(
+      d9 > d7 && d7 > d5,
+      `α 单调性破坏: ${d5.toFixed(3)} ${d7.toFixed(3)} ${d9.toFixed(3)}`,
+    );
     assert.ok(d5 < 0, `α=0.5 diff=${d5.toFixed(3)} 应为负（天花板不足）`);
   });
 
@@ -87,10 +90,7 @@ describe('TrainVsHire 相变 · 口袋结构（β 非单调）', () => {
   it('P1 渐近惩罚：任意 α<1 下高β极限均为雇佣赢', () => {
     // β=0.4、T=150 已接近饱和：α<0.8 全部为负
     for (const alpha of [0.3, 0.5, 0.7]) {
-      assert.ok(
-        theoreticalDiffRate(cell(alpha, 0.4)) < -0.02,
-        `α=${alpha} 高β极限应为雇佣显著赢`
-      );
+      assert.ok(theoreticalDiffRate(cell(alpha, 0.4)) < -0.02, `α=${alpha} 高β极限应为雇佣显著赢`);
     }
   });
 });
@@ -107,13 +107,16 @@ describe('TrainVsHire 相变 · 市场臂锁定与探索修复', () => {
 
     const locked = market(p);
     assert.ok(locked.vetShare >= 0.95, `锁定份额 ${locked.vetShare.toFixed(2)} 应≥0.95`);
-    assert.ok(locked.hireTrials <= 1, `explore=0 时 hire 试用 ${locked.hireTrials.toFixed(1)} 应≈0`);
+    assert.ok(
+      locked.hireTrials <= 1,
+      `explore=0 时 hire 试用 ${locked.hireTrials.toFixed(1)} 应≈0`,
+    );
 
     const explored = market(cell(0.5, 0.27, 1.5));
     assert.ok(explored.hireTrials >= 10, `探索后试用 ${explored.hireTrials.toFixed(1)} 应≥10`);
     assert.ok(
       explored.welfarePerTask > locked.welfarePerTask + 0.05,
-      `探索福利 ${explored.welfarePerTask.toFixed(2)} 应高于锁定 ${locked.welfarePerTask.toFixed(2)}`
+      `探索福利 ${explored.welfarePerTask.toFixed(2)} 应高于锁定 ${locked.welfarePerTask.toFixed(2)}`,
     );
   });
 });
@@ -123,18 +126,25 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
     q0: PHASE_DEFAULTS.q0,
     delta: PHASE_DEFAULTS.delta,
     K: PHASE_DEFAULTS.K,
-    T: PHASE_DEFAULTS.T
+    T: PHASE_DEFAULTS.T,
   };
 
   /** 闭式几何和与 run.ts 逐项求和精确一致；Σadv(α*)=0 恒等式 */
   it('闭式 = 逐项求和；α* 是精确零点', () => {
     for (const [alpha, beta] of [
-      [0.5, 0.01], [0.7, 0.03], [0.9, 0.05], [0.6, 0.12], [0.85, 0.005]
+      [0.5, 0.01],
+      [0.7, 0.03],
+      [0.9, 0.05],
+      [0.6, 0.12],
+      [0.85, 0.005],
     ] as Array<[number, number]>) {
       const law: LawParams = { ...org, alpha, beta };
       const closed = cumulativeAdvantageClosed(law);
       const loop = cumulativeAdvantage({ ...PHASE_DEFAULTS, ...law, seeds: [] } as PhaseParams);
-      assert.ok(Math.abs(closed - loop) < 1e-9, `α=${alpha} β=${beta}: |闭式−逐项|=${Math.abs(closed - loop)}`);
+      assert.ok(
+        Math.abs(closed - loop) < 1e-9,
+        `α=${alpha} β=${beta}: |闭式−逐项|=${Math.abs(closed - loop)}`,
+      );
       const aStar = alphaStar(law);
       if (isFinite(aStar)) {
         const atBoundary = cumulativeAdvantageClosed({ ...law, alpha: aStar });
@@ -143,7 +153,10 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
         const above = cumulativeAdvantageClosed({ ...law, alpha: aStar + 0.05 });
         const below = cumulativeAdvantageClosed({ ...law, alpha: aStar - 0.05 });
         if (aStar + 0.05 <= 1 && aStar - 0.05 > 0) {
-          assert.ok(above > 0 && below < 0, `α* 两侧应翻转: ${below.toFixed(3)} → ${above.toFixed(3)}`);
+          assert.ok(
+            above > 0 && below < 0,
+            `α* 两侧应翻转: ${below.toFixed(3)} → ${above.toFixed(3)}`,
+          );
         }
       }
     }
@@ -155,7 +168,7 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
       const law = { ...org, alpha: 0.99, beta };
       assert.ok(
         beta < betaMin(law) && !isFinite(alphaStar(law)),
-        `β=${beta} < β_min=${betaMin(law).toFixed(4)} 时 α* 应为 ∞`
+        `β=${beta} < β_min=${betaMin(law).toFixed(4)} 时 α* 应为 ∞`,
       );
     }
     // Π1 ≥ 1（δ ≥ 1−q0）：雇佣溢价烧穿全部剩余学习空间
@@ -186,7 +199,7 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
       const dm = deltaMax(law);
       assert.ok(
         Math.abs(cumulativeAdvantageClosed({ ...law, delta: dm })) < 1e-9,
-        `α=${alpha}: δ=δ_max=${dm.toFixed(3)} 处 Σadv 应为 0`
+        `α=${alpha}: δ=δ_max=${dm.toFixed(3)} 处 Σadv 应为 0`,
       );
     }
   });
@@ -203,7 +216,7 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
       K: pi2 / 0.001,
       T: pi3 / 0.001,
       alpha: 0.5,
-      beta: 0.001
+      beta: 0.001,
     });
     assert.ok(Math.abs(uni - exact) < 0.01, `普适 ${uni.toFixed(4)} vs 精确 ${exact.toFixed(4)}`);
   });
@@ -213,7 +226,11 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
     for (const alpha of [0.7, 0.9]) {
       const interval = trainingBetaInterval(org, alpha)!;
       assert.ok(interval[0] > betaMin({ ...org, alpha, beta: 0.03 }) * 0.99, '下端 ≥ β_min');
-      for (const beta of [interval[0] * 1.05, (interval[0] + interval[1]) / 2, interval[1] * 0.95]) {
+      for (const beta of [
+        interval[0] * 1.05,
+        (interval[0] + interval[1]) / 2,
+        interval[1] * 0.95,
+      ]) {
         assert.ok(cumulativeAdvantageClosed({ ...org, alpha, beta }) > 0, `β=${beta} 应培训赢`);
       }
       for (const beta of [interval[0] * 0.9, interval[1] * 1.1]) {
@@ -230,20 +247,20 @@ describe('相变闭式定律 · 坍缩与 K_min 的经验验证', () => {
   const CONFIGS = [
     { name: 'A', q0: 0.45, delta: 0.12, K: 60, T: 150 },
     { name: 'B', q0: 0.3, delta: 0.12 * (0.7 / 0.55), K: 120, T: 300 },
-    { name: 'C', q0: 0.6, delta: 0.12 * (0.4 / 0.55), K: 30, T: 75 }
+    { name: 'C', q0: 0.6, delta: 0.12 * (0.4 / 0.55), K: 30, T: 75 },
   ];
 
   function empDiff(
     org: { q0: number; delta: number; K: number; T: number },
     alpha: number,
-    beta: number
+    beta: number,
   ): number {
     return counterfactual({
       ...PHASE_DEFAULTS,
       ...org,
       alpha,
       beta,
-      seeds: seeds24
+      seeds: seeds24,
     }).diffRate;
   }
 
@@ -256,7 +273,11 @@ describe('相变闭式定律 · 坍缩与 K_min 的经验验证', () => {
     const pi2 = 1.8;
     const vals = CONFIGS.map((c) => {
       const pi = piGroups({ ...c, alpha, beta: pi2 / c.K });
-      assert.ok(Math.abs(pi.pi1 - 0.2182) < 1e-3 && Math.abs(pi.pi2 - 1.8) < 1e-9 && Math.abs(pi.pi3 - 4.5) < 1e-9);
+      assert.ok(
+        Math.abs(pi.pi1 - 0.2182) < 1e-3 &&
+          Math.abs(pi.pi2 - 1.8) < 1e-9 &&
+          Math.abs(pi.pi3 - 4.5) < 1e-9,
+      );
       return empDiff(c, alpha, pi2 / c.K) / (1 - c.q0);
     });
     for (const v of vals) assert.ok(v > 0.05, `归一化经验 ${v.toFixed(3)} 应显著为正`);
@@ -291,7 +312,7 @@ describe('相变闭式定律 · 坍缩与 K_min 的经验验证', () => {
     assert.ok(flip !== null, '应在 K≤26 内翻转为培训赢');
     assert.ok(
       Math.abs(flip! - pred) <= 8,
-      `经验翻转 K=${flip} vs 解析 K_min=${pred.toFixed(1)} 偏差 > 8`
+      `经验翻转 K=${flip} vs 解析 K_min=${pred.toFixed(1)} 偏差 > 8`,
     );
   });
 });
@@ -301,12 +322,22 @@ describe('相变闭式定律 · 真实 LLM 标定', () => {
   it('LLM bucket 拟合与 δ_max 定律可计算且量级合理', () => {
     const buckets = loadLLMBuckets();
     assert.equal(buckets.length, 6);
-    assert.equal(buckets.reduce((a, b) => a + b.n, 0), 528);
+    assert.equal(
+      buckets.reduce((a, b) => a + b.n, 0),
+      528,
+    );
     const fit = fitLearningCurve(buckets);
     assert.ok(fit.alpha > 0.19 && fit.alpha <= 1.001, `α̂=${fit.alpha} 越界`);
     assert.ok(fit.beta > 0.005 && fit.beta < 2, `β̂=${fit.beta} 越界`);
     assert.ok(fit.r2 > 0.3, `R²=${fit.r2.toFixed(3)} 过低`);
-    const dm = deltaMax({ q0: fit.base, delta: 0, K: 20, T: 150, alpha: fit.alpha, beta: fit.beta });
+    const dm = deltaMax({
+      q0: fit.base,
+      delta: 0,
+      K: 20,
+      T: 150,
+      alpha: fit.alpha,
+      beta: fit.beta,
+    });
     assert.ok(dm > 0.05 && dm < 0.45, `δ_max=${dm.toFixed(3)} 量级异常`);
   });
 });

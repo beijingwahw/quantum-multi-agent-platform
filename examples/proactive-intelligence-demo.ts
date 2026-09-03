@@ -4,16 +4,10 @@
  * 演示如何使用主动智能插件的各种功能
  */
 
-import {
-  ProactiveIntelligencePlugin,
-  Rule,
-  Condition,
-  Action
-} from './index';
-import {
-  allPresetRules,
-  getRulesByScenario
-} from './rules';
+import type { Rule } from '../src/proactive-intelligence/index.js';
+import { ProactiveIntelligencePlugin } from '../src/proactive-intelligence/index.js';
+import { allPresetRules, getRulesByScenario } from '../src/proactive-intelligence/rules.js';
+import { pathToFileURL } from 'url';
 
 // ============================================================================
 // 基础使用示例
@@ -29,13 +23,13 @@ async function basicExample() {
   const plugin = new ProactiveIntelligencePlugin({
     monitor: {
       maxBufferSize: 1000,
-      retentionMs: 3600000 // 1小时
+      retentionMs: 3600000, // 1小时
     },
     executor: {
       enabled: true,
       safeMode: false, // 设置为true可以只记录不执行
-      maxConcurrentActions: 5
-    }
+      maxConcurrentActions: 5,
+    },
   });
 
   // 添加预设规则
@@ -74,15 +68,15 @@ async function basicExample() {
       memory: {
         total: 8192,
         used: 4096,
-        available: 4096
+        available: 4096,
       },
       disk: {
         total: 500000,
         used: 200000,
-        usage: 40
+        usage: 40,
       },
-      systemLoad: 0.5
-    }
+      systemLoad: 0.5,
+    },
   });
 
   await sleep(100);
@@ -97,15 +91,15 @@ async function basicExample() {
       memory: {
         total: 8192,
         used: 6144,
-        available: 2048
+        available: 2048,
       },
       disk: {
         total: 500000,
         used: 250000,
-        usage: 50
+        usage: 50,
       },
-      systemLoad: 0.85
-    }
+      systemLoad: 0.85,
+    },
   });
 
   await sleep(100);
@@ -121,15 +115,15 @@ async function basicExample() {
         memory: {
           total: 8192,
           used: 7000,
-          available: 1192
+          available: 1192,
         },
         disk: {
           total: 500000,
           used: 300000,
-          usage: 60
+          usage: 60,
         },
-        systemLoad: 0.9
-      }
+        systemLoad: 0.9,
+      },
     });
     await sleep(100);
   }
@@ -169,8 +163,8 @@ async function customRuleExample() {
         type: 'event',
         operator: 'greaterThan',
         field: 'application_metrics.errorRate',
-        value: 0.05
-      }
+        value: 0.05,
+      },
     ],
     actions: [
       {
@@ -179,8 +173,8 @@ async function customRuleExample() {
         parameters: {
           title: '🚨 错误率过高',
           message: '错误率超过5%，请立即检查应用日志',
-          level: 'critical'
-        }
+          level: 'critical',
+        },
       },
       {
         type: 'workflow',
@@ -189,11 +183,11 @@ async function customRuleExample() {
           workflowId: 'log-collection',
           parameters: {
             timeRange: '15m',
-            level: 'error'
-          }
-        }
-      }
-    ]
+            level: 'error',
+          },
+        },
+      },
+    ],
   };
 
   plugin.addRule(errorRateRule);
@@ -218,9 +212,9 @@ async function customRuleExample() {
       latency: {
         p50: 100,
         p95: 500,
-        p99: 1000
-      }
-    }
+        p99: 1000,
+      },
+    },
   });
 
   await sleep(500);
@@ -228,7 +222,7 @@ async function customRuleExample() {
   // 查看规则状态
   console.log('\n--- 规则状态 ---');
   const rules = plugin.getEngine().getAllRules();
-  rules.forEach(rule => {
+  rules.forEach((rule) => {
     console.log(`- ${rule.name} (${rule.id})`);
     console.log(`  状态: ${rule.enabled ? '启用' : '禁用'}`);
     console.log(`  优先级: ${rule.priority}`);
@@ -264,22 +258,22 @@ async function complexConditionsExample() {
         operator: 'equals',
         field: 'isBusinessHours',
         value: true,
-        logicalOperator: 'AND'
+        logicalOperator: 'AND',
       },
       {
         type: 'event',
         operator: 'greaterThan',
         field: 'system_metrics.cpu',
         value: 80,
-        logicalOperator: 'AND'
+        logicalOperator: 'AND',
       },
       {
         type: 'event',
         operator: 'lessThan',
         field: 'system_metrics.memory.available',
         value: 1024,
-        logicalOperator: 'AND'
-      }
+        logicalOperator: 'AND',
+      },
     ],
     actions: [
       {
@@ -288,8 +282,8 @@ async function complexConditionsExample() {
         parameters: {
           title: '⚠️ 工作时间系统过载',
           message: '工作时间CPU和内存同时过高，请立即处理',
-          level: 'critical'
-        }
+          level: 'critical',
+        },
       },
       {
         type: 'workflow',
@@ -299,11 +293,11 @@ async function complexConditionsExample() {
           parameters: {
             direction: 'up',
             instances: 3,
-            priority: 'urgent'
-          }
-        }
-      }
-    ]
+            priority: 'urgent',
+          },
+        },
+      },
+    ],
   };
 
   plugin.addRule(complexRule);
@@ -324,15 +318,15 @@ async function complexConditionsExample() {
       memory: {
         total: 8192,
         used: 7500,
-        available: 692
+        available: 692,
       },
       disk: {
         total: 500000,
         used: 300000,
-        usage: 60
+        usage: 60,
       },
-      systemLoad: 0.9
-    }
+      systemLoad: 0.9,
+    },
   });
 
   await sleep(500);
@@ -353,11 +347,11 @@ async function safeModeExample() {
     executor: {
       enabled: true,
       safeMode: true, // 安全模式：只记录不执行
-      maxConcurrentActions: 10
-    }
+      maxConcurrentActions: 10,
+    },
   });
 
-  plugin.addRule(getRulesByScenario('system')[0]); // 添加CPU高使用率规则
+  plugin.addRule(getRulesByScenario('system')[0]!); // 添加CPU高使用率规则
   await plugin.start();
   console.log('✓ 插件已启动（安全模式）\n');
 
@@ -381,8 +375,8 @@ async function safeModeExample() {
         cpu: 90,
         memory: { total: 8192, used: 7000, available: 1192 },
         disk: { total: 500000, used: 300000, usage: 60 },
-        systemLoad: 0.9
-      }
+        systemLoad: 0.9,
+      },
     });
     await sleep(100);
   }
@@ -392,7 +386,7 @@ async function safeModeExample() {
   // 查看执行历史
   console.log('\n--- 执行历史 ---');
   const history = plugin.getExecutor().getExecutionHistory();
-  history.slice(-3).forEach(exec => {
+  history.slice(-3).forEach((exec) => {
     console.log(`- ${exec.action.type}.${exec.action.name}: ${exec.status}`);
     // result 形状随动作类型变化（安全模式下为 { safeMode, skipped }），此处按记录读取
     const result = exec.result as Record<string, unknown> | undefined;
@@ -417,8 +411,8 @@ async function dynamicRuleManagementExample() {
   const plugin = new ProactiveIntelligencePlugin();
 
   // 初始添加一些规则
-  plugin.addRule(getRulesByScenario('system')[0]);
-  plugin.addRule(getRulesByScenario('system')[1]);
+  plugin.addRule(getRulesByScenario('system')[0]!);
+  plugin.addRule(getRulesByScenario('system')[1]!);
 
   await plugin.start();
   console.log('✓ 插件已启动\n');
@@ -427,7 +421,7 @@ async function dynamicRuleManagementExample() {
   console.log('--- 初始规则列表 ---');
   let rules = plugin.getEngine().getAllRules();
   console.log(`共 ${rules.length} 条规则:`);
-  rules.forEach(r => console.log(`  - ${r.name}`));
+  rules.forEach((r) => console.log(`  - ${r.name}`));
 
   // 动态添加规则
   console.log('\n--- 动态添加规则 ---');
@@ -443,8 +437,8 @@ async function dynamicRuleManagementExample() {
         type: 'event',
         operator: 'equals',
         field: 'test.value',
-        value: 'trigger'
-      }
+        value: 'trigger',
+      },
     ],
     actions: [
       {
@@ -453,10 +447,10 @@ async function dynamicRuleManagementExample() {
         parameters: {
           title: '测试通知',
           message: '动态规则触发',
-          level: 'info'
-        }
-      }
-    ]
+          level: 'info',
+        },
+      },
+    ],
   };
   plugin.addRule(newRule);
   console.log('✓ 已添加动态规则');
@@ -498,8 +492,8 @@ async function dshIntegrationExample() {
     executor: {
       enabled: true,
       safeMode: true,
-      allowedActions: ['command', 'notification', 'workflow']
-    }
+      allowedActions: ['command', 'notification', 'workflow'],
+    },
   });
 
   // 创建使用DSH工具的规则
@@ -515,8 +509,8 @@ async function dshIntegrationExample() {
         type: 'event',
         operator: 'equals',
         field: 'file_system.disk_usage',
-        value: 'high'
-      }
+        value: 'high',
+      },
     ],
     actions: [
       {
@@ -525,8 +519,8 @@ async function dshIntegrationExample() {
         parameters: {
           command: 'dsh',
           args: ['nuke', 'scan'],
-          description: '执行DSH磁盘扫描'
-        }
+          description: '执行DSH磁盘扫描',
+        },
       },
       {
         type: 'notification',
@@ -534,10 +528,10 @@ async function dshIntegrationExample() {
         parameters: {
           title: 'DSH扫描完成',
           message: '已执行DSH磁盘扫描，请查看结果',
-          level: 'info'
-        }
-      }
-    ]
+          level: 'info',
+        },
+      },
+    ],
   };
 
   plugin.addRule(dshRule);
@@ -558,8 +552,8 @@ async function dshIntegrationExample() {
     data: {
       disk_usage: 'high',
       path: '/data',
-      usage: 88
-    }
+      usage: 88,
+    },
   });
 
   await sleep(500);
@@ -571,7 +565,7 @@ async function dshIntegrationExample() {
 // ============================================================================
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ============================================================================
@@ -608,7 +602,7 @@ export async function runAllExamples() {
   }
 }
 
-// 如果直接运行此文件，执行所有示例
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 如果直接运行此文件，执行所有示例（pathToFileURL：Windows路径兼容）
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runAllExamples();
 }

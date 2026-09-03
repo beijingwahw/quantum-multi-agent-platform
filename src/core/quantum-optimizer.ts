@@ -35,6 +35,19 @@
  *   在经典侧完成（这是 QAOA 的本义：变分量子-经典混合算法）。
  */
 
+import { mulberry32 } from '../utils/rng';
+import { QuantumEngineError } from '../utils/errors';
+import {
+  ComplexAmplitudes,
+  expectationValue,
+  normalizedEnergies as normalizedEnergiesOf,
+  optimizeAnglesByCoordinateDescent,
+  resolveCommonSolverOptions,
+  sampleBestIndexByShots,
+  sampleIndexByProbabilities,
+} from './solver-common';
+import { FULLSPACE_ANNEAL_STEPS, FULLSPACE_ANNEAL_TAU, FULLSPACE_QUBIT_LIMIT } from './constants';
+
 // ----------------------------------------------------------------------------
 // 类型定义
 // ----------------------------------------------------------------------------
@@ -73,9 +86,14 @@ export interface QuantumSolverOptions {
   shots?: number;
   /** QAOA 角度优化随机重启次数（默认 2） */
   restarts?: number;
-  /** 坍缩模式（默认 shots-best：多次测量取最优合法结果，真实退火实践协议） */
+  /**
+   * 坍缩模式。缺省依引擎而定：全空间（qaoaSolve/annealSolve）为
+   * argmax-valid（取末态 Born 分布上概率最大的合法分配）；约束子空间
+   * （qaoaSolveSubspace/annealSolveSubspace）为 shots-best（多次测量取
+   * 能量最低分支）——全部基态合法时后者以采样数换更低能量。
+   */
   select?: CollapseMode;
-  /** 退火参数（默认 tau=120, steps=1200） */
+  /** 退火参数（全空间默认 tau=120/steps=1200；子空间默认 tau=20/steps=150，见 constants.ts） */
   anneal?: { tau?: number; steps?: number };
   /** 随机种子（可复现；默认 42） */
   seed?: number;
@@ -115,21 +133,6 @@ export interface QuantumSolution {
   candidates: QuantumCandidate[];
 }
 
-// ----------------------------------------------------------------------------
-// 可复现随机源（mulberry32）
-// ----------------------------------------------------------------------------
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** 基态置位数（横场基态 |−⟩^{⊗n} 的相位符号） */
 function popcount(k: number): number {
   let c = 0;
@@ -144,25 +147,18 @@ function popcount(k: number): number {
 // 态矢量：nq 量子比特的复振幅寄存器（薛定谔演化的载体）
 // ----------------------------------------------------------------------------
 
-export class QuantumStateVector {
+export class QuantumStateVector extends ComplexAmplitudes {
   readonly nqubits: number;
-  readonly dim: number;
-  readonly re: Float64Array;
-  readonly im: Float64Array;
 
   constructor(nqubits: number, basisState: number = 0) {
+    super(1 << nqubits);
     this.nqubits = nqubits;
-    this.dim = 1 << nqubits;
-    this.re = new Float64Array(this.dim);
-    this.im = new Float64Array(this.dim);
     this.re[basisState] = 1;
   }
 
   /** |+⟩^{⊗nq}：均匀叠加，所有分配方案等权共存（QAOA 初态） */
   setUniformSuperposition(): void {
-    const amp = 1 / Math.sqrt(this.dim);
-    this.re.fill(amp);
-    this.im.fill(0);
+    this.setUniform();
   }
 
   /**
@@ -179,22 +175,9 @@ export class QuantumStateVector {
   }
 
   /**
-   * 代价哈密顿量演化 e^{-iγC}。C 在计算基下对角 → 每个基态获得
-   * 相位 e^{-iγE(x)}。这是精确的（无 Trotter 误差）。
+   * 代价哈密顿量演化 e^{-iγC}（继承自共享复振幅基座：对角相位，精确）。
+   * 本类不再持有副本——全空间与子空间引擎共用同一实现。
    */
-  applyCostPhase(gamma: number, energies: Float64Array): void {
-    const { re, im, dim } = this;
-    for (let k = 0; k < dim; k++) {
-      const e = energies[k];
-      if (e === 0 && gamma === 0) continue;
-      const c = Math.cos(gamma * e);
-      const s = Math.sin(gamma * e);
-      const r = re[k];
-      const i = im[k];
-      re[k] = r * c + i * s;
-      im[k] = i * c - r * s;
-    }
-  }
 
   /**
    * 横场混合算符 e^{-iβ Σ_j X_j}。X_j 相互对易，故积之积精确：
@@ -209,8 +192,10 @@ export class QuantumStateVector {
       for (let k = 0; k < dim; k++) {
         if (k & mask) continue;
         const p = k | mask;
-        const re0 = re[k], im0 = im[k];
-        const re1 = re[p], im1 = im[p];
+        const re0 = re[k]!,
+          im0 = im[k]!;
+        const re1 = re[p]!,
+          im1 = im[p]!;
         // new_a0 = c·a0 - i·s·a1
         re[k] = c * re0 + s * im1;
         im[k] = c * im0 - s * re1;
@@ -221,23 +206,7 @@ export class QuantumStateVector {
     }
   }
 
-  /** 各基态的 Born 概率 |amp|² */
-  probabilities(): Float64Array {
-    const probs = new Float64Array(this.dim);
-    for (let k = 0; k < this.dim; k++) {
-      probs[k] = this.re[k] * this.re[k] + this.im[k] * this.im[k];
-    }
-    return probs;
-  }
-
-  /** 态矢量范数（检验幺正性保持） */
-  norm(): number {
-    let sum = 0;
-    for (let k = 0; k < this.dim; k++) {
-      sum += this.re[k] * this.re[k] + this.im[k] * this.im[k];
-    }
-    return Math.sqrt(sum);
-  }
+  /** 各基态的 Born 概率与范数（继承自共享复振幅基座） */
 
   clone(): QuantumStateVector {
     const copy = new QuantumStateVector(this.nqubits);
@@ -281,11 +250,21 @@ export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const nqubits = nQubitsOf(problem);
+  if (nqubits > FULLSPACE_QUBIT_LIMIT) {
+    // 位掩码回绕、typed array 构造抛错；即便 2^30 也需 ~17GB 双精度振幅。
+    // 全空间引擎必须在构建前显式失败，而不是静默算错。
+    throw new QuantumEngineError(
+      `Full-space statevector supports at most ${FULLSPACE_QUBIT_LIMIT} qubits (got ${nqubits} = ${m} tasks × ${n} agents); ` +
+        `reduce the batch size or use the constraint-subspace engine.`,
+    );
+  }
   const dim = 1 << nqubits;
   const energies = new Float64Array(dim);
   const couplings = problem.couplings;
-  const perTask = new Int32Array(n);
-  const perAgent = new Int32Array(m);
+  // perTask 按任务索引（长 m），perAgent 按 agent 索引（长 n）——长度互换会
+  // 使 typed array 越界写入静默丢失，非方阵问题的罚项随之整体失效
+  const perTask = new Int32Array(m);
+  const perAgent = new Int32Array(n);
   let min = Infinity;
   let max = -Infinity;
 
@@ -297,9 +276,9 @@ export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
     for (let t = 0; t < m; t++) {
       for (let a = 0; a < n; a++) {
         if (k & (1 << (t * n + a))) {
-          perTask[t]++;
-          perAgent[a]++;
-          welfare += problem.weights[t][a];
+          perTask[t]!++;
+          perAgent[a]!++;
+          welfare += problem.weights[t]![a]!;
         }
       }
     }
@@ -313,10 +292,11 @@ export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
     }
     let penalty = 0;
     for (let t = 0; t < m; t++) {
-      if (perTask[t] !== 1) penalty += problem.penaltyOneHot * (perTask[t] - 1) * (perTask[t] - 1);
+      if (perTask[t]! !== 1)
+        penalty += problem.penaltyOneHot * (perTask[t]! - 1) * (perTask[t]! - 1);
     }
     for (let a = 0; a < n; a++) {
-      const c = perAgent[a];
+      const c = perAgent[a]!;
       if (c > 1) penalty += problem.penaltyCapacity * ((c * (c - 1)) / 2);
     }
     const e = -welfare + penalty;
@@ -357,8 +337,8 @@ export function isValidAssignment(problem: AssignmentProblem, assignment: number
   const used = new Set<number>();
   for (let t = 0; t < m; t++) {
     const a = assignment[t];
-    if (a < 0) return false;
-    if (problem.ineligible[t][a]) return false;
+    if (a == null || a < 0) return false;
+    if (problem.ineligible[t]![a]!) return false;
     if (used.has(a)) return false;
     used.add(a);
   }
@@ -373,13 +353,15 @@ export function welfareOf(problem: AssignmentProblem, assignment: number[]): num
   let welfare = 0;
   for (let t = 0; t < m; t++) {
     const a = assignment[t];
-    if (a >= 0) welfare += problem.weights[t][a];
+    if (a != null && a >= 0) welfare += problem.weights[t]![a]!;
   }
   for (const [key, j] of problem.couplings) {
     const q1 = Math.floor(key / nqubits);
     const q2 = key % nqubits;
-    const t1 = Math.floor(q1 / n), a1 = q1 % n;
-    const t2 = Math.floor(q2 / n), a2 = q2 % n;
+    const t1 = Math.floor(q1 / n),
+      a1 = q1 % n;
+    const t2 = Math.floor(q2 / n),
+      a2 = q2 % n;
     if (assignment[t1] === a1 && assignment[t2] === a2) welfare += j;
   }
   return welfare;
@@ -417,20 +399,20 @@ export function bruteForceOptimum(problem: AssignmentProblem, limit = 10): Brute
       return;
     }
     for (let a = 0; a < n; a++) {
-      if (problem.ineligible[t][a] || used[a]) continue;
+      if (problem.ineligible[t]![a]! || used[a]!) continue;
       used[a] = true;
       assignment[t] = a;
       // 该步引入的耦合加成
       let extra = 0;
       const qNew = t * n + a;
       for (let t2 = 0; t2 < t; t2++) {
-        const a2 = assignment[t2];
+        const a2 = assignment[t2]!;
         const lo = Math.min(qNew, t2 * n + a2);
         const hi = Math.max(qNew, t2 * n + a2);
         const j = problem.couplings.get(lo * (m * n) + hi);
         if (j !== undefined) extra += j;
       }
-      dfs(t + 1, welfare + problem.weights[t][a] + extra);
+      dfs(t + 1, welfare + problem.weights[t]![a]! + extra);
       used[a] = false;
       assignment[t] = -1;
     }
@@ -442,7 +424,7 @@ export function bruteForceOptimum(problem: AssignmentProblem, limit = 10): Brute
     assignment: bestWelfare > -Infinity ? best : [],
     welfare: bestWelfare > -Infinity ? bestWelfare : 0,
     validCount: welfares.length,
-    ranking: welfares.slice(0, limit)
+    ranking: welfares.slice(0, limit),
   };
 }
 
@@ -458,84 +440,35 @@ function runQaoaCircuit(
   angles: number[],
   layers: number,
   nqubits: number,
-  energies: Float64Array
+  energies: Float64Array,
 ): QuantumStateVector {
   const state = new QuantumStateVector(nqubits);
   state.setUniformSuperposition();
   for (let p = 0; p < layers; p++) {
-    state.applyCostPhase(angles[p], energies);
-    state.applyMixer(angles[layers + p]);
+    state.applyCostPhase(angles[p]!, energies);
+    state.applyMixer(angles[layers + p]!);
   }
   return state;
 }
 
 function expectationOf(state: QuantumStateVector, energies: Float64Array): number {
-  const probs = state.probabilities();
-  let sum = 0;
-  for (let k = 0; k < state.dim; k++) sum += probs[k] * energies[k];
-  return sum;
+  return expectationValue(state, energies);
 }
 
-/** 坐标下降角度优化（经典侧的变分循环，QAOA 的本义） */
+/** 坐标下降角度优化（共享实现：全空间/子空间两引擎的同一变分循环） */
 function optimizeQaoaAngles(
   layers: number,
   nqubits: number,
   energies: Float64Array,
   restarts: number,
-  rng: () => number
+  rng: () => number,
 ): { angles: number[]; expectation: number; evaluations: number } {
-  let bestAngles: number[] = [];
-  let bestExpectation = Infinity;
-  let evaluations = 0;
-
-  for (let r = 0; r < restarts; r++) {
-    // 初值：绝热路径启发的线性斜坡（首轮）+ 随机扰动（后续重启）
-    const angles: number[] = [];
-    for (let p = 0; p < layers; p++) {
-      angles.push(r === 0
-        ? ((p + 1) / layers) * Math.PI * 0.5
-        : rng() * Math.PI);
-    }
-    for (let p = 0; p < layers; p++) {
-      angles.push(r === 0
-        ? (1 - (p + 1) / (layers + 1)) * Math.PI * 0.25
-        : rng() * Math.PI * 0.5);
-    }
-
-    const evaluate = (a: number[]): number => {
-      evaluations++;
-      return expectationOf(runQaoaCircuit(a, layers, nqubits, energies), energies);
-    };
-
-    let current = evaluate(angles);
-    let delta = 0.3;
-    const gammaBound = Math.PI;
-    const betaBound = Math.PI / 2;
-
-    while (delta > 1e-3) {
-      let improved = false;
-      for (let i = 0; i < angles.length; i++) {
-        const bound = i < layers ? gammaBound : betaBound;
-        for (const sign of [1, -1]) {
-          const candidate = angles.slice();
-          candidate[i] = Math.min(bound, Math.max(0, candidate[i] + sign * delta));
-          const value = evaluate(candidate);
-          if (value < current - 1e-12) {
-            angles.splice(0, angles.length, ...candidate);
-            current = value;
-            improved = true;
-          }
-        }
-      }
-      if (!improved) delta *= 0.5;
-    }
-
-    if (current < bestExpectation) {
-      bestExpectation = current;
-      bestAngles = angles.slice();
-    }
-  }
-  return { angles: bestAngles, expectation: bestExpectation, evaluations };
+  return optimizeAnglesByCoordinateDescent(
+    (angles) => expectationOf(runQaoaCircuit(angles, layers, nqubits, energies), energies),
+    layers,
+    restarts,
+    rng,
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -546,7 +479,7 @@ function runAnnealingCircuit(
   tau: number,
   steps: number,
   nqubits: number,
-  energies: Float64Array
+  energies: Float64Array,
 ): QuantumStateVector {
   const state = new QuantumStateVector(nqubits);
   state.setTransverseGroundState(); // H_X 基态 |−⟩^{⊗n}
@@ -570,8 +503,14 @@ function selectSolution(
   mode: CollapseMode,
   shots: number,
   rng: () => number,
-  topK: number
-): { assignment: number[]; probability: number; repaired: boolean; validMass: number; candidates: QuantumCandidate[] } {
+  topK: number,
+): {
+  assignment: number[];
+  probability: number;
+  repaired: boolean;
+  validMass: number;
+  candidates: QuantumCandidate[];
+} {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
 
@@ -580,12 +519,13 @@ function selectSolution(
   let bestValidProb = 0;
   const validStates: number[] = [];
   for (let k = 0; k < probs.length; k++) {
-    if (probs[k] <= 0) continue;
+    const p = probs[k]!;
+    if (p <= 0) continue;
     const assignment = decodeAssignment(k, m, n);
     if (isValidAssignment(problem, assignment)) {
-      validMass += probs[k];
+      validMass += p;
       validStates.push(k);
-      if (probs[k] > bestValidProb) bestValidProb = probs[k];
+      if (p > bestValidProb) bestValidProb = p;
     }
   }
 
@@ -594,38 +534,16 @@ function selectSolution(
 
   if (mode === 'born') {
     // 真随机坍缩：按 |ψ|² 采一次样（Born 规则的忠实实现）
-    const r = rng();
-    let cum = 0;
-    for (let k = 0; k < probs.length; k++) {
-      cum += probs[k];
-      if (r <= cum) {
-        chosenState = k;
-        break;
-      }
-    }
-    if (chosenState < 0) chosenState = probs.length - 1;
+    chosenState = sampleIndexByProbabilities(probs, rng);
   } else if (mode === 'shots-best' && validStates.length > 0) {
     // 多次测量取最优：采样 shots 次在其中选能量最低的合法结果
-    const cum = new Float64Array(probs.length);
-    let acc = 0;
-    for (let k = 0; k < probs.length; k++) {
-      acc += probs[k];
-      cum[k] = acc;
-    }
-    let bestEnergy = Infinity;
-    for (let s = 0; s < shots; s++) {
-      const r = rng() * acc;
-      let lo = 0, hi = probs.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (cum[mid] < r) lo = mid + 1; else hi = mid;
-      }
-      const assignment = decodeAssignment(lo, m, n);
-      if (isValidAssignment(problem, assignment) && energiesInfo.energies[lo] < bestEnergy) {
-        bestEnergy = energiesInfo.energies[lo];
-        chosenState = lo;
-      }
-    }
+    chosenState = sampleBestIndexByShots(
+      probs,
+      shots,
+      rng,
+      (k) => energiesInfo.energies[k]!,
+      (k) => isValidAssignment(problem, decodeAssignment(k, m, n)),
+    );
   }
 
   // argmax-valid 兜底（也是 shots-best 全部采到非法解时的回退）：
@@ -633,8 +551,8 @@ function selectSolution(
   if (chosenState < 0) {
     let bestProb = -1;
     for (const k of validStates) {
-      if (probs[k] > bestProb) {
-        bestProb = probs[k];
+      if (probs[k]! > bestProb) {
+        bestProb = probs[k]!;
         chosenState = k;
       }
     }
@@ -658,7 +576,7 @@ function selectSolution(
   const candidates: QuantumCandidate[] = validStates
     .map((k) => ({
       k,
-      p: probs[k]
+      p: probs[k]!,
     }))
     .sort((x, y) => y.p - x.p)
     .slice(0, topK)
@@ -667,17 +585,17 @@ function selectSolution(
       return {
         assignment: a,
         welfare: welfareOf(problem, a),
-        energy: energiesInfo.energies[k],
-        probability: p
+        energy: energiesInfo.energies[k]!,
+        probability: p,
       };
     });
 
   return {
     assignment,
-    probability: chosenState >= 0 ? probs[chosenState] : bestValidProb,
+    probability: chosenState >= 0 ? probs[chosenState]! : bestValidProb,
     repaired,
     validMass,
-    candidates
+    candidates,
   };
 }
 
@@ -689,19 +607,19 @@ function repairAssignment(problem: AssignmentProblem, assignment: number[]): num
   const repaired = new Array<number>(m).fill(-1);
   for (let t = 0; t < m; t++) {
     const a = assignment[t];
-    if (a >= 0 && !problem.ineligible[t][a] && !used.has(a)) {
+    if (a != null && a >= 0 && !problem.ineligible[t]![a]! && !used.has(a)) {
       repaired[t] = a;
       used.add(a);
     }
   }
   for (let t = 0; t < m; t++) {
-    if (repaired[t] >= 0) continue;
+    if (repaired[t]! >= 0) continue;
     let best = -1;
     let bestW = -Infinity;
     for (let a = 0; a < n; a++) {
-      if (problem.ineligible[t][a] || used.has(a)) continue;
-      if (problem.weights[t][a] > bestW) {
-        bestW = problem.weights[t][a];
+      if (problem.ineligible[t]![a]! || used.has(a)) continue;
+      if (problem.weights[t]![a]! > bestW) {
+        bestW = problem.weights[t]![a]!;
         best = a;
       }
     }
@@ -717,63 +635,82 @@ function repairAssignment(problem: AssignmentProblem, assignment: number[]): num
 // 求解入口
 // ----------------------------------------------------------------------------
 
-export function qaoaSolve(problem: AssignmentProblem, options: QuantumSolverOptions = {}): QuantumSolution {
-  const layers = options.layers ?? 3;
-  const shots = options.shots ?? 128;
-  const restarts = options.restarts ?? 2;
-  const select = options.select ?? 'argmax-valid';
-  const seed = options.seed ?? 42;
-  const topK = options.topK ?? 3;
+/** 能量谱归一化到 [0, scale]（供对角相位演化；scale=1 即归一化到 [0,1]） */
+function normalizedEnergies(info: ProblemEnergies, scale = 1): Float64Array {
+  return normalizedEnergiesOf(info.energies, info.min, info.max, scale);
+}
+
+/** 由坍缩选择组装量子解（QAOA 与退火路径的公共收尾） */
+function assembleSolution(
+  engine: QuantumEngineKind,
+  problem: AssignmentProblem,
+  selection: ReturnType<typeof selectSolution>,
+  extras: {
+    expectation: number;
+    layers: number;
+    angles: number[] | null;
+    evaluations: number;
+  },
+): QuantumSolution {
+  const welfare = welfareOf(problem, selection.assignment);
+  const isValid = isValidAssignment(problem, selection.assignment);
+  return {
+    engine,
+    assignment: selection.assignment,
+    welfare,
+    energy: isValid ? -welfare : -welfare + problem.penaltyOneHot, // 近似能量（报告用）
+    probability: selection.probability,
+    validMass: selection.validMass,
+    expectation: extras.expectation,
+    layers: extras.layers,
+    angles: extras.angles,
+    evaluations: extras.evaluations,
+    repaired: selection.repaired,
+    candidates: selection.candidates,
+  };
+}
+
+export function qaoaSolve(
+  problem: AssignmentProblem,
+  options: QuantumSolverOptions = {},
+): QuantumSolution {
+  const { layers, shots, restarts, select, seed, topK } = resolveCommonSolverOptions(
+    options,
+    'argmax-valid',
+  );
   const rng = mulberry32(seed);
 
   const energiesInfo = computeEnergies(problem);
   const span = energiesInfo.max - energiesInfo.min;
-  const normalized = new Float64Array(energiesInfo.dim);
-  if (span > 0) {
-    for (let k = 0; k < normalized.length; k++) {
-      normalized[k] = (energiesInfo.energies[k] - energiesInfo.min) / span;
-    }
-  }
+  const normalized = normalizedEnergies(energiesInfo);
 
   const { angles, expectation, evaluations } = optimizeQaoaAngles(
-    layers, energiesInfo.nqubits, normalized, restarts, rng
+    layers,
+    energiesInfo.nqubits,
+    normalized,
+    restarts,
+    rng,
   );
   const finalState = runQaoaCircuit(angles, layers, energiesInfo.nqubits, normalized);
   const probs = finalState.probabilities();
 
-  const selection = selectSolution(
-    problem, energiesInfo, probs, select, shots, rng, topK
-  );
+  const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);
 
-  const welfare = welfareOf(problem, selection.assignment);
-  const isValid = isValidAssignment(problem, selection.assignment);
-  const energy = isValid
-    ? -welfare
-    : -welfare + problem.penaltyOneHot; // 修复后近似能量（报告用）
-
-  return {
-    engine: 'qaoa',
-    assignment: selection.assignment,
-    welfare,
-    energy,
-    probability: selection.probability,
-    validMass: selection.validMass,
+  return assembleSolution('qaoa', problem, selection, {
     expectation: expectation * span + energiesInfo.min,
     layers,
     angles,
     evaluations,
-    repaired: selection.repaired,
-    candidates: selection.candidates
-  };
+  });
 }
 
-export function annealSolve(problem: AssignmentProblem, options: QuantumSolverOptions = {}): QuantumSolution {
-  const tau = options.anneal?.tau ?? 120;
-  const steps = options.anneal?.steps ?? 1200;
-  const shots = options.shots ?? 128;
-  const select = options.select ?? 'argmax-valid';
-  const seed = options.seed ?? 42;
-  const topK = options.topK ?? 3;
+export function annealSolve(
+  problem: AssignmentProblem,
+  options: QuantumSolverOptions = {},
+): QuantumSolution {
+  const tau = options.anneal?.tau ?? FULLSPACE_ANNEAL_TAU;
+  const steps = options.anneal?.steps ?? FULLSPACE_ANNEAL_STEPS;
+  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'argmax-valid');
   const rng = mulberry32(seed);
 
   const energiesInfo = computeEnergies(problem);
@@ -781,39 +718,23 @@ export function annealSolve(problem: AssignmentProblem, options: QuantumSolverOp
   // 代价能量尺度取横场谱宽（≈2·nqubits）同量级：与 ΣX 公平竞争，
   // 过小则合法/非法态近乎简并（实测会把质量散在非法子空间上）
   const scale = 2 * energiesInfo.nqubits;
-  const normalized = new Float64Array(energiesInfo.dim);
-  if (span > 0) {
-    for (let k = 0; k < normalized.length; k++) {
-      normalized[k] = ((energiesInfo.energies[k] - energiesInfo.min) / span) * scale;
-    }
-  }
+  const normalized = normalizedEnergies(energiesInfo, scale);
 
   const finalState = runAnnealingCircuit(tau, steps, energiesInfo.nqubits, normalized);
   const probs = finalState.probabilities();
-  const selection = selectSolution(
-    problem, energiesInfo, probs, select, shots, rng, topK
-  );
+  const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);
 
-  const welfare = welfareOf(problem, selection.assignment);
-  const isValid = isValidAssignment(problem, selection.assignment);
   let expectation = 0;
-  for (let k = 0; k < probs.length; k++) expectation += probs[k] * normalized[k];
-  expectation = expectation * span + energiesInfo.min;
+  for (let k = 0; k < probs.length; k++) expectation += probs[k]! * normalized[k]!;
+  // normalized = ((E-min)/span)·scale：还原原始能量须除回 scale（与QAOA路径一致）
+  expectation = (expectation / scale) * span + energiesInfo.min;
 
-  return {
-    engine: 'annealing',
-    assignment: selection.assignment,
-    welfare,
-    energy: isValid ? -welfare : -welfare + problem.penaltyOneHot,
-    probability: selection.probability,
-    validMass: selection.validMass,
+  return assembleSolution('annealing', problem, selection, {
     expectation,
     layers: steps,
     angles: null,
     evaluations: 1,
-    repaired: selection.repaired,
-    candidates: selection.candidates
-  };
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -846,7 +767,7 @@ export function toIsing(problem: AssignmentProblem): IsingModel {
   const addQ = (q1: number, q2: number, v: number) => {
     if (q1 > q2) [q1, q2] = [q2, q1];
     if (q1 === q2) {
-      c[q1] += v;
+      c[q1]! += v;
       return;
     }
     const key = q1 * nqubits + q2;
@@ -860,8 +781,13 @@ export function toIsing(problem: AssignmentProblem): IsingModel {
     offset += problem.penaltyOneHot;
     for (let a = 0; a < n; a++) {
       const q = t * n + a;
-      c[q] += -problem.weights[t][a];
-      c[q] += -problem.penaltyOneHot;
+      c[q]! += -problem.weights[t]![a]!;
+      c[q]! += -problem.penaltyOneHot;
+      // 资格掩码必须显式进入导出能量：不合法格子的能量罚 ≥ 2λ，
+      // 否则真 QPU 会在"高权重但无资格"的格子上集中采样，废样本率飙升
+      if (problem.ineligible[t]![a]!) {
+        c[q]! += 2 * problem.penaltyOneHot;
+      }
     }
   }
   // one-hot 二次部分：同任务对 +2λ
@@ -892,15 +818,15 @@ export function toIsing(problem: AssignmentProblem): IsingModel {
   const J = new Map<number, number>();
   let isingOffset = offset;
   for (let q = 0; q < nqubits; q++) {
-    h[q] = -c[q] / 2;
-    isingOffset += c[q] / 2;
+    h[q] = -c[q]! / 2;
+    isingOffset += c[q]! / 2;
   }
   for (const [key, v] of Q) {
     const q1 = Math.floor(key / nqubits);
     const q2 = key % nqubits;
     J.set(key, v / 4);
-    h[q1] -= v / 4;
-    h[q2] -= v / 4;
+    h[q1]! -= v / 4;
+    h[q2]! -= v / 4;
     isingOffset += v / 4;
   }
   return { h, J, offset: isingOffset, nqubits };

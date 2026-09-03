@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import {
   QuantumStateVector,
-  AssignmentProblem,
   qaoaSolve,
   annealSolve,
   bruteForceOptimum,
@@ -10,28 +10,31 @@ import {
   couplingKey,
   computeEnergies,
   toIsing,
-  decodeAssignment,
   isValidAssignment,
-  welfareOf
+  welfareOf,
 } from '../src/core/quantum-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import { Agent } from '../src/types/quantum-types.js';
+import type { Agent } from '../src/types/quantum-types.js';
 
 const EPS = 1e-9;
 
-function makeProblem(withCoupling: boolean, couplingTargets: [number, number, number, number] = [0, 0, 1, 1], jValue = 0.4): AssignmentProblem {
+function makeProblem(
+  withCoupling: boolean,
+  couplingTargets: [number, number, number, number] = [0, 0, 1, 1],
+  jValue = 0.4,
+): AssignmentProblem {
   const weights = [
-    [0.60, 0.55, 0.30], // t0 略偏好 a0
-    [0.30, 0.58, 0.52]  // t1 略偏好 a1
+    [0.6, 0.55, 0.3], // t0 略偏好 a0
+    [0.3, 0.58, 0.52], // t1 略偏好 a1
   ];
   const p: AssignmentProblem = {
     taskIds: ['t0', 't1'],
     agentIds: ['a0', 'a1', 'a2'],
     weights,
-    ineligible: weights.map(r => r.map(() => false)),
+    ineligible: weights.map((r) => r.map(() => false)),
     couplings: new Map(),
     penaltyOneHot: 0,
-    penaltyCapacity: 0
+    penaltyCapacity: 0,
   };
   if (withCoupling) {
     const [t1, a1, t2, a2] = couplingTargets;
@@ -43,7 +46,11 @@ function makeProblem(withCoupling: boolean, couplingTargets: [number, number, nu
   return p;
 }
 
-function makeSchedulerAgent(id: string, capabilities: string[], entangledWith: string[] = []): Agent {
+function makeSchedulerAgent(
+  id: string,
+  capabilities: string[],
+  entangledWith: string[] = [],
+): Agent {
   return {
     id,
     name: id,
@@ -53,7 +60,7 @@ function makeSchedulerAgent(id: string, capabilities: string[], entangledWith: s
     load: 0,
     position: { x: 0, y: 0, z: 0 },
     quantumEntanglement: entangledWith,
-    lastHeartbeat: new Date()
+    lastHeartbeat: new Date(),
   };
 }
 
@@ -62,13 +69,11 @@ function makeTask(name: string, capability: string, priority: any = 'medium') {
     name,
     type: 'test',
     priority,
-    requirements: [
-      { type: 'capability' as const, name: capability, value: null, weight: 1.0 }
-    ],
+    requirements: [{ type: 'capability' as const, name: capability, value: null, weight: 1.0 }],
     dependencies: [],
     estimatedDuration: 1000,
     actualDuration: 0,
-    status: 'pending' as const
+    status: 'pending' as const,
   };
 }
 
@@ -78,10 +83,10 @@ describe('QuantumStateVector（物理层）', () => {
     sv.applyMixer(Math.PI / 4);
     const c = Math.cos(Math.PI / 4);
     const s = Math.sin(Math.PI / 4);
-    assert.ok(Math.abs(sv.re[0] - c) < EPS);
-    assert.ok(Math.abs(sv.im[0]) < EPS);
-    assert.ok(Math.abs(sv.re[1]) < EPS);
-    assert.ok(Math.abs(sv.im[1] + s) < EPS); // -i·sinβ
+    assert.ok(Math.abs(sv.re[0]! - c) < EPS);
+    assert.ok(Math.abs(sv.im[0]!) < EPS);
+    assert.ok(Math.abs(sv.re[1]!) < EPS);
+    assert.ok(Math.abs(sv.im[1]! + s) < EPS); // -i·sinβ
     assert.ok(Math.abs(sv.norm() - 1) < EPS);
   });
 
@@ -94,7 +99,7 @@ describe('QuantumStateVector（物理层）', () => {
     sv.applyCostPhase(1.234, energies);
     const after = sv.probabilities();
     for (let k = 0; k < 8; k++) {
-      assert.ok(Math.abs(before[k] - after[k]) < EPS);
+      assert.ok(Math.abs(before[k]! - after[k]!) < EPS);
     }
     assert.ok(Math.abs(sv.norm() - 1) < EPS);
   });
@@ -106,15 +111,15 @@ describe('QuantumStateVector（物理层）', () => {
     const amp = 1 / 4;
     for (let k = 0; k < 16; k++) {
       const sign = popcountLocal(k) % 2 === 0 ? 1 : -1;
-      assert.ok(Math.abs(sv.re[k] - sign * amp) < EPS);
-      assert.ok(Math.abs(sv.im[k]) < EPS);
+      assert.ok(Math.abs(sv.re[k]! - sign * amp) < EPS);
+      assert.ok(Math.abs(sv.im[k]!) < EPS);
     }
     // |−⟩ 是 X 的本征态：mixer 只赋予全局相位 e^{inβ}，概率分布不变
     const before = sv.probabilities();
     sv.applyMixer(0.77);
     const after = sv.probabilities();
     for (let k = 0; k < 16; k++) {
-      assert.ok(Math.abs(before[k] - after[k]) < EPS);
+      assert.ok(Math.abs(before[k]! - after[k]!) < EPS);
     }
     assert.ok(Math.abs(sv.norm() - 1) < EPS);
   });
@@ -130,7 +135,7 @@ describe('QuantumStateVector（物理层）', () => {
   it('born 模式坍缩结果分布合理：多次坍缩至少一次命中高福利区', () => {
     const problem = makeProblem(true);
     const brute = bruteForceOptimum(problem);
-    const best = brute.ranking[0];
+    const best = brute.ranking[0]!;
     const second = brute.ranking[1] ?? best;
     let hitTop = false;
     for (let seed = 1; seed <= 20; seed++) {
@@ -166,8 +171,10 @@ describe('quantum-optimizer（求解质量）', () => {
     const brute = bruteForceOptimum(p);
     const s = qaoaSolve(p, { layers: 4, restarts: 3, select: 'shots-best', shots: 256 });
     assert.ok(isValidAssignment(p, s.assignment));
-    assert.ok(Math.abs(s.welfare - brute.welfare) < 1e-9,
-      `QAOA welfare ${s.welfare} 应等于最优 ${brute.welfare}`);
+    assert.ok(
+      Math.abs(s.welfare - brute.welfare) < 1e-9,
+      `QAOA welfare ${s.welfare} 应等于最优 ${brute.welfare}`,
+    );
   });
 
   it('QAOA 命中穷举最优（纠缠耦合实例）', () => {
@@ -180,10 +187,16 @@ describe('quantum-optimizer（求解质量）', () => {
   it('绝热退火命中穷举最优', () => {
     const p = makeProblem(true);
     const brute = bruteForceOptimum(p);
-    const s = annealSolve(p, { anneal: { tau: 120, steps: 1200 }, select: 'shots-best', shots: 256 });
+    const s = annealSolve(p, {
+      anneal: { tau: 120, steps: 1200 },
+      select: 'shots-best',
+      shots: 256,
+    });
     assert.ok(isValidAssignment(p, s.assignment));
-    assert.ok(Math.abs(s.welfare - brute.welfare) < 1e-9,
-      `退火 welfare ${s.welfare} 应等于最优 ${brute.welfare}`);
+    assert.ok(
+      Math.abs(s.welfare - brute.welfare) < 1e-9,
+      `退火 welfare ${s.welfare} 应等于最优 ${brute.welfare}`,
+    );
   });
 
   it('纠缠耦合项翻转最优分配（哈密顿量物理耦合生效）', () => {
@@ -203,8 +216,8 @@ describe('quantum-optimizer（求解质量）', () => {
 
   it('不合格(任务,agent)对永不被选择', () => {
     const p = makeProblem(false);
-    p.ineligible[0][0] = true; // t0 不能给 a0
-    p.ineligible[1][1] = true; // t1 不能给 a1
+    p.ineligible[0]![0] = true; // t0 不能给 a0
+    p.ineligible[1]![1] = true; // t1 不能给 a1
     const brute = bruteForceOptimum(p);
     assert.notEqual(brute.assignment[0], 0);
     assert.notEqual(brute.assignment[1], 1);
@@ -240,7 +253,7 @@ describe('quantum-optimizer（求解质量）', () => {
         for (let q = 0; q < ising.nqubits; q++) {
           const x = (state >> q) & 1;
           const z = 1 - 2 * x;
-          e += ising.h[q] * z;
+          e += ising.h[q]! * z;
         }
         for (const [key, j] of ising.J) {
           const q1 = Math.floor(key / ising.nqubits);
@@ -249,10 +262,14 @@ describe('quantum-optimizer（求解质量）', () => {
           const z2 = 1 - 2 * ((state >> q2) & 1);
           e += j * z1 * z2;
         }
-        assert.ok(Math.abs(e - energies[state]) < 1e-6,
-          `Ising能量(${e}) 应等于哈密顿量能量(${energies[state]}) @ [${a0},${a1}]`);
-        assert.ok(Math.abs(welfareOf(p, assignment) + energies[state]) < 1e-6,
-          '合法分配的动能 = -福利');
+        assert.ok(
+          Math.abs(e - energies[state]!) < 1e-6,
+          `Ising能量(${e}) 应等于哈密顿量能量(${energies[state]}) @ [${a0},${a1}]`,
+        );
+        assert.ok(
+          Math.abs(welfareOf(p, assignment) + energies[state]!) < 1e-6,
+          '合法分配的动能 = -福利',
+        );
       }
     }
   });
@@ -261,7 +278,10 @@ describe('quantum-optimizer（求解质量）', () => {
 describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
   it('quantum-qaoa 单任务：测量坍缩产生分配，概率为Born概率', () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { quantumAlgorithm: 'quantum-qaoa', quantum: { layers: 3, select: 'argmax-valid' } }
+      scheduling: {
+        quantumAlgorithm: 'quantum-qaoa',
+        quantum: { layers: 3, select: 'argmax-valid' },
+      },
     });
     scheduler.registerAgent(makeSchedulerAgent('a1', ['javascript', 'python']));
     scheduler.registerAgent(makeSchedulerAgent('a2', ['javascript']));
@@ -279,7 +299,7 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
 
   it('quantum-annealing 单任务同样完成坍缩分配', () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { quantumAlgorithm: 'quantum-annealing' }
+      scheduling: { quantumAlgorithm: 'quantum-annealing' },
     });
     scheduler.registerAgent(makeSchedulerAgent('a1', ['rust']));
     scheduler.registerAgent(makeSchedulerAgent('a2', ['rust']));
@@ -295,8 +315,8 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
       scheduling: {
         quantumAlgorithm: 'quantum-qaoa',
         autoSchedule: false, // 攒任务，等待联合量子调度
-        quantum: { layers: 4, select: 'shots-best', shots: 256 }
-      }
+        quantum: { layers: 4, select: 'shots-best', shots: 256 },
+      },
     });
     scheduler.registerAgent(makeSchedulerAgent('a1', ['js'], ['a2']));
     scheduler.registerAgent(makeSchedulerAgent('a2', ['js'], ['a1']));
@@ -312,12 +332,18 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     assert.equal(report.assigned, 2, '两个挂起任务应被联合分配');
     assert.ok(report.entanglementCouplings > 0, '纠缠对应产生哈密顿量耦合项');
     assert.ok(report.optimality, '小规模问题应附带穷举最优对照');
-    assert.ok(report.optimality!.ratio >= 0.999, `联合最优率应为100%，实际 ${(report.optimality!.ratio * 100).toFixed(1)}%`);
+    assert.ok(
+      report.optimality!.ratio >= 0.999,
+      `联合最优率应为100%，实际 ${(report.optimality!.ratio * 100).toFixed(1)}%`,
+    );
     assert.ok(report.meanProbability > 0 && report.meanProbability <= 1);
 
     // 任务状态与agent占用一致
-    assert.equal(scheduler.getTasks().every(t => t.status === 'assigned'), true);
-    assert.equal(scheduler.getAgents().filter(a => a.state !== 'idle').length, 2);
+    assert.equal(
+      scheduler.getTasks().every((t) => t.status === 'assigned'),
+      true,
+    );
+    assert.equal(scheduler.getAgents().filter((a) => a.state !== 'idle').length, 2);
 
     // 统计落地
     const metrics = scheduler.getQuantumMetrics();
@@ -338,7 +364,7 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
 
   it('空场景边界：无任务/无agent时批量调度安全返回', () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { quantumAlgorithm: 'quantum-annealing' }
+      scheduling: { quantumAlgorithm: 'quantum-annealing' },
     });
     const empty = scheduler.scheduleBatchQuantum();
     assert.equal(empty.assigned, 0);

@@ -7,7 +7,7 @@ describe('QuantumBus', () => {
   const buses: QuantumBus[] = [];
 
   after(() => {
-    buses.forEach(bus => bus.shutdown());
+    buses.forEach((bus) => bus.shutdown());
   });
 
   it('未启动时不占用端口，离线消息进入队列', () => {

@@ -7,7 +7,7 @@ describe('AgentManager', () => {
 
   after(() => {
     // 清理心跳定时器，避免测试进程无法退出
-    managers.forEach(manager => manager.shutdown());
+    managers.forEach((manager) => manager.shutdown());
   });
 
   function newManager(): AgentManager {
@@ -20,7 +20,7 @@ describe('AgentManager', () => {
     const agent = manager.registerAgent({
       name: 'Dev',
       type: 'developer',
-      capabilities: ['javascript']
+      capabilities: ['javascript'],
     });
 
     assert.ok(agent.id);
@@ -53,7 +53,7 @@ describe('AgentManager', () => {
     manager.createEntanglement(a1.id, a2.id);
 
     assert.equal(manager.getEntanglements().length, 1);
-    assert.equal(manager.getEntanglements()[0].strength, 0.2); // 0.1 + 0.1
+    assert.equal(manager.getEntanglements()[0]!.strength, 0.2); // 0.1 + 0.1
   });
 
   it('负载超过80触发overloaded，回落触发idle', () => {

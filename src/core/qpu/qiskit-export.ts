@@ -14,7 +14,8 @@
  */
 
 import type { AssignmentProblem } from '../quantum-optimizer';
-import { toIsing } from '../quantum-optimizer';
+import { toIsing, computeEnergies } from '../quantum-optimizer';
+import { QuantumEngineError } from '../../utils/errors';
 
 export interface QiskitExportOptions {
   /** QAOA 角度 [γ1..γp, β1..βp]（来自 qaoaSolve().angles） */
@@ -26,7 +27,10 @@ export interface QiskitExportOptions {
   runtime?: 'aer' | 'ibm';
 }
 
-export function toQiskitProgram(problem: AssignmentProblem, options: QiskitExportOptions = {}): string {
+export function toQiskitProgram(
+  problem: AssignmentProblem,
+  options: QiskitExportOptions = {},
+): string {
   const m = options.numTasks ?? problem.taskIds.length;
   const n = options.numAgents ?? problem.agentIds.length;
   const nqubits = m * n;
@@ -34,28 +38,51 @@ export function toQiskitProgram(problem: AssignmentProblem, options: QiskitExpor
   const runtime = options.runtime ?? 'aer';
 
   // 角度：缺省用解析好的单层启发值
-  const angles = options.angles && options.angles.length >= 2
-    ? options.angles
-    : [Math.PI / 2, Math.PI / 4];
-  const layers = Math.floor(angles.length / 2);
+  const angles =
+    options.angles && options.angles.length >= 2 ? options.angles : [Math.PI / 2, Math.PI / 4];
+  if (angles.length % 2 !== 0) {
+    // 奇数长度静默截断会丢掉最后一个角度，电路与训练结果不一致
+    throw new QuantumEngineError(
+      `angles must be an even-length [γ1..γp, β1..βp] array (got ${angles.length})`,
+    );
+  }
+  const layers = angles.length / 2;
   const gammas = angles.slice(0, layers);
   const betas = angles.slice(layers, layers * 2);
+
+  // 角度是在归一化能量 (E−min)/span 上训练的；直接导出原始 Ising 系数
+  // 会把有效角度缩放 span 倍。这里把系数除以 span（极小值是全局相位，
+  // 不影响测量分布），使导出电路与模拟器严格等价。
+  let span: number;
+  if (nqubits <= 20) {
+    const energies = computeEnergies(problem);
+    span = Math.max(energies.max - energies.min, 1e-12);
+  } else {
+    // 2^nq 不可枚举：以系数 L1 范数上界近似（保持量级可比，非严格等价）
+    let l1 = 0;
+    for (const h of ising.h) l1 += Math.abs(h);
+    for (const v of ising.J.values()) l1 += Math.abs(v);
+    span = Math.max(l1, 1e-12);
+  }
+  const invSpan = 1 / span;
 
   // 非零耦合项列表（避免生成过长的 Python 源码）
   const couplings: Array<[number, number, number]> = [];
   for (const [key, value] of ising.J) {
     if (value !== 0) {
-      couplings.push([Math.floor(key / nqubits), key % nqubits, +value.toFixed(6)]);
+      couplings.push([Math.floor(key / nqubits), key % nqubits, +(value * invSpan).toFixed(6)]);
     }
   }
-  const linear = ising.h.map((h, q) => [q, +h.toFixed(6)] as [number, number]).filter(([, h]) => h !== 0);
+  const linear = ising.h
+    .map((h, q) => [q, +(h * invSpan).toFixed(6)] as [number, number])
+    .filter(([, h]) => h !== 0);
 
   return `# ============================================================
 # Quantum Multi-Agent Scheduler → Qiskit QAOA 程序（自动生成）
 # 问题: ${m} 任务 × ${n} agent，${nqubits} 量子比特（one-hot + 罚项编码）
-# 角度: 来自本仓库 QAOA 变分训练 (${gammas.map(g => g.toFixed(4)).join(', ')} | ${betas.map(b => b.toFixed(4)).join(', ')})
+# 角度: 来自本仓库 QAOA 变分训练 (${gammas.map((g) => g.toFixed(4)).join(', ')} | ${betas.map((b) => b.toFixed(4)).join(', ')})
 # 运行: python qaoa_schedule.py   （需 pip install qiskit qiskit-aer）
-# 换真机: 将 AerSimulator() 替换为 qiskit_ibm_runtime 的 QPU 后端
+# 后端: ${runtime}（换真机: 将 AerSimulator() 替换为 qiskit_ibm_runtime 的 QPU 后端）
 # ============================================================
 from qiskit import QuantumCircuit, transpile
 from qiskit.quantum_info import SparsePauliOp
@@ -63,8 +90,8 @@ from qiskit_aer import AerSimulator
 
 NQ = ${nqubits}
 M, N = ${m}, ${n}
-GAMMAS = [${gammas.map(g => +g.toFixed(6)).join(', ')}]
-BETAS  = [${betas.map(b => +b.toFixed(6)).join(', ')}]
+GAMMAS = [${gammas.map((g) => +g.toFixed(6)).join(', ')}]
+BETAS  = [${betas.map((b) => +b.toFixed(6)).join(', ')}]
 LINEAR     = ${JSON.stringify(linear)}     # [[qubit, h_q], ...]
 QUADRATIC  = ${JSON.stringify(couplings)}  # [[q1, q2, J_q1q2], ...]
 

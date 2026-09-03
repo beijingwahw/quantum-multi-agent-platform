@@ -11,7 +11,7 @@ describe('DSHIntegration', () => {
     const workflows = dsh.getWorkflows();
 
     assert.ok(tools.length >= 5);
-    assert.ok(tools.some(t => t.name === 'read_file'));
+    assert.ok(tools.some((t) => t.name === 'read_file'));
     assert.ok(workflows.length >= 3);
     assert.equal(dsh.getMetrics().isInitialized, true);
   });
@@ -20,7 +20,7 @@ describe('DSHIntegration', () => {
     const dsh = new DSHIntegration({});
     await dsh.initialize();
 
-    const content = await dsh.executeTool('read_file', { path: 'package.json' });
+    const content = (await dsh.executeTool('read_file', { path: 'package.json' })) as string;
     assert.ok(content.includes('quantum-multi-agent-platform'));
   });
 
@@ -28,13 +28,10 @@ describe('DSHIntegration', () => {
     const dsh = new DSHIntegration({});
     await dsh.initialize();
 
-    await assert.rejects(
-      () => dsh.executeTool('not_a_tool', {}),
-      /Tool 'not_a_tool' not found/
-    );
+    await assert.rejects(() => dsh.executeTool('not_a_tool', {}), /Tool 'not_a_tool' not found/);
     await assert.rejects(
       () => dsh.executeTool('read_file', {}),
-      /Required parameter 'path' missing/
+      /Required parameter 'path' missing/,
     );
   });
 
@@ -47,18 +44,18 @@ describe('DSHIntegration', () => {
       steps: [
         { id: '3', tool: 'read_file', parameters: { path: 'package.json' }, dependsOn: ['2'] },
         { id: '1', tool: 'read_file', parameters: { path: 'package.json' }, dependsOn: [] },
-        { id: '2', tool: 'read_file', parameters: { path: 'tsconfig.json' }, dependsOn: ['1'] }
-      ]
+        { id: '2', tool: 'read_file', parameters: { path: 'tsconfig.json' }, dependsOn: ['1'] },
+      ],
     });
 
     const results = await dsh.executeWorkflow(workflow.id);
 
     // 结果按拓扑顺序而非声明顺序返回
     assert.equal(results.length, 3);
-    assert.equal(results[0][0], '1');
-    assert.equal(results[1][0], '2');
-    assert.equal(results[2][0], '3');
-    assert.ok(results[1][1].includes('compilerOptions'));
+    assert.equal(results[0]![0], '1');
+    assert.equal(results[1]![0], '2');
+    assert.equal(results[2]![0], '3');
+    assert.ok((results[1]![1] as string).includes('compilerOptions'));
   });
 
   it('循环依赖的工作流被检测并拒绝', async () => {
@@ -69,14 +66,11 @@ describe('DSHIntegration', () => {
       name: 'circular',
       steps: [
         { id: 'a', tool: 'read_file', parameters: { path: 'package.json' }, dependsOn: ['b'] },
-        { id: 'b', tool: 'read_file', parameters: { path: 'package.json' }, dependsOn: ['a'] }
-      ]
+        { id: 'b', tool: 'read_file', parameters: { path: 'package.json' }, dependsOn: ['a'] },
+      ],
     });
 
-    await assert.rejects(
-      () => dsh.executeWorkflow(workflow.id),
-      /circular/i
-    );
+    await assert.rejects(() => dsh.executeWorkflow(workflow.id), /circular/i);
   });
 
   it('支持动态注册自定义工具', async () => {
@@ -88,12 +82,12 @@ describe('DSHIntegration', () => {
       description: 'returns input',
       parameters: [{ name: 'text', type: 'string', required: true }],
       returnType: 'string',
-      category: 'custom-unknown'
+      category: 'custom-unknown',
     });
 
     await assert.rejects(
       () => dsh.executeTool('echo_tool', { text: 'hi' }),
-      /Unknown tool category/
+      /Unknown tool category/,
     );
 
     dsh.unregisterTool('echo_tool');

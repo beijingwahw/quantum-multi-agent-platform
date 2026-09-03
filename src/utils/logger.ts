@@ -8,7 +8,7 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   silent: 0,
   warn: 1,
   info: 2,
-  debug: 3
+  debug: 3,
 };
 
 function resolveInitialLevel(): number {
@@ -24,23 +24,31 @@ export function setLogLevel(level: LogLevel): void {
 }
 
 export function getLogLevel(): LogLevel {
-  return (Object.keys(LEVEL_ORDER) as LogLevel[]).find(key => LEVEL_ORDER[key] === currentLevel) || 'info';
+  return (
+    (Object.keys(LEVEL_ORDER) as LogLevel[]).find((key) => LEVEL_ORDER[key] === currentLevel) ||
+    'info'
+  );
 }
 
-export function logDebug(tag: string, ...args: any[]): void {
+export function logDebug(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.debug) {
     console.log(`[${tag}]`, ...args);
   }
 }
 
-export function logInfo(tag: string, ...args: any[]): void {
+export function logInfo(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.info) {
     console.log(`[${tag}]`, ...args);
   }
 }
 
-export function logWarn(tag: string, ...args: any[]): void {
+export function logWarn(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.warn) {
     console.warn(`[${tag}]`, ...args);
   }
+}
+
+export function logError(tag: string, ...args: unknown[]): void {
+  // 错误永远输出：silent 只应压制噪音，不应吞掉故障信号
+  console.error(`[${tag}]`, ...args);
 }

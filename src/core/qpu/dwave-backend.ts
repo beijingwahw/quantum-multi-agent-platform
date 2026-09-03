@@ -16,6 +16,7 @@
 
 import type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './quantum-backend';
 import { registerBackend } from './quantum-backend';
+import { BackendError } from '../../utils/errors';
 
 export interface DWaveConfig {
   token?: string;
@@ -26,6 +27,18 @@ export interface DWaveConfig {
 
 const DEFAULT_ENDPOINT = 'https://cloud.dwavesys.com/sapi/v2';
 const DEFAULT_SOLVER = 'hybrid_binary_quadratic_model_version2p';
+
+/** SAPI 问题对象的最小形状（轮询与答案提取实际消费的字段） */
+interface DWaveProblemResponse {
+  id?: string;
+  status?: string;
+  answer?: unknown;
+  error_message?: unknown;
+  num_occurrences_sum?: number;
+}
+
+/** 可继续轮询的进行中状态；其余未知状态（EXCEPTION 等）立即失败 */
+const PENDING_STATUSES = new Set(['PENDING', 'IN_PROGRESS', 'SUBMITTED']);
 
 /** 解析后的答案（内部统一格式） */
 interface DWaveAnswer {
@@ -44,7 +57,17 @@ export class DWaveBackend implements QuantumBackend {
 
   constructor(config: DWaveConfig = {}) {
     this.token = config.token ?? process.env.DWAVE_API_TOKEN ?? process.env.D_WAVE_API_TOKEN ?? '';
-    this.endpoint = (config.endpoint ?? process.env.DWAVE_API_ENDPOINT ?? DEFAULT_ENDPOINT).replace(/\/$/, '');
+    const endpoint = (
+      config.endpoint ??
+      process.env.DWAVE_API_ENDPOINT ??
+      DEFAULT_ENDPOINT
+    ).replace(/\/$/, '');
+    // 凭据随每个请求发往该endpoint：只允许 https（或本机调试的http），
+    // 防止被注入的明文endpoint把token外带到任意主机
+    if (!endpoint.startsWith('https://') && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(endpoint)) {
+      throw new BackendError(`DWaveBackend: endpoint must be https (got ${endpoint})`);
+    }
+    this.endpoint = endpoint;
     this.solverName = config.solver ?? process.env.DWAVE_SOLVER ?? DEFAULT_SOLVER;
     this.name = `dwave:${this.solverName}`;
   }
@@ -57,10 +80,13 @@ export class DWaveBackend implements QuantumBackend {
     h: number[],
     j: Map<number, number>,
     nqubits: number,
-    options: QpuSolveOptions = {}
+    options: QpuSolveOptions = {},
   ): Promise<QpuSampleSet> {
     if (!this.isAvailable()) {
-      throw new Error('DWaveBackend: 缺少凭据。设置 DWAVE_API_TOKEN 环境变量或构造器传入 token。');
+      throw new BackendError(
+        'DWaveBackend: missing credentials. Set the DWAVE_API_TOKEN environment ' +
+          'variable or pass a token to the constructor.',
+      );
     }
     const numReads = options.numReads ?? 100;
     const timeoutMs = options.timeoutMs ?? 60_000;
@@ -73,70 +99,106 @@ export class DWaveBackend implements QuantumBackend {
           type: 'bqm',
           data: {
             linear: denseLinear(h),
-            quadratic: sparseQuadratic(j, nqubits)
+            quadratic: sparseQuadratic(j, nqubits),
           },
-          params: { num_reads: numReads, label: 'quantum-multi-agent-scheduler' }
+          params: { num_reads: numReads, label: 'quantum-multi-agent-scheduler' },
         }
       : {
           solver: this.solverName,
           type: 'ising',
           data: {
             h: Object.fromEntries(h.map((value, q) => [String(q), value])),
-            J: Object.fromEntries([...j.entries()].map(([key, value]) => [couplingLabel(key, nqubits), value]))
+            J: Object.fromEntries(
+              [...j.entries()].map(([key, value]) => [couplingLabel(key, nqubits), value]),
+            ),
           },
-          params: { num_reads: numReads, label: 'quantum-multi-agent-scheduler' }
+          params: { num_reads: numReads, label: 'quantum-multi-agent-scheduler' },
         };
 
     // 提交（异步任务可能返回 PENDING → 轮询直到 COMPLETED）
-    const submitted = await this.post('problems/', body, timeoutMs);
+    const submitted = await this.post<DWaveProblemResponse>('problems/', body, timeoutMs);
     let problem = submitted;
     const deadline = Date.now() + timeoutMs;
     while (problem.status !== 'COMPLETED') {
       if (problem.status === 'FAILED' || problem.status === 'CANCELLED') {
-        throw new Error(`DWave problem ${problem.status}: ${JSON.stringify(problem.error_message ?? {})}`);
+        throw new BackendError(
+          `DWave problem ${problem.status}: ${JSON.stringify(problem.error_message ?? {})}`,
+        );
       }
-      if (Date.now() > deadline) {
-        throw new Error(`DWave 轮询超时（${timeoutMs}ms），问题ID ${problem.id}`);
+      // 未知状态（EXCEPTION 等）不可重试：立即失败而不是空转到超时
+      if (problem.status === undefined || !PENDING_STATUSES.has(problem.status)) {
+        throw new BackendError(
+          `DWave problem entered unknown status '${problem.status}' (id=${problem.id ?? 'none'})`,
+        );
       }
-      await sleep(500);
-      problem = await this.get(`problems/${problem.id}`, timeoutMs);
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new BackendError(
+          `DWave polling timed out (${timeoutMs}ms), problem id ${problem.id}`,
+        );
+      }
+      await sleep(Math.min(500, remaining));
+      if (!problem.id) {
+        throw new BackendError('DWave submit response is missing the problem id; cannot poll');
+      }
+      // 每次请求只消耗剩余预算，总墙钟时间不超过 timeoutMs
+      problem = await this.get<DWaveProblemResponse>(
+        `problems/${encodeURIComponent(problem.id)}`,
+        remaining,
+      );
     }
 
-    const answer = parseAnswer(problem.answer, nqubits, problem.num_occurrences_sum);
+    const answer = parseAnswer(problem.answer, nqubits);
     return {
       spins: answer.solutions,
       energies: answer.energies,
       occurrences: answer.occurrences,
       solver: this.solverName,
-      realHardware: true
+      realHardware: true,
     };
   }
 
-  private async post(path: string, body: unknown, timeoutMs: number): Promise<any> {
+  private async post<T>(path: string, body: unknown, timeoutMs: number): Promise<T> {
     const response = await fetch(`${this.endpoint}/${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Auth-Token': this.token
+        'X-Auth-Token': this.token,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs)
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) {
-      throw new Error(`DWave POST ${path} → HTTP ${response.status}: ${await safeText(response)}`);
+      throw new BackendError(
+        `DWave POST ${path} → HTTP ${response.status}: ${await safeText(response)}`,
+      );
     }
-    return response.json();
+    return parseJson<T>(response, path);
   }
 
-  private async get(path: string, timeoutMs: number): Promise<any> {
+  private async get<T>(path: string, timeoutMs: number): Promise<T> {
     const response = await fetch(`${this.endpoint}/${path}`, {
       headers: { 'X-Auth-Token': this.token },
-      signal: AbortSignal.timeout(timeoutMs)
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) {
-      throw new Error(`DWave GET ${path} → HTTP ${response.status}: ${await safeText(response)}`);
+      throw new BackendError(
+        `DWave GET ${path} → HTTP ${response.status}: ${await safeText(response)}`,
+      );
     }
-    return response.json();
+    return parseJson<T>(response, path);
+  }
+}
+
+/** 2xx 但非 JSON 的响应体给出带上下文的错误，而不是裸 SyntaxError */
+async function parseJson<T>(response: Response, path: string): Promise<T> {
+  const text = await response.text().catch(() => '');
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new BackendError(
+      `DWave ${path} returned a non-JSON body: ${text.slice(0, 200) || '<empty>'}`,
+    );
   }
 }
 
@@ -148,7 +210,7 @@ export class DWaveBackend implements QuantumBackend {
 function denseLinear(h: number[]): Array<[number, number]> {
   const out: Array<[number, number]> = [];
   for (let q = 0; q < h.length; q++) {
-    if (h[q] !== 0) out.push([q, h[q]]);
+    if (h[q] !== 0) out.push([q, h[q]!]);
   }
   return out;
 }
@@ -173,30 +235,34 @@ function couplingLabel(key: number, nqubits: number): string {
 // 响应解析：经典格式 + qp 压缩格式
 // ----------------------------------------------------------------------------
 
-function parseAnswer(answer: any, nqubits: number, _occurrencesSum?: number): DWaveAnswer {
-  if (!answer) throw new Error('DWave 响应缺少 answer 字段');
+function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
+  if (typeof rawAnswer !== 'object' || rawAnswer === null) {
+    throw new BackendError('DWave response is missing the answer field');
+  }
+  const answer = rawAnswer as Record<string, unknown>;
 
   // 经典格式：solutions 为 ±1 自旋数组
   if (Array.isArray(answer.solutions)) {
     return {
-      solutions: answer.solutions,
-      energies: answer.energies ?? [],
-      occurrences: answer.num_occurrences ?? answer.solutions.map(() => 1)
+      solutions: answer.solutions as number[][],
+      energies: asNumberArray(answer.energies) ?? [],
+      occurrences:
+        asNumberArray(answer.num_occurrences) ?? (answer.solutions as number[][]).map(() => 1),
     };
   }
 
   // qp 压缩格式：answer.data.vector 为 16 位字流（每字小端 16 位），
   // 位值 0 → 自旋 +1，1 → 自旋 −1；每个解占 nqubits 位
-  if (answer.format === 'qp' && answer.data?.vector) {
-    const words: number[] = answer.data.vector;
+  const data = answer.data as Record<string, unknown> | undefined;
+  if (answer.format === 'qp' && Array.isArray(data?.vector)) {
+    const words = data.vector as number[];
     const bits: number[] = [];
     for (const word of words) {
       for (let b = 0; b < 16; b++) {
         bits.push((word >> b) & 1);
       }
     }
-    const numSolutions = (answer.num_solutions as number | undefined)
-      ?? Math.floor(bits.length / nqubits);
+    const numSolutions = asNumber(answer.num_solutions) ?? Math.floor(bits.length / nqubits);
     const solutions: number[][] = [];
     for (let s = 0; s < numSolutions; s++) {
       const sol: number[] = [];
@@ -207,16 +273,24 @@ function parseAnswer(answer: any, nqubits: number, _occurrencesSum?: number): DW
     }
     return {
       solutions,
-      energies: answer.energies ?? [],
-      occurrences: answer.num_occurrences ?? solutions.map(() => 1)
+      energies: asNumberArray(answer.energies) ?? [],
+      occurrences: asNumberArray(answer.num_occurrences) ?? solutions.map(() => 1),
     };
   }
 
-  throw new Error(`DWave 未知响应格式: ${JSON.stringify(Object.keys(answer))}`);
+  throw new BackendError(`DWave unknown answer format: ${JSON.stringify(Object.keys(answer))}`);
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function asNumberArray(value: unknown): number[] | undefined {
+  return Array.isArray(value) && value.every((v) => typeof v === 'number') ? value : undefined;
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function safeText(response: Response): Promise<string> {

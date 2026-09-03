@@ -9,8 +9,8 @@ describe('Web控制台协议 端到端', () => {
   const clients: WebSocket[] = [];
 
   after(() => {
-    clients.forEach(c => c.close());
-    platforms.forEach(p => p.stop());
+    clients.forEach((c) => c.close());
+    platforms.forEach((p) => p.stop());
   });
 
   function connectConsole(port: number): Promise<{ latest: () => any }> {
@@ -42,7 +42,11 @@ describe('Web控制台协议 端到端', () => {
     });
   }
 
-  function waitFor(latest: () => any, pred: (snap: any) => boolean, timeoutMs = 8000): Promise<any> {
+  function waitFor(
+    latest: () => any,
+    pred: (snap: any) => boolean,
+    timeoutMs = 8000,
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const started = Date.now();
       const timer = setInterval(() => {
@@ -61,7 +65,7 @@ describe('Web控制台协议 端到端', () => {
   it('控制台完整闭环：查询→提交任务→添加Agent→完成任务', async () => {
     const platform = new QuantumMultiAgentPlatform({
       communication: { port: 0 },
-      performance: { metricsInterval: 60000 }
+      performance: { metricsInterval: 60000 },
     });
     platforms.push(platform);
     await platform.start();
@@ -69,21 +73,23 @@ describe('Web控制台协议 端到端', () => {
     const { latest } = await connectConsole(platform.quantumBus.getPort()!);
 
     // 1. 快照包含4个系统agent
-    const initial = await waitFor(latest, snap => snap.agents.length >= 4);
+    const initial = await waitFor(latest, (snap) => snap.agents.length >= 4);
     assert.ok(initial.agents.some((a: any) => a.name === 'Quantum Developer'));
     assert.ok(initial.metrics.scheduler);
     assert.ok(initial.metrics.health);
 
     // 2. 提交任务（空能力要求 → 分配给空闲系统agent）
-    const ws = clients[clients.length - 1];
-    ws.send(JSON.stringify({
-      type: 'console_command',
-      action: 'submit_task',
-      payload: { name: 'console-e2e-task', priority: 'high' }
-    }));
+    const ws = clients[clients.length - 1]!;
+    ws.send(
+      JSON.stringify({
+        type: 'console_command',
+        action: 'submit_task',
+        payload: { name: 'console-e2e-task', priority: 'high' },
+      }),
+    );
 
-    const withTask = await waitFor(latest, snap =>
-      snap.tasks.some((t: any) => t.name === 'console-e2e-task')
+    const withTask = await waitFor(latest, (snap) =>
+      snap.tasks.some((t: any) => t.name === 'console-e2e-task'),
     );
     const task = withTask.tasks.find((t: any) => t.name === 'console-e2e-task');
     assert.equal(task.status, 'assigned');
@@ -91,50 +97,57 @@ describe('Web控制台协议 端到端', () => {
 
     // 3. 动态添加agent
     const agentsBefore = latest().agents.length;
-    ws.send(JSON.stringify({
-      type: 'console_command',
-      action: 'add_agent',
-      payload: { name: 'Console E2E Agent' }
-    }));
-
-    await waitFor(latest, snap =>
-      snap.agents.some((a: any) => a.name === 'Console E2E Agent')
+    ws.send(
+      JSON.stringify({
+        type: 'console_command',
+        action: 'add_agent',
+        payload: { name: 'Console E2E Agent' },
+      }),
     );
+
+    await waitFor(latest, (snap) => snap.agents.some((a: any) => a.name === 'Console E2E Agent'));
     assert.ok(latest().agents.length === agentsBefore + 1);
 
     // 4. 完成任务 → 状态同步为completed
-    ws.send(JSON.stringify({
-      type: 'console_command',
-      action: 'complete_task',
-      payload: { taskId: task.id, success: true }
-    }));
-
-    await waitFor(latest, snap =>
-      snap.tasks.some((t: any) => t.id === task.id && t.status === 'completed')
+    ws.send(
+      JSON.stringify({
+        type: 'console_command',
+        action: 'complete_task',
+        payload: { taskId: task.id, success: true },
+      }),
     );
-    assert.ok(true);
+
+    const done = await waitFor(latest, (snap) =>
+      snap.tasks.some((t: any) => t.id === task.id && t.status === 'completed'),
+    );
+    // 终态快照与指标双确认（而非仅"未抛错"）
+    const completedTask = done.tasks.find((t: any) => t.id === task.id);
+    assert.equal(completedTask.status, 'completed');
+    assert.ok(done.metrics.scheduler.completedTasks >= 1);
   });
 
   it('未知控制台命令被安全忽略并回发快照', async () => {
     const platform = new QuantumMultiAgentPlatform({
       communication: { port: 0 },
-      performance: { metricsInterval: 60000 }
+      performance: { metricsInterval: 60000 },
     });
     platforms.push(platform);
     await platform.start();
 
     const { latest } = await connectConsole(platform.quantumBus.getPort()!);
-    await waitFor(latest, snap => snap.agents.length >= 4);
+    await waitFor(latest, (snap) => snap.agents.length >= 4);
 
-    const ws = clients[clients.length - 1];
-    ws.send(JSON.stringify({
-      type: 'console_command',
-      action: 'nonsense_action',
-      payload: {}
-    }));
+    const ws = clients[clients.length - 1]!;
+    ws.send(
+      JSON.stringify({
+        type: 'console_command',
+        action: 'nonsense_action',
+        payload: {},
+      }),
+    );
 
     // 收到回发快照且平台未崩溃
-    await waitFor(latest, snap => snap.agents.length >= 4);
+    await waitFor(latest, (snap) => snap.agents.length >= 4);
     assert.ok(platform.quantumBus.isStarted());
   });
 });

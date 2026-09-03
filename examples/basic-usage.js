@@ -6,11 +6,11 @@ async function basicExample() {
   // 创建平台实例
   const platform = new QuantumMultiAgentPlatform({
     scheduling: {
-      maxConcurrentTasks: 50
+      maxConcurrentTasks: 50,
     },
     communication: {
-      port: 8081
-    }
+      port: 8081,
+    },
   });
 
   try {
@@ -23,13 +23,13 @@ async function basicExample() {
       name: 'AI Coder',
       type: 'developer',
       capabilities: ['javascript', 'python', 'typescript', 'react'],
-      position: { x: 0.5, y: 0.5, z: 0.5 }
+      position: { x: 0.5, y: 0.5, z: 0.5 },
     });
 
     console.log('✓ Agent registered:', codingAgent.name);
 
     // 创建量子纠缠（需要使用目标agent的ID）
-    const quantumDev = platform.getAgents().find(a => a.name === 'Quantum Developer');
+    const quantumDev = platform.getAgents().find((a) => a.name === 'Quantum Developer');
     platform.agentManager.createEntanglement(codingAgent.id, quantumDev.id);
     console.log('✓ Quantum entanglement created\n');
 
@@ -40,9 +40,9 @@ async function basicExample() {
       priority: 'high',
       requirements: [
         { type: 'capability', name: 'javascript', weight: 0.8 },
-        { type: 'capability', name: 'react', weight: 0.6 }
+        { type: 'capability', name: 'react', weight: 0.6 },
       ],
-      estimatedDuration: 30000
+      estimatedDuration: 30000,
     });
 
     console.log('✓ Task submitted:', task.id);
@@ -58,8 +58,8 @@ async function basicExample() {
     // 执行DSH工具
     console.log('=== DSH Tool Execution ===');
     try {
-      const result = await platform.executeDSHTool('read_file', { 
-        path: 'examples/basic-usage.js' 
+      const result = await platform.executeDSHTool('read_file', {
+        path: 'examples/basic-usage.js',
       });
       console.log('✓ File read successfully, length:', result.length);
     } catch (error) {
@@ -70,14 +70,13 @@ async function basicExample() {
     setTimeout(() => {
       platform.completeTask(task.id, true, { linesAnalyzed: 42 });
       console.log('\n✓ Task completed:', task.id);
-      
+
       // 最终状态
       const finalMetrics = platform.getSystemMetrics();
       console.log('\n=== Final Metrics ===');
       console.log('Completed tasks:', finalMetrics.scheduler.completedTasks);
       console.log('Failed tasks:', finalMetrics.scheduler.failedTasks);
     }, 2000);
-
   } catch (error) {
     console.error('Error in basic example:', error);
   } finally {

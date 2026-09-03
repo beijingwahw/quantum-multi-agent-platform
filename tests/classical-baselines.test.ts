@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import {
-  AssignmentProblem,
   bruteForceOptimum,
   defaultPenalties,
   couplingKey,
-  welfareOf
+  welfareOf,
 } from '../src/core/quantum-optimizer.js';
 import { hungarianAssignment, localSearchAssignment } from '../src/core/classical-baselines.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
@@ -26,24 +26,27 @@ function rng(seed: number): () => number {
 }
 
 function makeProblem(
-  m: number, n: number, seed: number,
-  opts: { entangle?: boolean; mask?: boolean } = {}
+  m: number,
+  n: number,
+  seed: number,
+  opts: { entangle?: boolean; mask?: boolean } = {},
 ): AssignmentProblem {
   const r = rng(seed);
   const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)));
+    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)),
+  );
   const p: AssignmentProblem = {
     taskIds: Array.from({ length: m }, (_, i) => `t${i}`),
     agentIds: Array.from({ length: n }, (_, i) => `a${i}`),
     weights,
-    ineligible: weights.map(row => row.map(() => false)),
+    ineligible: weights.map((row) => row.map(() => false)),
     couplings: new Map(),
     penaltyOneHot: 0,
-    penaltyCapacity: 0
+    penaltyCapacity: 0,
   };
   if (opts.mask) {
-    p.ineligible[0][0] = true;
-    p.ineligible[m - 1][n - 1] = true;
+    p.ineligible[0]![0] = true;
+    p.ineligible[m - 1]![n - 1] = true;
   }
   if (opts.entangle) {
     for (let t1 = 0; t1 < m; t1++) {
@@ -70,9 +73,11 @@ describe('classical-baselines（经典最强基线）', () => {
       // 与穷举一致（线性问题：穷举按含耦合的福利算，无耦合时二者等价）
       const linear = { ...p, couplings: new Map() };
       const brute = bruteForceOptimum(linear);
-      const hungW = assignment.reduce((s, a, t) => s + p.weights[t][a], 0);
-      assert.ok(Math.abs(hungW - brute.welfare) < EPS,
-        `匈牙利 ${hungW.toFixed(3)} 应等于穷举最优 ${brute.welfare.toFixed(3)} (seed=${seed})`);
+      const hungW = assignment.reduce((s, a, t) => s + p.weights[t]![a]!, 0);
+      assert.ok(
+        Math.abs(hungW - brute.welfare) < EPS,
+        `匈牙利 ${hungW.toFixed(3)} 应等于穷举最优 ${brute.welfare.toFixed(3)} (seed=${seed})`,
+      );
     }
   });
 
@@ -82,9 +87,15 @@ describe('classical-baselines（经典最强基线）', () => {
       const hung = hungarianAssignment(p.weights, p.ineligible);
       const hungW = welfareOf(p, hung);
       const model = buildSubspaceModel(p)!;
-      const quantum = annealSolveSubspace(model, { anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 512 });
-      assert.ok(Math.abs(quantum.welfare - hungW) < EPS,
-        `量子 ${quantum.welfare.toFixed(3)} 应与匈牙利精确解 ${hungW.toFixed(3)} 一致 (seed=${seed})`);
+      const quantum = annealSolveSubspace(model, {
+        anneal: { tau: 20, steps: 150 },
+        select: 'shots-best',
+        shots: 512,
+      });
+      assert.ok(
+        Math.abs(quantum.welfare - hungW) < EPS,
+        `量子 ${quantum.welfare.toFixed(3)} 应与匈牙利精确解 ${hungW.toFixed(3)} 一致 (seed=${seed})`,
+      );
       assert.ok(Math.abs(model.optimalWelfare - hungW) < EPS);
     }
   });
@@ -97,9 +108,15 @@ describe('classical-baselines（经典最强基线）', () => {
       const lsW = welfareOf(p, ls);
       // 局部搜索 ≥ 贪心（同一初始）
       // 贪心福利：局部搜索的初始即贪心，改进后必 ≥
-      const quantum = annealSolveSubspace(model, { anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 512 });
-      assert.ok(quantum.welfare >= lsW - EPS,
-        `量子 ${quantum.welfare.toFixed(3)} 不应低于局部搜索 ${lsW.toFixed(3)} (seed=${seed})`);
+      const quantum = annealSolveSubspace(model, {
+        anneal: { tau: 20, steps: 150 },
+        select: 'shots-best',
+        shots: 512,
+      });
+      assert.ok(
+        quantum.welfare >= lsW - EPS,
+        `量子 ${quantum.welfare.toFixed(3)} 不应低于局部搜索 ${lsW.toFixed(3)} (seed=${seed})`,
+      );
       assert.ok(Math.abs(quantum.welfare - model.optimalWelfare) < EPS);
     }
   });
@@ -108,9 +125,15 @@ describe('classical-baselines（经典最强基线）', () => {
 describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => {
   function makeAgent(id: string, capabilities: string[]): Agent {
     return {
-      id, name: id, type: 'developer', capabilities,
-      state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-      quantumEntanglement: [], lastHeartbeat: new Date()
+      id,
+      name: id,
+      type: 'developer',
+      capabilities,
+      state: 'idle',
+      load: 0,
+      position: { x: 0, y: 0, z: 0 },
+      quantumEntanglement: [],
+      lastHeartbeat: new Date(),
     };
   }
 
@@ -119,8 +142,8 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
       scheduling: {
         quantumAlgorithm: 'quantum-annealing',
         autoSchedule: false,
-        quantum: { anneal: { tau: 20, steps: 150 } }
-      }
+        quantum: { anneal: { tau: 20, steps: 150 } },
+      },
     });
     for (let i = 0; i < 3; i++) {
       scheduler.registerAgent(makeAgent(`a${i}`, ['js']));
@@ -128,9 +151,14 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
     const priorities = ['critical', 'high', 'high', 'medium', 'medium', 'low'] as const;
     for (let i = 0; i < 6; i++) {
       scheduler.submitTask({
-        name: `任务${i}`, type: 'batch', priority: priorities[i],
+        name: `任务${i}`,
+        type: 'batch',
+        priority: priorities[i],
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-        dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+        dependencies: [],
+        estimatedDuration: 5000,
+        actualDuration: 0,
+        status: 'pending',
       } as any);
     }
 
@@ -141,7 +169,10 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
     assert.equal(report1.chunks, 1);
     assert.ok(report1.optimality!);
     assert.ok(report1.optimality!.ratio >= 0.999, '首轮应命中最优');
-    assert.equal(scheduler.getAgents().every(a => a.state !== 'idle'), true);
+    assert.equal(
+      scheduler.getAgents().every((a) => a.state !== 'idle'),
+      true,
+    );
 
     // 完成首轮任务（释放agent），次轮调度剩余3个
     for (const t of scheduler.getTasks()) {
@@ -152,9 +183,12 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
     assert.equal(report2.assigned, 3);
     assert.ok(report2.optimality!.ratio >= 0.999, '次轮应命中最优');
 
-    assert.equal(scheduler.getTasks().every(t => t.status === 'assigned' || t.status === 'completed'), true);
+    assert.equal(
+      scheduler.getTasks().every((t) => t.status === 'assigned' || t.status === 'completed'),
+      true,
+    );
     // 6任务全分配过：3完成 + 3在跑
-    const busy = scheduler.getAgents().filter(a => a.state !== 'idle');
+    const busy = scheduler.getAgents().filter((a) => a.state !== 'idle');
     assert.equal(busy.length, 3);
   });
 
@@ -163,17 +197,22 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
       scheduling: {
         quantumAlgorithm: 'quantum-annealing',
         autoSchedule: false,
-        quantum: { subspaceCap: 2, qubitCap: 12 } // P(n,k)全超限 → 回退
-      }
+        quantum: { subspaceCap: 2, qubitCap: 12 }, // P(n,k)全超限 → 回退
+      },
     });
     for (let i = 0; i < 3; i++) {
       scheduler.registerAgent(makeAgent(`a${i}`, ['js']));
     }
     for (let i = 0; i < 2; i++) {
       scheduler.submitTask({
-        name: `任务${i}`, type: 'batch', priority: 'medium',
+        name: `任务${i}`,
+        type: 'batch',
+        priority: 'medium',
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-        dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+        dependencies: [],
+        estimatedDuration: 5000,
+        actualDuration: 0,
+        status: 'pending',
       } as any);
     }
     const report = scheduler.scheduleBatchQuantum();

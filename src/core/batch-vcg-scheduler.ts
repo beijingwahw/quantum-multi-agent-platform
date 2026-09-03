@@ -60,77 +60,21 @@
  * - 重复博弈的动态激励（为经营声誉而压报价）不在本模块处理范围。
  */
 
-/** 最小费用最大流（SPFA 连续最短增广），用于精确求解容量约束下的 WDP */
-class MinCostFlow {
-  private readonly graph: Array<Array<{ to: number; rev: number; cap: number; cost: number }>> = [];
-
-  constructor(n: number) {
-    for (let i = 0; i < n; i++) this.graph.push([]);
-  }
-
-  /** 建边并返回前向边引用（供事后查询是否被占用） */
-  addEdge(from: number, to: number, cap: number, cost: number): { from: number; idx: number } {
-    this.graph[from].push({ to, rev: this.graph[to].length, cap, cost });
-    this.graph[to].push({ to: from, rev: this.graph[from].length - 1, cap: 0, cost: -cost });
-    return { from, idx: this.graph[from].length - 1 };
-  }
-
-  /**
-   * 最小费用流（自由处置版）：只沿负费用增广路推进——当容量竞争使
-   * "多分配一单"的边际福利为负时停止，允许最优解弃标。
-   * （若跑满最大流会强制分配所有可分配任务，在容量挤占下得到次优解。）
-   */
-  run(s: number, t: number): { flow: number; cost: number } {
-    let flow = 0;
-    let cost = 0;
-    const n = this.graph.length;
-    for (;;) {
-      const dist = Array<number>(n).fill(Infinity);
-      const inQueue = Array<boolean>(n).fill(false);
-      const prev: Array<{ node: number; edgeIdx: number } | null> = Array(n).fill(null);
-      dist[s] = 0;
-      const queue: number[] = [s];
-      while (queue.length > 0) {
-        const u = queue.shift()!;
-        inQueue[u] = false;
-        for (let i = 0; i < this.graph[u].length; i++) {
-          const e = this.graph[u][i];
-          if (e.cap > 0 && dist[u] + e.cost < dist[e.to] - 1e-9) {
-            dist[e.to] = dist[u] + e.cost;
-            prev[e.to] = { node: u, edgeIdx: i };
-            if (!inQueue[e.to]) {
-              queue.push(e.to);
-              inQueue[e.to] = true;
-            }
-          }
-        }
-      }
-      // 无增广路，或边际费用非负（再分配只会降福利）→ 停止
-      if (dist[t] === Infinity || dist[t] >= -1e-12) break;
-      let aug = Infinity;
-      for (let v = t; v !== s; ) {
-        const p = prev[v]!;
-        aug = Math.min(aug, this.graph[p.node][p.edgeIdx].cap);
-        v = p.node;
-      }
-      for (let v = t; v !== s; ) {
-        const p = prev[v]!;
-        const e = this.graph[p.node][p.edgeIdx];
-        e.cap -= aug;
-        this.graph[e.to][e.rev].cap += aug;
-        cost += aug * e.cost;
-        v = p.node;
-      }
-      flow += aug;
-    }
-    return { flow, cost };
-  }
-
-  /** 读取 agent→task 前向边是否被占用（cap 由 1 减为 0 即被分配） */
-  edgeOccupied(ref: { from: number; idx: number }): boolean {
-    return this.graph[ref.from][ref.idx].cap === 0;
-  }
-}
+/** 最小费用最大流、确定性 PRNG 与市场估值层由共享内核提供 */
+import { MinCostFlow, type FlowEdgeRef } from './min-cost-flow';
+import { mulberry32 } from '../utils/rng';
+import { round2, round3, round9 } from '../utils/numeric';
+import { MechanismError } from '../utils/errors';
+import {
+  bidOf,
+  dominantOf,
+  socialValueOf,
+  switchCostOf,
+  effectiveQuality,
+  updateReputation,
+  recordSettlement,
+  SettlementHistory,
+} from './market-estimation';
 
 export interface BatchAgentSpec {
   id: string;
@@ -171,7 +115,7 @@ export const DEFAULT_BATCH_CONFIG: BatchVCGConfig = {
   learningCeiling: 0.6,
   learningRate: 0.15,
   switchCostRate: 0,
-  seed: 42
+  seed: 42,
 };
 
 export interface BatchAssignment {
@@ -222,23 +166,13 @@ interface AgentRuntime {
   profit: number;
 }
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export class BatchVCGScheduler {
   private readonly config: BatchVCGConfig;
   private readonly agents = new Map<string, AgentRuntime>();
   private readonly rng: () => number;
   private taskSeq = 0;
   private lastAllocation: BatchAllocation | null = null;
-  private readonly history: Array<{ success: boolean }> = [];
+  private readonly history = new SettlementHistory();
   private netWelfare = 0;
 
   constructor(config: Partial<BatchVCGConfig> = {}) {
@@ -247,7 +181,7 @@ export class BatchVCGScheduler {
   }
 
   register(spec: BatchAgentSpec): this {
-    if (this.agents.has(spec.id)) throw new Error(`Agent 已注册: ${spec.id}`);
+    if (this.agents.has(spec.id)) throw new MechanismError(`Agent already registered: ${spec.id}`);
     this.agents.set(spec.id, {
       spec,
       attempts: new Map(),
@@ -255,40 +189,19 @@ export class BatchVCGScheduler {
       capital: new Map(),
       reputation: this.config.priorQuality,
       totalAttempts: 0,
-      profit: 0
+      profit: 0,
     });
     return this;
   }
 
-  // ---------- 公开估值（只消费公开履历 + 报价） ----------
+  // ---------- 公开估值（共享估值层：只消费公开履历 + 报价） ----------
 
   private bidOf(rt: AgentRuntime): number {
-    return rt.spec.trueCost * (1 + (rt.spec.bidMarkup ?? 0));
-  }
-
-  private estimateQuality(rt: AgentRuntime, capability: string): number {
-    const n = rt.attempts.get(capability) ?? 0;
-    const s = rt.successes.get(capability) ?? 0;
-    const cred = rt.spec.credentialQuality?.[capability] ?? this.config.priorQuality;
-    return (s + cred * this.config.priorWeight) / (n + this.config.priorWeight);
+    return bidOf(rt);
   }
 
   private dominantOf(rt: AgentRuntime): string | null {
-    let best: string | null = null;
-    let bestCap = -1;
-    for (const [cap, v] of rt.capital) {
-      if (v > bestCap) {
-        bestCap = v;
-        best = cap;
-      }
-    }
-    return best;
-  }
-
-  private switchCostOf(rt: AgentRuntime, capability: string): number {
-    const dom = this.dominantOf(rt);
-    if (!dom || dom === capability) return 0;
-    return this.config.switchCostRate * (rt.capital.get(dom) ?? 0);
+    return dominantOf(rt);
   }
 
   /** 全局口径的按能力尝试总数（公开履历，不随排除集变化——保证 VCG 支付一致性） */
@@ -300,11 +213,7 @@ export class BatchVCGScheduler {
 
   /** 平台对 rt 执行 capability 的公开估值（λ 折价前） */
   private valueOf(rt: AgentRuntime, capability: string): number {
-    const q = this.estimateQuality(rt, capability);
-    const n = rt.attempts.get(capability) ?? 0;
-    const explore =
-      this.config.exploreCoefficient * Math.sqrt(Math.log(1 + this.totalPullsOf(capability)) / (1 + n));
-    return this.config.successValue * q + explore - this.switchCostOf(rt, capability);
+    return socialValueOf(rt, capability, this.totalPullsOf(capability), this.config);
   }
 
   // ---------- WDP：最小费用流精确求解 ----------
@@ -318,7 +227,7 @@ export class BatchVCGScheduler {
     capabilities: string[],
     lambda: number,
     excludeAgent?: string,
-    mu = 1
+    mu = 1,
   ): Array<{ taskIdx: number; agentId: string }> {
     const rts = [...this.agents.values()].filter((rt) => rt.spec.id !== excludeAgent);
     const T = capabilities.length;
@@ -328,14 +237,14 @@ export class BatchVCGScheduler {
     const sink = 1 + rts.length + T;
     const mcf = new MinCostFlow(sink + 1);
     for (let a = 0; a < rts.length; a++) {
-      mcf.addEdge(S, 1 + a, rts[a].spec.capacity, 0);
+      mcf.addEdge(S, 1 + a, rts[a]!.spec.capacity, 0);
     }
-    const pairEdges: Array<{ ref: { from: number; idx: number }; taskIdx: number; agentId: string }> = [];
+    const pairEdges: Array<{ ref: FlowEdgeRef; taskIdx: number; agentId: string }> = [];
     for (let a = 0; a < rts.length; a++) {
-      const rt = rts[a];
+      const rt = rts[a]!;
       const bid = this.bidOf(rt);
       for (let t = 0; t < T; t++) {
-        const cap = capabilities[t];
+        const cap = capabilities[t]!;
         if (!rt.spec.capabilities.includes(cap)) continue;
         const score = this.valueOf(rt, cap) - lambda - mu * bid;
         if (score <= 0) continue; // 免费处置：负分组合永不入最优解
@@ -347,22 +256,25 @@ export class BatchVCGScheduler {
       mcf.addEdge(1 + rts.length + t, sink, 1, 0);
     }
     mcf.run(S, sink);
-    return pairEdges.filter((pe) => mcf.edgeOccupied(pe.ref)).map((pe) => ({
-      taskIdx: pe.taskIdx,
-      agentId: pe.agentId
-    }));
+    return pairEdges
+      .filter((pe) => mcf.edgeOccupied(pe.ref))
+      .map((pe) => ({
+        taskIdx: pe.taskIdx,
+        agentId: pe.agentId,
+      }));
   }
 
   /** 指定 λ 下的分配福利 Σ(ṽ − b) */
   private welfareOf(
     capabilities: string[],
     pairs: Array<{ taskIdx: number; agentId: string }>,
-    lambda: number
+    lambda: number,
   ): number {
     let w = 0;
     for (const p of pairs) {
-      const rt = this.agents.get(p.agentId)!;
-      const cap = capabilities[p.taskIdx];
+      const rt = this.agents.get(p.agentId);
+      const cap = capabilities[p.taskIdx]!;
+      if (!rt) continue; // 分配对来自本类内部，agent 必然存在；防御性跳过
       w += this.valueOf(rt, cap) - lambda - this.bidOf(rt);
     }
     return w;
@@ -371,8 +283,12 @@ export class BatchVCGScheduler {
   /** 给定 λ 的分配 + bundle 级 Clarke pivot 支付 */
   private solveWithPayments(
     capabilities: string[],
-    lambda: number
-  ): { pairs: Array<{ taskIdx: number; agentId: string }>; payments: Record<string, number>; total: number } {
+    lambda: number,
+  ): {
+    pairs: Array<{ taskIdx: number; agentId: string }>;
+    payments: Record<string, number>;
+    total: number;
+  } {
     const pairs = this.solveWDP(capabilities, lambda);
     const W = this.welfareOf(capabilities, pairs, lambda);
     const counts = new Map<string, number>();
@@ -380,11 +296,16 @@ export class BatchVCGScheduler {
     const payments: Record<string, number> = {};
     let total = 0;
     for (const agentId of counts.keys()) {
-      const rt = this.agents.get(agentId)!;
-      const wWithout = this.welfareOf(capabilities, this.solveWDP(capabilities, lambda, agentId), lambda);
+      const rt = this.agents.get(agentId);
+      if (!rt) continue;
+      const wWithout = this.welfareOf(
+        capabilities,
+        this.solveWDP(capabilities, lambda, agentId),
+        lambda,
+      );
       // p_i = b_i·k_i + (W* − W*_{−i})，自动落在 [b_i·k_i, ṽ_i(X_i)] 内
-      const pay = this.bidOf(rt) * counts.get(agentId)! + (W - wWithout);
-      payments[agentId] = Math.round(pay * 1e9) / 1e9;
+      const pay = this.bidOf(rt) * (counts.get(agentId) ?? 0) + (W - wWithout);
+      payments[agentId] = round9(pay);
       total += payments[agentId];
     }
     return { pairs, payments, total };
@@ -405,7 +326,7 @@ export class BatchVCGScheduler {
     const build = (
       pairs: Array<{ taskIdx: number; agentId: string }>,
       payments: Record<string, number>,
-      lambda: number
+      lambda: number,
     ): BatchAllocation => {
       const total = Object.values(payments).reduce((a, b) => a + b, 0);
       const realWelfare = this.welfareOf(capabilities, pairs, 0);
@@ -415,32 +336,33 @@ export class BatchVCGScheduler {
         .map((p) => ({
           taskId: `t${++this.taskSeq}`,
           agentId: p.agentId,
-          capability: capabilities[p.taskIdx],
-          paymentShare: 0
+          capability: capabilities[p.taskIdx]!,
+          paymentShare: 0,
         }));
       const byAgent = new Map<string, number>();
       for (const p of pairs) byAgent.set(p.agentId, (byAgent.get(p.agentId) ?? 0) + 1);
       for (const a of assignments) {
-        a.paymentShare = payments[a.agentId] / byAgent.get(a.agentId)!;
+        a.paymentShare = (payments[a.agentId] ?? 0) / (byAgent.get(a.agentId) ?? 1);
       }
       // platformTake = Σv − Σp：用 λ=0 的真实估值核算
       let vSum = 0;
       for (const p of pairs) {
-        const rt = this.agents.get(p.agentId)!;
-        vSum += this.valueOf(rt, capabilities[p.taskIdx]);
+        const rt = this.agents.get(p.agentId);
+        if (!rt) continue;
+        vSum += this.valueOf(rt, capabilities[p.taskIdx]!);
       }
       const alloc: BatchAllocation = {
         assignments,
         payments,
-        totalPayment: Math.round(total * 1e9) / 1e9,
-        welfare: Math.round(realWelfare * 1e9) / 1e9,
-        maxWelfare: Math.round(maxWelfare * 1e9) / 1e9,
-        efficiencyLoss: Math.round((maxWelfare - realWelfare) * 1e9) / 1e9,
-        platformTake: Math.round((vSum - total) * 1e9) / 1e9,
-        lambda: Math.round(lambda * 1e9) / 1e9,
+        totalPayment: round9(total),
+        welfare: round9(realWelfare),
+        maxWelfare: round9(maxWelfare),
+        efficiencyLoss: round9(maxWelfare - realWelfare),
+        platformTake: round9(vSum - total),
+        lambda: round9(lambda),
         droppedTasks: capabilities.length - pairs.length,
         budget,
-        exactDSIC: lambda === 0
+        exactDSIC: lambda === 0,
       };
       return alloc;
     };
@@ -471,6 +393,11 @@ export class BatchVCGScheduler {
         lo = mid;
       }
     }
+    // 终局预算复核：Σp(λ) 的单调性未被证明，若收敛点意外超预算，
+    // 退回空分配（λ=λmax，恒可行）而不是交出违约批次
+    if (best.total > budget + 1e-9) {
+      best = this.solveWithPayments(capabilities, lambdaMax);
+    }
     this.lastAllocation = build(best.pairs, best.payments, hi);
     return this.lastAllocation;
   }
@@ -495,7 +422,7 @@ export class BatchVCGScheduler {
    */
   allocateAffineBatch(
     capabilities: string[],
-    opts: { lambda?: number; mu?: number } = {}
+    opts: { lambda?: number; mu?: number } = {},
   ): BatchAllocation {
     const lambda = opts.lambda ?? 0;
     const mu = Math.max(1, opts.mu ?? 1);
@@ -504,8 +431,9 @@ export class BatchVCGScheduler {
     const phiOf = (ps: Array<{ taskIdx: number; agentId: string }>): number => {
       let s = 0;
       for (const p of ps) {
-        const rt = this.agents.get(p.agentId)!;
-        s += this.valueOf(rt, capabilities[p.taskIdx]) - lambda - mu * this.bidOf(rt);
+        const rt = this.agents.get(p.agentId);
+        if (!rt) continue;
+        s += this.valueOf(rt, capabilities[p.taskIdx]!) - lambda - mu * this.bidOf(rt);
       }
       return s;
     };
@@ -516,10 +444,11 @@ export class BatchVCGScheduler {
     const payments: Record<string, number> = {};
     let total = 0;
     for (const agentId of counts.keys()) {
-      const rt = this.agents.get(agentId)!;
+      const rt = this.agents.get(agentId);
+      if (!rt) continue;
       const phiWithout = phiOf(this.solveWDP(capabilities, lambda, agentId, mu));
-      const pay = this.bidOf(rt) * counts.get(agentId)! + (phiStar - phiWithout) / mu;
-      payments[agentId] = Math.round(pay * 1e9) / 1e9;
+      const pay = this.bidOf(rt) * (counts.get(agentId) ?? 0) + (phiStar - phiWithout) / mu;
+      payments[agentId] = round9(pay);
       total += payments[agentId];
     }
 
@@ -527,8 +456,9 @@ export class BatchVCGScheduler {
     let realWelfare = 0;
     let vSum = 0;
     for (const p of pairs) {
-      const rt = this.agents.get(p.agentId)!;
-      const v = this.valueOf(rt, capabilities[p.taskIdx]);
+      const rt = this.agents.get(p.agentId);
+      if (!rt) continue;
+      const v = this.valueOf(rt, capabilities[p.taskIdx]!);
       vSum += v;
       realWelfare += v - this.bidOf(rt);
     }
@@ -540,26 +470,26 @@ export class BatchVCGScheduler {
       .map((p) => ({
         taskId: `t${++this.taskSeq}`,
         agentId: p.agentId,
-        capability: capabilities[p.taskIdx],
-        paymentShare: 0
+        capability: capabilities[p.taskIdx]!,
+        paymentShare: 0,
       }));
     for (const a of assignments) {
-      a.paymentShare = payments[a.agentId] / counts.get(a.agentId)!;
+      a.paymentShare = (payments[a.agentId] ?? 0) / (counts.get(a.agentId) ?? 1);
     }
 
     const alloc: BatchAllocation = {
       assignments,
       payments,
-      totalPayment: Math.round(total * 1e9) / 1e9,
-      welfare: Math.round(realWelfare * 1e9) / 1e9,
-      maxWelfare: Math.round(maxWelfare * 1e9) / 1e9,
-      efficiencyLoss: Math.round((maxWelfare - realWelfare) * 1e9) / 1e9,
-      platformTake: Math.round((vSum - total) * 1e9) / 1e9,
-      lambda: Math.round(lambda * 1e9) / 1e9,
-      mu: Math.round(mu * 1e9) / 1e9,
+      totalPayment: round9(total),
+      welfare: round9(realWelfare),
+      maxWelfare: round9(maxWelfare),
+      efficiencyLoss: round9(maxWelfare - realWelfare),
+      platformTake: round9(vSum - total),
+      lambda: round9(lambda),
+      mu: round9(mu),
       droppedTasks: capabilities.length - pairs.length,
       budget: Infinity,
-      exactDSIC: true
+      exactDSIC: true,
     };
     this.lastAllocation = alloc;
     return alloc;
@@ -580,7 +510,7 @@ export class BatchVCGScheduler {
     capabilities.forEach((cap, t) => {
       void t;
       const cands = [...this.agents.values()].filter(
-        (rt) => rt.spec.capabilities.includes(cap) && (remaining.get(rt.spec.id) ?? 0) > 0
+        (rt) => rt.spec.capabilities.includes(cap) && (remaining.get(rt.spec.id) ?? 0) > 0,
       );
       if (cands.length === 0) return;
       const scored = cands.map((rt) => {
@@ -588,7 +518,7 @@ export class BatchVCGScheduler {
         return { rt, v, s: v - this.bidOf(rt) };
       });
       scored.sort((a, b) => b.s - a.s || a.rt.spec.id.localeCompare(b.rt.spec.id));
-      const winner = scored[0];
+      const winner = scored[0]!; // cands.length > 0 已在上方保证
       const second = scored[1];
       const pay = Math.min(Math.max(winner.v - (second?.s ?? 0), 0), winner.v);
       payments[winner.rt.spec.id] = (payments[winner.rt.spec.id] ?? 0) + pay;
@@ -597,47 +527,55 @@ export class BatchVCGScheduler {
         taskId: `t${++this.taskSeq}`,
         agentId: winner.rt.spec.id,
         capability: cap,
-        paymentShare: pay
+        paymentShare: pay,
       });
       vSum += winner.v;
       welfare += winner.s;
     });
 
     const total = Object.values(payments).reduce((a, b) => a + b, 0);
+    const maxWelfare = this.welfareOf(capabilities, this.solveWDP(capabilities, 0), 0);
+    const welfareRounded = round9(welfare);
     const alloc: BatchAllocation = {
       assignments,
       payments,
-      totalPayment: Math.round(total * 1e9) / 1e9,
-      welfare: Math.round(welfare * 1e9) / 1e9,
-      maxWelfare: this.welfareOf(capabilities, this.solveWDP(capabilities, 0), 0),
-      efficiencyLoss: 0,
-      platformTake: Math.round((vSum - total) * 1e9) / 1e9,
+      totalPayment: round9(total),
+      welfare: welfareRounded,
+      maxWelfare,
+      efficiencyLoss: round9(maxWelfare - welfareRounded),
+      platformTake: round9(vSum - total),
       lambda: 0,
       droppedTasks: capabilities.length - assignments.length,
       budget: Infinity,
-      exactDSIC: false
+      exactDSIC: false,
     };
-    alloc.efficiencyLoss = Math.round((alloc.maxWelfare - alloc.welfare) * 1e9) / 1e9;
     return alloc;
   }
 
   /** 结算上一批分配：更新公开履历（按能力成功率 / 上下文资本 / 声誉） */
   settleBatch(results: Array<{ taskId: string; success: boolean }>): void {
-    if (!this.lastAllocation) throw new Error('没有待结算的批次');
+    if (!this.lastAllocation) throw new MechanismError('No batch is pending settlement');
     const byTask = new Map(this.lastAllocation.assignments.map((a) => [a.taskId, a]));
+    const settled = new Set<string>();
     for (const r of results) {
       const a = byTask.get(r.taskId);
-      if (!a) throw new Error(`任务不属于当前批次: ${r.taskId}`);
-      const rt = this.agents.get(a.agentId)!;
-      rt.attempts.set(a.capability, (rt.attempts.get(a.capability) ?? 0) + 1);
-      rt.successes.set(a.capability, (rt.successes.get(a.capability) ?? 0) + (r.success ? 1 : 0));
-      rt.capital.set(a.capability, (rt.capital.get(a.capability) ?? 0) + 1);
+      if (!a) throw new MechanismError(`Task does not belong to the current batch: ${r.taskId}`);
+      if (settled.has(r.taskId)) throw new MechanismError(`Task settled twice: ${r.taskId}`);
+      settled.add(r.taskId);
+      const rt = this.agents.get(a.agentId);
+      if (!rt) throw new MechanismError(`Unregistered agent in batch: ${a.agentId}`);
+      recordSettlement(rt, a.capability, r.success);
       rt.totalAttempts++;
-      rt.reputation =
-        rt.reputation * (1 - this.config.reputationAlpha) + (r.success ? 1 : 0) * this.config.reputationAlpha;
+      rt.reputation = updateReputation(rt.reputation, r.success, this.config.reputationAlpha);
       const pay = this.lastAllocation.payments[a.agentId] ?? 0;
       const k = this.lastAllocation.assignments.filter((x) => x.agentId === a.agentId).length;
       rt.profit += pay / k - rt.spec.trueCost;
+    }
+    // 部分结算会使未结算任务随 lastAllocation 清空而静默消失——
+    // 履历（成功率/资本）由此系统性缺项。要么全结算，要么显式报错
+    if (settled.size !== byTask.size) {
+      const missing = [...byTask.keys()].filter((id) => !settled.has(id));
+      throw new MechanismError(`Incomplete batch settlement, missing tasks: ${missing.join(', ')}`);
     }
     this.lastAllocation = null;
   }
@@ -646,7 +584,7 @@ export class BatchVCGScheduler {
    * 传 affine 时走 μ-VCG 路径（公开乘子，精确 DSIC）。 */
   simulateBatch(
     capabilities: string[],
-    opts: { budget?: number; affine?: { lambda?: number; mu?: number } } = {}
+    opts: { budget?: number; affine?: { lambda?: number; mu?: number } } = {},
   ): { allocation: BatchAllocation; settlements: BatchSettlement[]; netWelfare: number } {
     const allocation = opts.affine
       ? this.allocateAffineBatch(capabilities, opts.affine)
@@ -657,17 +595,16 @@ export class BatchVCGScheduler {
     const results: Array<{ taskId: string; success: boolean }> = [];
 
     for (const a of allocation.assignments) {
-      const rt = this.agents.get(a.agentId)!;
+      const rt = this.agents.get(a.agentId);
+      if (!rt) throw new MechanismError(`Unregistered agent in batch: ${a.agentId}`);
       const cap = a.capability;
       const k0 = rt.capital.get(cap) ?? 0;
       capitalBefore.set(a.taskId, k0);
-      const dom = this.dominantOf(rt);
       const base = rt.spec.trueQuality[cap] ?? 0;
-      const { learningCeiling: alpha, learningRate: beta } = this.config;
-      const qEff = Math.min(1, base + alpha * (1 - base) * (1 - Math.exp(-beta * k0)));
+      const { learningCeiling, learningRate } = this.config;
+      const qEff = effectiveQuality(base, k0, learningCeiling, learningRate);
       const success = this.rng() < qEff;
-      const penalty =
-        dom && dom !== cap ? this.config.switchCostRate * (rt.capital.get(dom) ?? 0) : 0;
+      const penalty = switchCostOf(rt, cap, this.config);
       const actualCost = rt.spec.trueCost * (1 + penalty);
       const k = allocation.assignments.filter((x) => x.agentId === a.agentId).length;
       const pay = (allocation.payments[a.agentId] ?? 0) / k;
@@ -677,8 +614,8 @@ export class BatchVCGScheduler {
     }
     if (results.length > 0) this.settleBatch(results);
     this.netWelfare += welfare;
-    for (const r of results) this.history.push({ success: r.success });
-    return { allocation, settlements, netWelfare: Math.round(welfare * 100) / 100 };
+    for (const r of results) this.history.push(r.success);
+    return { allocation, settlements, netWelfare: round2(welfare) };
   }
 
   /**
@@ -690,11 +627,11 @@ export class BatchVCGScheduler {
     capabilities: string[],
     agentId: string,
     markups: number[],
-    opts: { budget?: number; affine?: { lambda?: number; mu?: number } } = {}
+    opts: { budget?: number; affine?: { lambda?: number; mu?: number } } = {},
   ): { maxGain: number; bestMarkup: number; details: Array<{ markup: number; utility: number }> } {
     const savedLast = this.lastAllocation;
     const rt = this.agents.get(agentId);
-    if (!rt) throw new Error(`未知 agent: ${agentId}`);
+    if (!rt) throw new MechanismError(`Unknown agent: ${agentId}`);
     const savedMarkup = rt.spec.bidMarkup;
 
     const run = (): BatchAllocation =>
@@ -708,7 +645,9 @@ export class BatchVCGScheduler {
     };
 
     const truthful = utilityOf(run());
-    const details: Array<{ markup: number; utility: number }> = [{ markup: savedMarkup ?? 0, utility: truthful }];
+    const details: Array<{ markup: number; utility: number }> = [
+      { markup: savedMarkup ?? 0, utility: truthful },
+    ];
     let maxGain = 0;
     let bestMarkup = savedMarkup ?? 0;
     for (const m of markups) {
@@ -722,23 +661,21 @@ export class BatchVCGScheduler {
     }
     rt.spec.bidMarkup = savedMarkup;
     this.lastAllocation = savedLast;
-    return { maxGain: Math.round(maxGain * 1e9) / 1e9, bestMarkup, details };
+    return { maxGain: round9(maxGain), bestMarkup, details };
   }
 
   // ---------- 指标 ----------
 
   getWindowSuccessRate(from: number, to: number): number {
-    const slice = this.history.slice(from, to);
-    if (slice.length === 0) return 0;
-    return slice.filter((x) => x.success).length / slice.length;
+    return this.history.successRate(from, to);
   }
 
   getNetWelfare(): number {
-    return Math.round(this.netWelfare * 100) / 100;
+    return round2(this.netWelfare);
   }
 
   getSettledCount(): number {
-    return this.history.length;
+    return this.history.size;
   }
 
   getSnapshot(): Array<{
@@ -754,8 +691,8 @@ export class BatchVCGScheduler {
       attempts: Object.fromEntries(rt.attempts),
       successes: Object.fromEntries(rt.successes),
       capital: Object.fromEntries(rt.capital),
-      reputation: Math.round(rt.reputation * 1000) / 1000,
-      profit: Math.round(rt.profit * 100) / 100
+      reputation: round3(rt.reputation),
+      profit: round2(rt.profit),
     }));
   }
 }
@@ -778,7 +715,7 @@ export class BudgetPacer {
   constructor(
     private readonly budget: number,
     private readonly kappa = 0.5,
-    private readonly maxMu = 100
+    private readonly maxMu = 100,
   ) {}
 
   /** 当前公开乘子（对当批所有 agent 同时可见、先于报价确定） */

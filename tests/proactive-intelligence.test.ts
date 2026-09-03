@@ -4,7 +4,7 @@ import {
   ProactiveIntelligencePlugin,
   DecisionEngine,
   type Rule,
-  type MonitorEvent
+  type MonitorEvent,
 } from '../src/proactive-intelligence/index.js';
 import { GrowthSchedulerBrain } from '../src/proactive-intelligence/brain.js';
 
@@ -26,9 +26,7 @@ function notificationRule(id: string, conditions: Rule['conditions']): Rule {
     priority: 50,
     cooldown: 0,
     conditions,
-    actions: [
-      { type: 'notification', name: 'notify', parameters: { title: 't', message: 'm' } }
-    ]
+    actions: [{ type: 'notification', name: 'notify', parameters: { title: 't', message: 'm' } }],
   };
 }
 
@@ -38,8 +36,8 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     const plugin = new ProactiveIntelligencePlugin();
     plugin.addRule(
       notificationRule('r', [
-        { type: 'event', operator: 'greaterThan', field: 'test.value', value: 80 }
-      ])
+        { type: 'event', operator: 'greaterThan', field: 'test.value', value: 80 },
+      ]),
     );
     await plugin.start();
 
@@ -54,7 +52,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     const hist = plugin.getExecutor().getExecutionHistory();
     assert.ok(
       hist.some((e) => e.status === 'completed'),
-      'data 载径条件应触发规则并执行通知动作'
+      'data 载径条件应触发规则并执行通知动作',
     );
 
     await plugin.stop();
@@ -67,7 +65,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
       events: [] as MonitorEvent[],
       currentState: { a: true, b: false, c: true },
       history: [],
-      rules: []
+      rules: [],
     };
 
     // a OR b（OR 挂在 b 上：b 与累计结果的连接词）：a=true → true
@@ -75,15 +73,15 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     engine.addRule(
       notificationRule('or', [
         { type: 'state', operator: 'equals', field: 'a', value: true },
-        { type: 'state', operator: 'equals', field: 'b', value: true, logicalOperator: 'OR' }
-      ])
+        { type: 'state', operator: 'equals', field: 'b', value: true, logicalOperator: 'OR' },
+      ]),
     );
     // a AND b：false
     engine.addRule(
       notificationRule('and', [
         { type: 'state', operator: 'equals', field: 'a', value: true },
-        { type: 'state', operator: 'equals', field: 'b', value: true }
-      ])
+        { type: 'state', operator: 'equals', field: 'b', value: true },
+      ]),
     );
     const decisions = await engine.makeDecision(ctx);
     assert.ok(decisions.has('or'), 'a OR b 应为 true');
@@ -95,8 +93,8 @@ describe('proactive-intelligence · Bug 修复回归', () => {
       notificationRule('mixed', [
         { type: 'state', operator: 'equals', field: 'b', value: true },
         { type: 'state', operator: 'equals', field: 'c', value: true, logicalOperator: 'OR' },
-        { type: 'state', operator: 'equals', field: 'a', value: true, logicalOperator: 'AND' }
-      ])
+        { type: 'state', operator: 'equals', field: 'a', value: true, logicalOperator: 'AND' },
+      ]),
     );
     const d2 = await engine2.makeDecision(ctx);
     assert.ok(d2.has('mixed'), '(b OR c) AND a 应为 true');
@@ -106,8 +104,8 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     engine3.addRule(
       notificationRule('short', [
         { type: 'state', operator: 'equals', field: 'b', value: true },
-        { type: 'state', operator: 'equals', field: 'a', value: true }
-      ])
+        { type: 'state', operator: 'equals', field: 'a', value: true },
+      ]),
     );
     const d3 = await engine3.makeDecision(ctx);
     assert.ok(!d3.has('short'), 'b AND a 应为 false');
@@ -119,9 +117,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     await plugin.start();
 
     plugin.addRule(
-      notificationRule('ok', [
-        { type: 'event', operator: 'equals', field: 'evt.x', value: 1 }
-      ])
+      notificationRule('ok', [{ type: 'event', operator: 'equals', field: 'evt.x', value: 1 }]),
     );
     plugin.observe({ type: 'evt', source: 's', data: { x: 1 }, severity: 'info' });
     await tick();
@@ -165,7 +161,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
         type: 'custom',
         name: 'hang',
         parameters: { handler: () => new Promise(() => {}) },
-        timeout: 20
+        timeout: 20,
       })
       .catch(() => undefined);
     // 等待进入 running
@@ -173,15 +169,15 @@ describe('proactive-intelligence · Bug 修复回归', () => {
 
     const running = executor.getRunningExecutions();
     assert.equal(running.length, 1);
-    executor.cancelExecution(running[0].id);
+    executor.cancelExecution(running[0]!.id);
 
     const history = executor.getExecutionHistory();
     assert.ok(
-      history.some((e) => e.status === 'failed' && e.error?.message === 'Execution cancelled')
+      history.some((e) => e.status === 'failed' && e.error?.message === 'Execution cancelled'),
     );
     // 幂等：超时后同 ID 不重复入列
     await execPromise;
-    assert.equal(history.filter((e) => e.id === running[0].id).length, 1);
+    assert.equal(history.filter((e) => e.id === running[0]!.id).length, 1);
   });
 });
 
@@ -191,8 +187,8 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       brain: { successValue: 10, exploreCoefficient: 0.35, seed: 7 },
       brainAgents: [
         { id: 'a1', capabilities: ['X'], trueCost: 1, trueQuality: { X: 0.6 } },
-        { id: 'a2', capabilities: ['X'], trueCost: 2, trueQuality: { X: 0.5 } }
-      ]
+        { id: 'a2', capabilities: ['X'], trueCost: 2, trueQuality: { X: 0.5 } },
+      ],
     });
   }
 
@@ -207,7 +203,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       type: 'task_request',
       source: 'orchestrator',
       data: { capability: 'X' },
-      severity: 'info'
+      severity: 'info',
     });
     await tick();
 
@@ -217,7 +213,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
     assert.ok(allocations[0].payment >= 1, 'IR：支付不低于报价');
 
     // 结算回写 → 学习资本累积
-    const brain = plugin.getBrain()!;
+    const brain = plugin.getBrain() as GrowthSchedulerBrain;
     assert.equal(brain.getState().openTasks, 1);
     assert.ok(plugin.settleTask(allocations[0].taskId, true));
     const state = brain.getState();
@@ -241,12 +237,12 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       type: 'task_request',
       source: 'o',
       data: { capability: 'UNHEARD-OF' },
-      severity: 'info'
+      severity: 'info',
     });
     await tick();
 
     assert.ok(!errored);
-    assert.equal(plugin.getBrain()!.getState().openTasks, 0);
+    assert.equal((plugin.getBrain() as GrowthSchedulerBrain).getState().openTasks, 0);
 
     await plugin.stop();
   });
@@ -257,8 +253,14 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
     plugin.addRule(
       notificationRule('market-bad', [
         { type: 'state', operator: 'greaterThan', field: 'brain.settledCount', value: 3 },
-        { type: 'state', operator: 'lessThan', field: 'brain.successRate', value: 0.5, logicalOperator: 'AND' }
-      ])
+        {
+          type: 'state',
+          operator: 'lessThan',
+          field: 'brain.successRate',
+          value: 0.5,
+          logicalOperator: 'AND',
+        },
+      ]),
     );
     await plugin.start();
 
@@ -297,7 +299,12 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
 describe('GrowthSchedulerBrain · 单元', () => {
   it('配置透传 + 默认探索项生效', () => {
     const brain = new GrowthSchedulerBrain({ seed: 3 });
-    brain.registerAgent({ id: 'solo', capabilities: ['Y'], trueCost: 0.5, trueQuality: { Y: 0.9 } });
+    brain.registerAgent({
+      id: 'solo',
+      capabilities: ['Y'],
+      trueCost: 0.5,
+      trueQuality: { Y: 0.9 },
+    });
 
     const a = brain.submitTask('Y');
     assert.ok(a && a.winnerId === 'solo');

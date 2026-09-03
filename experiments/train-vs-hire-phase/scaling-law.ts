@@ -36,12 +36,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  counterfactual,
-  cumulativeAdvantage,
-  PHASE_DEFAULTS,
-  type PhaseParams
-} from './run.js';
+import { counterfactual, cumulativeAdvantage, PHASE_DEFAULTS, type PhaseParams } from './run.js';
 
 export interface LawParams {
   q0: number;
@@ -129,7 +124,7 @@ export function alphaStarUniversal(pi1: number, pi2: number, pi3: number): numbe
 export function trainingBetaInterval(
   p: Omit<LawParams, 'beta' | 'alpha'>,
   alpha: number,
-  betaHi = 5
+  betaHi = 5,
 ): [number, number] | null {
   const bMin = betaMin({ ...p, alpha, beta: 1 });
   if (!isFinite(bMin)) return null;
@@ -153,7 +148,7 @@ function runCounterfactual(
   org: { q0: number; delta: number; K: number; T: number },
   alpha: number,
   beta: number,
-  seeds: number[]
+  seeds: number[],
 ): number {
   const p: PhaseParams = {
     ...PHASE_DEFAULTS,
@@ -163,7 +158,7 @@ function runCounterfactual(
     T: org.T,
     alpha,
     beta,
-    seeds
+    seeds,
   };
   return counterfactual(p).diffRate;
 }
@@ -178,11 +173,13 @@ export interface LLMBucket {
 
 export function loadLLMBuckets(): LLMBucket[] {
   const here = dirname(fileURLToPath(import.meta.url));
-  const raw = JSON.parse(readFileSync(join(here, '../llm-learning-curve/results-implicit.json'), 'utf-8'));
+  const raw = JSON.parse(
+    readFileSync(join(here, '../llm-learning-curve/results-implicit.json'), 'utf-8'),
+  );
   return raw.conditions.treatment.buckets.map((b: LLMBucket) => ({
     kMid: b.kMid,
     n: b.n,
-    q: b.q
+    q: b.q,
   }));
 }
 
@@ -217,13 +214,22 @@ export function fitLearningCurve(buckets: LLMBucket[]): {
 
 function main(): void {
   console.log('培训 vs 雇佣：闭式相变定律 + 普适标度 + 真实 LLM 标定\n');
-  const org = { q0: PHASE_DEFAULTS.q0, delta: PHASE_DEFAULTS.delta, K: PHASE_DEFAULTS.K, T: PHASE_DEFAULTS.T };
+  const org = {
+    q0: PHASE_DEFAULTS.q0,
+    delta: PHASE_DEFAULTS.delta,
+    K: PHASE_DEFAULTS.K,
+    T: PHASE_DEFAULTS.T,
+  };
 
   // ---- 定律自检：闭式 vs 逐项求和、α* 恒等式 ----
   console.log('【定律自检】');
   let maxErr = 0;
   for (const [alpha, beta] of [
-    [0.5, 0.01], [0.7, 0.03], [0.9, 0.05], [0.6, 0.12], [0.85, 0.005]
+    [0.5, 0.01],
+    [0.7, 0.03],
+    [0.9, 0.05],
+    [0.6, 0.12],
+    [0.85, 0.005],
   ] as Array<[number, number]>) {
     const law = { ...org, alpha, beta };
     const closed = cumulativeAdvantageClosed(law);
@@ -246,10 +252,11 @@ function main(): void {
   for (const alpha of [0.6, 0.7, 0.8, 0.9]) {
     const interval = trainingBetaInterval(org, alpha);
     const wins = GRID.filter((beta) => runCounterfactual(org, alpha, beta, seeds12) > 0);
-    const emp =
-      wins.length === 0 ? '∅' : `[${Math.min(...wins)}, ${Math.max(...wins)}]`;
+    const emp = wins.length === 0 ? '∅' : `[${Math.min(...wins)}, ${Math.max(...wins)}]`;
     const ana = interval ? `[${interval[0].toFixed(4)}, ${interval[1].toFixed(3)}]` : '∅';
-    console.log(`| ${alpha} | ${betaMin({ ...org, alpha, beta: 0.03 }).toFixed(4)} | ${ana} | ${emp} |`);
+    console.log(
+      `| ${alpha} | ${betaMin({ ...org, alpha, beta: 0.03 }).toFixed(4)} | ${ana} | ${emp} |`,
+    );
   }
   console.log();
 
@@ -258,15 +265,17 @@ function main(): void {
   const CONFIGS = [
     { name: 'A', q0: 0.45, delta: 0.12, K: 60, T: 150 },
     { name: 'B', q0: 0.3, delta: 0.12 * (0.7 / 0.55), K: 120, T: 300 },
-    { name: 'C', q0: 0.6, delta: 0.12 * (0.4 / 0.55), K: 30, T: 75 }
+    { name: 'C', q0: 0.6, delta: 0.12 * (0.4 / 0.55), K: 30, T: 75 },
   ];
   const seeds24 = Array.from({ length: 24 }, (_, i) => 200 + i);
-  console.log('| (α, Π2, Π3) | 理论 | ' + CONFIGS.map((c) => `${c.name} 经验`).join(' | ') + ' | 极差 |');
+  console.log(
+    '| (α, Π2, Π3) | 理论 | ' + CONFIGS.map((c) => `${c.name} 经验`).join(' | ') + ' | 极差 |',
+  );
   console.log('|---|---|' + CONFIGS.map(() => '---').join('|') + '|---|');
   for (const [alpha, pi2] of [
     [0.5, 1.8],
     [0.7, 1.8],
-    [0.9, 1.8]
+    [0.9, 1.8],
   ] as Array<[number, number]>) {
     const pi3 = 4.5;
     const vals: number[] = [];
@@ -275,14 +284,14 @@ function main(): void {
       vals.push(runCounterfactual(c, alpha, beta, seeds24) / (1 - c.q0));
     }
     const th =
-      cumulativeAdvantageClosed({ ...CONFIGS[0], alpha, beta: pi2 / CONFIGS[0].K }) /
-      CONFIGS[0].T /
-      (1 - CONFIGS[0].q0);
+      cumulativeAdvantageClosed({ ...CONFIGS[0]!, alpha, beta: pi2 / CONFIGS[0]!.K }) /
+      CONFIGS[0]!.T /
+      (1 - CONFIGS[0]!.q0);
     const spread = Math.max(...vals) - Math.min(...vals);
     console.log(
       `| (${alpha}, ${pi2}, ${pi3}) | ${th >= 0 ? '+' : ''}${th.toFixed(3)} | ` +
         vals.map((v) => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`).join(' | ') +
-        ` | ${spread.toFixed(3)} |`
+        ` | ${spread.toFixed(3)} |`,
     );
   }
   console.log('\n  反例对照（同原始参数、不同 Π2 → 相位改变）：');
@@ -292,7 +301,7 @@ function main(): void {
     const d60 = runCounterfactual({ ...org, K: 60 }, alpha, beta, seeds24);
     const d6 = runCounterfactual({ ...org, K: 6 }, alpha, beta, seeds24);
     console.log(
-      `  α=0.9 β=0.03：K=60（Π2=1.8）diff=${d60 >= 0 ? '+' : ''}${d60.toFixed(3)} vs K=6（Π2=0.18）diff=${d6 >= 0 ? '+' : ''}${d6.toFixed(3)} —— 坍缩非平凡`
+      `  α=0.9 β=0.03：K=60（Π2=1.8）diff=${d60 >= 0 ? '+' : ''}${d60.toFixed(3)} vs K=6（Π2=0.18）diff=${d6 >= 0 ? '+' : ''}${d6.toFixed(3)} —— 坍缩非平凡`,
     );
   }
   console.log();
@@ -310,7 +319,9 @@ function main(): void {
       const th = cumulativeAdvantageClosed({ ...p, K }) / p.T;
       const emp = runCounterfactual({ ...org, K }, 0.9, 0.02, seeds32);
       const ok = Math.abs(th) < 0.008 || Math.sign(th) === Math.sign(emp);
-      console.log(`  | ${K} | ${th >= 0 ? '+' : ''}${th.toFixed(4)} | ${emp >= 0 ? '+' : ''}${emp.toFixed(4)} | ${ok ? '✓' : '✗'} |`);
+      console.log(
+        `  | ${K} | ${th >= 0 ? '+' : ''}${th.toFixed(4)} | ${emp >= 0 ? '+' : ''}${emp.toFixed(4)} | ${ok ? '✓' : '✗'} |`,
+      );
     }
   }
   console.log();
@@ -321,26 +332,28 @@ function main(): void {
     const buckets = loadLLMBuckets();
     const fit = fitLearningCurve(buckets);
     console.log(
-      `  glm-4-flash 隐性学习拟合（${buckets.reduce((a, b) => a + b.n, 0)} 次评测）：q̂0=${fit.base.toFixed(2)} α̂=${fit.alpha.toFixed(2)} β̂=${fit.beta.toFixed(3)}（R²=${fit.r2.toFixed(3)}）`
+      `  glm-4-flash 隐性学习拟合（${buckets.reduce((a, b) => a + b.n, 0)} 次评测）：q̂0=${fit.base.toFixed(2)} α̂=${fit.alpha.toFixed(2)} β̂=${fit.beta.toFixed(3)}（R²=${fit.r2.toFixed(3)}）`,
     );
     const modelGain = fit.alpha * (1 - fit.base) * (1 - Math.exp(-fit.beta * 20));
-    console.log(`  实测增益 q(k=20)−q(0) = ${(0.771 - 0.417).toFixed(3)}，模型增益 = ${modelGain.toFixed(3)}`);
+    console.log(
+      `  实测增益 q(k=20)−q(0) = ${(0.771 - 0.417).toFixed(3)}，模型增益 = ${modelGain.toFixed(3)}`,
+    );
     for (const T of [20, 150]) {
       const p = { q0: fit.base, delta: 0, K: 20, T, alpha: fit.alpha, beta: fit.beta };
       const dm = deltaMax(p);
       const verdict120 = cumulativeAdvantageClosed({ ...p, delta: 0.12 });
       console.log(
-        `  视界 T=${T}：培训可承受的最高雇佣溢价 δ_max = ${dm.toFixed(3)}（${(dm * 100).toFixed(1)}pp）；δ=0.12 时 ${verdict120 > 0 ? '培训赢' : '雇佣赢'}`
+        `  视界 T=${T}：培训可承受的最高雇佣溢价 δ_max = ${dm.toFixed(3)}（${(dm * 100).toFixed(1)}pp）；δ=0.12 时 ${verdict120 > 0 ? '培训赢' : '雇佣赢'}`,
       );
     }
     console.log('  相图定位：把 (α̂, β̂, K=20) 放回扫描相图（q0=0.45, δ=0.12, T=150 口径）');
     const seat = { q0: 0.45, delta: 0.12, K: 20, T: 150, alpha: fit.alpha, beta: fit.beta };
     const interval = trainingBetaInterval(
       { q0: seat.q0, delta: seat.delta, K: seat.K, T: seat.T },
-      fit.alpha
+      fit.alpha,
     );
     console.log(
-      `  α=α̂=${fit.alpha.toFixed(2)} 的培训获胜 β 区间 = ${interval ? `[${interval[0].toFixed(3)}, ${interval[1].toFixed(3)}]` : '∅'}；实测 β̂=${fit.beta.toFixed(3)} → ${interval && fit.beta > interval[0] && fit.beta < interval[1] ? '落在口袋内（培训赢）' : '落在口袋外（雇佣赢）'}`
+      `  α=α̂=${fit.alpha.toFixed(2)} 的培训获胜 β 区间 = ${interval ? `[${interval[0].toFixed(3)}, ${interval[1].toFixed(3)}]` : '∅'}；实测 β̂=${fit.beta.toFixed(3)} → ${interval && fit.beta > interval[0] && fit.beta < interval[1] ? '落在口袋内（培训赢）' : '落在口袋外（雇佣赢）'}`,
     );
   }
 }

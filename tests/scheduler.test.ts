@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import { Agent } from '../src/types/quantum-types.js';
+import type { Agent } from '../src/types/quantum-types.js';
 
 function makeAgent(id: string, capabilities: string[], name = id): Agent {
   return {
@@ -13,7 +13,7 @@ function makeAgent(id: string, capabilities: string[], name = id): Agent {
     load: 0,
     position: { x: 0, y: 0, z: 0 },
     quantumEntanglement: [],
-    lastHeartbeat: new Date()
+    lastHeartbeat: new Date(),
   };
 }
 
@@ -22,13 +22,11 @@ function makeTask(name: string, capability: string, priority: any = 'medium') {
     name,
     type: 'test',
     priority,
-    requirements: [
-      { type: 'capability' as const, name: capability, value: null, weight: 1.0 }
-    ],
+    requirements: [{ type: 'capability' as const, name: capability, value: null, weight: 1.0 }],
     dependencies: [],
     estimatedDuration: 1000,
     actualDuration: 0,
-    status: 'pending' as const
+    status: 'pending' as const,
   };
 }
 
@@ -118,7 +116,9 @@ describe('QuantumScheduler', () => {
 
     // 没有agent时提交，两个任务都挂起
     const low = scheduler.submitTask(makeTask('low-task', 'javascript', 'low') as any);
-    const critical = scheduler.submitTask(makeTask('critical-task', 'javascript', 'critical') as any);
+    const critical = scheduler.submitTask(
+      makeTask('critical-task', 'javascript', 'critical') as any,
+    );
 
     scheduler.registerAgent(makeAgent('a1', ['javascript']));
 
@@ -154,9 +154,9 @@ describe('QuantumScheduler', () => {
 
     const history = scheduler.getSchedulingHistory();
     assert.equal(history.length, 1);
-    assert.equal(history[0].agentId, 'a1');
-    assert.ok(history[0].probability > 0 && history[0].probability <= 1);
-    assert.ok(history[0].confidence > 0);
+    assert.equal(history[0]!.agentId, 'a1');
+    assert.ok(history[0]!.probability > 0 && history[0]!.probability <= 1);
+    assert.ok(history[0]!.confidence > 0);
   });
 
   it('能力索引在agent注销后正确排除候选', () => {
@@ -177,12 +177,17 @@ describe('QuantumScheduler', () => {
     scheduler.registerAgent(makeAgent('a2', ['frontend', 'backend']));
 
     const task = scheduler.submitTask({
-      name: 'T1', type: 'test', priority: 'medium',
+      name: 'T1',
+      type: 'test',
+      priority: 'medium',
       requirements: [
         { type: 'capability' as const, name: 'frontend', value: null, weight: 0.5 },
-        { type: 'capability' as const, name: 'backend', value: null, weight: 0.5 }
+        { type: 'capability' as const, name: 'backend', value: null, weight: 0.5 },
       ],
-      dependencies: [], estimatedDuration: 1000, actualDuration: 0, status: 'pending' as const
+      dependencies: [],
+      estimatedDuration: 1000,
+      actualDuration: 0,
+      status: 'pending' as const,
     } as any);
 
     assert.equal(task.assignedAgentId, 'a2');

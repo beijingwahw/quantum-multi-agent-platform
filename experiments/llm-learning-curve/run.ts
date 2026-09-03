@@ -20,7 +20,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SYSTEM_PROMPT, IMPLICIT_PROMPT, TICKETS, ASPECTS, SENTIMENTS, type Ticket } from './dataset.js';
+import { mulberry32, shuffled } from '../../src/utils/rng.js';
+import {
+  SYSTEM_PROMPT,
+  IMPLICIT_PROMPT,
+  TICKETS,
+  ASPECTS,
+  SENTIMENTS,
+  type Ticket,
+} from './dataset.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** --implicit：口径不告知，案例是唯一知识来源（隐性技能 regime） */
@@ -48,25 +56,6 @@ interface EvalRecord {
 }
 
 // ---------- 工具 ----------
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffled<T>(items: T[], rng: () => number): T[] {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 /** 确定性破坏标签：保证错误但 schema 合法（control 专用） */
 function corrupt(t: Ticket): string {
@@ -117,9 +106,9 @@ async function chat(messages: Array<{ role: string; content: string }>): Promise
           model: MODEL,
           messages,
           temperature: 0.7,
-          max_tokens: 200
+          max_tokens: 200,
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
       clearTimeout(timer);
       if (res.status === 429 || res.status >= 500) {
@@ -128,7 +117,7 @@ async function chat(messages: Array<{ role: string; content: string }>): Promise
       if (!res.ok) {
         const body = await res.text();
         throw Object.assign(new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`), {
-          fatal: true
+          fatal: true,
         });
       }
       const data: any = await res.json();
@@ -173,14 +162,19 @@ function grade(pred: ReturnType<typeof parseAnswer>, truth: Ticket): boolean {
 
 // ---------- 一次生命周期 ----------
 
-async function runLifetime(condition: Condition, run: number, tasks: Ticket[], log: (r: EvalRecord) => void) {
+async function runLifetime(
+  condition: Condition,
+  run: number,
+  tasks: Ticket[],
+  log: (r: EvalRecord) => void,
+) {
   const rng = mulberry32(condition === 'treatment' ? 1000 + run : 9000 + run);
   const order = shuffled(tasks, rng);
   const library: Array<{ user: string; assistant: string }> = [];
 
   for (const task of order) {
     const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: PROMPT }
+      { role: 'system', content: PROMPT },
     ];
     for (const ex of library.slice(-MAX_LIBRARY)) {
       messages.push({ role: 'user', content: ex.user });
@@ -205,13 +199,13 @@ async function runLifetime(condition: Condition, run: number, tasks: Ticket[], l
       taskId: task.id,
       k: Math.min(library.length, MAX_LIBRARY),
       ok,
-      pred: predStr
+      pred: predStr,
     });
 
     // 反馈修正型资本：无论自身成败，标准答案入库（control 存破坏后的标签）
     library.push({
       user: task.text,
-      assistant: condition === 'treatment' ? answerOf(task) : corrupt(task)
+      assistant: condition === 'treatment' ? answerOf(task) : corrupt(task),
     });
   }
 }
@@ -224,7 +218,7 @@ const BUCKETS: Array<[string, number, number]> = [
   ['4-7', 4, 8],
   ['8-12', 8, 13],
   ['13-19', 13, 20],
-  ['20+', 20, Infinity]
+  ['20+', 20, Infinity],
 ];
 
 interface FitResult {
@@ -238,7 +232,7 @@ interface FitResult {
 /** 拟合 q(k) = base + C(1−e^(−βk))，β 网格搜索 + OLS 闭式解，R² 对比线性基线 */
 function fitCurve(points: Array<{ k: number; ok: boolean }>): FitResult {
   const n = points.length;
-  const y = points.map((p) => (p.ok ? 1 : 0));
+  const y: number[] = points.map((p) => (p.ok ? 1 : 0));
   const yMean = y.reduce((a, b) => a + b, 0) / n;
   const sst = y.reduce((a, b) => a + (b - yMean) ** 2, 0);
 
@@ -247,13 +241,13 @@ function fitCurve(points: Array<{ k: number; ok: boolean }>): FitResult {
     let sxy = 0;
     let sxx = 0;
     for (let i = 0; i < n; i++) {
-      sxy += (x[i] - xm) * (y[i] - yMean);
-      sxx += (x[i] - xm) ** 2;
+      sxy += (x[i]! - xm) * (y[i]! - yMean);
+      sxx += (x[i]! - xm) ** 2;
     }
     const b = sxx === 0 ? 0 : sxy / sxx;
     const a = yMean - b * xm;
     let sse = 0;
-    for (let i = 0; i < n; i++) sse += (y[i] - (a + b * x[i])) ** 2;
+    for (let i = 0; i < n; i++) sse += (y[i]! - (a + b * x[i]!)) ** 2;
     return { a, b, sse };
   };
 
@@ -293,7 +287,7 @@ function analyze() {
     totalEvals: records.length,
     runsPerCondition: {},
     conditions: {},
-    fittedAt: new Date().toISOString()
+    fittedAt: new Date().toISOString(),
   };
 
   for (const cond of ['treatment', 'control'] as Condition[]) {
@@ -303,7 +297,12 @@ function analyze() {
     const buckets = BUCKETS.map(([label, lo, hi]) => {
       const inBucket = pts.filter((r) => r.k >= lo && r.k < hi);
       const q = inBucket.length ? inBucket.filter((r) => r.ok).length / inBucket.length : null;
-      return { label, kMid: lo, n: inBucket.length, q: q === null ? null : Math.round(q * 1000) / 1000 };
+      return {
+        label,
+        kMid: lo,
+        n: inBucket.length,
+        q: q === null ? null : Math.round(q * 1000) / 1000,
+      };
     });
 
     const fit = fitCurve(pts.map((r) => ({ k: r.k, ok: r.ok })));
@@ -313,7 +312,9 @@ function analyze() {
     const qHigh = high.filter((r) => r.ok).length / Math.max(1, high.length);
     // 正态近似 95% CI
     const ci = (p: number, n: number) =>
-      n === 0 ? [0, 0] : [p - 1.96 * Math.sqrt((p * (1 - p)) / n), p + 1.96 * Math.sqrt((p * (1 - p)) / n)];
+      n === 0
+        ? [0, 0]
+        : [p - 1.96 * Math.sqrt((p * (1 - p)) / n), p + 1.96 * Math.sqrt((p * (1 - p)) / n)];
 
     report.conditions[cond] = {
       buckets,
@@ -322,11 +323,19 @@ function analyze() {
         alpha: Math.round(fit.alpha * 1000) / 1000,
         beta: Math.round(fit.beta * 1000) / 1000,
         r2: Math.round(fit.r2 * 1000) / 1000,
-        linearR2: Math.round(fit.linearR2 * 1000) / 1000
+        linearR2: Math.round(fit.linearR2 * 1000) / 1000,
       },
-      qLow: { v: Math.round(qLow * 1000) / 1000, n: low.length, ci95: ci(qLow, low.length).map((x) => Math.round(x * 1000) / 1000) },
-      qHigh: { v: Math.round(qHigh * 1000) / 1000, n: high.length, ci95: ci(qHigh, high.length).map((x) => Math.round(x * 1000) / 1000) },
-      gain: Math.round((qHigh - qLow) * 1000) / 1000
+      qLow: {
+        v: Math.round(qLow * 1000) / 1000,
+        n: low.length,
+        ci95: ci(qLow, low.length).map((x) => Math.round(x * 1000) / 1000),
+      },
+      qHigh: {
+        v: Math.round(qHigh * 1000) / 1000,
+        n: high.length,
+        ci95: ci(qHigh, high.length).map((x) => Math.round(x * 1000) / 1000),
+      },
+      gain: Math.round((qHigh - qLow) * 1000) / 1000,
     };
   }
 
@@ -336,9 +345,14 @@ function analyze() {
   console.log(`\n模型: ${MODEL}  总评测算例: ${records.length}`);
   for (const cond of ['treatment', 'control'] as Condition[]) {
     const c = report.conditions[cond];
-    console.log(`\n[${cond}] 拟合: base=${c.fit.base} α=${c.fit.alpha} β=${c.fit.beta} R²=${c.fit.r2} (线性R²=${c.fit.linearR2})`);
+    console.log(
+      `\n[${cond}] 拟合: base=${c.fit.base} α=${c.fit.alpha} β=${c.fit.beta} R²=${c.fit.r2} (线性R²=${c.fit.linearR2})`,
+    );
     console.log(`  q(k≤1)=${c.qLow.v} → q(k≥13)=${c.qHigh.v}  提升=${c.gain}`);
-    console.log('  k 桶:', c.buckets.map((b: any) => `${b.label}:${b.q ?? '-'}(n=${b.n})`).join('  '));
+    console.log(
+      '  k 桶:',
+      c.buckets.map((b: any) => `${b.label}:${b.q ?? '-'}(n=${b.n})`).join('  '),
+    );
   }
   console.log(`\n结果已写入 ${OUT}`);
 }
@@ -356,7 +370,9 @@ async function main() {
   const runs = pilot ? 2 : RUNS;
   const conditions: Condition[] = ['treatment', 'control'];
 
-  console.log(`实验: ${MODEL} | 任务数=${tasks.length} | 生命周期 runs=${runs}×2 conditions | 并发=${CONCURRENCY}`);
+  console.log(
+    `实验: ${MODEL} | 任务数=${tasks.length} | 生命周期 runs=${runs}×2 conditions | 并发=${CONCURRENCY}`,
+  );
   const started = Date.now();
   let done = 0;
   const total = tasks.length * runs * conditions.length;

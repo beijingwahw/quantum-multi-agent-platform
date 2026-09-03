@@ -1,30 +1,37 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import { Agent, Task } from '../src/types/quantum-types.js';
+import type { Agent } from '../src/types/quantum-types.js';
 
 function makeAgent(id: string, capabilities: string[]): Agent {
   return {
-    id, name: id, type: 'developer', capabilities,
-    state: 'idle', load: 0,
+    id,
+    name: id,
+    type: 'developer',
+    capabilities,
+    state: 'idle',
+    load: 0,
     position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [], lastHeartbeat: new Date()
+    quantumEntanglement: [],
+    lastHeartbeat: new Date(),
   };
 }
 
 function baseTask(name: string, priority: any = 'medium'): any {
   return {
-    name, type: 'test', priority,
+    name,
+    type: 'test',
+    priority,
     requirements: [],
     dependencies: [],
     estimatedDuration: 1000,
     actualDuration: 0,
-    status: 'pending'
+    status: 'pending',
   };
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe('调度器高级特性', () => {
@@ -51,12 +58,12 @@ describe('调度器高级特性', () => {
     scheduler.registerAgent(a1);
     scheduler.registerAgent(a2);
 
-    const dep = scheduler.submitTask(baseTask('dep'));       // a1或a2接走（量子评分决定）
+    const dep = scheduler.submitTask(baseTask('dep')); // a1或a2接走（量子评分决定）
     const dependent = scheduler.submitTask({ ...baseTask('dependent'), dependencies: [dep.id] });
 
     // 恰一个agent执行dep，另一个空闲且能力匹配，但依赖未完成 → 必须保持pending
     assert.equal(dep.status, 'assigned');
-    assert.equal([a1, a2].filter(a => a.state === 'working').length, 1);
+    assert.equal([a1, a2].filter((a) => a.state === 'working').length, 1);
     assert.equal(dependent.status, 'pending');
   });
 
@@ -66,7 +73,10 @@ describe('调度器高级特性', () => {
 
     const dep = scheduler.submitTask(baseTask('dep'));
     const dependent = scheduler.submitTask({ ...baseTask('dependent'), dependencies: [dep.id] });
-    const grandChild = scheduler.submitTask({ ...baseTask('grandchild'), dependencies: [dependent.id] });
+    const grandChild = scheduler.submitTask({
+      ...baseTask('grandchild'),
+      dependencies: [dependent.id],
+    });
 
     scheduler.completeTask(dep.id, false);
 
@@ -80,13 +90,13 @@ describe('调度器高级特性', () => {
     const scheduler = new QuantumScheduler({});
     assert.throws(
       () => scheduler.submitTask({ ...baseTask('bad'), dependencies: ['nonexistent-id'] }),
-      /Unknown dependency 'nonexistent-id'/
+      /Unknown dependency 'nonexistent-id'/,
     );
   });
 
   it('超时回收：超时任务自动失败并释放agent', async () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { taskTimeout: 60, sweepInterval: 20 }
+      scheduling: { taskTimeout: 60, sweepInterval: 20 },
     });
     const agent = makeAgent('a1', ['js']);
     scheduler.registerAgent(agent);
@@ -105,7 +115,7 @@ describe('调度器高级特性', () => {
 
   it('并发上限背压：达到maxConcurrentTasks后任务挂起等待释放', () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { maxConcurrentTasks: 1 }
+      scheduling: { maxConcurrentTasks: 1 },
     });
     const a1 = makeAgent('a1', ['js']);
     const a2 = makeAgent('a2', ['js']);
@@ -118,7 +128,7 @@ describe('调度器高级特性', () => {
     // 两个空闲agent但上限为1：恰好一个在执行，另一个必须保持空闲
     assert.equal(first.status, 'assigned');
     assert.equal(second.status, 'pending');
-    assert.equal([a1, a2].filter(a => a.state === 'working').length, 1);
+    assert.equal([a1, a2].filter((a) => a.state === 'working').length, 1);
 
     // 释放后第二个任务被接走
     scheduler.completeTask(first.id, true);
@@ -129,7 +139,7 @@ describe('调度器高级特性', () => {
   it('保留GC：终结任务超过保留期后从内存清除，指标计数保留', async () => {
     const scheduler = new QuantumScheduler({
       scheduling: { sweepInterval: 20 },
-      performance: { retentionMs: 50 }
+      performance: { retentionMs: 50 },
     });
     scheduler.registerAgent(makeAgent('a1', ['js']));
 
@@ -141,20 +151,58 @@ describe('调度器高级特性', () => {
     await sleep(120); // 超过保留期+巡检周期
 
     const metrics = scheduler.getSystemMetrics();
-    assert.equal(scheduler.getTasks().length, 0);   // 内存清除
-    assert.equal(metrics.completedTasks, 1);         // 历史计数保留
-    assert.equal(metrics.totalTasks, 0);             // 总量反映当前内存
+    assert.equal(scheduler.getTasks().length, 0); // 内存清除
+    assert.equal(metrics.completedTasks, 1); // 历史计数保留
+    assert.equal(metrics.totalTasks, 0); // 总量反映当前内存
     scheduler.shutdown();
   });
 
-  it('shutdown清理巡检定时器且幂等', () => {
+  it('shutdown清理巡检定时器且幂等', async () => {
     const scheduler = new QuantumScheduler({
-      scheduling: { taskTimeout: 60, sweepInterval: 20 }
+      scheduling: { taskTimeout: 60, sweepInterval: 20 },
     });
     scheduler.registerAgent(makeAgent('a1', ['js']));
-    scheduler.submitTask(baseTask('t'));
+    const task = scheduler.submitTask(baseTask('t'));
+    assert.equal(task.status, 'assigned');
     scheduler.shutdown();
     scheduler.shutdown(); // 幂等
-    assert.ok(true);
+
+    // 巡检定时器确已停止：超时窗口过后任务不被 sweep 标记失败
+    await sleep(120);
+    assert.equal(scheduler.getTasks()[0]!.status, 'assigned');
+  });
+
+  it('updateTaskStatus 中间态不再被静默标记失败（行为陷阱回归守护）', () => {
+    const scheduler = new QuantumScheduler({});
+    const agent = makeAgent('a1', ['js']);
+    scheduler.registerAgent(agent);
+    const task = scheduler.submitTask(baseTask('running-state'));
+    assert.equal(task.status, 'assigned');
+
+    // 此前 updateTaskStatus(id, 'running') 会走 completeTask(id, false) 杀死任务
+    scheduler.updateTaskStatus(task.id, 'running');
+    assert.equal(task.status, 'running');
+    assert.equal(task.assignedAgentId, agent.id); // agent 未被释放
+    assert.equal(scheduler.getSystemMetrics().failedTasks, 0);
+
+    // 中间态后仍可正常完成
+    scheduler.updateTaskStatus(task.id, 'completed');
+    assert.equal(task.status, 'completed');
+    assert.equal(agent.state, 'idle'); // 完成释放 agent
+    scheduler.shutdown();
+  });
+
+  it('updateTaskStatus cancelled：按失败终态收尾并释放agent', () => {
+    const scheduler = new QuantumScheduler({});
+    const agent = makeAgent('a1', ['js']);
+    scheduler.registerAgent(agent);
+    const task = scheduler.submitTask(baseTask('cancel-me'));
+    assert.equal(task.status, 'assigned');
+
+    scheduler.updateTaskStatus(task.id, 'cancelled');
+    assert.equal(task.status, 'failed'); // 取消按非成功终态计
+    assert.equal(agent.state, 'idle');
+    assert.equal(scheduler.getSystemMetrics().failedTasks, 1);
+    scheduler.shutdown();
   });
 });

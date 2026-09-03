@@ -3,20 +3,28 @@ import assert from 'node:assert/strict';
 import {
   BatchVCGScheduler,
   BudgetPacer,
-  type BatchAgentSpec
+  type BatchAgentSpec,
 } from '../src/core/batch-vcg-scheduler.js';
 
 /**
  * 理论预测实例（全部手工推导，见各 test 注释）。
  * 公共配置：V=10、prior=0.5、explore=0、switch=0 → 无资历时 v = 5。
  */
-const BASE = { successValue: 10, priorQuality: 0.5, priorWeight: 3, exploreCoefficient: 0, switchCostRate: 0 };
+const BASE = {
+  successValue: 10,
+  priorQuality: 0.5,
+  priorWeight: 3,
+  exploreCoefficient: 0,
+  switchCostRate: 0,
+};
 
-function make(spec: Partial<BatchAgentSpec> & Pick<BatchAgentSpec, 'id' | 'trueCost' | 'capacity'>): BatchAgentSpec {
+function make(
+  spec: Partial<BatchAgentSpec> & Pick<BatchAgentSpec, 'id' | 'trueCost' | 'capacity'>,
+): BatchAgentSpec {
   return {
     capabilities: ['X'],
     trueQuality: { X: 0.5 },
-    ...spec
+    ...spec,
   } as BatchAgentSpec;
 }
 
@@ -56,8 +64,12 @@ describe('BatchVCGScheduler · 薄市场预算平衡病理', () => {
    */
   it('不可替代赢家被全额抽取，平台 take = 0', () => {
     const s = new BatchVCGScheduler(BASE);
-    s.register(make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }));
-    s.register(make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }));
+    s.register(
+      make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }),
+    );
+    s.register(
+      make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }),
+    );
 
     const alloc = s.allocateBatch(['A', 'B']);
     assert.equal(alloc.payments['a1'], 5);
@@ -70,8 +82,12 @@ describe('BatchVCGScheduler · 薄市场预算平衡病理', () => {
 describe('BatchVCGScheduler · 预算硬约束的拉格朗日松弛', () => {
   function duopoly(): BatchVCGScheduler {
     const s = new BatchVCGScheduler(BASE);
-    s.register(make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }));
-    s.register(make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }));
+    s.register(
+      make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }),
+    );
+    s.register(
+      make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }),
+    );
     return s;
   }
 
@@ -85,12 +101,12 @@ describe('BatchVCGScheduler · 预算硬约束的拉格朗日松弛', () => {
     const alloc = s.allocateBatch(['A', 'B'], { budget: 8 });
     assert.equal(alloc.assignments.length, 2);
     assert.ok(Math.abs(alloc.totalPayment - 8) < 1e-3, `Σp=${alloc.totalPayment}`);
-    assert.ok(Math.abs(alloc.payments['a1'] - 4) < 1e-3);
+    assert.ok(Math.abs(alloc.payments['a1']! - 4) < 1e-3);
     assert.equal(alloc.efficiencyLoss, 0);
     assert.ok(Math.abs(alloc.lambda - 1) < 1e-3, `λ=${alloc.lambda}`);
     assert.equal(alloc.exactDSIC, false); // λ 路径：DSIC 只是近似
     // IR 保持：支付 ≥ 报价（成本 1）
-    assert.ok(alloc.payments['a1'] >= 1 && alloc.payments['a2'] >= 1);
+    assert.ok(alloc.payments['a1']! >= 1 && alloc.payments['a2']! >= 1);
   });
 
   /** B=2.2 → λ=3.9，ṽ=1.1，仍全额分配（score>0），Σp=2.2 */
@@ -123,7 +139,7 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
     const n = 3 + Math.floor(rng() * 4); // 3~6 agents
     return Array.from({ length: n }, (_, i) => {
       const caps = CAPS.filter(() => rng() < 0.6);
-      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]);
+      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]!);
       const cred = Object.fromEntries(caps.map((c) => [c, 0.3 + rng() * 0.6]));
       return {
         id: `a${i}`,
@@ -131,7 +147,7 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
         trueCost: 1 + i * 0.7 + rng() * 0.3, // 互异成本，避免平局
         trueQuality: Object.fromEntries(caps.map((c) => [c, 0.4 + rng() * 0.5])),
         credentialQuality: cred,
-        capacity: 1 + Math.floor(rng() * 3)
+        capacity: 1 + Math.floor(rng() * 3),
       };
     });
   }
@@ -152,15 +168,15 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
     for (let inst = 0; inst < 30; inst++) {
       const s = new BatchVCGScheduler(BASE);
       randomSpecs(rng).forEach((a) => s.register(a));
-      const tasks = Array.from({ length: 4 + Math.floor(rng() * 8) }, () => CAPS[Math.floor(rng() * 3)]);
+      const tasks = Array.from(
+        { length: 4 + Math.floor(rng() * 8) },
+        () => CAPS[Math.floor(rng() * 3)]!,
+      );
       const alloc = s.allocateBatch(tasks);
       assert.ok(alloc.exactDSIC);
       for (const a of Object.keys(alloc.payments)) {
         const gain = s.measureMisreportGain(tasks, a, [-0.3, -0.1, 0.1, 0.3, 0.5, 1.0]);
-        assert.ok(
-          gain.maxGain <= 1e-6,
-          `实例${inst} agent=${a} 虚报收益 ${gain.maxGain} 应为 0`
-        );
+        assert.ok(gain.maxGain <= 1e-6, `实例${inst} agent=${a} 虚报收益 ${gain.maxGain} 应为 0`);
       }
     }
   });
@@ -171,7 +187,10 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
     for (let inst = 0; inst < 20; inst++) {
       const s = new BatchVCGScheduler(BASE);
       randomSpecs(rng).forEach((a) => s.register(a));
-      const tasks = Array.from({ length: 5 + Math.floor(rng() * 6) }, () => CAPS[Math.floor(rng() * 3)]);
+      const tasks = Array.from(
+        { length: 5 + Math.floor(rng() * 6) },
+        () => CAPS[Math.floor(rng() * 3)]!,
+      );
       const slack = s.allocateBatch(tasks); // 先测无预算约束的 Σp
       const tight = s.allocateBatch(tasks, { budget: slack.totalPayment * 0.5 });
       assert.ok(tight.totalPayment <= slack.totalPayment * 0.5 + 1e-6);
@@ -193,12 +212,12 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
     for (let inst = 0; inst < 30; inst++) {
       const s = new BatchVCGScheduler(BASE);
       randomSpecs(rng).forEach((a) => s.register(a));
-      const tasks = Array.from({ length: 4 + Math.floor(rng() * 8) }, () => CAPS[Math.floor(rng() * 3)]);
-      const alloc = s.allocateBatch(tasks);
-      assert.ok(
-        alloc.platformTake >= -1e-9,
-        `实例${inst} take=${alloc.platformTake} 不应为负`
+      const tasks = Array.from(
+        { length: 4 + Math.floor(rng() * 8) },
+        () => CAPS[Math.floor(rng() * 3)]!,
       );
+      const alloc = s.allocateBatch(tasks);
+      assert.ok(alloc.platformTake >= -1e-9, `实例${inst} take=${alloc.platformTake} 不应为负`);
     }
   });
 });
@@ -231,8 +250,8 @@ describe('BatchVCGScheduler · 容量与分配最优性', () => {
         capacity: 1,
         capabilities: ['X'],
         trueQuality: { X: 0.9 },
-        credentialQuality: { X: 0.9 }
-      })
+        credentialQuality: { X: 0.9 },
+      }),
     );
     s.register(
       make({
@@ -241,8 +260,8 @@ describe('BatchVCGScheduler · 容量与分配最优性', () => {
         capacity: 1,
         capabilities: ['X', 'Y'],
         trueQuality: { X: 0.6, Y: 0.6 },
-        credentialQuality: { X: 0.6, Y: 0.6 }
-      })
+        credentialQuality: { X: 0.6, Y: 0.6 },
+      }),
     );
 
     const batch = s.allocateBatch(['X', 'Y']);
@@ -264,19 +283,24 @@ describe('BatchVCGScheduler · 公开履历驱动再分配', () => {
 
     // 第一批：B 更便宜中标
     const first = s.allocateBatch(['X']);
-    assert.equal(first.assignments[0].agentId, 'B');
+    assert.equal(first.assignments[0]!.agentId, 'B');
     s.settleBatch(first.assignments.map((a) => ({ taskId: a.taskId, success: false })));
 
     // B 失败后 q̂ = (0+1.5)/4 = 0.375 → v=3.75, s=1.55；A 无履历 v=5, s=2.8 → A 中标
     const second = s.allocateBatch(['X']);
-    assert.equal(second.assignments[0].agentId, 'A');
+    assert.equal(second.assignments[0]!.agentId, 'A');
     s.settleBatch(second.assignments.map((a) => ({ taskId: a.taskId, success: true })));
   });
 });
 
 describe('BatchVCGScheduler · 并发约束与学习曲线（模拟）', () => {
   it('批内并发不超容量，学习曲线抬升后期成功率', () => {
-    const s = new BatchVCGScheduler({ ...BASE, learningCeiling: 0.6, learningRate: 0.15, seed: 11 });
+    const s = new BatchVCGScheduler({
+      ...BASE,
+      learningCeiling: 0.6,
+      learningRate: 0.15,
+      seed: 11,
+    });
     s.register(make({ id: 'a1', trueCost: 2, capacity: 2, trueQuality: { X: 0.3 } }));
     s.register(make({ id: 'a2', trueCost: 2, capacity: 2, trueQuality: { X: 0.3 } }));
 
@@ -297,15 +321,19 @@ describe('BatchVCGScheduler · 并发约束与学习曲线（模拟）', () => {
     assert.ok(late >= early + 0.05, `后期 ${late.toFixed(3)} 应显著高于前期 ${early.toFixed(3)}`);
     // 资本确实在累积
     const snap = s.getSnapshot();
-    assert.ok((snap[0].capital['X'] ?? 0) > 50);
+    assert.ok((snap[0]!.capital['X'] ?? 0) > 50);
   });
 });
 
 describe('BatchVCGScheduler · μ-VCG 仿射乘子：薄市场病理的 DSIC 逃生舱', () => {
   function duopoly(): BatchVCGScheduler {
     const s = new BatchVCGScheduler(BASE);
-    s.register(make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }));
-    s.register(make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }));
+    s.register(
+      make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }),
+    );
+    s.register(
+      make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }),
+    );
     return s;
   }
 
@@ -330,7 +358,7 @@ describe('BatchVCGScheduler · μ-VCG 仿射乘子：薄市场病理的 DSIC 逃
 
     for (const id of ['a1', 'a2']) {
       const g = s.measureMisreportGain(['A', 'B'], id, [-0.5, -0.2, 0.2, 0.5, 1, 2], {
-        affine: { mu: 1.25 }
+        affine: { mu: 1.25 },
       });
       assert.ok(g.maxGain <= 1e-6, `${id} 虚报收益 ${g.maxGain} 应为 0（公开乘子下精确 DSIC）`);
     }
@@ -366,14 +394,14 @@ describe('BatchVCGScheduler · 公开乘子随机实例 DSIC 实证证书', () =
     const n = 3 + Math.floor(rng() * 4);
     return Array.from({ length: n }, (_, i) => {
       const caps = CAPS.filter(() => rng() < 0.6);
-      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]);
+      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]!);
       return {
         id: `a${i}`,
         capabilities: caps,
         trueCost: 1 + i * 0.7 + rng() * 0.3,
         trueQuality: Object.fromEntries(caps.map((c) => [c, 0.4 + rng() * 0.5])),
         credentialQuality: Object.fromEntries(caps.map((c) => [c, 0.3 + rng() * 0.6])),
-        capacity: 1 + Math.floor(rng() * 3)
+        capacity: 1 + Math.floor(rng() * 3),
       };
     });
   }
@@ -398,22 +426,25 @@ describe('BatchVCGScheduler · 公开乘子随机实例 DSIC 实证证书', () =
       { lambda: 0, mu: 1 },
       { lambda: 0.5, mu: 1 },
       { lambda: 0, mu: 1.4 },
-      { lambda: 0.3, mu: 1.8 }
+      { lambda: 0.3, mu: 1.8 },
     ];
     for (let inst = 0; inst < 30; inst++) {
       const s = new BatchVCGScheduler(BASE);
       randomSpecs(rng).forEach((a) => s.register(a));
-      const tasks = Array.from({ length: 4 + Math.floor(rng() * 8) }, () => CAPS[Math.floor(rng() * 3)]);
+      const tasks = Array.from(
+        { length: 4 + Math.floor(rng() * 8) },
+        () => CAPS[Math.floor(rng() * 3)]!,
+      );
       for (const combo of combos) {
         const alloc = s.allocateAffineBatch(tasks, combo);
         assert.equal(alloc.exactDSIC, true);
         for (const agentId of Object.keys(alloc.payments)) {
           const g = s.measureMisreportGain(tasks, agentId, [-0.3, -0.1, 0.1, 0.3, 0.5, 1.0], {
-            affine: combo
+            affine: combo,
           });
           assert.ok(
             g.maxGain <= 1e-6,
-            `实例${inst} λ=${combo.lambda} μ=${combo.mu} agent=${agentId} 虚报收益 ${g.maxGain} 应为 0`
+            `实例${inst} λ=${combo.lambda} μ=${combo.mu} agent=${agentId} 虚报收益 ${g.maxGain} 应为 0`,
           );
         }
       }
@@ -426,7 +457,10 @@ describe('BatchVCGScheduler · 公开乘子随机实例 DSIC 实证证书', () =
     for (let inst = 0; inst < 30; inst++) {
       const s = new BatchVCGScheduler(BASE);
       randomSpecs(rng).forEach((a) => s.register(a));
-      const tasks = Array.from({ length: 4 + Math.floor(rng() * 8) }, () => CAPS[Math.floor(rng() * 3)]);
+      const tasks = Array.from(
+        { length: 4 + Math.floor(rng() * 8) },
+        () => CAPS[Math.floor(rng() * 3)]!,
+      );
       const vcg = s.allocateAffineBatch(tasks, { mu: 1 }).totalPayment;
       for (const mu of [1.3, 1.8, 2.5]) {
         const p = s.allocateAffineBatch(tasks, { mu }).totalPayment;
@@ -470,7 +504,7 @@ describe('BatchVCGScheduler · BudgetPacer：预算即控制（公开 μ 在线�
     const mean = late.reduce((a, b) => a + b, 0) / late.length;
     assert.ok(
       mean >= B * 0.7 && mean <= B * 1.3,
-      `后期平均支出 ${mean.toFixed(2)} 应贴近预算 B=${B.toFixed(2)}`
+      `后期平均支出 ${mean.toFixed(2)} 应贴近预算 B=${B.toFixed(2)}`,
     );
     // 对偶确实被激活（μ 从 1 上升）
     assert.ok(pacer.getMu() > 1.05, `末态 μ=${pacer.getMu().toFixed(3)} 应大于 1`);
@@ -486,7 +520,7 @@ describe('BatchVCGScheduler · BudgetPacer：预算即控制（公开 μ 在线�
     const alloc = check.allocateAffineBatch(TASKS, { mu: pacer.getMu() });
     for (const agentId of Object.keys(alloc.payments)) {
       const g = check.measureMisreportGain(TASKS, agentId, [-0.3, -0.1, 0.1, 0.3, 0.5, 1.0], {
-        affine: { mu: pacer.getMu() }
+        affine: { mu: pacer.getMu() },
       });
       assert.ok(g.maxGain <= 1e-6, `${agentId} 虚报收益 ${g.maxGain} 应为 0`);
     }

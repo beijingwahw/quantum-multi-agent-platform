@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { CompoundBrain, lawKMin, lawDeltaMax, type CompoundAgentSpec, type CompoundTaskSpec } from '../src/core/compound-brain';
+import {
+  CompoundBrain,
+  lawKMin,
+  lawDeltaMax,
+  type CompoundAgentSpec,
+  type CompoundTaskSpec,
+} from '../src/core/compound-brain';
 
 /** 确定性随机数（测试内独立于实现） */
 function mulberry32(seed: number): () => number {
@@ -14,7 +20,12 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function agent(id: string, capabilities: string[], trueCost: number, trueQuality: Record<string, number>): CompoundAgentSpec {
+function agent(
+  id: string,
+  capabilities: string[],
+  trueCost: number,
+  trueQuality: Record<string, number>,
+): CompoundAgentSpec {
   return { id, capabilities, trueCost, trueQuality, capacity: 1 };
 }
 
@@ -63,19 +74,24 @@ describe('CompoundBrain · DSIC 与个体理性', () => {
     const CAPS = ['A', 'B', 'C'];
     const specs = Array.from({ length: 5 }, (_, i) => {
       const caps = CAPS.filter(() => rng() < 0.6);
-      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]);
-      return agent(`a${i}`, caps, 0.5 + rng() * 2, Object.fromEntries(caps.map((c) => [c, 0.3 + rng() * 0.6])));
+      if (caps.length === 0) caps.push(CAPS[Math.floor(rng() * 3)]!);
+      return agent(
+        `a${i}`,
+        caps,
+        0.5 + rng() * 2,
+        Object.fromEntries(caps.map((c) => [c, 0.3 + rng() * 0.6])),
+      );
     });
     // DSIC 检验只扰动 a0 的报价，其余人固定如实报价——
     // W*_{−a0} 是 a0 效用中的常数项，唯一自变量是 a0 自己的报价
     for (const s of specs) brain.registerAgent(s, s.id === 'a0' ? s.trueCost + markup : s.trueCost);
     const tasks: CompoundTaskSpec[] = Array.from({ length: 5 }, () => ({
-      capability: CAPS[Math.floor(rng() * 3)],
-      value: 6 + rng() * 8
+      capability: CAPS[Math.floor(rng() * 3)]!,
+      value: 6 + rng() * 8,
     }));
     const alloc = brain.allocateBatch(tasks);
     const k = alloc.assignments.filter((x) => x.agentId === 'a0').length;
-    return (alloc.payments['a0'] ?? 0) - k * specs[0].trueCost;
+    return (alloc.payments['a0'] ?? 0) - k * specs[0]!.trueCost;
   }
 
   it('DSIC（单批）：虚报成本不优于如实报价（30 实例 × 5 报价扰动）', () => {
@@ -100,19 +116,27 @@ describe('CompoundBrain · DSIC 与个体理性', () => {
       const CAPS = ['A', 'B'];
       const specs = Array.from({ length: 4 }, (_, i) => {
         const caps = CAPS.filter(() => rng() < 0.7);
-        if (caps.length === 0) caps.push(CAPS[i % 2]);
-        return agent(`a${i}`, caps, 0.5 + rng() * 2, Object.fromEntries(caps.map((c) => [c, 0.4 + rng() * 0.5])));
+        if (caps.length === 0) caps.push(CAPS[i % 2]!);
+        return agent(
+          `a${i}`,
+          caps,
+          0.5 + rng() * 2,
+          Object.fromEntries(caps.map((c) => [c, 0.4 + rng() * 0.5])),
+        );
       });
       for (const s of specs) brain.registerAgent(s);
       const tasks: CompoundTaskSpec[] = Array.from({ length: 5 }, () => ({
-        capability: CAPS[Math.floor(rng() * 2)],
-        value: 8 + rng() * 6
+        capability: CAPS[Math.floor(rng() * 2)]!,
+        value: 8 + rng() * 6,
       }));
       const alloc = brain.allocateBatch(tasks);
       for (const [id, pay] of Object.entries(alloc.payments)) {
         const k = alloc.assignments.filter((x) => x.agentId === id).length;
         const spec = specs.find((s) => s.id === id)!;
-        assert.ok(pay >= spec.trueCost * k - 1e-6, `agent ${id} 支付 ${pay} < 成本 ${spec.trueCost * k}，违反 IR`);
+        assert.ok(
+          pay >= spec.trueCost * k - 1e-6,
+          `agent ${id} 支付 ${pay} < 成本 ${spec.trueCost * k}，违反 IR`,
+        );
       }
     }
   });
@@ -128,10 +152,15 @@ describe('CompoundBrain · 增长投资行为', () => {
   // α=0.85、β=0.15——trainee 净价值 k≈5 反超，理论要求孵化投资
   const AGENTS: CompoundAgentSpec[] = [
     { id: 'veteran', capabilities: ['X'], trueCost: 2.0, trueQuality: { X: 0.8 } },
-    { id: 'trainee', capabilities: ['X'], trueCost: 0.2, trueQuality: { X: 0.6 } }
+    { id: 'trainee', capabilities: ['X'], trueCost: 0.2, trueQuality: { X: 0.6 } },
   ];
 
-  function makeBrain(growthDiscount: number, simAlpha: number, simBeta: number, seed = 42): CompoundBrain {
+  function makeBrain(
+    growthDiscount: number,
+    simAlpha: number,
+    simBeta: number,
+    seed = 42,
+  ): CompoundBrain {
     const brain = new CompoundBrain({ growthDiscount, simAlpha, simBeta, growthHorizon: 80, seed });
     for (const a of AGENTS) brain.registerAgent(a);
     return brain;
@@ -158,7 +187,7 @@ describe('CompoundBrain · 增长投资行为', () => {
     const compoundWelfare = run(1);
     assert.ok(
       compoundWelfare > staticWelfare + 10,
-      `compound 福利 (${compoundWelfare.toFixed(1)}) 应显著高于 static (${staticWelfare.toFixed(1)})`
+      `compound 福利 (${compoundWelfare.toFixed(1)}) 应显著高于 static (${staticWelfare.toFixed(1)})`,
     );
   });
 
@@ -171,9 +200,25 @@ describe('CompoundBrain · 增长投资行为', () => {
       const seeds = [11, 22, 33, 44, 55, 66];
       let total = 0;
       for (const seed of seeds) {
-        const brain = new CompoundBrain({ growthDiscount: gamma, simAlpha: 0.75, simBeta: 0.12, growthHorizon: 80, seed });
-        brain.registerAgent({ id: 'veteran', capabilities: ['X'], trueCost: 2.0, trueQuality: { X: 0.8 } });
-        brain.registerAgent({ id: 'trainee', capabilities: ['X'], trueCost: 0.2, trueQuality: { X: 0.5 } });
+        const brain = new CompoundBrain({
+          growthDiscount: gamma,
+          simAlpha: 0.75,
+          simBeta: 0.12,
+          growthHorizon: 80,
+          seed,
+        });
+        brain.registerAgent({
+          id: 'veteran',
+          capabilities: ['X'],
+          trueCost: 2.0,
+          trueQuality: { X: 0.8 },
+        });
+        brain.registerAgent({
+          id: 'trainee',
+          capabilities: ['X'],
+          trueCost: 0.2,
+          trueQuality: { X: 0.5 },
+        });
         for (let b = 0; b < 50; b++) {
           const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
@@ -185,7 +230,7 @@ describe('CompoundBrain · 增长投资行为', () => {
     const compoundWelfare = run(1);
     assert.ok(
       compoundWelfare >= staticWelfare - 20,
-      `边际 regime compound (${compoundWelfare.toFixed(1)}) 损失应有界（≥ static−20），static=${staticWelfare.toFixed(1)}`
+      `边际 regime compound (${compoundWelfare.toFixed(1)}) 损失应有界（≥ static−20），static=${staticWelfare.toFixed(1)}`,
     );
   });
 
@@ -208,7 +253,7 @@ describe('CompoundBrain · 增长投资行为', () => {
     // 有界（1/√ 衰减 + 失败观测压低 baseEstimate 使 gap 上升加速止损）
     assert.ok(
       compoundWelfare >= staticWelfare - 15,
-      `不可学习时 compound (${compoundWelfare.toFixed(1)}) 劣化应有界（≥ static−15），static=${staticWelfare.toFixed(1)}`
+      `不可学习时 compound (${compoundWelfare.toFixed(1)}) 劣化应有界（≥ static−15），static=${staticWelfare.toFixed(1)}`,
     );
   });
 
@@ -220,9 +265,25 @@ describe('CompoundBrain · 增长投资行为', () => {
       const seeds = [11, 22, 33, 44];
       let total = 0;
       for (const seed of seeds) {
-        const brain = new CompoundBrain({ growthDiscount: gamma, simAlpha: 0.85, simBeta: 0.15, growthHorizon: 80, seed });
-        brain.registerAgent({ id: 'veteran', capabilities: ['X'], trueCost: 2.0, trueQuality: { X: 0.8 } });
-        brain.registerAgent({ id: 'trainee', capabilities: ['X'], trueCost: 3.0, trueQuality: { X: 0.6 } });
+        const brain = new CompoundBrain({
+          growthDiscount: gamma,
+          simAlpha: 0.85,
+          simBeta: 0.15,
+          growthHorizon: 80,
+          seed,
+        });
+        brain.registerAgent({
+          id: 'veteran',
+          capabilities: ['X'],
+          trueCost: 2.0,
+          trueQuality: { X: 0.8 },
+        });
+        brain.registerAgent({
+          id: 'trainee',
+          capabilities: ['X'],
+          trueCost: 3.0,
+          trueQuality: { X: 0.6 },
+        });
         for (let b = 0; b < 50; b++) {
           const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
@@ -234,7 +295,7 @@ describe('CompoundBrain · 增长投资行为', () => {
     const compoundWelfare = run(1);
     assert.ok(
       compoundWelfare >= staticWelfare - 20,
-      `公开不可区分场景 compound (${compoundWelfare.toFixed(1)}) 损失应有界（≥ static−20），static=${staticWelfare.toFixed(1)}`
+      `公开不可区分场景 compound (${compoundWelfare.toFixed(1)}) 损失应有界（≥ static−20），static=${staticWelfare.toFixed(1)}`,
     );
   });
 
@@ -255,7 +316,10 @@ describe('CompoundBrain · 增长投资行为', () => {
       total += traineeTasks;
     }
     const avg = total / perSeed.length;
-    assert.ok(avg >= 10, `trainee 平均应获得 ≥10 任务孵化投资，实际平均 ${avg.toFixed(1)}（各 seed: ${perSeed.join(',')}）`);
+    assert.ok(
+      avg >= 10,
+      `trainee 平均应获得 ≥10 任务孵化投资，实际平均 ${avg.toFixed(1)}（各 seed: ${perSeed.join(',')}）`,
+    );
   });
 
   it('容量与弃标：无人具备能力时任务被弃标而非强分', () => {
@@ -280,7 +344,12 @@ describe('CompoundBrain · 在线校准', () => {
     // 但 8 seed 中至少一次检出即证明校准闭环可用
     let detected = 0;
     for (let seed = 1; seed <= 8; seed++) {
-      const brain = new CompoundBrain({ simAlpha: 0.9, simBeta: 0.15, minCalibrationAttempts: 20, seed });
+      const brain = new CompoundBrain({
+        simAlpha: 0.9,
+        simBeta: 0.15,
+        minCalibrationAttempts: 20,
+        seed,
+      });
       brain.registerAgent(agent('a', ['X'], 0.5, { X: 0.5 }));
       brain.registerAgent(agent('b', ['X'], 0.5, { X: 0.5 }));
       for (let b = 0; b < 150; b++) {
@@ -294,7 +363,12 @@ describe('CompoundBrain · 在线校准', () => {
 
   it('不可学习 regime：α̂ 保持 0（零误报，宁缺勿假）', () => {
     for (let seed = 1; seed <= 5; seed++) {
-      const brain = new CompoundBrain({ simAlpha: 0, simBeta: 0, minCalibrationAttempts: 20, seed });
+      const brain = new CompoundBrain({
+        simAlpha: 0,
+        simBeta: 0,
+        minCalibrationAttempts: 20,
+        seed,
+      });
       brain.registerAgent(agent('a', ['X'], 0.5, { X: 0.5 }));
       brain.registerAgent(agent('b', ['X'], 0.5, { X: 0.5 }));
       for (let b = 0; b < 150; b++) {
@@ -336,14 +410,24 @@ describe('CompoundBrain · 在线校准', () => {
 describe('CompoundBrain · 插件集成', () => {
   it('CompoundBrain 实例直接作为 config.brain 接入并完成闭环', async () => {
     const { ProactiveIntelligencePlugin } = await import('../src/proactive-intelligence/index.js');
-    const brain = new CompoundBrain({ simAlpha: 0.8, simBeta: 0.15, defaultTaskValue: 10, seed: 9 });
+    const brain = new CompoundBrain({
+      simAlpha: 0.8,
+      simBeta: 0.15,
+      defaultTaskValue: 10,
+      seed: 9,
+    });
     brain.registerAgent(agent('a', ['summarize'], 0.5, { summarize: 0.6 }));
 
     const plugin = new ProactiveIntelligencePlugin({ brain });
     await plugin.start();
 
     // task_request 事件 → Brain 市场分配（setImmediate 批处理 → executor 执行）
-    plugin.observe({ type: 'task_request', source: 'test', data: { capability: 'summarize' }, severity: 'info' });
+    plugin.observe({
+      type: 'task_request',
+      source: 'test',
+      data: { capability: 'summarize' },
+      severity: 'info',
+    });
     await new Promise((r) => {
       let n = 0;
       const step = () => (++n >= 4 ? r(null) : setImmediate(step));
@@ -365,8 +449,12 @@ describe('CompoundBrain · 插件集成', () => {
   });
 
   it('配置对象仍按 GrowthSchedulerBrain 构造（向后兼容）', async () => {
-    const { ProactiveIntelligencePlugin, GrowthSchedulerBrain } = await import('../src/proactive-intelligence/index.js');
+    const { ProactiveIntelligencePlugin, GrowthSchedulerBrain } =
+      await import('../src/proactive-intelligence/index.js');
     const plugin = new ProactiveIntelligencePlugin({ brain: { successValue: 10 } });
-    assert.ok(plugin.getBrain() instanceof GrowthSchedulerBrain, '配置对象应构造默认增长市场 Brain');
+    assert.ok(
+      plugin.getBrain() instanceof GrowthSchedulerBrain,
+      '配置对象应构造默认增长市场 Brain',
+    );
   });
 });

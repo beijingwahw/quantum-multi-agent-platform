@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { runBenchmark } from './src/performance/benchmark.js';
+import { runBenchmark } from '../src/performance/benchmark.js';
 
 async function main() {
   console.log('🚀 Starting Quantum Multi-Agent Platform Performance Test');
@@ -10,18 +10,17 @@ async function main() {
     // 运行基准测试
     const config = {
       scheduling: {
-        maxConcurrentTasks: 500
+        maxConcurrentTasks: 500,
       },
       communication: {
-        port: 8082
-      }
+        port: 8082,
+      },
     };
 
-    const results = await runBenchmark(config);
-    
+    await runBenchmark(config);
+
     console.log('\n✅ Performance test completed successfully!');
     process.exit(0);
-    
   } catch (error) {
     console.error('❌ Performance test failed:', error);
     process.exit(1);

@@ -45,12 +45,12 @@ config:
       actionTimeoutMs: 30000
       auditLogEnabled: true
       allowedActions:
-        - "notification:*"
-        - "workflow:*"
-        - "command:nuke:*"
+        - 'notification:*'
+        - 'workflow:*'
+        - 'command:nuke:*'
       blockedActions:
-        - "command:rm"
-        - "command:delete"
+        - 'command:rm'
+        - 'command:delete'
 
   # 预设规则配置
   proactiveRules:
@@ -136,7 +136,7 @@ config:
     # DSH集成
     dsh:
       enabled: true
-      apiEndpoint: "http://127.0.0.1:3080"
+      apiEndpoint: 'http://127.0.0.1:3080'
       workflowEngine: true
       toolIntegration: true
 

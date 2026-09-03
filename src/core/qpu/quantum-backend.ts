@@ -26,6 +26,7 @@
 import type { AssignmentProblem } from '../quantum-optimizer';
 import { buildSubspaceModel, annealSolveSubspace } from '../subspace-optimizer';
 import type { SubspaceSolution } from '../subspace-optimizer';
+import { BackendError } from '../../utils/errors';
 
 /** QPU 采样结果：自旋 z_i ∈ {−1,+1}（z = 1 − 2x） */
 export interface QpuSampleSet {
@@ -56,7 +57,12 @@ export interface QuantumBackend {
   /** 凭据/网络是否就绪（不发起网络请求） */
   isAvailable(): boolean;
   /** 求解 Ising 问题：h（稠密数组，索引=逻辑量子比特）、J（键 q1*nq+q2） */
-  solveIsing(h: number[], j: Map<number, number>, nqubits: number, options?: QpuSolveOptions): Promise<QpuSampleSet>;
+  solveIsing(
+    h: number[],
+    j: Map<number, number>,
+    nqubits: number,
+    options?: QpuSolveOptions,
+  ): Promise<QpuSampleSet>;
 }
 
 // ----------------------------------------------------------------------------
@@ -79,22 +85,29 @@ export class LocalQuantumBackend implements QuantumBackend {
    * 在约束子空间精确演化，与真 QPU 路径同接口。
    */
   async solveIsing(_h: number[], _j: Map<number, number>, nqubits: number): Promise<QpuSampleSet> {
-    throw new Error(
-      'LocalQuantumBackend 不支持 h/J 直解（不可逆）。请使用 solveAssignment(problem, backend)。' +
-      `(received nqubits=${nqubits})`
+    throw new BackendError(
+      'LocalQuantumBackend cannot solve raw h/J directly (penalties are folded into ' +
+        `linear terms, irreversible). Use solveAssignmentOnBackend(problem, backend). ` +
+        `(received nqubits=${nqubits})`,
     );
   }
 
   /** 对调度问题做精确子空间退火（采样语义与真 QPU 报告一致） */
-  async solveProblem(problem: AssignmentProblem, options?: QpuSolveOptions): Promise<SubspaceSolution> {
+  async solveProblem(
+    problem: AssignmentProblem,
+    options?: QpuSolveOptions,
+  ): Promise<SubspaceSolution> {
     const model = buildSubspaceModel(problem);
     if (!model) {
-      throw new Error('LocalQuantumBackend: 子空间超维，请减小批量或提高 dimensionCap');
+      throw new BackendError(
+        'LocalQuantumBackend: subspace dimension exceeds the cap; ' +
+          'reduce the batch size or raise dimensionCap',
+      );
     }
     return annealSolveSubspace(model, {
       anneal: this.annealParams,
       select: 'shots-best',
-      shots: options?.numReads
+      shots: options?.numReads,
     });
   }
 }
@@ -113,7 +126,9 @@ export function getBackend(name?: string): QuantumBackend {
   if (name) {
     const backend = registry.get(name);
     if (!backend) {
-      throw new Error(`Unknown quantum backend '${name}'. Registered: [${[...registry.keys()].join(', ')}]`);
+      throw new BackendError(
+        `Unknown quantum backend '${name}'. Registered: [${[...registry.keys()].join(', ')}]`,
+      );
     }
     return backend;
   }
@@ -123,11 +138,15 @@ export function getBackend(name?: string): QuantumBackend {
   }
   const local = registry.get('local-subspace');
   if (local) return local;
-  throw new Error('No quantum backend registered');
+  throw new BackendError('No quantum backend registered');
 }
 
 export function listBackends(): Array<{ name: string; realHardware: boolean; available: boolean }> {
-  return [...registry.values()].map(b => ({ name: b.name, realHardware: b.realHardware, available: b.isAvailable() }));
+  return [...registry.values()].map((b) => ({
+    name: b.name,
+    realHardware: b.realHardware,
+    available: b.isAvailable(),
+  }));
 }
 
 // 注册默认本地后端（D-Wave 后端在 dwave-backend.ts 中按需注册）

@@ -1,14 +1,33 @@
-import { Agent, Task, SchedulingDecision, QuantumState, TaskPriority, TaskStatus } from '../types/quantum-types';
+import type {
+  Agent,
+  Task,
+  SchedulingDecision,
+  QuantumState,
+  TaskPriority,
+  TaskStatus,
+} from '../types/quantum-types';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { logDebug, logInfo } from '../utils/logger';
+import { SchedulingError } from '../utils/errors';
+import { Mulberry32, DEFAULT_SEED } from '../utils/rng';
 import {
-  AssignmentProblem, QuantumSolverOptions, CollapseMode,
-  qaoaSolve, annealSolve, bruteForceOptimum, defaultPenalties, couplingKey
+  BRUTE_FORCE_QUBIT_LIMIT,
+  MAX_CASCADE_DEPTH,
+  SCHEDULER_QUBIT_CAP,
+  SCHEDULER_SUBSPACE_CAP,
+  SUBSPACE_QAOA_DIMENSION_LIMIT,
+} from './constants';
+import { AGENT_OVERLOAD_THRESHOLD } from './agent-manager';
+import type { AssignmentProblem, QuantumSolverOptions, CollapseMode } from './quantum-optimizer';
+import {
+  qaoaSolve,
+  annealSolve,
+  bruteForceOptimum,
+  defaultPenalties,
+  couplingKey,
 } from './quantum-optimizer';
-import {
-  buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace, SubspaceModel, SubspaceSolution
-} from './subspace-optimizer';
+import { buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace } from './subspace-optimizer';
 import type { QuantumBackend } from './qpu/quantum-backend';
 import { getBackend } from './qpu/quantum-backend';
 import { solveAssignmentOnBackend } from './qpu/solve';
@@ -17,7 +36,7 @@ const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   critical: 4,
   high: 3,
   medium: 2,
-  low: 1
+  low: 1,
 };
 
 // 分桶遍历顺序即调度优先顺序
@@ -25,8 +44,42 @@ const PRIORITY_ORDER: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
 
 const DEFAULT_MAX_HISTORY = 10000;
 
+/**
+ * 波函数调度的评分权重（单任务决策 / 批量打分两套口径）。
+ * 此前两处以字面量散落（且顺序不同），改权重时必须两处同改——集中于此。
+ */
+const SINGLE_TASK_WEIGHTS = {
+  distance: 0.3,
+  capability: 0.4,
+  load: 0.2,
+  correlation: 0.1,
+} as const;
+const BATCH_SCORE_WEIGHTS = {
+  capability: 0.4,
+  load: 0.2,
+  correlation: 0.1,
+  distance: 0.3,
+} as const;
+
+/** loadScore = 1/(load + ε) 的分母平滑项：避免零负载agent的除零爆炸 */
+const LOAD_EPSILON = 0.1;
+/** 决策置信度 = min(2×最优分, 1)：最优分过半即满置信 */
+const CONFIDENCE_GAIN = 2;
+/** 决策附带的次优候选数 */
+const ALTERNATIVES_COUNT = 2;
+
+/** 评分四要素（能力/负载/相关性/距离）——单任务决策与批量打分共用同一组件计算 */
+interface AffinityComponents {
+  capabilityScore: number;
+  loadScore: number;
+  correlationScore: number;
+  /** 原始欧氏距离（单任务口径直接用，批量口径取 1/(1+d) 归一） */
+  distance: number;
+}
+
 /** 量子调度算法：hybrid 为经典启发式热路径；quantum-* 为真实量子算法（态矢量模拟） */
-export type QuantumAlgorithm = 'hybrid' | 'wave-function' | 'probability' | 'quantum-qaoa' | 'quantum-annealing';
+export type QuantumAlgorithm =
+  'hybrid' | 'wave-function' | 'probability' | 'quantum-qaoa' | 'quantum-annealing';
 
 /** 量子引擎配置（态矢量规模与坍缩协议） */
 export interface QuantumEngineConfig {
@@ -135,6 +188,8 @@ export class QuantumScheduler extends EventEmitter {
   private quantumState: Map<string, QuantumState> = new Map();
   private schedulingHistory: SchedulingDecision[] = [];
   private config: QuantumSchedulerConfig;
+  // 量子态的随机性也走种子化 PRNG：给定 seed 的调度行为完全可复现
+  private rngSource: Mulberry32 = new Mulberry32(DEFAULT_SEED);
 
   // 性能索引：能力 → 具备该能力的agentId集合（候选集O(要求数)求交）
   private capabilityIndex: Map<string, Set<string>> = new Map();
@@ -164,6 +219,7 @@ export class QuantumScheduler extends EventEmitter {
   constructor(config: QuantumSchedulerConfig) {
     super();
     this.config = config;
+    this.rngSource = new Mulberry32(config.scheduling?.quantum?.seed ?? DEFAULT_SEED);
   }
 
   private get maxHistory(): number {
@@ -232,7 +288,7 @@ export class QuantumScheduler extends EventEmitter {
     // 依赖校验：未知依赖ID直接拒绝，避免任务永远挂起的静默陷阱
     for (const depId of task.dependencies || []) {
       if (!this.tasks.has(depId)) {
-        throw new Error(`Unknown dependency '${depId}' for task '${task.name}'`);
+        throw new SchedulingError(`Unknown dependency '${depId}' for task '${task.name}'`);
       }
     }
 
@@ -241,7 +297,7 @@ export class QuantumScheduler extends EventEmitter {
       id: uuidv4(),
       createdAt: new Date(),
       updatedAt: new Date(),
-      quantumState: this.generateQuantumState()
+      quantumState: this.generateQuantumState(),
     };
 
     this.tasks.set(fullTask.id, fullTask);
@@ -272,10 +328,27 @@ export class QuantumScheduler extends EventEmitter {
     this.pendingCount++;
   }
 
+  /**
+   * 状态机安全的任务状态更新：终结态（completed/failed/cancelled）走
+   * completeTask 统一收尾（释放agent、级联、重调度）；中间态
+   * （pending/assigned/running）只更新状态字段。此前任意非 completed
+   * 入参都被静默当作失败收尾——updateTaskStatus(id, 'running') 实际
+   * 会杀死任务（行为陷阱，已修复并由测试守护）。
+   */
   updateTaskStatus(taskId: string, status: TaskStatus): void {
-    if (this.tasks.has(taskId)) {
+    const task = this.tasks.get(taskId);
+    if (!task) return;
+    if (status === 'completed' || status === 'failed') {
       this.completeTask(taskId, status === 'completed');
+      return;
     }
+    if (status === 'cancelled') {
+      this.completeTask(taskId, false, { reason: 'cancelled' });
+      return;
+    }
+    task.status = status;
+    task.updatedAt = new Date();
+    this.tasks.set(taskId, task);
   }
 
   // 任务完成/失败：更新状态、释放agent、触发挂起任务重调度
@@ -313,7 +386,7 @@ export class QuantumScheduler extends EventEmitter {
       if (agent) {
         agent.load = Math.max(0, agent.load - 1);
         if (agent.state === 'working') {
-          agent.state = agent.load > 80 ? 'overloaded' : 'idle';
+          agent.state = agent.load > AGENT_OVERLOAD_THRESHOLD ? 'overloaded' : 'idle';
         }
         this.agents.set(agent.id, agent);
       }
@@ -327,7 +400,10 @@ export class QuantumScheduler extends EventEmitter {
       this.cascadeFailure(taskId);
     }
 
-    logDebug('QuantumScheduler', `Task ${success ? 'completed' : 'failed'}: ${task.name} (${taskId})`);
+    logDebug(
+      'QuantumScheduler',
+      `Task ${success ? 'completed' : 'failed'}: ${task.name} (${taskId})`,
+    );
 
     // 释放出的容量立即用于挂起任务（批量模式下留待联合调度）
     if (this.config?.scheduling?.autoSchedule !== false) {
@@ -362,7 +438,7 @@ export class QuantumScheduler extends EventEmitter {
   // 前置依赖是否全部完成
   private dependenciesMet(task: Task): boolean {
     if (!task.dependencies || task.dependencies.length === 0) return true;
-    return task.dependencies.every(depId => {
+    return task.dependencies.every((depId) => {
       const dep = this.tasks.get(depId);
       return dep !== undefined && dep.status === 'completed';
     });
@@ -370,12 +446,15 @@ export class QuantumScheduler extends EventEmitter {
 
   // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）
   private cascadeFailure(failedTaskId: string, depth: number = 0): void {
-    if (depth > 100) return; // 防御环形依赖导致的无限递归
+    if (depth > MAX_CASCADE_DEPTH) return; // 防御环形依赖导致的无限递归
 
     const dependents: string[] = [];
     for (const t of this.tasks.values()) {
-      if ((t.status === 'pending' || t.status === 'assigned' || t.status === 'running') &&
-          t.dependencies && t.dependencies.includes(failedTaskId)) {
+      if (
+        (t.status === 'pending' || t.status === 'assigned' || t.status === 'running') &&
+        t.dependencies &&
+        t.dependencies.includes(failedTaskId)
+      ) {
         dependents.push(t.id);
       }
     }
@@ -392,7 +471,10 @@ export class QuantumScheduler extends EventEmitter {
     // 并发上限背压：占满后任务留待后续释放
     const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
     if (maxConcurrent != null && this.activeAssignments >= maxConcurrent) {
-      logDebug('QuantumScheduler', `Concurrency limit reached (${maxConcurrent}), task ${task.id} deferred`);
+      logDebug(
+        'QuantumScheduler',
+        `Concurrency limit reached (${maxConcurrent}), task ${task.id} deferred`,
+      );
       return null;
     }
 
@@ -495,7 +577,7 @@ export class QuantumScheduler extends EventEmitter {
           if (decision) {
             scheduledCount++;
             // 将已分配agent移出空闲池
-            const idx = idlePool.findIndex(a => a.id === decision.agentId);
+            const idx = idlePool.findIndex((a) => a.id === decision.agentId);
             if (idx >= 0) idlePool.splice(idx, 1);
           } else {
             remaining.push(taskId);
@@ -516,14 +598,6 @@ export class QuantumScheduler extends EventEmitter {
     return scheduledCount;
   }
 
-  private countIdleAgents(): number {
-    let count = 0;
-    for (const agent of this.agents.values()) {
-      if (agent.state === 'idle') count++;
-    }
-    return count;
-  }
-
   // 周期巡检：分配超时回收 + 已终结任务保留清理
   private ensureSweepTimer(): void {
     if (this.sweepTimer) return;
@@ -541,13 +615,17 @@ export class QuantumScheduler extends EventEmitter {
     for (const task of this.tasks.values()) {
       if ((task.status === 'assigned' || task.status === 'running') && task.assignedAt) {
         if (now - task.assignedAt.getTime() > timeout) {
-          this.completeTask(task.id, false, { reason: 'timeout', elapsedMs: now - task.assignedAt.getTime() });
+          this.completeTask(task.id, false, {
+            reason: 'timeout',
+            elapsedMs: now - task.assignedAt.getTime(),
+          });
         }
       }
     }
 
     // 2) 保留清理：终结超过保留期的任务从内存移除（计数器指标保留历史总量）
-    const retentionMs = this.config?.performance?.retentionMs ??
+    const retentionMs =
+      this.config?.performance?.retentionMs ??
       (this.config?.performance?.retentionDays ?? 30) * 86400000;
     if (retentionMs > 0) {
       for (const [id, task] of this.tasks) {
@@ -570,12 +648,13 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private generateQuantumState(): QuantumState {
+    const rng = this.rngSource.next.bind(this.rngSource);
     return {
       id: uuidv4(),
-      amplitude: Math.random(),
-      phase: Math.random() * 2 * Math.PI,
+      amplitude: rng(),
+      phase: rng() * 2 * Math.PI,
       collapsed: false,
-      position: { x: Math.random(), y: Math.random(), z: Math.random() }
+      position: { x: rng(), y: rng(), z: rng() },
     };
   }
 
@@ -590,40 +669,55 @@ export class QuantumScheduler extends EventEmitter {
       return this.makeTrueQuantumDecision(task, agents, algorithm);
     }
     // 量子波函数调度算法
-    const scores = agents.map(agent => {
-      const agentQuantumState = this.quantumState.get(agent.id);
-      const distance = this.calculateQuantumDistance(agentQuantumState!, task.quantumState);
-      const capabilityScore = this.calculateCapabilityScore(agent, task);
-      const loadScore = 1 / (agent.load + 0.1);
-      // O(1)相关性：直接读预置计数，不回扫历史
-      const stats = this.agentStats.get(agent.id);
-      const correlationScore = stats && stats.total > 0
-        ? (stats.byType.get(task.type) || 0) / stats.total
-        : 0;
-
-      const totalScore = (0.3 * distance) + (0.4 * capabilityScore) + (0.2 * loadScore) + (0.1 * correlationScore);
+    const scores = agents.map((agent) => {
+      const c = this.affinityComponents(agent, task);
+      const w = SINGLE_TASK_WEIGHTS;
+      const totalScore =
+        w.distance * c.distance +
+        w.capability * c.capabilityScore +
+        w.load * c.loadScore +
+        w.correlation * c.correlationScore;
 
       return {
         agentId: agent.id,
-        score: totalScore
+        score: totalScore,
       };
     });
 
     scores.sort((a, b) => b.score - a.score);
+    if (scores.length === 0) {
+      throw new SchedulingError(`makeQuantumDecision: no eligible agent for task '${task.id}'`);
+    }
 
-    const bestScore = scores[0];
+    const bestScore = scores[0]!;
     const totalScoreSum = scores.reduce((sum, s) => sum + s.score, 0);
 
     return {
       taskId: task.id,
       agentId: bestScore.agentId,
       probability: bestScore.score / totalScoreSum,
-      confidence: Math.min(bestScore.score * 2, 1),
+      confidence: Math.min(bestScore.score * CONFIDENCE_GAIN, 1),
       reasoning: `Quantum distance optimization with capability matching`,
-      alternatives: scores.slice(1, 3).map(s => ({
+      alternatives: scores.slice(1, 1 + ALTERNATIVES_COUNT).map((s) => ({
         agentId: s.agentId,
-        probability: s.score / totalScoreSum
-      }))
+        probability: s.score / totalScoreSum,
+      })),
+    };
+  }
+
+  /** 评分四要素组件（单任务决策与批量打分共用的唯一实现） */
+  private affinityComponents(agent: Agent, task: Task): AffinityComponents {
+    const agentQuantumState = this.quantumState.get(agent.id)!;
+    const distance = this.calculateQuantumDistance(agentQuantumState, task.quantumState);
+    return {
+      capabilityScore: this.calculateCapabilityScore(agent, task),
+      loadScore: 1 / (agent.load + LOAD_EPSILON),
+      // O(1)相关性：直接读预置计数，不回扫历史
+      correlationScore: (() => {
+        const stats = this.agentStats.get(agent.id);
+        return stats && stats.total > 0 ? (stats.byType.get(task.type) || 0) / stats.total : 0;
+      })(),
+      distance,
     };
   }
 
@@ -641,15 +735,15 @@ export class QuantumScheduler extends EventEmitter {
 
   /** agent-任务亲和度：经典评分四要素（能力/负载/相关性/量子距离）的加权和，进入哈密顿量 */
   private agentAffinity(agent: Agent, task: Task): number {
-    const distance = this.calculateQuantumDistance(this.quantumState.get(agent.id)!, task.quantumState);
-    const capabilityScore = this.calculateCapabilityScore(agent, task);
-    const loadScore = 1 / (agent.load + 0.1);
-    const stats = this.agentStats.get(agent.id);
-    const correlationScore = stats && stats.total > 0
-      ? (stats.byType.get(task.type) || 0) / stats.total
-      : 0;
-    const distanceScore = 1 / (1 + distance); // 距离越近越高（归一化到(0,1]）
-    return (0.4 * capabilityScore) + (0.2 * loadScore) + (0.1 * correlationScore) + (0.3 * distanceScore);
+    const c = this.affinityComponents(agent, task);
+    const distanceScore = 1 / (1 + c.distance); // 距离越近越高（归一化到(0,1]）
+    const w = BATCH_SCORE_WEIGHTS;
+    return (
+      w.capability * c.capabilityScore +
+      w.load * c.loadScore +
+      w.correlation * c.correlationScore +
+      w.distance * distanceScore
+    );
   }
 
   private buildSolverOptions(): QuantumSolverOptions {
@@ -659,44 +753,49 @@ export class QuantumScheduler extends EventEmitter {
       shots: q.shots,
       select: q.select,
       seed: q.seed,
-      anneal: q.anneal
+      anneal: q.anneal,
     };
   }
 
-  private makeTrueQuantumDecision(task: Task, agents: Agent[], algorithm: 'quantum-qaoa' | 'quantum-annealing'): SchedulingDecision {
+  private makeTrueQuantumDecision(
+    task: Task,
+    agents: Agent[],
+    algorithm: 'quantum-qaoa' | 'quantum-annealing',
+  ): SchedulingDecision {
     // 单候选：平凡坍缩，无需演化
     if (agents.length === 1) {
       this.quantumSingleDecisions++;
       return {
         taskId: task.id,
-        agentId: agents[0].id,
+        agentId: agents[0]!.id,
         probability: 1,
         confidence: 1,
         reasoning: 'trivial collapse: single candidate',
-        alternatives: []
+        alternatives: [],
       };
     }
 
     const priorityWeight = PRIORITY_WEIGHT[task.priority] / 4; // 0.25..1
     const problem: AssignmentProblem = {
       taskIds: [task.id],
-      agentIds: agents.map(a => a.id),
-      weights: [agents.map(a => priorityWeight * this.agentAffinity(a, task))],
+      agentIds: agents.map((a) => a.id),
+      weights: [agents.map((a) => priorityWeight * this.agentAffinity(a, task))],
       ineligible: [agents.map(() => false)],
       couplings: new Map(),
       penaltyOneHot: 0,
-      penaltyCapacity: 0
+      penaltyCapacity: 0,
     };
     const penalties = defaultPenalties(problem);
     problem.penaltyOneHot = penalties.oneHot;
     problem.penaltyCapacity = penalties.capacity;
 
-    const solution = algorithm === 'quantum-qaoa'
-      ? qaoaSolve(problem, this.buildSolverOptions())
-      : annealSolve(problem, this.buildSolverOptions());
+    const solution =
+      algorithm === 'quantum-qaoa'
+        ? qaoaSolve(problem, this.buildSolverOptions())
+        : annealSolve(problem, this.buildSolverOptions());
 
     const agentIndex = solution.assignment[0] ?? -1;
-    const chosen = agentIndex >= 0 ? agents[agentIndex] : agents[0];
+    const chosen = agentIndex >= 0 ? agents[agentIndex]! : agents[0]!;
     this.quantumSingleDecisions++;
     this.quantumProbabilitySum += solution.probability;
 
@@ -705,13 +804,14 @@ export class QuantumScheduler extends EventEmitter {
       agentId: chosen.id,
       probability: solution.probability,
       confidence: solution.validMass,
-      reasoning: `${solution.engine}: superposition over ${agents.length} agents, ` +
+      reasoning:
+        `${solution.engine}: superposition over ${agents.length} agents, ` +
         `evolution (${solution.layers} ${solution.engine === 'qaoa' ? 'layers' : 'steps'}), ` +
         `Born collapse p=${solution.probability.toFixed(3)}`,
-      alternatives: solution.candidates.slice(1, 3).map(c => ({
-        agentId: agents[c.assignment[0]]?.id ?? chosen.id,
-        probability: c.probability
-      }))
+      alternatives: solution.candidates.slice(1, 1 + ALTERNATIVES_COUNT).map((c) => ({
+        agentId: agents[c.assignment[0] ?? -1]?.id ?? chosen.id,
+        probability: c.probability,
+      })),
     };
   }
 
@@ -728,44 +828,41 @@ export class QuantumScheduler extends EventEmitter {
       this.config?.scheduling?.quantumAlgorithm === 'quantum-annealing'
         ? 'quantum-annealing'
         : 'quantum-qaoa';
-    const engineKind = algorithm === 'quantum-qaoa' ? 'qaoa' as const : 'annealing' as const;
+    const engineKind = algorithm === 'quantum-qaoa' ? ('qaoa' as const) : ('annealing' as const);
 
     // 1) 收集可调度任务：显式ID或按优先级桶顺序的全部挂起任务
     let candidates: Task[];
     if (taskIds) {
       candidates = taskIds
-        .map(id => this.tasks.get(id))
+        .map((id) => this.tasks.get(id))
         .filter((t): t is Task => !!t && t.status === 'pending' && this.dependenciesMet(t));
     } else {
-      candidates = [];
-      for (const priority of PRIORITY_ORDER) {
-        for (const id of this.pendingBuckets.get(priority) ?? []) {
-          const task = this.tasks.get(id);
-          if (task && task.status === 'pending' && this.dependenciesMet(task)) {
-            candidates.push(task);
-          }
-        }
-      }
+      candidates = this.collectPendingCandidates();
     }
 
     // 2) 空闲agent池与并发余量
-    const idlePool = this.getAgents().filter(a => a.state === 'idle');
+    const idlePool = this.getAgents().filter((a) => a.state === 'idle');
     const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
-    const slots = maxConcurrent != null
-      ? Math.max(0, maxConcurrent - this.activeAssignments)
-      : Infinity;
+    const slots =
+      maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
 
     if (candidates.length === 0 || idlePool.length === 0 || slots === 0) {
       return {
-        engine: engineKind, representation: 'fullspace', chunks: 0, assigned: 0, assignments: [],
-        validMass: 0, meanProbability: 0, entanglementCouplings: 0,
-        solutions: []
+        engine: engineKind,
+        representation: 'fullspace',
+        chunks: 0,
+        assigned: 0,
+        assignments: [],
+        validMass: 0,
+        meanProbability: 0,
+        entanglementCouplings: 0,
+        solutions: [],
       };
     }
 
     // 3) 能力过滤：无可匹配agent的任务出局
-    const schedulable = candidates.filter(task =>
-      idlePool.some(agent => this.checkCapabilityMatch(agent, task))
+    const schedulable = candidates.filter((task) =>
+      idlePool.some((agent) => this.checkCapabilityMatch(agent, task)),
     );
 
     // 4) 首选：约束子空间精确引擎（多轮）—— 每轮把至多 min(空闲数, 维度
@@ -773,15 +870,21 @@ export class QuantumScheduler extends EventEmitter {
     //    agent（m > n）时自动分轮，联合窗口保持最大，不再退化到全空间小分块。
     //    可联合调度的批量远超全空间态矢量（例：8任务×10agent = 181万维
     //    子空间，等效全空间 2^80 维）。
-    const subspaceCap = this.config?.scheduling?.quantum?.subspaceCap ?? (1 << 20);
+    const subspaceCap = this.config?.scheduling?.quantum?.subspaceCap ?? SCHEDULER_SUBSPACE_CAP;
     if (schedulable.length > 0 && idlePool.length >= 2) {
-      const subspaceReport = this.runSubspaceRounds(schedulable, algorithm, subspaceCap, slots, maxConcurrent ?? null);
+      const subspaceReport = this.runSubspaceRounds(
+        schedulable,
+        algorithm,
+        subspaceCap,
+        slots,
+        maxConcurrent ?? null,
+      );
       if (subspaceReport) return subspaceReport;
     }
 
     // 5) 回退：全空间态矢量分块路径（子空间超维或不定时使用）
     //    任务数×agent数 ≤ qubitCap（态矢量内存上限）
-    const qubitCap = this.config?.scheduling?.quantum?.qubitCap ?? 12;
+    const qubitCap = this.config?.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP;
     const chunks: Task[][] = [];
     let current: Task[] = [];
     for (const task of schedulable) {
@@ -803,7 +906,7 @@ export class QuantumScheduler extends EventEmitter {
       validMass: 0,
       meanProbability: 0,
       entanglementCouplings: 0,
-      solutions: []
+      solutions: [],
     };
 
     let achievedWelfare = 0;
@@ -818,12 +921,13 @@ export class QuantumScheduler extends EventEmitter {
       report.entanglementCouplings += couplingCount;
 
       const solverOptions = this.buildSolverOptions();
-      const solution = algorithm === 'quantum-qaoa'
-        ? qaoaSolve(problem, solverOptions)
-        : annealSolve(problem, solverOptions);
+      const solution =
+        algorithm === 'quantum-qaoa'
+          ? qaoaSolve(problem, solverOptions)
+          : annealSolve(problem, solverOptions);
 
       // 精确最优对照（问题规模允许时）：量子解 vs 穷举最优的诚实自检
-      const brute = nqubits <= 16 ? bruteForceOptimum(problem) : null;
+      const brute = nqubits <= BRUTE_FORCE_QUBIT_LIMIT ? bruteForceOptimum(problem) : null;
       achievedWelfare += solution.welfare;
       if (brute) {
         optimalWelfare += brute.welfare;
@@ -832,68 +936,125 @@ export class QuantumScheduler extends EventEmitter {
       }
 
       report.solutions.push({
-        taskIds: chunk.map(t => t.id),
+        taskIds: chunk.map((t) => t.id),
         welfare: solution.welfare,
         probability: solution.probability,
         validMass: solution.validMass,
         layers: solution.layers,
-        evaluations: solution.evaluations
+        evaluations: solution.evaluations,
       });
       report.validMass += solution.validMass;
 
       // 6) 应用坍缩结果：仍受并发上限约束
-      for (let t = 0; t < chunk.length; t++) {
-        if (report.assigned >= remainingSlots) break;
-        const task = chunk[t];
-        if (task.status !== 'pending') continue; // 并发块内前序已占用
-        const agentIndex = solution.assignment[t];
-        if (agentIndex == null || agentIndex < 0) continue;
-        if (problem.ineligible[t][agentIndex]) continue;
-        const agent = idlePool[agentIndex];
-        if (agent.state !== 'idle') continue; // 同块内被占用
-
-        const decision: SchedulingDecision = {
-          taskId: task.id,
-          agentId: agent.id,
-          probability: solution.probability, // 联合分配的Born概率
+      this.applyJointSolution(
+        chunk,
+        idlePool,
+        solution.assignment,
+        problem,
+        {
+          maxAssign: remainingSlots,
+          probability: solution.probability,
           confidence: solution.validMass,
-          reasoning: `batch ${solution.engine}: joint superposition of ${chunk.length} tasks × ` +
+          reasoning: () =>
+            `batch ${solution.engine}: joint superposition of ${chunk.length} tasks × ` +
             `${idlePool.length} agents${couplingCount > 0 ? `, ${couplingCount} entanglement couplings` : ''}, ` +
             `Born collapse p=${solution.probability.toFixed(3)}`,
-          alternatives: []
-        };
-        this.applyAssignmentDecision(task, decision);
-        report.assigned++;
-        report.assignments.push({
-          taskId: task.id,
-          taskName: task.name,
-          agentId: agent.id,
-          probability: solution.probability
-        });
-        this.quantumProbabilitySum += solution.probability;
-      }
+        },
+        report,
+      );
     }
 
-    this.quantumBatchRuns++;
-    this.quantumBatchAssigned += report.assigned;
     if (report.solutions.length > 0) {
       report.validMass /= report.solutions.length;
-      report.meanProbability = report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
+      report.meanProbability =
+        report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
     }
     if (optimalityKnown && optimalWelfare > 0) {
       report.optimality = {
         achieved: achievedWelfare,
         optimal: optimalWelfare,
-        ratio: achievedWelfare / optimalWelfare
+        ratio: achievedWelfare / optimalWelfare,
       };
+    }
+    this.finalizeBatchReport(report);
+
+    logInfo(
+      'QuantumScheduler',
+      `Quantum batch (${algorithm}/fullspace): ${report.assigned}/${candidates.length} tasks assigned ` +
+        `in ${report.chunks} chunk(s), meanBornP=${report.meanProbability.toFixed(3)}` +
+        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
+    );
+    return report;
+  }
+
+  /** 按优先级桶顺序收集依赖已满足的全部挂起任务（批量路径的公共候选语义） */
+  private collectPendingCandidates(): Task[] {
+    const candidates: Task[] = [];
+    for (const priority of PRIORITY_ORDER) {
+      for (const id of this.pendingBuckets.get(priority) ?? []) {
+        const task = this.tasks.get(id);
+        if (task && task.status === 'pending' && this.dependenciesMet(task)) {
+          candidates.push(task);
+        }
+      }
+    }
+    return candidates;
+  }
+
+  /**
+   * 应用联合坍缩解的公共骨架：逐任务校验（并发余量/pending/资格/空闲）
+   * → 构建决策 → 应用 → 记入报告。资格校验对子空间/QPU 路径是冗余的
+   * 防御（其解构造上已合法），保留统一校验以挡住求解器实现缺陷。
+   */
+  private applyJointSolution(
+    chunk: Task[],
+    pool: Agent[],
+    assignment: ReadonlyArray<number>,
+    problem: AssignmentProblem,
+    opts: {
+      maxAssign: number;
+      probability: number;
+      confidence: number;
+      reasoning: () => string;
+    },
+    report: QuantumBatchReport,
+  ): void {
+    for (let t = 0; t < chunk.length; t++) {
+      if (report.assigned >= opts.maxAssign) break;
+      const task = chunk[t];
+      if (!task || task.status !== 'pending') continue; // 并发块内前序已占用
+      const agentIndex = assignment[t];
+      if (agentIndex == null || agentIndex < 0) continue;
+      if (problem.ineligible[t]?.[agentIndex]) continue;
+      const agent = pool[agentIndex];
+      if (!agent || agent.state !== 'idle') continue; // 同块内被占用
+
+      this.applyAssignmentDecision(task, {
+        taskId: task.id,
+        agentId: agent.id,
+        probability: opts.probability, // 联合分配的Born概率
+        confidence: opts.confidence,
+        reasoning: opts.reasoning(),
+        alternatives: [],
+      });
+      report.assigned++;
+      report.assignments.push({
+        taskId: task.id,
+        taskName: task.name,
+        agentId: agent.id,
+        probability: opts.probability,
+      });
+      this.quantumProbabilitySum += opts.probability;
+    }
+  }
+
+  /** 批量路径的公共收尾：运行计数与最优率快照 */
+  private finalizeBatchReport(report: QuantumBatchReport): void {
+    this.quantumBatchRuns++;
+    this.quantumBatchAssigned += report.assigned;
+    if (report.optimality) {
       this.lastOptimalityRatio = report.optimality.ratio;
     }
-
-    logInfo('QuantumScheduler',
-      `Quantum batch (${algorithm}/fullspace): ${report.assigned}/${candidates.length} tasks assigned ` +
-      `in ${report.chunks} chunk(s), meanBornP=${report.meanProbability.toFixed(3)}` +
-      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
-    return report;
   }
 
   /**
@@ -907,7 +1068,7 @@ export class QuantumScheduler extends EventEmitter {
     algorithm: 'quantum-qaoa' | 'quantum-annealing',
     subspaceCap: number,
     slots: number,
-    maxConcurrent: number | null
+    maxConcurrent: number | null,
   ): QuantumBatchReport | null {
     const report: QuantumBatchReport = {
       engine: algorithm === 'quantum-qaoa' ? 'qaoa' : 'annealing',
@@ -918,23 +1079,23 @@ export class QuantumScheduler extends EventEmitter {
       validMass: 1, // 子空间全部基态合法：概率质量恒为1
       meanProbability: 0,
       entanglementCouplings: 0,
-      solutions: []
+      solutions: [],
     };
 
     let achieved = 0;
     let optimal = 0;
     let maxDim = 0;
     let maxQubits = 0;
-    let pending = tasks.filter(t => t.status === 'pending');
+    let pending = tasks.filter((t) => t.status === 'pending');
     let anyRound = false;
 
     while (pending.length > 0) {
       if (maxConcurrent != null && this.activeAssignments >= slots) break;
-      const pool = this.getAgents().filter(a => a.state === 'idle');
+      const pool = this.getAgents().filter((a) => a.state === 'idle');
       if (pool.length < 1) break;
 
       // 本轮可行任务：当前空闲池中至少一个能力匹配的agent
-      const feasible = pending.filter(t => pool.some(a => this.checkCapabilityMatch(a, t)));
+      const feasible = pending.filter((t) => pool.some((a) => this.checkCapabilityMatch(a, t)));
       if (feasible.length === 0) break;
 
       // 维度上限允许的最大联合任务数 k：P(n,k) ≤ subspaceCap
@@ -957,7 +1118,8 @@ export class QuantumScheduler extends EventEmitter {
       if (!model || model.dimension === 0) break;
 
       // QAOA 变分训练成本随维度线性放大，大子空间自动改用退火（一次演化）
-      const useQaoa = algorithm === 'quantum-qaoa' && model.dimension <= (1 << 16);
+      const useQaoa =
+        algorithm === 'quantum-qaoa' && model.dimension <= SUBSPACE_QAOA_DIMENSION_LIMIT;
       const solution = useQaoa
         ? qaoaSolveSubspace(model, this.buildSolverOptions())
         : annealSolveSubspace(model, this.buildSolverOptions());
@@ -970,71 +1132,57 @@ export class QuantumScheduler extends EventEmitter {
       maxDim = Math.max(maxDim, model.dimension);
       maxQubits = Math.max(maxQubits, round.length * pool.length);
       report.solutions.push({
-        taskIds: round.map(t => t.id),
+        taskIds: round.map((t) => t.id),
         welfare: solution.welfare,
         probability: solution.probability,
         validMass: 1,
         layers: solution.layers,
-        evaluations: solution.evaluations
+        evaluations: solution.evaluations,
       });
       anyRound = true;
 
-      let assignedThisRound = 0;
-      for (let t = 0; t < round.length; t++) {
-        const task = round[t];
-        if (task.status !== 'pending') continue;
-        const agentIndex = solution.assignment[t];
-        if (agentIndex == null || agentIndex < 0) continue;
-        const agent = pool[agentIndex];
-        if (agent.state !== 'idle') continue;
-
-        const decision: SchedulingDecision = {
-          taskId: task.id,
-          agentId: agent.id,
-          probability: solution.probability, // 联合分配的Born概率
+      const assignedBefore = report.assigned;
+      this.applyJointSolution(
+        round,
+        pool,
+        solution.assignment,
+        built.problem,
+        {
+          maxAssign: Infinity,
+          probability: solution.probability,
           confidence: 1,
-          reasoning: `subspace ${solution.engine}: exact evolution over P(${pool.length},${round.length})` +
+          reasoning: () =>
+            `subspace ${solution.engine}: exact evolution over P(${pool.length},${round.length})` +
             `=${model.dimension} valid assignments (equiv. ${round.length * pool.length} qubits full space)` +
             `${built.couplingCount > 0 ? `, ${built.couplingCount} entanglement couplings` : ''}, ` +
             `Born collapse p=${solution.probability.toExponential(2)}`,
-          alternatives: []
-        };
-        this.applyAssignmentDecision(task, decision);
-        report.assigned++;
-        report.assignments.push({
-          taskId: task.id,
-          taskName: task.name,
-          agentId: agent.id,
-          probability: solution.probability
-        });
-        this.quantumProbabilitySum += solution.probability;
-        assignedThisRound++;
-      }
-      if (assignedThisRound === 0) break; // 防御：无进展即退出
+        },
+        report,
+      );
+      if (report.assigned === assignedBefore) break; // 防御：无进展即退出
 
-      pending = pending.filter(t => t.status === 'pending');
+      pending = pending.filter((t) => t.status === 'pending');
     }
 
     if (!anyRound) return null;
 
     if (report.solutions.length > 0) {
-      report.meanProbability = report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
+      report.meanProbability =
+        report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
     }
     if (optimal > 0) {
       report.optimality = { achieved, optimal, ratio: achieved / optimal };
     }
     report.subspace = { dimension: maxDim, equivalentQubits: maxQubits };
 
-    this.quantumBatchRuns++;
-    this.quantumBatchAssigned += report.assigned;
-    if (report.optimality) {
-      this.lastOptimalityRatio = report.optimality.ratio;
-    }
+    this.finalizeBatchReport(report);
 
-    logInfo('QuantumScheduler',
+    logInfo(
+      'QuantumScheduler',
       `Quantum batch (${report.engine}/subspace, ${report.chunks} round(s)): ` +
-      `${report.assigned} tasks, maxDim=${maxDim} (equiv ${maxQubits} qubits)` +
-      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
+        `${report.assigned} tasks, maxDim=${maxDim} (equiv ${maxQubits} qubits)` +
+        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
+    );
     return report;
   }
 
@@ -1043,43 +1191,51 @@ export class QuantumScheduler extends EventEmitter {
    * 福利权重 = 优先级 × 亲和度；能力不符 → 不合格；
    * 纠缠agent对 → 二次耦合福利加成（物理意义上的哈密顿量耦合项）。
    */
-  private buildBatchProblem(chunk: Task[], idlePool: Agent[]): {
+  private buildBatchProblem(
+    chunk: Task[],
+    idlePool: Agent[],
+  ): {
     problem: AssignmentProblem;
     couplingCount: number;
     nqubits: number;
   } {
     const entanglementBonus = this.config?.scheduling?.quantum?.entanglementBonus ?? 0.15;
     const problem: AssignmentProblem = {
-      taskIds: chunk.map(t => t.id),
-      agentIds: idlePool.map(a => a.id),
+      taskIds: chunk.map((t) => t.id),
+      agentIds: idlePool.map((a) => a.id),
       weights: [],
       ineligible: [],
       couplings: new Map(),
       penaltyOneHot: 0,
-      penaltyCapacity: 0
+      penaltyCapacity: 0,
     };
     const nqubits = chunk.length * idlePool.length;
 
     // 福利权重：优先级 × 亲和度；能力不符 → 不合格
     for (const task of chunk) {
       const pw = PRIORITY_WEIGHT[task.priority] / 4;
-      problem.weights.push(idlePool.map(agent => pw * this.agentAffinity(agent, task)));
-      problem.ineligible.push(idlePool.map(agent => !this.checkCapabilityMatch(agent, task)));
+      problem.weights.push(idlePool.map((agent) => pw * this.agentAffinity(agent, task)));
+      problem.ineligible.push(idlePool.map((agent) => !this.checkCapabilityMatch(agent, task)));
     }
 
     // 纠缠耦合：任意两任务落在纠缠agent对上 → 福利加成（哈密顿量的物理耦合项）
     let couplingCount = 0;
     for (let t1 = 0; t1 < chunk.length; t1++) {
       for (let t2 = t1 + 1; t2 < chunk.length; t2++) {
-        const pwMin = Math.min(PRIORITY_WEIGHT[chunk[t1].priority], PRIORITY_WEIGHT[chunk[t2].priority]) / 4;
+        const pwMin =
+          Math.min(PRIORITY_WEIGHT[chunk[t1]!.priority]!, PRIORITY_WEIGHT[chunk[t2]!.priority]!) /
+          4;
         for (let a1 = 0; a1 < idlePool.length; a1++) {
           for (let a2 = 0; a2 < idlePool.length; a2++) {
             if (a1 === a2) continue;
-            if (idlePool[a1].quantumEntanglement.includes(idlePool[a2].id) &&
-                !problem.ineligible[t1][a1] && !problem.ineligible[t2][a2]) {
+            if (
+              idlePool[a1]!.quantumEntanglement.includes(idlePool[a2]!.id) &&
+              !problem.ineligible[t1]![a1]! &&
+              !problem.ineligible[t2]![a2]!
+            ) {
               problem.couplings.set(
                 couplingKey(t1 * idlePool.length + a1, t2 * idlePool.length + a2, nqubits),
-                entanglementBonus * pwMin
+                entanglementBonus * pwMin,
               );
               couplingCount++;
             }
@@ -1105,36 +1261,39 @@ export class QuantumScheduler extends EventEmitter {
    */
   async scheduleBatchQuantumQpu(
     backend?: QuantumBackend,
-    options: { numReads?: number; timeoutMs?: number } = {}
+    options: { numReads?: number; timeoutMs?: number } = {},
   ): Promise<QuantumBatchReport> {
     const engine = backend ?? getBackend();
 
     // 收集可调度任务（与 scheduleBatchQuantum 相同语义：优先级桶顺序）
-    const candidates: Task[] = [];
-    for (const priority of PRIORITY_ORDER) {
-      for (const id of this.pendingBuckets.get(priority) ?? []) {
-        const task = this.tasks.get(id);
-        if (task && task.status === 'pending' && this.dependenciesMet(task)) {
-          candidates.push(task);
-        }
-      }
-    }
-    const idlePool = this.getAgents().filter(a => a.state === 'idle');
+    const candidates = this.collectPendingCandidates();
+    const idlePool = this.getAgents().filter((a) => a.state === 'idle');
     const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
-    const slots = maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
+    const slots =
+      maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
 
     if (candidates.length === 0 || idlePool.length === 0 || slots === 0) {
       return {
-        engine: 'qpu', representation: 'qpu', chunks: 0, assigned: 0, assignments: [],
-        validMass: 0, meanProbability: 0, entanglementCouplings: 0, solutions: []
+        engine: 'qpu',
+        representation: 'qpu',
+        chunks: 0,
+        assigned: 0,
+        assignments: [],
+        validMass: 0,
+        meanProbability: 0,
+        entanglementCouplings: 0,
+        solutions: [],
       };
     }
 
-    const feasible = candidates.filter(task =>
-      idlePool.some(agent => this.checkCapabilityMatch(agent, task))
+    const feasible = candidates.filter((task) =>
+      idlePool.some((agent) => this.checkCapabilityMatch(agent, task)),
     );
     // 真 QPU 不受本地态矢量内存限制（Ising 变量数即规模），一轮吃满空闲池
-    const round = feasible.slice(0, Math.min(idlePool.length, slots === Infinity ? idlePool.length : slots));
+    const round = feasible.slice(
+      0,
+      Math.min(idlePool.length, slots === Infinity ? idlePool.length : slots),
+    );
 
     const built = this.buildBatchProblem(round, idlePool);
     const result = await solveAssignmentOnBackend(built.problem, engine, options);
@@ -1148,58 +1307,47 @@ export class QuantumScheduler extends EventEmitter {
       validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
       meanProbability: result.sampleFrequency,
       entanglementCouplings: built.couplingCount,
-      solutions: [{
-        taskIds: round.map(t => t.id),
-        welfare: result.welfare,
-        probability: result.sampleFrequency,
-        validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
-        layers: result.totalReads,
-        evaluations: 1
-      }]
+      solutions: [
+        {
+          taskIds: round.map((t) => t.id),
+          welfare: result.welfare,
+          probability: result.sampleFrequency,
+          validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
+          layers: result.totalReads,
+          evaluations: 1,
+        },
+      ],
     };
     if (result.optimality) {
       report.optimality = result.optimality;
     }
 
-    for (let t = 0; t < round.length; t++) {
-      const task = round[t];
-      const agentIndex = result.assignment[t];
-      if (agentIndex == null || agentIndex < 0) continue;
-      const agent = idlePool[agentIndex];
-      if (agent.state !== 'idle') continue;
-
-      const decision: SchedulingDecision = {
-        taskId: task.id,
-        agentId: agent.id,
+    this.applyJointSolution(
+      round,
+      idlePool,
+      result.assignment,
+      built.problem,
+      {
+        maxAssign: Infinity,
         probability: result.sampleFrequency, // 采样频率 = 量子分布的频率估计
         confidence: report.validMass,
-        reasoning: `${engine.name}${engine.realHardware ? ' (real QPU)' : ''}: solver=${result.solver}, ` +
+        reasoning: () =>
+          `${engine.name}${engine.realHardware ? ' (real QPU)' : ''}: solver=${result.solver}, ` +
           `${result.totalReads} reads, sample frequency=${(result.sampleFrequency * 100).toFixed(2)}%` +
           (result.optimality ? `, optimality=${(result.optimality.ratio * 100).toFixed(1)}%` : ''),
-        alternatives: []
-      };
-      this.applyAssignmentDecision(task, decision);
-      report.assigned++;
-      report.assignments.push({
-        taskId: task.id,
-        taskName: task.name,
-        agentId: agent.id,
-        probability: result.sampleFrequency
-      });
-      this.quantumProbabilitySum += result.sampleFrequency;
-    }
+      },
+      report,
+    );
 
-    this.quantumBatchRuns++;
-    this.quantumBatchAssigned += report.assigned;
-    if (report.optimality) {
-      this.lastOptimalityRatio = report.optimality.ratio;
-    }
+    this.finalizeBatchReport(report);
 
-    logInfo('QuantumScheduler',
+    logInfo(
+      'QuantumScheduler',
       `Quantum batch on ${engine.name}${engine.realHardware ? ' [REAL QPU]' : ' [local exact]'}: ` +
-      `${report.assigned} tasks, solver=${result.solver}, ` +
-      `invalidSamples=${result.invalidSamples}/${result.totalReads}` +
-      (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''));
+        `${report.assigned} tasks, solver=${result.solver}, ` +
+        `invalidSamples=${result.invalidSamples}/${result.totalReads}` +
+        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
+    );
     return report;
   }
 
@@ -1219,7 +1367,7 @@ export class QuantumScheduler extends EventEmitter {
       batchRuns: this.quantumBatchRuns,
       batchAssigned: this.quantumBatchAssigned,
       meanProbability: total > 0 ? this.quantumProbabilitySum / total : null,
-      lastOptimalityRatio: this.lastOptimalityRatio
+      lastOptimalityRatio: this.lastOptimalityRatio,
     };
   }
 
@@ -1227,7 +1375,7 @@ export class QuantumScheduler extends EventEmitter {
     let score = 0;
     let totalWeight = 0;
 
-    task.requirements.forEach(req => {
+    task.requirements.forEach((req) => {
       if (req.type === 'capability') {
         const hasCapability = agent.capabilities.includes(req.name);
         if (hasCapability) {
@@ -1241,7 +1389,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private checkCapabilityMatch(agent: Agent, task: Task): boolean {
-    return task.requirements.every(req => {
+    return task.requirements.every((req) => {
       if (req.type === 'capability') {
         return agent.capabilities.includes(req.name);
       }
@@ -1264,7 +1412,7 @@ export class QuantumScheduler extends EventEmitter {
       task.updatedAt = new Date();
       agent.state = 'working';
       agent.load = Math.min(agent.load + 1, 100);
-      if (agent.load > 80) {
+      if (agent.load > AGENT_OVERLOAD_THRESHOLD) {
         agent.state = 'overloaded';
       }
       this.activeAssignments++;
@@ -1301,10 +1449,9 @@ export class QuantumScheduler extends EventEmitter {
       failedTasks: this.failedCount,
       pendingTasks: this.pendingCount,
       systemLoad: totalAgents > 0 ? activeAgents / totalAgents : 0,
-      quantumEfficiency: this.totalDecisions > 0
-        ? this.completedAssignments / this.totalDecisions
-        : 0,
-      schedulingHistoryLength: this.totalDecisions
+      quantumEfficiency:
+        this.totalDecisions > 0 ? this.completedAssignments / this.totalDecisions : 0,
+      schedulingHistoryLength: this.totalDecisions,
     };
   }
 

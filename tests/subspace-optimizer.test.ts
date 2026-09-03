@@ -1,19 +1,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import {
-  AssignmentProblem,
   bruteForceOptimum,
   defaultPenalties,
   couplingKey,
   welfareOf,
   isValidAssignment,
-  annealSolve
+  annealSolve,
 } from '../src/core/quantum-optimizer.js';
 import {
   buildSubspaceModel,
   qaoaSolveSubspace,
   annealSolveSubspace,
-  SubspaceState
+  SubspaceState,
 } from '../src/core/subspace-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 import type { Agent } from '../src/types/quantum-types.js';
@@ -32,24 +32,27 @@ function rng(seed: number): () => number {
 }
 
 function makeProblem(
-  m: number, n: number, seed: number,
-  opts: { entangle?: boolean; mask?: boolean } = {}
+  m: number,
+  n: number,
+  seed: number,
+  opts: { entangle?: boolean; mask?: boolean } = {},
 ): AssignmentProblem {
   const r = rng(seed);
   const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)));
+    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)),
+  );
   const p: AssignmentProblem = {
     taskIds: Array.from({ length: m }, (_, i) => `t${i}`),
     agentIds: Array.from({ length: n }, (_, i) => `a${i}`),
     weights,
-    ineligible: weights.map(row => row.map(() => false)),
+    ineligible: weights.map((row) => row.map(() => false)),
     couplings: new Map(),
     penaltyOneHot: 0,
-    penaltyCapacity: 0
+    penaltyCapacity: 0,
   };
   if (opts.mask) {
-    p.ineligible[0][0] = true;
-    p.ineligible[m - 1][n - 1] = true;
+    p.ineligible[0]![0] = true;
+    p.ineligible[m - 1]![n - 1] = true;
   }
   if (opts.entangle) {
     for (let t1 = 0; t1 < m; t1++) {
@@ -98,9 +101,11 @@ describe('subspace-optimizer（约束子空间模型）', () => {
     const model = buildSubspaceModel(p)!;
     const buffer: number[] = new Array(3);
     for (let s = 0; s < model.dimension; s++) {
-      for (let t = 0; t < 3; t++) buffer[t] = model.assignmentAt[s * 3 + t];
-      assert.ok(Math.abs(model.energies[s] + welfareOf(p, buffer)) < 1e-9,
-        `基态 ${s}: E 应等于 -W`);
+      for (let t = 0; t < 3; t++) buffer[t] = model.assignmentAt[s * 3 + t]!;
+      assert.ok(
+        Math.abs(model.energies[s]! + welfareOf(p, buffer)) < 1e-9,
+        `基态 ${s}: E 应等于 -W`,
+      );
     }
     // 精确最优与 v1.1 穷举引擎一致
     const brute = bruteForceOptimum(p);
@@ -117,12 +122,12 @@ describe('subspace-optimizer（约束子空间模型）', () => {
     for (let s = 0; s < model.dimension; s++) {
       st.re[s] = r() * 2 - 1;
       st.im[s] = r() * 2 - 1;
-      norm2 += st.re[s] * st.re[s] + st.im[s] * st.im[s];
+      norm2 += st.re[s]! * st.re[s]! + st.im[s]! * st.im[s]!;
     }
     const inv = 1 / Math.sqrt(norm2);
     for (let s = 0; s < model.dimension; s++) {
-      st.re[s] *= inv;
-      st.im[s] *= inv;
+      st.re[s] = st.re[s]! * inv;
+      st.im[s] = st.im[s]! * inv;
     }
 
     for (const g of model.mixers) st.applyFiberMixer(g, 0.6);
@@ -135,8 +140,8 @@ describe('subspace-optimizer（约束子空间模型）', () => {
     for (const g of model.mixers) st2.applyFiberMixer(g, 0.83);
     for (const g of model.mixers) st2.applyFiberMixer(g, -0.83);
     let maxDev = 0;
-    for (let s = 0; s < st2.dimension; s++) {
-      maxDev = Math.max(maxDev, Math.abs(st2.re[s] - uniform), Math.abs(st2.im[s]));
+    for (let s = 0; s < st2.dim; s++) {
+      maxDev = Math.max(maxDev, Math.abs(st2.re[s]! - uniform), Math.abs(st2.im[s]!));
     }
     assert.ok(maxDev < 1e-12, `β,−β 应还原初始态，最大偏差 ${maxDev.toExponential(2)}`);
   });
@@ -144,10 +149,17 @@ describe('subspace-optimizer（约束子空间模型）', () => {
   it('QAOA 子空间：命中精确最优（含资格掩码 + 纠缠耦合）', () => {
     const p = makeProblem(3, 5, 7, { entangle: true, mask: true });
     const model = buildSubspaceModel(p)!;
-    const s = qaoaSolveSubspace(model, { layers: 3, restarts: 2, select: 'shots-best', shots: 256 });
+    const s = qaoaSolveSubspace(model, {
+      layers: 3,
+      restarts: 2,
+      select: 'shots-best',
+      shots: 256,
+    });
     assert.ok(isValidAssignment(p, s.assignment));
-    assert.ok(Math.abs(s.optimalityRatio - 1) < 1e-9,
-      `QAOA 子空间应命中最优，ratio=${s.optimalityRatio}`);
+    assert.ok(
+      Math.abs(s.optimalityRatio - 1) < 1e-9,
+      `QAOA 子空间应命中最优，ratio=${s.optimalityRatio}`,
+    );
     assert.equal(s.dimension, model.dimension);
   });
 
@@ -155,9 +167,15 @@ describe('subspace-optimizer（约束子空间模型）', () => {
     for (let seed = 1; seed <= 3; seed++) {
       const p = makeProblem(4, 6, seed * 100, { entangle: true });
       const model = buildSubspaceModel(p)!;
-      const s = annealSolveSubspace(model, { anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 256 });
-      assert.ok(Math.abs(s.optimalityRatio - 1) < 1e-9,
-        `退火种子${seed}应命中最优，ratio=${s.optimalityRatio.toFixed(4)}`);
+      const s = annealSolveSubspace(model, {
+        anneal: { tau: 20, steps: 150 },
+        select: 'shots-best',
+        shots: 256,
+      });
+      assert.ok(
+        Math.abs(s.optimalityRatio - 1) < 1e-9,
+        `退火种子${seed}应命中最优，ratio=${s.optimalityRatio.toFixed(4)}`,
+      );
     }
   });
 
@@ -168,16 +186,30 @@ describe('subspace-optimizer（约束子空间模型）', () => {
     assert.equal(model.mixers.length, 6); // C(4,2) 个换位纤维组
 
     const brute = bruteForceOptimum(p);
-    const s = annealSolveSubspace(model, { anneal: { tau: 40, steps: 300 }, select: 'shots-best', shots: 512 });
-    assert.ok(Math.abs(s.welfare - brute.welfare) < EPS,
-      `换位混合器应命中最优：${s.welfare} vs ${brute.welfare}`);
+    const s = annealSolveSubspace(model, {
+      anneal: { tau: 40, steps: 300 },
+      select: 'shots-best',
+      shots: 512,
+    });
+    assert.ok(
+      Math.abs(s.welfare - brute.welfare) < EPS,
+      `换位混合器应命中最优：${s.welfare} vs ${brute.welfare}`,
+    );
   });
 
   it('双引擎交叉验证：子空间解与全空间引擎解福利一致（都命中最优）', () => {
     const p = makeProblem(3, 4, 21, { entangle: true });
     const model = buildSubspaceModel(p)!;
-    const sub = annealSolveSubspace(model, { anneal: { tau: 40, steps: 300 }, select: 'shots-best', shots: 512 });
-    const full = annealSolve(p, { anneal: { tau: 120, steps: 1200 }, select: 'shots-best', shots: 512 });
+    const sub = annealSolveSubspace(model, {
+      anneal: { tau: 40, steps: 300 },
+      select: 'shots-best',
+      shots: 512,
+    });
+    const full = annealSolve(p, {
+      anneal: { tau: 120, steps: 1200 },
+      select: 'shots-best',
+      shots: 512,
+    });
     assert.ok(Math.abs(sub.welfare - model.optimalWelfare) < EPS);
     assert.ok(Math.abs(full.welfare - bruteForceOptimum(p).welfare) < EPS);
   });
@@ -186,9 +218,15 @@ describe('subspace-optimizer（约束子空间模型）', () => {
 describe('QuantumScheduler 子空间集成', () => {
   function makeAgent(id: string, capabilities: string[], entangledWith: string[] = []): Agent {
     return {
-      id, name: id, type: 'developer', capabilities,
-      state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-      quantumEntanglement: entangledWith, lastHeartbeat: new Date()
+      id,
+      name: id,
+      type: 'developer',
+      capabilities,
+      state: 'idle',
+      load: 0,
+      position: { x: 0, y: 0, z: 0 },
+      quantumEntanglement: entangledWith,
+      lastHeartbeat: new Date(),
     };
   }
 
@@ -197,8 +235,8 @@ describe('QuantumScheduler 子空间集成', () => {
       scheduling: {
         quantumAlgorithm: 'quantum-annealing',
         autoSchedule: false,
-        quantum: { anneal: { tau: 20, steps: 150 } }
-      }
+        quantum: { anneal: { tau: 20, steps: 150 } },
+      },
     });
     for (let i = 0; i < 7; i++) {
       scheduler.registerAgent(makeAgent(`a${i}`, ['js'], i === 0 ? ['a1'] : i === 1 ? ['a0'] : []));
@@ -206,9 +244,14 @@ describe('QuantumScheduler 子空间集成', () => {
     const priorities = ['critical', 'high', 'medium', 'low', 'low'] as const;
     for (let i = 0; i < 5; i++) {
       scheduler.submitTask({
-        name: `任务${i}`, type: 'batch', priority: priorities[i],
+        name: `任务${i}`,
+        type: 'batch',
+        priority: priorities[i],
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-        dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+        dependencies: [],
+        estimatedDuration: 5000,
+        actualDuration: 0,
+        status: 'pending',
       } as any);
     }
 
@@ -219,14 +262,16 @@ describe('QuantumScheduler 子空间集成', () => {
     assert.equal(report.subspace!.equivalentQubits, 35);
     assert.equal(report.assigned, 5);
     assert.ok(report.entanglementCouplings > 0);
-    assert.ok(Math.abs(report.optimality!.ratio - 1) < 1e-9,
-      `子空间批量最优率应为100%，实际 ${(report.optimality!.ratio * 100).toFixed(2)}%`);
+    assert.ok(
+      Math.abs(report.optimality!.ratio - 1) < 1e-9,
+      `子空间批量最优率应为100%，实际 ${(report.optimality!.ratio * 100).toFixed(2)}%`,
+    );
 
     // 5个任务分配到5个不同agent（容量约束）
-    const assignedAgents = new Set(report.assignments.map(a => a.agentId));
+    const assignedAgents = new Set(report.assignments.map((a) => a.agentId));
     assert.equal(assignedAgents.size, 5);
-    assert.ok(scheduler.getTasks().every(t => t.status === 'assigned'));
-    assert.equal(scheduler.getAgents().filter(a => a.state !== 'idle').length, 5);
+    assert.ok(scheduler.getTasks().every((t) => t.status === 'assigned'));
+    assert.equal(scheduler.getAgents().filter((a) => a.state !== 'idle').length, 5);
   });
 
   it('子空间超维时回退全空间分块引擎', () => {
@@ -234,16 +279,21 @@ describe('QuantumScheduler 子空间集成', () => {
       scheduling: {
         quantumAlgorithm: 'quantum-qaoa',
         autoSchedule: false,
-        quantum: { subspaceCap: 2, qubitCap: 12, layers: 3 } // P(3,1)=3 > 2 → 回退
-      }
+        quantum: { subspaceCap: 2, qubitCap: 12, layers: 3 }, // P(3,1)=3 > 2 → 回退
+      },
     });
     scheduler.registerAgent(makeAgent('a1', ['js']));
     scheduler.registerAgent(makeAgent('a2', ['js']));
     scheduler.registerAgent(makeAgent('a3', ['js']));
     scheduler.submitTask({
-      name: 'T1', type: 'batch', priority: 'high',
+      name: 'T1',
+      type: 'batch',
+      priority: 'high',
       requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-      dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+      dependencies: [],
+      estimatedDuration: 5000,
+      actualDuration: 0,
+      status: 'pending',
     } as any);
 
     const report = scheduler.scheduleBatchQuantum();

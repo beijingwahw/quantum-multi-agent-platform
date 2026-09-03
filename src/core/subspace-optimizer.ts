@@ -42,6 +42,15 @@
  *    - 绝热退火：H(s) = −(1−s)·Σ_t A_t + s·C，初态均匀是 −ΣA 的基态
  *      （Perron-Frobenius：非负邻接阵的顶本征矢）——绝热跟随抵达 C 的基态。
  *
+ * ============ 性能内核（v1.5） ============
+ *
+ * 演化与构建的算术内核在 fiber-kernel.ts（纯函数，串行/并行同一份源码）：
+ * - 纤维混合按纤维尺寸 k 查表旋转系数 + 小纤维展开特化；
+ * - 退火代价相位走递推（γ_t 线性 ⇒ ph(t) = ph(t−1)·z_k）；
+ * - 构建 DFS 的元组键取"字典序单调"编码 ⇒ 升序键数组 + 二分查找，
+ *   取代 Map<double,double>；
+ * - 大维度退火经 subspace-parallel.ts 多线程确定性并行（逐位一致）。
+ *
  * ============ 诚实的边界 ============
  * - 子空间维度仍组合增长 P(n,m)，默认上限 2^21（~200MB 内存），可配置。
  * - 逐块 O(m·dim) 演化成本：dim 百万级时 QAOA 变分训练慢（数百次评估），
@@ -50,8 +59,27 @@
  *   子空间结构本身就是给真 QPU 的 ansatz 建议（约束感知电路设计）。
  */
 
-import type { AssignmentProblem, QuantumSolverOptions, QuantumCandidate, CollapseMode } from './quantum-optimizer';
+import type {
+  AssignmentProblem,
+  QuantumSolverOptions,
+  QuantumCandidate,
+  CollapseMode,
+} from './quantum-optimizer';
 import { welfareOf } from './quantum-optimizer';
+import { mulberry32 } from '../utils/rng';
+import {
+  ComplexAmplitudes,
+  expectationValue,
+  minMaxOf,
+  normalizedEnergies as normalizedEnergiesOf,
+  optimizeAnglesByCoordinateDescent,
+  resolveCommonSolverOptions,
+  sampleBestIndexByShots,
+  sampleIndexByProbabilities,
+} from './solver-common';
+import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel';
+import { parallelAnnealEvolve, parallelBuildFiberGroups } from './subspace-parallel';
+import { SUBSPACE_ANNEAL_STEPS, SUBSPACE_ANNEAL_TAU, SUBSPACE_DIMENSION_CAP } from './constants';
 
 // ----------------------------------------------------------------------------
 // 子空间模型
@@ -99,23 +127,31 @@ export interface SubspaceSolution {
 }
 
 export interface SubspaceBuildOptions {
-  /** 子空间维度上限（默认 2^21）；枚举超过即放弃并返回 null */
+  /** 子空间维度上限（默认 2^21 = SUBSPACE_DIMENSION_CAP）；枚举超过即放弃并返回 null */
   dimensionCap?: number;
 }
 
-// ----------------------------------------------------------------------------
-// 可复现随机源（与 quantum-optimizer 相同的 mulberry32）
-// ----------------------------------------------------------------------------
+/** Int32 缓冲：优先 SharedArrayBuffer 底座（多线程演化零拷贝共享），不可用时退普通数组 */
+function allocI32(count: number): ArrayBufferLike {
+  if (process.env.QUANTUM_NO_SAB === '1' || typeof SharedArrayBuffer !== 'function') {
+    return new ArrayBuffer(count * 4);
+  }
+  return new SharedArrayBuffer(count * 4);
+}
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+/** 字节缓冲（Uint8 底座）与 Float64 缓冲：同 allocI32 策略 */
+function allocBytes(count: number): ArrayBufferLike {
+  if (process.env.QUANTUM_NO_SAB === '1' || typeof SharedArrayBuffer !== 'function') {
+    return new ArrayBuffer(count);
+  }
+  return new SharedArrayBuffer(count);
+}
+
+function allocF64(count: number): ArrayBufferLike {
+  if (process.env.QUANTUM_NO_SAB === '1' || typeof SharedArrayBuffer !== 'function') {
+    return new ArrayBuffer(count * 8);
+  }
+  return new SharedArrayBuffer(count * 8);
 }
 
 // ----------------------------------------------------------------------------
@@ -125,155 +161,213 @@ function mulberry32(seed: number): () => number {
 /**
  * 构建子空间模型。dimension 超过 cap 时返回 null（调用方回退全空间引擎）。
  */
-export function buildSubspaceModel(problem: AssignmentProblem, options: SubspaceBuildOptions = {}): SubspaceModel | null {
+export function buildSubspaceModel(
+  problem: AssignmentProblem,
+  options: SubspaceBuildOptions = {},
+): SubspaceModel | null {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
-  const cap = options.dimensionCap ?? 1 << 21;
+  const cap = options.dimensionCap ?? SUBSPACE_DIMENSION_CAP;
   if (m === 0 || n === 0 || m > n) return null;
 
-  // 元组键：Σ a_t · n^t（需 n^m ≤ 2^53，维度上限保证了这一点量级）
+  // 元组键：Σ a_t · n^(m−1−t)（a_0 为最高位）。关键性质：DFS 按字典序枚举
+  // ⇒ 键严格升序 ⇒ keys 数组天然有序，任意元组 → 规范索引用二分查找即可，
+  // 无需哈希 Map（大维度时 Map<double,double> 的插入/查询是构建的主要成本）。
+  // 需 n^m ≤ 2^53，维度上限保证了这一点量级。
   const powers = new Float64Array(m);
   {
     let size = 1;
-    for (let t = 0; t < m; t++) {
+    for (let t = m - 1; t >= 0; t--) {
       powers[t] = size;
       size *= n;
       if (size > Number.MAX_SAFE_INTEGER) return null;
     }
   }
 
-  const tupleKey = (agents: number[]): number => {
-    let key = 0;
-    for (let t = 0; t < m; t++) key += agents[t] * powers[t];
-    return key;
-  };
+  // 资格掩码展平（DFS 与纤维构建内核共用一份；SAB 底座供并行构建共享）
+  const ineligibleFlat = new Uint8Array(allocBytes(m * n));
+  for (let t = 0; t < m; t++) {
+    for (let a = 0; a < n; a++) {
+      if (problem.ineligible[t]?.[a]) ineligibleFlat[t * n + a] = 1;
+    }
+  }
 
-  // ---- 1) 规范枚举：任务 0..m−1 升序 DFS ----
-  const assignmentAt: number[] = [];
-  const used = new Array<boolean>(n).fill(false);
-  const current = new Array<number>(m).fill(-1);
-  const keyToIndex = new Map<number, number>();
+  // ---- 1) 规范枚举：任务 0..m−1 升序 DFS（预分配类型化数组，无装箱/扩容） ----
+  // 容量上界 = min(P(n,m), cap)：无资格约束时即精确维度
+  let capacity = 1;
+  for (let t = 0; t < m; t++) {
+    capacity *= n - t;
+    if (capacity > cap) {
+      capacity = cap;
+      break;
+    }
+  }
+  const assignmentAt = new Int32Array(capacity * m);
+  const keys = new Float64Array(allocF64(capacity));
+  let dimCount = 0;
+  const used = new Uint8Array(n);
+  const current = new Int32Array(m).fill(-1);
 
-  const enumerateAll = (): boolean => {
-    const dfs = (t: number): boolean => {
-      if (t === m) {
-        if (assignmentAt.length / m >= cap) return false; // 已达维度上限：中止枚举
-        keyToIndex.set(tupleKey(current), assignmentAt.length / m);
-        for (let i = 0; i < m; i++) assignmentAt.push(current[i]);
-        return true;
+  const dfs = (t: number): boolean => {
+    if (t === m) {
+      if (dimCount >= cap) return false; // 已达维度上限：中止枚举
+      let key = 0;
+      const base = dimCount * m;
+      for (let i = 0; i < m; i++) {
+        const a = current[i]!;
+        assignmentAt[base + i] = a;
+        key += a * powers[i]!;
       }
-      for (let a = 0; a < n; a++) {
-        if (problem.ineligible[t][a] || used[a]) continue;
-        used[a] = true;
-        current[t] = a;
-        if (!dfs(t + 1)) {
-          used[a] = false;
-          current[t] = -1;
-          return false;
-        }
-        used[a] = false;
-        current[t] = -1;
-      }
+      keys[dimCount] = key;
+      dimCount++;
       return true;
-    };
-    return dfs(0);
+    }
+    for (let a = 0; a < n; a++) {
+      if (ineligibleFlat[t * n + a] || used[a]!) continue;
+      used[a] = 1;
+      current[t] = a;
+      if (!dfs(t + 1)) {
+        used[a] = 0;
+        current[t] = -1;
+        return false;
+      }
+      used[a] = 0;
+      current[t] = -1;
+    }
+    return true;
   };
 
-  if (!enumerateAll()) return null;
-  const dimension = assignmentAt.length / m;
+  const dfsStart = Date.now();
+  if (!dfs(0)) return null;
+  const dimension = dimCount;
   if (dimension === 0) return null;
+  const sortedKeys = keys.subarray(0, dimension); // 严格升序——二分查找底座
+  if (process.env.QUANTUM_PARALLEL_DEBUG) {
+    console.error(`[build] dfs1+keys: ${Date.now() - dfsStart}ms (dim=${dimension})`);
+  }
 
   // ---- 2) 能量：E = −福利（含纠缠耦合，零罚项） ----
+  // 展平权重矩阵与耦合表（解码键 → 平行数组），一次预换取逐状态免
+  // Map 迭代/键解码：dim 百万级时此循环是构建的主要算术成本。
+  // 加法次序与 welfareOf 完全一致（t 升序，后耦合按 Map 插入序）→ 逐位一致。
+  const weightsFlat = new Float64Array(m * n);
+  for (let t = 0; t < m; t++) {
+    for (let a = 0; a < n; a++) weightsFlat[t * n + a] = problem.weights[t]![a]!;
+  }
+  const couplingLen = problem.couplings.size;
+  const cplT1 = new Int32Array(couplingLen);
+  const cplA1 = new Int32Array(couplingLen);
+  const cplT2 = new Int32Array(couplingLen);
+  const cplA2 = new Int32Array(couplingLen);
+  const cplJ = new Float64Array(couplingLen);
+  {
+    const nqubits = m * n;
+    let ci = 0;
+    for (const [key, j] of problem.couplings) {
+      const q1 = Math.floor(key / nqubits);
+      const q2 = key % nqubits;
+      cplT1[ci] = Math.floor(q1 / n);
+      cplA1[ci] = q1 % n;
+      cplT2[ci] = Math.floor(q2 / n);
+      cplA2[ci] = q2 % n;
+      cplJ[ci] = j;
+      ci++;
+    }
+  }
+  const energiesStart = Date.now();
   const energies = new Float64Array(dimension);
   let optimalWelfare = -Infinity;
-  const buffer = new Array<number>(m);
   for (let s = 0; s < dimension; s++) {
-    for (let t = 0; t < m; t++) buffer[t] = assignmentAt[s * m + t];
-    const w = welfareOf(problem, buffer);
+    const base = s * m;
+    let w = 0;
+    for (let t = 0; t < m; t++) w += weightsFlat[t * n + assignmentAt[base + t]!]!;
+    for (let c = 0; c < couplingLen; c++) {
+      if (
+        assignmentAt[base + cplT1[c]!] === cplA1[c]! &&
+        assignmentAt[base + cplT2[c]!] === cplA2[c]!
+      ) {
+        w += cplJ[c]!;
+      }
+    }
     energies[s] = -w;
     if (w > optimalWelfare) optimalWelfare = w;
   }
+  if (process.env.QUANTUM_PARALLEL_DEBUG) {
+    console.error(`[build] energies(flattened): ${Date.now() - energiesStart}ms`);
+  }
 
-  // ---- 3) 纤维结构 ----
-  // 对任务 t（或任务对 [t1,t2]），按"其余任务固定"分组重排基态索引，
-  // 使同 fiber 的基态在 order 数组中连续。
-  const buildFiberGroup = (varyLast: number[], label: string): FiberGroup => {
-    const order: number[] = [];
-    const runs: number[] = [];
-    const varySet = new Set(varyLast);
-
-    // 递归顺序：非变化维度先固定（pos 递增跳过变化维度），变化维度最后
-    // 展开 → 同 fiber 的基态在 order 中连续
-    const dfs2 = (pos: number): void => {
-      if (pos === m) {
-        // 所有非变化维度已固定：现在展开变化维度，生成一个 fiber
-        const start = order.length;
-        const assignVary = (vi: number): void => {
-          if (vi === varyLast.length) {
-            const idx = keyToIndex.get(tupleKey(current));
-            if (idx !== undefined) order.push(idx);
-            return;
-          }
-          const t = varyLast[vi];
-          for (let a = 0; a < n; a++) {
-            if (problem.ineligible[t][a] || used[a]) continue;
-            used[a] = true;
-            current[t] = a;
-            assignVary(vi + 1);
-            used[a] = false;
-            current[t] = -1;
-          }
-        };
-        assignVary(0);
-        if (order.length > start) {
-          runs.push(start, order.length);
-        }
-        return;
-      }
-      if (varySet.has(pos)) {
-        dfs2(pos + 1); // 跳过变化维度（稍后统一展开）
-        return;
-      }
-      for (let a = 0; a < n; a++) {
-        if (problem.ineligible[pos][a] || used[a]) continue;
-        used[a] = true;
-        current[pos] = a;
-        dfs2(pos + 1);
-        used[a] = false;
-        current[pos] = -1;
-      }
-    };
-
-    dfs2(0);
-
-    return {
-      label,
-      order: Int32Array.from(order),
-      runs: Int32Array.from(runs)
-    };
-  };
-
-  const mixers: FiberGroup[] = [];
+  // ---- 3) 纤维结构（内核构建；order/runs 落在共享底座上供并行演化复用） ----
+  // order 恰为 0..dim−1 的排列（精确 dim）；被记录的纤维均含 ≥2 元素，
+  // 故 runs 实际长度 ≤ dim。大维度时优先多线程并行构建（每组完整归属
+  // 单一 Worker、同一内核源码 ⇒ 与串行逐位一致），失败回退串行。
+  const varyLists: number[][] = [];
+  const labels: string[] = [];
   if (n > m) {
     // 单任务移动：e^{-iβ A_t}，A_t = 任务 t 移动到空闲agent的邻接
     for (let t = 0; t < m; t++) {
-      mixers.push(buildFiberGroup([t], `move-t${t}`));
+      varyLists.push([t]);
+      labels.push(`move-t${t}`);
     }
   } else {
     // n == m：无空闲agent，用换位混合（两任务交换agent）
     for (let t1 = 0; t1 < m; t1++) {
       for (let t2 = t1 + 1; t2 < m; t2++) {
-        mixers.push(buildFiberGroup([t1, t2], `swap-t${t1}t${t2}`));
+        varyLists.push([t1, t2]);
+        labels.push(`swap-t${t1}t${t2}`);
       }
     }
   }
 
+  const buildFiberGroup = (varyLast: number[], label: string): FiberGroup => {
+    const order = new Int32Array(allocI32(dimension));
+    const runs = new Int32Array(allocI32(dimension));
+    const { orderLen, runsLen } = buildFiberGroupKernel(
+      m,
+      n,
+      ineligibleFlat,
+      sortedKeys,
+      Int32Array.from(varyLast),
+      dimension,
+      order,
+      runs,
+    );
+    return {
+      label,
+      order: order.subarray(0, orderLen),
+      runs: runs.subarray(0, runsLen),
+    };
+  };
+
+  const mixersStart = Date.now();
+  let mixers: FiberGroup[] | null = null;
+  const parallelBuilt = parallelBuildFiberGroups({
+    m,
+    n,
+    dimension,
+    ineligible: ineligibleFlat,
+    sortedKeys,
+    varies: varyLists,
+  });
+  if (parallelBuilt) {
+    mixers = parallelBuilt.map((r, g) => ({ label: labels[g]!, order: r.order, runs: r.runs }));
+  } else {
+    mixers = varyLists.map((vary, g) => buildFiberGroup(vary, labels[g]!));
+  }
+  if (process.env.QUANTUM_PARALLEL_DEBUG) {
+    console.error(
+      `[build] mixers(${parallelBuilt ? `parallel` : 'serial'}): ${Date.now() - mixersStart}ms`,
+    );
+  }
+
   return {
-    problem, m, n, dimension,
+    problem,
+    m,
+    n,
+    dimension,
     energies,
-    assignmentAt: Int32Array.from(assignmentAt),
+    assignmentAt: assignmentAt.subarray(0, dimension * m),
     mixers,
-    optimalWelfare
+    optimalWelfare,
   };
 }
 
@@ -281,50 +375,13 @@ export function buildSubspaceModel(problem: AssignmentProblem, options: Subspace
 // 子空间态矢量与演化
 // ----------------------------------------------------------------------------
 
-export class SubspaceState {
-  readonly dim: number;
-  readonly re: Float64Array;
-  readonly im: Float64Array;
-
+/**
+ * 子空间态矢量：共享复振幅基座 + 纤维混合算符（本引擎特有的演化结构）。
+ * 均匀叠加 / 范数 / Born 概率 / 对角代价相位均继承自 ComplexAmplitudes。
+ */
+export class SubspaceState extends ComplexAmplitudes {
   constructor(dim: number) {
-    this.dim = dim;
-    this.re = new Float64Array(dim);
-    this.im = new Float64Array(dim);
-  }
-
-  setUniform(): void {
-    const amp = 1 / Math.sqrt(this.dim);
-    this.re.fill(amp);
-    this.im.fill(0);
-  }
-
-  norm(): number {
-    let sum = 0;
-    for (let s = 0; s < this.dim; s++) {
-      sum += this.re[s] * this.re[s] + this.im[s] * this.im[s];
-    }
-    return Math.sqrt(sum);
-  }
-
-  probabilities(): Float64Array {
-    const p = new Float64Array(this.dim);
-    for (let s = 0; s < this.dim; s++) {
-      p[s] = this.re[s] * this.re[s] + this.im[s] * this.im[s];
-    }
-    return p;
-  }
-
-  /** 代价相位 e^{-iγC}：子空间内逐基态（精确对角） */
-  applyCostPhase(gamma: number, energies: Float64Array): void {
-    for (let s = 0; s < this.dim; s++) {
-      const e = energies[s];
-      const c = Math.cos(gamma * e);
-      const sn = Math.sin(gamma * e);
-      const r = this.re[s];
-      const i = this.im[s];
-      this.re[s] = r * c + i * sn;
-      this.im[s] = i * c - r * sn;
-    }
+    super(dim);
   }
 
   /**
@@ -333,44 +390,8 @@ export class SubspaceState {
    * annealing 用负号方向（等价于 β → −β）。
    */
   applyFiberMixer(group: FiberGroup, beta: number, sign: 1 | -1 = 1): void {
-    const b = sign * beta;
-    // 逐 fiber 求和 → 均值 → 闭式旋转
     const { order, runs } = group;
-    for (let r = 0; r < runs.length; r += 2) {
-      const start = runs[r];
-      const end = runs[r + 1];
-      const k = end - start;
-      if (k <= 1) continue; // 纤维退化（唯一可选agent）：恒等
-
-      let sumRe = 0, sumIm = 0;
-      for (let i = start; i < end; i++) {
-        const s = order[i];
-        sumRe += this.re[s];
-        sumIm += this.im[s];
-      }
-      const muRe = sumRe / k;
-      const muIm = sumIm / k;
-
-      // 系数：c_eig = e^{−iβ(k−1)} − e^{iβ}
-      const theta = -b * (k - 1);
-      const diffRe = Math.cos(theta) - Math.cos(b);
-      const diffIm = Math.sin(theta) - Math.sin(b);
-
-      // a_j ↦ e^{iβ}a_j + diff·μ
-      const rotRe = Math.cos(b);
-      const rotIm = Math.sin(b);
-      for (let i = start; i < end; i++) {
-        const s = order[i];
-        const ar = this.re[s];
-        const ai = this.im[s];
-        // e^{iβ}·a
-        const er = ar * rotRe - ai * rotIm;
-        const ei = ar * rotIm + ai * rotRe;
-        // + diff·μ
-        this.re[s] = er + diffRe * muRe - diffIm * muIm;
-        this.im[s] = ei + diffRe * muIm + diffIm * muRe;
-      }
-    }
+    applyFiberRunsKernel(this.re, this.im, order, runs, 0, runs.length, sign * beta);
   }
 }
 
@@ -379,83 +400,41 @@ export class SubspaceState {
 // ----------------------------------------------------------------------------
 
 function expectationOfSubspace(state: SubspaceState, energies: Float64Array): number {
-  const p = state.probabilities();
-  let sum = 0;
-  for (let s = 0; s < state.dim; s++) sum += p[s] * energies[s];
-  return sum;
+  return expectationValue(state, energies);
 }
 
 function runSubspaceQaoaCircuit(
   angles: number[],
   layers: number,
   model: SubspaceModel,
-  energies: Float64Array
+  energies: Float64Array,
 ): SubspaceState {
   const state = new SubspaceState(model.dimension);
   state.setUniform();
   for (let p = 0; p < layers; p++) {
-    state.applyCostPhase(angles[p], energies);
+    state.applyCostPhase(angles[p]!, energies);
     for (const group of model.mixers) {
-      state.applyFiberMixer(group, angles[layers + p]);
+      state.applyFiberMixer(group, angles[layers + p]!);
     }
   }
   return state;
 }
 
+/** 坐标下降角度优化（共享实现：全空间/子空间两引擎的同一变分循环） */
 function optimizeSubspaceQaoaAngles(
   layers: number,
   model: SubspaceModel,
   energies: Float64Array,
   restarts: number,
-  rng: () => number
+  rng: () => number,
 ): { angles: number[]; expectation: number; evaluations: number } {
-  let bestAngles: number[] = [];
-  let bestExpectation = Infinity;
-  let evaluations = 0;
-
-  for (let r = 0; r < restarts; r++) {
-    const angles: number[] = [];
-    for (let p = 0; p < layers; p++) {
-      angles.push(r === 0 ? ((p + 1) / layers) * Math.PI * 0.5 : rng() * Math.PI);
-    }
-    for (let p = 0; p < layers; p++) {
-      angles.push(r === 0 ? (1 - (p + 1) / (layers + 1)) * Math.PI * 0.25 : rng() * Math.PI * 0.5);
-    }
-
-    const evaluate = (a: number[]): number => {
-      evaluations++;
-      return expectationOfSubspace(runSubspaceQaoaCircuit(a, layers, model, energies), energies);
-    };
-
-    let current = evaluate(angles);
-    let delta = 0.3;
-    const gammaBound = Math.PI;
-    const betaBound = Math.PI / 2;
-
-    while (delta > 1e-3) {
-      let improved = false;
-      for (let i = 0; i < angles.length; i++) {
-        const bound = i < layers ? gammaBound : betaBound;
-        for (const sign of [1, -1]) {
-          const candidate = angles.slice();
-          candidate[i] = Math.min(bound, Math.max(0, candidate[i] + sign * delta));
-          const value = evaluate(candidate);
-          if (value < current - 1e-12) {
-            angles.splice(0, angles.length, ...candidate);
-            current = value;
-            improved = true;
-          }
-        }
-      }
-      if (!improved) delta *= 0.5;
-    }
-
-    if (current < bestExpectation) {
-      bestExpectation = current;
-      bestAngles = angles.slice();
-    }
-  }
-  return { angles: bestAngles, expectation: bestExpectation, evaluations };
+  return optimizeAnglesByCoordinateDescent(
+    (angles) =>
+      expectationOfSubspace(runSubspaceQaoaCircuit(angles, layers, model, energies), energies),
+    layers,
+    restarts,
+    rng,
+  );
 }
 
 /** 子空间内的测量坍缩（所有基态均合法——无罚项无违约） */
@@ -465,102 +444,82 @@ function collapseSubspace(
   mode: CollapseMode,
   shots: number,
   rng: () => number,
-  topK: number
+  topK: number,
 ): { assignment: number[]; probability: number; candidates: QuantumCandidate[] } {
   const { m, energies } = model;
   let chosen = -1;
 
   if (mode === 'born') {
-    const r = rng();
-    let cum = 0;
-    for (let s = 0; s < probs.length; s++) {
-      cum += probs[s];
-      if (r <= cum) { chosen = s; break; }
-    }
-    if (chosen < 0) chosen = probs.length - 1;
+    chosen = sampleIndexByProbabilities(probs, rng);
   } else if (mode === 'shots-best') {
-    const cum = new Float64Array(probs.length);
-    let acc = 0;
-    for (let s = 0; s < probs.length; s++) {
-      acc += probs[s];
-      cum[s] = acc;
-    }
-    let bestEnergy = Infinity;
-    for (let i = 0; i < shots; i++) {
-      const r = rng() * acc;
-      let lo = 0, hi = probs.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (cum[mid] < r) lo = mid + 1; else hi = mid;
-      }
-      if (energies[lo] < bestEnergy) {
-        bestEnergy = energies[lo];
-        chosen = lo;
-      }
-    }
+    chosen = sampleBestIndexByShots(probs, shots, rng, (s) => energies[s]!);
     if (chosen < 0) chosen = 0;
   } else {
     // argmax-valid → 子空间内即 argmax
     let bestProb = -1;
     for (let s = 0; s < probs.length; s++) {
-      if (probs[s] > bestProb) {
-        bestProb = probs[s];
+      if (probs[s]! > bestProb) {
+        bestProb = probs[s]!;
         chosen = s;
       }
     }
   }
 
   const assignment: number[] = [];
-  for (let t = 0; t < m; t++) assignment.push(model.assignmentAt[chosen * m + t]);
+  for (let t = 0; t < m; t++) assignment.push(model.assignmentAt[chosen * m + t]!);
 
-  const candidates: QuantumCandidate[] = Array.from(probs)
-    .map((p, s) => ({ s, p }))
-    .sort((x, y) => y.p - x.p)
-    .slice(0, topK)
-    .map(({ s, p }) => {
-      const a: number[] = [];
-      for (let t = 0; t < m; t++) a.push(model.assignmentAt[s * m + t]);
-      return { assignment: a, welfare: -energies[s], energy: energies[s], probability: p };
-    });
+  // top-K 线性选择：此前全量 Array.from().map().sort().slice() 在 dim 百万级
+  // 时分配 dim 个对象再 O(dim·log dim) 排序（8×10 实例实测 ~7s），只为取
+  // K=3 个候选。线性扫描维护按 p 降序的 K 槽：相等概率保持原有次序（与
+  // V8 稳定排序语义一致），产出候选列表与旧实现逐项相同。
+  const top: { s: number; p: number }[] = [];
+  for (let s = 0; s < probs.length && topK > 0; s++) {
+    const p = probs[s]!;
+    if (top.length === topK && p <= top[top.length - 1]!.p) continue;
+    let i = top.length;
+    while (i > 0 && top[i - 1]!.p < p) i--;
+    if (top.length === topK) top.pop();
+    top.splice(i, 0, { s, p });
+  }
 
-  return { assignment, probability: probs[chosen], candidates };
+  const candidates: QuantumCandidate[] = top.map(({ s, p }) => {
+    const a: number[] = [];
+    for (let t = 0; t < m; t++) a.push(model.assignmentAt[s * m + t]!);
+    return { assignment: a, welfare: -energies[s]!, energy: energies[s]!, probability: p };
+  });
+
+  return { assignment, probability: probs[chosen]!, candidates };
 }
 
 function normalizedEnergies(model: SubspaceModel, scale: number): Float64Array {
-  let min = Infinity, max = -Infinity;
-  for (const e of model.energies) {
-    if (e < min) min = e;
-    if (e > max) max = e;
-  }
-  const span = max - min;
-  const out = new Float64Array(model.dimension);
-  for (let s = 0; s < out.length; s++) {
-    out[s] = span > 0 ? ((model.energies[s] - min) / span) * scale : 0;
-  }
-  return out;
+  const { min, max } = minMaxOf(model.energies);
+  return normalizedEnergiesOf(model.energies, min, max, scale);
 }
 
-export function qaoaSolveSubspace(model: SubspaceModel, options: QuantumSolverOptions = {}): SubspaceSolution {
-  const layers = options.layers ?? 3;
-  const shots = options.shots ?? 128;
-  const restarts = options.restarts ?? 2;
-  const select = options.select ?? 'shots-best';
-  const seed = options.seed ?? 42;
-  const topK = options.topK ?? 3;
+export function qaoaSolveSubspace(
+  model: SubspaceModel,
+  options: QuantumSolverOptions = {},
+): SubspaceSolution {
+  const { layers, shots, restarts, select, seed, topK } = resolveCommonSolverOptions(
+    options,
+    'shots-best',
+  );
   const rng = mulberry32(seed);
 
   const energies = normalizedEnergies(model, 1);
-  const { angles, expectation, evaluations } = optimizeSubspaceQaoaAngles(layers, model, energies, restarts, rng);
+  const { angles, expectation, evaluations } = optimizeSubspaceQaoaAngles(
+    layers,
+    model,
+    energies,
+    restarts,
+    rng,
+  );
   const finalState = runSubspaceQaoaCircuit(angles, layers, model, energies);
   const probs = finalState.probabilities();
   const collapse = collapseSubspace(model, probs, select, shots, rng, topK);
 
   // 还原原始能量尺度的期望
-  let rawMin = Infinity, rawMax = -Infinity;
-  for (const e of model.energies) {
-    if (e < rawMin) rawMin = e;
-    if (e > rawMax) rawMax = e;
-  }
+  const { min: rawMin, max: rawMax } = minMaxOf(model.energies);
   const rawExpectation = expectation * (rawMax - rawMin) + rawMin;
 
   const solutionWelfare = welfareOfModel(model, collapse.assignment);
@@ -577,7 +536,7 @@ export function qaoaSolveSubspace(model: SubspaceModel, options: QuantumSolverOp
     angles,
     evaluations,
     candidates: collapse.candidates,
-    dimension: model.dimension
+    dimension: model.dimension,
   };
 }
 
@@ -585,45 +544,74 @@ function welfareOfModel(model: SubspaceModel, assignment: number[]): number {
   return welfareOf(model.problem, assignment);
 }
 
-export function annealSolveSubspace(model: SubspaceModel, options: QuantumSolverOptions = {}): SubspaceSolution {
-  // 无罚项子空间景观干净：短退火（τ=20/150步）经多种子验证即可全命中，
-  // 大维度时尤其重要（演化成本 ∝ steps×m×dim）
-  const tau = options.anneal?.tau ?? 20;
-  const steps = options.anneal?.steps ?? 150;
-  const shots = options.shots ?? 128;
-  const select = options.select ?? 'shots-best';
-  const seed = options.seed ?? 42;
-  const topK = options.topK ?? 3;
-  const rng = mulberry32(seed);
+/**
+ * 串行绝热退火演化：与并行路径（subspace-parallel）同一算符序列、同一内核，
+ * 数值逐位一致。γ_t = (t/steps)·dt 线性增长 ⇒ 代价相位走递推内核
+ * （每元素每步 2 次三角函数 → 8 次乘加，相位误差 O(t·ε)≈1e−14，幺正不受影响）。
+ */
+export function serialAnnealEvolve(
+  model: SubspaceModel,
+  energies: Float64Array,
+  tau: number,
+  steps: number,
+): { re: Float64Array; im: Float64Array } {
+  const dim = model.dimension;
+  const state = new SubspaceState(dim);
+  state.setUniform();
 
-  // 代价尺度与混合算符谱宽同量级：Σ_t A_t 的谱半径 ≈ Σ_t (k_max−1) ≤ m·(n−m)
-  const spectralWidth = model.n > model.m
-    ? model.m * Math.max(1, model.n - model.m)
-    : (model.m * (model.m - 1)) / 2;
-  const energies = normalizedEnergies(model, 2 * spectralWidth);
+  const dt = tau / steps;
+  const dtPerStep = dt / steps;
+  const phRe = new Float64Array(dim).fill(1);
+  const phIm = new Float64Array(dim);
+  const zRe = new Float64Array(dim);
+  const zIm = new Float64Array(dim);
+  for (let k = 0; k < dim; k++) {
+    const theta = energies[k]! * dtPerStep;
+    zRe[k] = Math.cos(theta);
+    zIm[k] = -Math.sin(theta);
+  }
 
   // H(s) = −(1−s)·ΣA + s·C：均匀初态是 −ΣA 的基态（Perron-Frobenius）
-  const state = new SubspaceState(model.dimension);
-  state.setUniform();
-  const dt = tau / steps;
   for (let t = 1; t <= steps; t++) {
     const s = t / steps;
     for (const group of model.mixers) {
       state.applyFiberMixer(group, (1 - s) * dt, -1); // −A 方向（基态支路）
     }
-    state.applyCostPhase(s * dt, energies);
+    advanceCostKernel(state.re, state.im, phRe, phIm, zRe, zIm, 0, dim);
   }
-  const probs = state.probabilities();
+  return { re: state.re, im: state.im };
+}
+
+export function annealSolveSubspace(
+  model: SubspaceModel,
+  options: QuantumSolverOptions = {},
+): SubspaceSolution {
+  // 无罚项子空间景观干净：短退火（τ=20/150步）经多种子验证即可全命中，
+  // 大维度时尤其重要（演化成本 ∝ steps×m×dim）
+  const tau = options.anneal?.tau ?? SUBSPACE_ANNEAL_TAU;
+  const steps = options.anneal?.steps ?? SUBSPACE_ANNEAL_STEPS;
+  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'shots-best');
+  const rng = mulberry32(seed);
+
+  // 代价尺度与混合算符谱宽同量级：Σ_t A_t 的谱半径 ≈ Σ_t (k_max−1) ≤ m·(n−m)
+  const spectralWidth =
+    model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
+  const energies = normalizedEnergies(model, 2 * spectralWidth);
+
+  // 大维度优先多线程确定性并行（失败自动回退串行，数值逐位一致）
+  const evolved =
+    parallelAnnealEvolve(model, energies, tau, steps) ??
+    serialAnnealEvolve(model, energies, tau, steps);
+  const probs = new Float64Array(model.dimension);
+  for (let k = 0; k < probs.length; k++) {
+    probs[k] = evolved.re[k]! * evolved.re[k]! + evolved.im[k]! * evolved.im[k]!;
+  }
   const collapse = collapseSubspace(model, probs, select, shots, rng, topK);
 
   let expectation = 0;
-  for (let s = 0; s < probs.length; s++) expectation += probs[s] * energies[s];
-  let rawMin = Infinity, rawMax = -Infinity;
-  for (const e of model.energies) {
-    if (e < rawMin) rawMin = e;
-    if (e > rawMax) rawMax = e;
-  }
-  const rawExpectation = expectation / (2 * spectralWidth) * (rawMax - rawMin) + rawMin;
+  for (let s = 0; s < probs.length; s++) expectation += probs[s]! * energies[s]!;
+  const { min: rawMin, max: rawMax } = minMaxOf(model.energies);
+  const rawExpectation = (expectation / (2 * spectralWidth)) * (rawMax - rawMin) + rawMin;
 
   const welfare = welfareOfModel(model, collapse.assignment);
   return {
@@ -638,6 +626,6 @@ export function annealSolveSubspace(model: SubspaceModel, options: QuantumSolver
     angles: null,
     evaluations: 1,
     candidates: collapse.candidates,
-    dimension: model.dimension
+    dimension: model.dimension,
   };
 }

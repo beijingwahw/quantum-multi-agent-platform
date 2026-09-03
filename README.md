@@ -2,8 +2,8 @@
 
 # Quantum Multi-Agent Development & Scheduling Platform
 
-![version](https://img.shields.io/badge/version-1.4.0-blue)
-![tests](https://img.shields.io/badge/tests-158%2F158-brightgreen)
+![version](https://img.shields.io/badge/version-1.6.0-blue)
+![tests](https://img.shields.io/badge/tests-226%2F226-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D18-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -194,7 +194,7 @@ flowchart LR
 flowchart LR
     T["任务批 + 报价<br/>bids (DSIC)"] --> WDP
     subgraph CALIB["在线校准 Online Calibration"]
-        L["结算流<br/>settlement stream"] --> FIT["最小二乘拟合<br/>(α̂, β̂, R²)"]
+        L["结算流<br/>settlement stream"] --> FIT["Bernoulli 极大似然拟合<br/>(α̂, β̂, R²)"]
         FIT --> Q["q̂(k) 学习曲线<br/>q = base + α(1−base)(1−e^−βk)"]
         FIT --> G["g 增长影子价值<br/>级数和天然有界"]
     end
@@ -254,7 +254,24 @@ flowchart LR
     end
 ```
 
-### 3️⃣ 平台热路径性能 | Hot-Path Performance（经典 hybrid 模式）
+### 3️⃣ v1.6 多线程确定性并行演化内核 | Deterministic Parallel Evolution (v1.6)
+
+**中文**｜量子管线的全部三个阶段（构建→演化→坍缩）重写并跨核并行：纤维混合按**纤维尺寸查表**消除逐纤维三角函数（8×10 实例曾需 29 亿次 `Math.cos/sin`）、小纤维展开特化、退火代价相位改**复乘递推**（γ_t 线性 ⇒ ph(t)=ph(t−1)·z）、构建期以**字典序单调键 + 二分查找**取代千万级 `Map<double>` 哈希、能量计算**展平**权重/耦合表、坍缩 top-K 改**线性选择**（此前全量排序 dim 个对象只为取 3 个候选）；大维度（演化 ≥ 2¹⁹ / 构建 ≥ 2¹⁸）经 `worker_threads + SharedArrayBuffer + Atomics` 屏障多线程执行——纤维/纤维组完整划归单线程，与串行路径共享同一份内核源码，**结果逐位一致**（tests 用逐位断言钉死）。
+
+同机同状态实测（8×10，1,814,400 维，i9-12900H，20 逻辑核）：
+
+| 管线阶段 | v1.5 | v1.6 | 提升 |
+|---|---|---|---|
+| 演化（串行内核） | 285.8 s* | 56.2 s | **5.1×** |
+| 演化（16 线程） | — | 12.2 s | **23.5×** |
+| 构建（DFS+能量+纤维组） | 14.5 s | 2.9 s | **5.0×**（纤维组 DFS2 八组并行，逐位一致） |
+| 坍缩 top-K 候选 | ~6.7 s | ~0.01 s | **~500×**（线性选择取代全量排序） |
+
+\* 同场对比基准（同一进程内逐字复刻优化前内核）：绝对时间随机器热状态浮动，**相对倍数**是稳定口径。并行为**确定性并行**——数值与线程调度无关；并行失败（无 worker/被禁用/超时）自动回退串行，功能不中断。环境开关：`QUANTUM_WORKERS=<n>` 指定线程数、`QUANTUM_DISABLE_PARALLEL=1` 强制串行。
+
+> 🇬🇧 **English** | The annealing evolution kernel was rewritten and parallelized: per-fiber-size trig table (the 8×10 instance used to make ~2.9 billion Math.cos/sin calls), unrolled small fibers, a complex-multiply recurrence for the cost phase (γ_t linear ⇒ ph(t)=ph(t−1)·z), and a lexicographically monotone key + binary search replacing tens of millions of Map<double> hashes during build. At dim ≥ 2¹⁹ the evolution runs on `worker_threads + SharedArrayBuffer` with Atomics barriers — every fiber owned by exactly one thread, sharing the very same kernel source as the serial path, hence **bitwise identical** results (pinned by tests). Measured back-to-back on the same machine state (8×10, 1.81M-dim): 285.8 s → 56.2 s (5.1×) → **12.2 s (23.5×)** with 16 threads. Falls back to serial automatically. Knobs: `QUANTUM_WORKERS`, `QUANTUM_DISABLE_PARALLEL`.
+
+### 4️⃣ 平台热路径性能 | Hot-Path Performance（经典 hybrid 模式）
 
 | 指标 | 吞吐 | 优化倍数 |
 |---|---|---|
@@ -272,7 +289,9 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 158 用例全通过 | all tests pass
+npm test                # 226 用例全通过 | all tests pass
+npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
+npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:quantum # 量子突破基准（7 部分）| quantum benchmark (7 parts)
 npm run example:qpu     # 真 QPU 入口（自动检测 DWAVE_API_TOKEN）| real-QPU entry
 npm run dev             # 启动平台 | start the platform (WS :8080)
@@ -315,15 +334,34 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 |---|---|---|
 | `quantum-optimizer.test.ts` | 18 | 解析振幅 · 幺正性 · Born 分布 · Ising 导出逐点一致 |
 | `subspace-optimizer.test.ts` | 10 | 维度 = P(n,m) · 纤维可逆性(机器精度) · 双引擎交叉验证 |
+| `subspace-parallel.test.ts` | 7 | **并行=串行逐位一致** · 跨运行确定性 · 大维度最优 · 禁用回退 |
 | `classical-baselines.test.ts` | 5 | **量子×匈牙利逐点一致** · 多轮调度 · 超维回退 |
 | `qpu-backend.test.ts` | 12 | D-Wave 客户端**真实 HTTP 往返**(stub) · 双格式解析 · 轮询 · 调度器异步入口 |
-| 调度/管理/通信/集成 | 24 | 平台全链路回归 |
+| `security-hardening.test.ts` | 21 | 命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归 |
+| 调度/管理/通信/集成 | 24+12 | 平台全链路回归 · 插件冒烟 |
 | 市场机制（CompoundBrain/VCG/相变） | 89 | DSIC · 校准 · 定律验证 |
 
 ```bash
-npm run build   # TypeScript 严格模式，0 错误 | strict mode, 0 errors
-npm test        # 158/158 ✅
+npm run build     # TypeScript 严格模式 + noUncheckedIndexedAccess，0 错误
+npm run typecheck # src+tests+examples 全仓类型检查
+npm run lint      # ESLint 0 错误
+npm test          # 226/226 ✅
+npm run format    # Prettier 统一格式
 ```
+
+CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑全部门禁。
+
+### 🔐 安全基线 | Security Baseline
+
+**中文**｜工具面与控制台协议按不可信输入处理：
+
+- **命令执行闸门**（`execute_command`）：程序白名单（npm/node/npx/tsc/tsx/git 等，可用 `configureCommandPolicy()` 扩展）+ 引号外 shell 元字符（`;` `&` `|` `$()` 反引号等）一律拒绝 + token 值内禁 `"` `'` `` ` `` `%`；执行走**无 shell 数组直呼**（Windows 借道 cmd 时仅传受控引号包裹的安全 token），跨平台引号语义错配在构造上被阻断；超时强制整树终止；`workdir` 须为白名单根目录内的现存目录。
+- **文件系统沙箱**（`read_file`/`write_file`）：所有路径在**真实路径**（解引用符号链接，含悬空链接）上强制解析到沙箱根内（`setFsSandboxRoot()` 可收紧且要求目录真实存在），绝对路径、`../` 逃逸与符号链接逃逸直接拒绝。
+- **控制台鉴权与消息边界**（可选）：平台配置 `communication.authToken` 后，WebSocket `authenticate` 须携带令牌（SHA-256 后 `timingSafeEqual` 常数时间比较），`console_query`/`console_command` 仅对已认证连接开放；未配置时为本地开发模式（建议仅监听本机）。单帧大小由 `maxMessageSize`（默认 1MB）在 ws 层强制，超大帧直接断连。
+- **配置净化**：`deepMerge` 拒绝 `__proto__`/`constructor`/`prototype` 键，JSON 来源的配置无法污染原型链。
+- **QPU 凭据**：D-Wave endpoint 强制 https（本机调试除外），令牌从不落日志。
+
+> 🇬🇧 **English** | Tool surfaces treat all input as untrusted: shell metacharacter rejection + program allowlist for commands, a filesystem sandbox for file tools, an opt-in shared-token auth for the WebSocket console protocol, and https-only endpoints for QPU credentials.
 
 ---
 
@@ -334,6 +372,8 @@ npm test        # 158/158 ✅
 │   ├── core/
 │   │   ├── quantum-optimizer.ts      # ⚛️ v1.1 全空间量子引擎（QAOA/退火/Ising）
 │   │   ├── subspace-optimizer.ts     # 🌌 v1.2 约束子空间引擎（纤维闭式混合器）
+│   │   ├── fiber-kernel.ts           # ⚡ v1.6 纯内核（串行/并行同一份源码）
+│   │   ├── subspace-parallel.ts      # ⚡ v1.6 确定性并行演化（Worker+Atomics）
 │   │   ├── classical-baselines.ts    # 🏆 v1.3 匈牙利 + 局部搜索基线
 │   │   ├── qpu/                      # 🔌 v1.4 真 QPU 后端层（D-Wave/Qiskit/本地）
 │   │   ├── quantum-scheduler.ts      # 调度器（单任务坍缩 + 批量联合 + 多轮）
@@ -344,7 +384,7 @@ npm test        # 158/158 ✅
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/
-├── tests/                            # 146 用例
+├── tests/                            # 226 用例
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）
 │   └── *-benchmark.ts                      # 市场机制基准
@@ -366,6 +406,8 @@ timeline
     v1.2 约束子空间 : 纤维完全图闭式混合器 : 零罚项编码 : 等效 80 量子比特 · 100% 最优
     v1.3 认证基线 : 与匈牙利算法逐点互证 : NP-hard 赛道 5/5 全胜 : 多轮子空间调度
     v1.4 真 QPU 后端 : D-Wave Leap 客户端 : Qiskit 程序导出 : 三道闸门验证
+    v1.5 全量质量跃迁 : 跨平台注入免疫执行内核 : noUncheckedIndexedAccess 全仓清零 : ESLint/Prettier/CI 门禁 : 共享内核去重（RNG/MinCostFlow/市场估值层）
+    v1.6 确定性并行内核 : 纤维尺寸查表+小纤维特化+相位递推（串行 5.1×） : worker_threads+SharedArrayBuffer 并行演化 23.5×（逐位一致） : 并行构建纤维组 5×（去 Map+展平能量） : 坍缩 top-K 线性选择 ~500×
 ```
 
 ---
@@ -374,7 +416,7 @@ timeline
 
 **中文**｜
 1. 量子核心是薛定谔方程的**经典精确模拟**，不是真 QPU；`toIsing()` 导出的 (h,J) 可直接提交真实量子退火机，届时同一问题无需改代码即可换执行位置。
-2. 子空间维度仍组合增长 P(n,m)，默认上限 2²⁰（≈150MB 内存）；8×10 规模构建+求解约 42 秒——定位是**决策质量模式**，不是热路径。
+2. 子空间维度仍组合增长 P(n,m)，默认上限 2²⁰（≈150MB 内存）；8×10 规模为**决策质量模式**而非热路径——v1.6 内核使其演化提速 23.5×（同机同状态，16 线程并行，与串行逐位一致），绝对耗时随机器核数与热状态浮动。
 3. 高吞吐热路径（>10³ tasks/s）仍走经典 `hybrid` 启发式。
 4. 所有最优率/概率均为末态真实观测量；耦合赛道的最优对照来自子空间枚举（≤2²¹ 维时精确），不做外推。
 

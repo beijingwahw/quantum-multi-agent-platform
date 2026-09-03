@@ -1,53 +1,16 @@
 /**
- * 主动智能插件 - 简单测试
+ * 主动智能插件 - 冒烟测试
  *
- * 验证核心功能是否正常工作
+ * 覆盖插件基础生命周期与配置面（深度回归见 proactive-intelligence.test.ts）
  */
 
-import { ProactiveIntelligencePlugin } from './index';
-import { Rule, MonitorEvent } from './index';
-
-// 简单测试工具
-class TestRunner {
-  private tests: Array<{ name: string; fn: () => Promise<void> }> = [];
-  private passed = 0;
-  private failed = 0;
-
-  test(name: string, fn: () => Promise<void>) {
-    this.tests.push({ name, fn });
-  }
-
-  async run() {
-    console.log('🧪 开始测试...\n');
-
-    for (const test of this.tests) {
-      try {
-        await test.fn();
-        this.passed++;
-        console.log(`✅ ${test.name}`);
-      } catch (error) {
-        this.failed++;
-        console.log(`❌ ${test.name}`);
-        console.error(`   Error: ${error}`);
-      }
-    }
-
-    console.log(`\n📊 测试结果: ${this.passed} 通过, ${this.failed} 失败`);
-
-    if (this.failed > 0) {
-      process.exit(1);
-    }
-  }
-}
-
-const runner = new TestRunner();
-
-// ============================================================================
-// 测试用例
+import { it } from 'node:test';
+import type { Rule } from '../src/proactive-intelligence/index.js';
+import { ProactiveIntelligencePlugin } from '../src/proactive-intelligence/index.js';
 // ============================================================================
 
 // 测试1: 创建插件实例
-runner.test('创建插件实例', async () => {
+it('创建插件实例', async () => {
   const plugin = new ProactiveIntelligencePlugin();
   if (!plugin) {
     throw new Error('插件创建失败');
@@ -55,7 +18,7 @@ runner.test('创建插件实例', async () => {
 });
 
 // 测试2: 启动和停止插件
-runner.test('启动和停止插件', async () => {
+it('启动和停止插件', async () => {
   const plugin = new ProactiveIntelligencePlugin();
   await plugin.start();
 
@@ -68,7 +31,7 @@ runner.test('启动和停止插件', async () => {
 });
 
 // 测试3: 添加规则
-runner.test('添加规则', async () => {
+it('添加规则', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   const rule: Rule = {
@@ -78,21 +41,25 @@ runner.test('添加规则', async () => {
     enabled: true,
     priority: 50,
     cooldown: 1000,
-    conditions: [{
-      type: 'event',
-      operator: 'equals',
-      field: 'test.value',
-      value: 'trigger'
-    }],
-    actions: [{
-      type: 'notification',
-      name: 'test-notification',
-      parameters: {
-        title: '测试',
-        message: '测试消息',
-        level: 'info'
-      }
-    }]
+    conditions: [
+      {
+        type: 'event',
+        operator: 'equals',
+        field: 'test.value',
+        value: 'trigger',
+      },
+    ],
+    actions: [
+      {
+        type: 'notification',
+        name: 'test-notification',
+        parameters: {
+          title: '测试',
+          message: '测试消息',
+          level: 'info',
+        },
+      },
+    ],
   };
 
   plugin.addRule(rule);
@@ -104,7 +71,7 @@ runner.test('添加规则', async () => {
 });
 
 // 测试4: 删除规则
-runner.test('删除规则', async () => {
+it('删除规则', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   const rule: Rule = {
@@ -114,21 +81,25 @@ runner.test('删除规则', async () => {
     enabled: true,
     priority: 50,
     cooldown: 1000,
-    conditions: [{
-      type: 'event',
-      operator: 'equals',
-      field: 'test.value',
-      value: 'trigger'
-    }],
-    actions: [{
-      type: 'notification',
-      name: 'test-notification',
-      parameters: {
-        title: '测试',
-        message: '测试消息',
-        level: 'info'
-      }
-    }]
+    conditions: [
+      {
+        type: 'event',
+        operator: 'equals',
+        field: 'test.value',
+        value: 'trigger',
+      },
+    ],
+    actions: [
+      {
+        type: 'notification',
+        name: 'test-notification',
+        parameters: {
+          title: '测试',
+          message: '测试消息',
+          level: 'info',
+        },
+      },
+    ],
   };
 
   plugin.addRule(rule);
@@ -145,14 +116,14 @@ runner.test('删除规则', async () => {
 });
 
 // 测试5: 观察事件
-runner.test('观察事件', async () => {
+it('观察事件', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   const event = plugin.observe({
     type: 'test',
     source: 'test-source',
     severity: 'info',
-    data: { value: 'test' }
+    data: { value: 'test' },
   });
 
   if (!event.id) {
@@ -165,21 +136,21 @@ runner.test('观察事件', async () => {
 });
 
 // 测试6: 获取事件历史
-runner.test('获取事件历史', async () => {
+it('获取事件历史', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   plugin.observe({
     type: 'test',
     source: 'test-source',
     severity: 'info',
-    data: { value: 'test1' }
+    data: { value: 'test1' },
   });
 
   plugin.observe({
     type: 'test',
     source: 'test-source',
     severity: 'warning',
-    data: { value: 'test2' }
+    data: { value: 'test2' },
   });
 
   const events = plugin.getMonitor().getEvents();
@@ -189,14 +160,14 @@ runner.test('获取事件历史', async () => {
 });
 
 // 测试7: 获取统计信息
-runner.test('获取统计信息', async () => {
+it('获取统计信息', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   plugin.observe({
     type: 'test',
     source: 'test-source',
     severity: 'info',
-    data: { value: 'test' }
+    data: { value: 'test' },
   });
 
   const stats = plugin.getStatistics();
@@ -215,11 +186,11 @@ runner.test('获取统计信息', async () => {
 });
 
 // 测试8: 规则触发（安全模式）
-runner.test('规则触发（安全模式）', async () => {
+it('规则触发（安全模式）', async () => {
   const plugin = new ProactiveIntelligencePlugin({
     executor: {
-      safeMode: true  // 只记录不执行
-    }
+      safeMode: true, // 只记录不执行
+    },
   });
 
   const rule: Rule = {
@@ -229,21 +200,25 @@ runner.test('规则触发（安全模式）', async () => {
     enabled: true,
     priority: 50,
     cooldown: 1000,
-    conditions: [{
-      type: 'event',
-      operator: 'equals',
-      field: 'test.value',
-      value: 'trigger'
-    }],
-    actions: [{
-      type: 'notification',
-      name: 'test-notification',
-      parameters: {
-        title: '测试',
-        message: '测试消息',
-        level: 'info'
-      }
-    }]
+    conditions: [
+      {
+        type: 'event',
+        operator: 'equals',
+        field: 'test.value',
+        value: 'trigger',
+      },
+    ],
+    actions: [
+      {
+        type: 'notification',
+        name: 'test-notification',
+        parameters: {
+          title: '测试',
+          message: '测试消息',
+          level: 'info',
+        },
+      },
+    ],
   };
 
   plugin.addRule(rule);
@@ -258,7 +233,7 @@ runner.test('规则触发（安全模式）', async () => {
     type: 'test',
     source: 'test-source',
     severity: 'info',
-    data: { value: 'trigger' }
+    data: { value: 'trigger' },
   });
 
   await sleep(200);
@@ -271,7 +246,7 @@ runner.test('规则触发（安全模式）', async () => {
 });
 
 // 测试9: 启用/禁用规则
-runner.test('启用/禁用规则', async () => {
+it('启用/禁用规则', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   const rule: Rule = {
@@ -281,21 +256,25 @@ runner.test('启用/禁用规则', async () => {
     enabled: true,
     priority: 50,
     cooldown: 1000,
-    conditions: [{
-      type: 'event',
-      operator: 'equals',
-      field: 'test.value',
-      value: 'trigger'
-    }],
-    actions: [{
-      type: 'notification',
-      name: 'test-notification',
-      parameters: {
-        title: '测试',
-        message: '测试消息',
-        level: 'info'
-      }
-    }]
+    conditions: [
+      {
+        type: 'event',
+        operator: 'equals',
+        field: 'test.value',
+        value: 'trigger',
+      },
+    ],
+    actions: [
+      {
+        type: 'notification',
+        name: 'test-notification',
+        parameters: {
+          title: '测试',
+          message: '测试消息',
+          level: 'info',
+        },
+      },
+    ],
   };
 
   plugin.addRule(rule);
@@ -303,41 +282,41 @@ runner.test('启用/禁用规则', async () => {
   // 禁用规则
   plugin.getEngine().toggleRule('test-rule-4', false);
   let rules = plugin.getEngine().getAllRules();
-  if (rules[0].enabled) {
+  if (rules[0]!.enabled) {
     throw new Error('规则未禁用');
   }
 
   // 启用规则
   plugin.getEngine().toggleRule('test-rule-4', true);
   rules = plugin.getEngine().getAllRules();
-  if (!rules[0].enabled) {
+  if (!rules[0]!.enabled) {
     throw new Error('规则未启用');
   }
 });
 
 // 测试10: 事件过滤
-runner.test('事件过滤', async () => {
+it('事件过滤', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   plugin.observe({
     type: 'type1',
     source: 'source1',
     severity: 'info',
-    data: { value: 'test1' }
+    data: { value: 'test1' },
   });
 
   plugin.observe({
     type: 'type2',
     source: 'source1',
     severity: 'warning',
-    data: { value: 'test2' }
+    data: { value: 'test2' },
   });
 
   plugin.observe({
     type: 'type1',
     source: 'source2',
     severity: 'error',
-    data: { value: 'test3' }
+    data: { value: 'test3' },
   });
 
   // 按类型过滤
@@ -354,7 +333,7 @@ runner.test('事件过滤', async () => {
 });
 
 // 测试11: 决策指标
-runner.test('决策指标', async () => {
+it('决策指标', async () => {
   const plugin = new ProactiveIntelligencePlugin();
 
   const metrics = plugin.getEngine().getMetrics();
@@ -369,15 +348,15 @@ runner.test('决策指标', async () => {
 });
 
 // 测试12: 执行器配置
-runner.test('执行器配置', async () => {
+it('执行器配置', async () => {
   const plugin = new ProactiveIntelligencePlugin({
     executor: {
       enabled: true,
       safeMode: true,
       maxConcurrentActions: 5,
       allowedActions: ['notification'],
-      blockedActions: ['command']
-    }
+      blockedActions: ['command'],
+    },
   });
 
   const config = plugin.getExecutor().getConfig();
@@ -393,11 +372,5 @@ runner.test('执行器配置', async () => {
 
 // 辅助函数
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-// 运行所有测试
-runner.run().catch(error => {
-  console.error('测试运行失败:', error);
-  process.exit(1);
-});

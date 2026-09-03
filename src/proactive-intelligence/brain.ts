@@ -18,7 +18,7 @@ import {
   type GrowthSchedulerConfig,
   type GrowthAgentSpec,
   type TaskAssignment,
-  type AgentSnapshot
+  type AgentSnapshot,
 } from '../core/growth-market-scheduler';
 
 export interface BrainState {
@@ -104,7 +104,7 @@ export class GrowthSchedulerBrain implements MarketBrain {
       settledCount: settled,
       successRate: settled > 0 ? this.scheduler.getWindowSuccessRate(0, settled) : 1,
       openTasks: this.openTasks.size,
-      agents: this.scheduler.getSnapshot()
+      agents: this.scheduler.getSnapshot(),
     };
   }
 

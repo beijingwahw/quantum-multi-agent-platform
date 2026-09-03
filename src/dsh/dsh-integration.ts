@@ -1,7 +1,7 @@
-import { Agent, Task, QuantumMessage, MessageType } from '../types/quantum-types';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { logInfo, logWarn } from '../utils/logger';
+import { logInfo, logError } from '../utils/logger';
+import { ToolError } from '../utils/errors';
 
 // DSH工具参数描述
 interface DSHToolParameter {
@@ -30,6 +30,9 @@ export interface DSHWorkflow {
   }>;
 }
 
+/** DSH 工具调用参数：按工具定义校验后的自由键值对 */
+export type DSHToolParams = Record<string, unknown>;
+
 // DSH集成运行指标
 interface DSHIntegrationMetrics {
   toolsCount: number;
@@ -42,10 +45,10 @@ export class DSHIntegration extends EventEmitter {
   private tools: Map<string, DSHTool> = new Map();
   private workflows: Map<string, DSHWorkflow> = new Map();
   private agentMapping: Map<string, string> = new Map(); // quantum agent -> dsh agent
-  private config: any;
+  private config: unknown;
   private isInitialized: boolean = false;
 
-  constructor(config: any) {
+  constructor(config?: unknown) {
     super();
     this.config = config;
   }
@@ -54,19 +57,19 @@ export class DSHIntegration extends EventEmitter {
     if (this.isInitialized) return;
 
     try {
-      console.log('[DSHIntegration] Initializing DeepSeek Harness integration...');
-      
+      logInfo('DSHIntegration', 'Initializing DeepSeek Harness integration...');
+
       // 初始化DSH工具映射
       await this.initializeTools();
-      
+
       // 初始化工作流模板
       await this.initializeWorkflows();
-      
+
       this.isInitialized = true;
       this.emit('initialized');
-      console.log('[DSHIntegration] DeepSeek Harness integration initialized successfully');
+      logInfo('DSHIntegration', 'DeepSeek Harness integration initialized successfully');
     } catch (error) {
-      console.error('[DSHIntegration] Failed to initialize:', error);
+      logError('DSHIntegration', 'Failed to initialize:', error);
       throw error;
     }
   }
@@ -77,40 +80,36 @@ export class DSHIntegration extends EventEmitter {
       {
         name: 'read_file',
         description: 'Read a file from the filesystem',
-        parameters: [
-          { name: 'path', type: 'string', required: true }
-        ],
+        parameters: [{ name: 'path', type: 'string', required: true }],
         returnType: 'string',
-        category: 'filesystem'
+        category: 'filesystem',
       },
       {
         name: 'write_file',
         description: 'Write content to a file',
         parameters: [
           { name: 'path', type: 'string', required: true },
-          { name: 'content', type: 'string', required: true }
+          { name: 'content', type: 'string', required: true },
         ],
         returnType: 'boolean',
-        category: 'filesystem'
+        category: 'filesystem',
       },
       {
         name: 'execute_command',
         description: 'Execute a system command',
         parameters: [
           { name: 'command', type: 'string', required: true },
-          { name: 'workdir', type: 'string', required: false }
+          { name: 'workdir', type: 'string', required: false },
         ],
         returnType: 'string',
-        category: 'system'
+        category: 'system',
       },
       {
         name: 'web_search',
         description: 'Search the web for information',
-        parameters: [
-          { name: 'query', type: 'string', required: true }
-        ],
+        parameters: [{ name: 'query', type: 'string', required: true }],
         returnType: 'string',
-        category: 'web'
+        category: 'web',
       },
       {
         name: 'subagent',
@@ -118,18 +117,18 @@ export class DSHIntegration extends EventEmitter {
         parameters: [
           { name: 'description', type: 'string', required: true },
           { name: 'prompt', type: 'string', required: true },
-          { name: 'run_in_background', type: 'boolean', required: false, default: false }
+          { name: 'run_in_background', type: 'boolean', required: false, default: false },
         ],
         returnType: 'object',
-        category: 'agent'
-      }
+        category: 'agent',
+      },
     ];
 
-    defaultTools.forEach(tool => {
+    defaultTools.forEach((tool) => {
       this.tools.set(tool.name, tool);
     });
 
-    console.log(`[DSHIntegration] Initialized ${defaultTools.length} DSH tools`);
+    logInfo('DSHIntegration', `Initialized ${defaultTools.length} DSH tools`);
   }
 
   private async initializeWorkflows(): Promise<void> {
@@ -141,16 +140,16 @@ export class DSHIntegration extends EventEmitter {
           {
             id: '1',
             tool: 'read_file',
-            parameters: { path: 'src/**/*.ts' },
-            dependsOn: []
+            parameters: { path: 'package.json' },
+            dependsOn: [],
           },
           {
             id: '2',
             tool: 'execute_command',
             parameters: { command: 'npm run lint' },
-            dependsOn: ['1']
-          }
-        ]
+            dependsOn: ['1'],
+          },
+        ],
       },
       {
         id: 'testing_workflow',
@@ -160,15 +159,15 @@ export class DSHIntegration extends EventEmitter {
             id: '1',
             tool: 'execute_command',
             parameters: { command: 'npm test' },
-            dependsOn: []
+            dependsOn: [],
           },
           {
             id: '2',
             tool: 'execute_command',
             parameters: { command: 'npm run build' },
-            dependsOn: ['1']
-          }
-        ]
+            dependsOn: ['1'],
+          },
+        ],
       },
       {
         id: 'deployment_workflow',
@@ -178,23 +177,23 @@ export class DSHIntegration extends EventEmitter {
             id: '1',
             tool: 'execute_command',
             parameters: { command: 'npm run build' },
-            dependsOn: []
+            dependsOn: [],
           },
           {
             id: '2',
             tool: 'execute_command',
             parameters: { command: 'npm run deploy' },
-            dependsOn: ['1']
-          }
-        ]
-      }
+            dependsOn: ['1'],
+          },
+        ],
+      },
     ];
 
-    defaultWorkflows.forEach(workflow => {
+    defaultWorkflows.forEach((workflow) => {
       this.workflows.set(workflow.id, workflow);
     });
 
-    console.log(`[DSHIntegration] Initialized ${defaultWorkflows.length} DSH workflows`);
+    logInfo('DSHIntegration', `Initialized ${defaultWorkflows.length} DSH workflows`);
   }
 
   // Agent映射管理
@@ -218,24 +217,22 @@ export class DSHIntegration extends EventEmitter {
   // 工具调用
   async executeTool(
     toolName: string,
-    parameters: any,
-    quantumAgentId?: string
-  ): Promise<any> {
+    parameters: DSHToolParams,
+    quantumAgentId?: string,
+  ): Promise<unknown> {
     const tool = this.tools.get(toolName);
     if (!tool) {
-      throw new Error(`Tool '${toolName}' not found`);
+      throw new ToolError(`Tool '${toolName}' not found`);
     }
 
     // 验证参数
     this.validateToolParameters(tool, parameters);
 
     try {
-      let agentId = quantumAgentId;
-      
-      // 如果有映射，使用映射的DSH agent
-      if (quantumAgentId && this.agentMapping.has(quantumAgentId)) {
-        agentId = this.agentMapping.get(quantumAgentId)!;
-      }
+      // quantum agent → DSH agent 映射只在 agent 类工具上有意义
+      const mappedAgentId = quantumAgentId
+        ? (this.agentMapping.get(quantumAgentId) ?? quantumAgentId)
+        : undefined;
 
       // 根据工具类型执行不同的调用方式
       switch (tool.category) {
@@ -246,55 +243,67 @@ export class DSHIntegration extends EventEmitter {
         case 'web':
           return await this.executeWebTool(tool, parameters);
         case 'agent':
-          return await this.executeAgentTool(tool, parameters, agentId);
+          return await this.executeAgentTool(tool, parameters, mappedAgentId);
         default:
-          throw new Error(`Unknown tool category: ${tool.category}`);
+          throw new ToolError(`Unknown tool category: ${tool.category}`);
       }
     } catch (error) {
-      console.error(`[DSHIntegration] Error executing tool ${toolName}:`, error);
+      logError('DSHIntegration', `Error executing tool ${toolName}:`, error);
       throw error;
     }
   }
 
-  private validateToolParameters(tool: DSHTool, parameters: any): void {
-    tool.parameters.forEach(param => {
+  private validateToolParameters(tool: DSHTool, parameters: DSHToolParams): void {
+    if (parameters === null || typeof parameters !== 'object') {
+      throw new ToolError(`Parameters for tool '${tool.name}' must be an object`);
+    }
+    tool.parameters.forEach((param) => {
       if (param.required && !(param.name in parameters)) {
-        throw new Error(`Required parameter '${param.name}' missing for tool '${tool.name}'`);
+        throw new ToolError(`Required parameter '${param.name}' missing for tool '${tool.name}'`);
       }
     });
   }
 
-  private async executeFileSystemTool(tool: DSHTool, parameters: any): Promise<any> {
+  private async executeFileSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
     const { read_file, write_file } = await import('../tools/fs-tools');
-    
+
     switch (tool.name) {
       case 'read_file':
-        return await read_file(parameters.path);
+        return await read_file(String(parameters.path));
       case 'write_file':
-        return await write_file(parameters.path, parameters.content);
+        return await write_file(String(parameters.path), String(parameters.content));
       default:
-        throw new Error(`Unknown filesystem tool: ${tool.name}`);
+        throw new ToolError(`Unknown filesystem tool: ${tool.name}`);
     }
   }
 
-  private async executeSystemTool(tool: DSHTool, parameters: any): Promise<any> {
+  private async executeSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
     const { execute_command } = await import('../tools/system-tools');
-    return await execute_command(parameters.command, parameters.workdir);
+    const workdir = parameters.workdir;
+    return await execute_command(
+      String(parameters.command),
+      workdir === undefined ? undefined : String(workdir),
+    );
   }
 
-  private async executeWebTool(tool: DSHTool, parameters: any): Promise<any> {
+  private async executeWebTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
     const { web_search } = await import('../tools/web-tools');
-    return await web_search(parameters.query);
+    return await web_search(String(parameters.query));
   }
 
-  private async executeAgentTool(tool: DSHTool, parameters: any, agentId?: string): Promise<any> {
+  private async executeAgentTool(
+    tool: DSHTool,
+    parameters: DSHToolParams,
+    dshAgentId?: string,
+  ): Promise<unknown> {
     const { subagent } = await import('../tools/agent-tools');
-    
-    // 构造subagent调用参数
+
+    // 构造subagent调用参数（dshAgentId 提供调用方上下文，缺省由子代理自选）
     const subagentParams = {
-      description: parameters.description,
-      prompt: parameters.prompt,
-      run_in_background: parameters.run_in_background || false
+      description: String(parameters.description),
+      prompt: String(parameters.prompt),
+      run_in_background: parameters.run_in_background === true,
+      ...(dshAgentId !== undefined ? { requested_by: dshAgentId } : {}),
     };
 
     return await subagent(subagentParams);
@@ -303,14 +312,14 @@ export class DSHIntegration extends EventEmitter {
   // 工作流执行
   async executeWorkflow(
     workflowId: string,
-    quantumAgentId?: string
-  ): Promise<any> {
+    quantumAgentId?: string,
+  ): Promise<Array<[string, unknown]>> {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) {
-      throw new Error(`Workflow '${workflowId}' not found`);
+      throw new ToolError(`Workflow '${workflowId}' not found`);
     }
 
-    const results: Map<string, any> = new Map();
+    const results: Map<string, unknown> = new Map();
     const executedSteps = new Set<string>();
 
     // 按依赖关系排序执行步骤
@@ -322,28 +331,24 @@ export class DSHIntegration extends EventEmitter {
         if (step.dependsOn) {
           for (const depId of step.dependsOn) {
             if (!executedSteps.has(depId)) {
-              throw new Error(`Step ${step.id} depends on uncompleted step ${depId}`);
+              throw new ToolError(`Step ${step.id} depends on uncompleted step ${depId}`);
             }
           }
         }
 
         // 执行步骤
-        const result = await this.executeTool(
-          step.tool,
-          step.parameters,
-          quantumAgentId
-        );
+        const result = await this.executeTool(step.tool, step.parameters, quantumAgentId);
 
         results.set(step.id, result);
         executedSteps.add(step.id);
-        
-        this.emit('workflow_step_completed', { 
-          workflowId, 
-          stepId: step.id, 
-          result 
+
+        this.emit('workflow_step_completed', {
+          workflowId,
+          stepId: step.id,
+          result,
         });
       } catch (error) {
-        console.error(`[DSHIntegration] Error executing workflow step ${step.id}:`, error);
+        logError('DSHIntegration', `Error executing workflow step ${step.id}:`, error);
         throw error;
       }
     }
@@ -358,15 +363,19 @@ export class DSHIntegration extends EventEmitter {
     const result: T[] = [];
 
     // 构建图和入度
-    steps.forEach(step => {
+    steps.forEach((step) => {
       graph.set(step.id, new Set());
       inDegree.set(step.id, 0);
     });
 
-    steps.forEach(step => {
+    steps.forEach((step) => {
       if (step.dependsOn) {
-        step.dependsOn.forEach(depId => {
-          graph.get(depId)!.add(step.id);
+        step.dependsOn.forEach((depId) => {
+          const deps = graph.get(depId);
+          if (!deps) {
+            throw new ToolError(`Workflow step '${step.id}' depends on unknown step '${depId}'`);
+          }
+          deps.add(step.id);
           inDegree.set(step.id, (inDegree.get(step.id) || 0) + 1);
         });
       }
@@ -380,12 +389,14 @@ export class DSHIntegration extends EventEmitter {
     });
 
     // 拓扑排序
+    const stepById = new Map(steps.map((s) => [s.id, s]));
     while (queue.length > 0) {
       const stepId = queue.shift()!;
-      const step = steps.find(s => s.id === stepId)!;
+      const step = stepById.get(stepId);
+      if (!step) throw new ToolError(`Workflow references unknown step '${stepId}'`);
       result.push(step);
 
-      graph.get(stepId)!.forEach(neighborId => {
+      graph.get(stepId)!.forEach((neighborId) => {
         inDegree.set(neighborId, inDegree.get(neighborId)! - 1);
         if (inDegree.get(neighborId) === 0) {
           queue.push(neighborId);
@@ -394,7 +405,7 @@ export class DSHIntegration extends EventEmitter {
     }
 
     if (result.length !== steps.length) {
-      throw new Error('Workflow has circular dependencies');
+      throw new ToolError('Workflow has circular dependencies');
     }
 
     return result;
@@ -458,18 +469,21 @@ export class DSHIntegration extends EventEmitter {
     return this.workflows.get(id);
   }
 
-  getMetrics(): any {
+  getMetrics(): DSHIntegrationMetrics {
     return {
       toolsCount: this.tools.size,
       workflowsCount: this.workflows.size,
       agentMappingsCount: this.agentMapping.size,
-      isInitialized: this.isInitialized
+      isInitialized: this.isInitialized,
     };
   }
-}
 
-// 工具模块导出
-export * from '../tools/fs-tools';
-export * from '../tools/system-tools';
-export * from '../tools/web-tools';
-export * from '../tools/agent-tools';
+  /** 释放资源并清理事件监听（平台 stop() 时调用） */
+  shutdown(): void {
+    this.tools.clear();
+    this.workflows.clear();
+    this.agentMapping.clear();
+    this.isInitialized = false;
+    this.removeAllListeners();
+  }
+}

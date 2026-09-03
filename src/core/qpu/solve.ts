@@ -11,11 +11,17 @@
 
 import type { AssignmentProblem } from '../quantum-optimizer';
 import {
-  toIsing, decodeAssignment, isValidAssignment, welfareOf, bruteForceOptimum
+  toIsing,
+  decodeAssignment,
+  isValidAssignment,
+  welfareOf,
+  bruteForceOptimum,
 } from '../quantum-optimizer';
 import { buildSubspaceModel } from '../subspace-optimizer';
 import type { QuantumBackend, QpuSolveOptions } from './quantum-backend';
 import { LocalQuantumBackend } from './quantum-backend';
+import { BackendError } from '../../utils/errors';
+import { BRUTE_FORCE_QUBIT_LIMIT, SUBSPACE_DIMENSION_CAP } from '../constants';
 
 export interface QpuAssignmentResult {
   backend: string;
@@ -41,7 +47,7 @@ export interface QpuAssignmentResult {
 export async function solveAssignmentOnBackend(
   problem: AssignmentProblem,
   backend: QuantumBackend,
-  options: QpuSolveOptions = {}
+  options: QpuSolveOptions = {},
 ): Promise<QpuAssignmentResult> {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
@@ -49,7 +55,9 @@ export async function solveAssignmentOnBackend(
 
   // ---- 本地精确路径 ----
   if (backend instanceof LocalQuantumBackend) {
-    const solution = await backend.solveProblem(problem, options);
+    // 显式钉住采样数并原样上报：否则后端默认值(128)与报告值(100)不一致
+    const numReads = options.numReads ?? 128;
+    const solution = await backend.solveProblem(problem, { ...options, numReads });
     const model = buildSubspaceModel(problem);
     return {
       backend: backend.name,
@@ -57,12 +65,17 @@ export async function solveAssignmentOnBackend(
       assignment: solution.assignment,
       welfare: solution.welfare,
       sampleFrequency: solution.probability,
-      totalReads: options.numReads ?? 100,
+      totalReads: numReads,
       invalidSamples: 0,
-      optimality: model && model.optimalWelfare > 0
-        ? { achieved: solution.welfare, optimal: model.optimalWelfare, ratio: solution.optimalityRatio }
-        : undefined,
-      solver: backend.name
+      optimality:
+        model && model.optimalWelfare > 0
+          ? {
+              achieved: solution.welfare,
+              optimal: model.optimalWelfare,
+              ratio: solution.optimalityRatio,
+            }
+          : undefined,
+      solver: backend.name,
     };
   }
 
@@ -72,11 +85,14 @@ export async function solveAssignmentOnBackend(
 
   let invalidSamples = 0;
   // 按基态聚合出现次数（同一分配的重复样本合并计数）
-  const stateStats = new Map<number, { assignment: number[]; welfare: number; energy: number; occurrences: number }>();
+  const stateStats = new Map<
+    number,
+    { assignment: number[]; welfare: number; energy: number; occurrences: number }
+  >();
   const totalOccurrences = samples.occurrences.reduce((s, o) => s + o, 0) || 1;
 
   for (let s = 0; s < samples.spins.length; s++) {
-    const spins = samples.spins[s];
+    const spins = samples.spins[s]!;
     if (spins.length !== nqubits) {
       invalidSamples += samples.occurrences[s] ?? 1;
       continue;
@@ -98,34 +114,42 @@ export async function solveAssignmentOnBackend(
       existing.occurrences += samples.occurrences[s] ?? 1;
     } else {
       stateStats.set(state, {
-        assignment, welfare, energy, occurrences: samples.occurrences[s] ?? 1
+        assignment,
+        welfare,
+        energy,
+        occurrences: samples.occurrences[s] ?? 1,
       });
     }
   }
 
   if (stateStats.size === 0) {
-    throw new Error(
-      `QPU 采样 ${samples.spins.length} 个解全部非法（约束校验未通过）。` +
-      '真实硬件噪声下请增大 num_reads 或减小问题规模。'
+    throw new BackendError(
+      `QPU sampling returned ${samples.spins.length} solutions and all failed validation ` +
+        '(constraints not satisfied). With real-hardware noise, increase num_reads or ' +
+        'reduce the problem size.',
     );
   }
 
   // 最优分配：福利优先，平局取出现次数多者
-  let best: { assignment: number[]; welfare: number; energy: number; occurrences: number } | null = null;
+  let best: { assignment: number[]; welfare: number; energy: number; occurrences: number } | null =
+    null;
   for (const stats of stateStats.values()) {
-    if (!best || stats.welfare > best.welfare + 1e-12 ||
-        (Math.abs(stats.welfare - best.welfare) <= 1e-12 && stats.occurrences > best.occurrences)) {
+    if (
+      !best ||
+      stats.welfare > best.welfare + 1e-12 ||
+      (Math.abs(stats.welfare - best.welfare) <= 1e-12 && stats.occurrences > best.occurrences)
+    ) {
       best = stats;
     }
   }
-  if (!best) throw new Error('unreachable: stateStats 非空必有最优');
+  if (!best) throw new BackendError('unreachable: a non-empty stateStats always has a best entry');
 
   // ---- 本地精确最优对照（≤16 量子比特时穷举，≤子空间上限时枚举） ----
   let optimal: number | undefined;
-  if (nqubits <= 16) {
+  if (nqubits <= BRUTE_FORCE_QUBIT_LIMIT) {
     optimal = bruteForceOptimum(problem).welfare;
   } else {
-    const model = buildSubspaceModel(problem, { dimensionCap: 1 << 21 });
+    const model = buildSubspaceModel(problem, { dimensionCap: SUBSPACE_DIMENSION_CAP });
     if (model) optimal = model.optimalWelfare;
   }
 
@@ -137,9 +161,10 @@ export async function solveAssignmentOnBackend(
     sampleFrequency: best.occurrences / totalOccurrences,
     totalReads: totalOccurrences,
     invalidSamples,
-    optimality: optimal !== undefined && optimal > 0
-      ? { achieved: best.welfare, optimal, ratio: best.welfare / optimal }
-      : undefined,
-    solver: samples.solver
+    optimality:
+      optimal !== undefined && optimal > 0
+        ? { achieved: best.welfare, optimal, ratio: best.welfare / optimal }
+        : undefined,
+    solver: samples.solver,
   };
 }

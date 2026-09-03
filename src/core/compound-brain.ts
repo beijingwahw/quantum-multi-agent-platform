@@ -61,6 +61,10 @@
  */
 
 import { EventEmitter } from 'events';
+import type { FlowEdgeRef } from './min-cost-flow';
+import { MinCostFlow } from './min-cost-flow';
+import { MechanismError } from '../utils/errors';
+import { Mulberry32 } from '../utils/rng';
 
 // ----------------------------------------------------------------------------
 // 类型
@@ -116,7 +120,7 @@ export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   defaultTaskValue: 10,
   simAlpha: 0,
   simBeta: 0,
-  seed: 42
+  seed: 42,
 };
 
 export interface CompoundAssignment {
@@ -180,77 +184,6 @@ export interface CapabilityAdvice {
 }
 
 // ----------------------------------------------------------------------------
-// 最小费用流（自由处置：只沿负费用增广路推进，允许最优弃标）
-// ----------------------------------------------------------------------------
-
-interface FlowEdge {
-  to: number;
-  cap: number;
-  cost: number;
-  rev: number;
-}
-
-class MinCostFlow {
-  readonly graph: FlowEdge[][];
-
-  constructor(n: number) {
-    this.graph = Array.from({ length: n }, () => []);
-  }
-
-  addEdge(u: number, v: number, cap: number, cost: number): FlowEdge {
-    this.graph[u].push({ to: v, cap, cost, rev: this.graph[v].length });
-    this.graph[v].push({ to: u, cap: 0, cost: -cost, rev: this.graph[u].length - 1 });
-    return this.graph[u][this.graph[u].length - 1];
-  }
-
-  /** 返回 {flow, cost}；只推进总费用为负的增广路径 */
-  run(s: number, t: number): { flow: number; cost: number } {
-    let flow = 0;
-    let cost = 0;
-    const n = this.graph.length;
-    for (;;) {
-      const dist = Array<number>(n).fill(Infinity);
-      const inQueue = Array<boolean>(n).fill(false);
-      const prev: Array<{ node: number; edgeIdx: number } | null> = Array(n).fill(null);
-      dist[s] = 0;
-      const queue: number[] = [s];
-      while (queue.length > 0) {
-        const u = queue.shift()!;
-        inQueue[u] = false;
-        for (let i = 0; i < this.graph[u].length; i++) {
-          const e = this.graph[u][i];
-          if (e.cap > 0 && dist[u] + e.cost < dist[e.to] - 1e-9) {
-            dist[e.to] = dist[u] + e.cost;
-            prev[e.to] = { node: u, edgeIdx: i };
-            if (!inQueue[e.to]) {
-              queue.push(e.to);
-              inQueue[e.to] = true;
-            }
-          }
-        }
-      }
-      if (dist[t] === Infinity || dist[t] >= -1e-12) break;
-      let aug = Infinity;
-      for (let v = t; v !== s; ) {
-        const p = prev[v]!;
-        aug = Math.min(aug, this.graph[p.node][p.edgeIdx].cap);
-        v = p.node;
-      }
-      for (let v = t; v !== s; ) {
-        const p = prev[v]!;
-        const e = this.graph[p.node][p.edgeIdx];
-        e.cap -= aug;
-        this.graph[e.to][e.rev].cap += aug;
-        cost += aug * e.cost;
-        v = p.node;
-      }
-      flow += aug;
-    }
-    return { flow, cost };
-  }
-}
-
-// ----------------------------------------------------------------------------
 // 相变定律（闭式；与 experiments/train-vs-hire-phase/scaling-law.ts 同源）
 // ----------------------------------------------------------------------------
 
@@ -260,7 +193,13 @@ function geometricSum(beta: number, T: number): number {
 }
 
 /** L3：反超凭证劣势 δ 所需的最小孵化资本；不可行返回 null */
-export function lawKMin(q0: number, delta: number, alpha: number, beta: number, T: number): number | null {
+export function lawKMin(
+  q0: number,
+  delta: number,
+  alpha: number,
+  beta: number,
+  T: number,
+): number | null {
   if (delta <= 0) return 0;
   if (alpha <= 0 || beta <= 0) return null;
   const S = geometricSum(beta, T);
@@ -319,19 +258,31 @@ export class CompoundBrain extends EventEmitter {
   private readonly config: CompoundConfig;
   private readonly agents = new Map<string, AgentState>();
   private readonly caps = new Map<string, CapabilityState>();
-  private readonly pending = new Map<string, { agentId: string; capability: string; kBefore: number }>();
+  private readonly pending = new Map<
+    string,
+    { agentId: string; capability: string; kBefore: number; taskValue: number; trueCost: number }
+  >();
   private taskSeq = 0;
-  private rngState: number;
+  private readonly rngSource: Mulberry32;
+  /** 已实现福利累计（结算时按成败与真实成本入账；getState.netWelfare 口径） */
+  private netWelfareSum = 0;
 
   constructor(config: Partial<CompoundConfig> = {}) {
     super();
     this.config = { ...DEFAULT_COMPOUND_CONFIG, ...config };
-    this.rngState = this.config.seed >>> 0;
+    this.rngSource = new Mulberry32(this.config.seed);
   }
 
   // ---------- 注册与报价 ----------
 
   registerAgent(spec: CompoundAgentSpec, bid?: number): this {
+    // 重复id静默覆盖会清空该agent的资本/尝试计数，而 caps.observations
+    // 仍保留其历史——状态撕裂。重复注册是调用方bug，应立即暴露
+    if (this.agents.has(spec.id)) {
+      throw new MechanismError(
+        `CompoundBrain: agent '${spec.id}' is already registered (re-registration would wipe its learning capital)`,
+      );
+    }
     this.agents.set(spec.id, {
       spec,
       bid: bid ?? spec.trueCost,
@@ -339,11 +290,19 @@ export class CompoundBrain extends EventEmitter {
       capital: new Map(),
       attempts: new Map(),
       successes: new Map(),
-      obsHistory: new Map()
+      obsHistory: new Map(),
     });
     for (const c of spec.capabilities) {
       if (!this.caps.has(c)) {
-        this.caps.set(c, { observations: [], valueEwma: null, shareEwma: new Map(), alphaHat: 0, betaHat: 0, r2: 0, mixture: [] });
+        this.caps.set(c, {
+          observations: [],
+          valueEwma: null,
+          shareEwma: new Map(),
+          alphaHat: 0,
+          betaHat: 0,
+          r2: 0,
+          mixture: [],
+        });
       }
     }
     return this;
@@ -502,7 +461,7 @@ export class CompoundBrain extends EventEmitter {
    *
    * 返回最优拟合、null 对数似然与后验混合分量：
    * w_g ∝ exp(ll_g − ll_max)，仅含「自身通过学习门限」的分量——
-   * 2(ll_g − ll₀) ≥ 2.5（与 calibrate 的维持门限一致）。
+   * 2(ll_g − ll₀) ≥ 1.2（与 calibrate 的维持门限一致）。
    * 门限与定价必须自洽：deviance 门限是「拒绝 α=0」的假设检验，
    * 若定价混合再纳入 null/近-null 分量，等于检验后又把被拒绝的
    * 假设请回来——双重收缩把学习水平腰斩（实证 seed 33：混合覆盖
@@ -513,9 +472,7 @@ export class CompoundBrain extends EventEmitter {
    * β 网格 [0.001, 0.5]：β→∞ 是曲线的不可识别退化方向（阶跃函数），
    * 且真实 LLM 学习曲线 β∈[0.03, 0.3] 量级——超出即小样本过拟合。
    */
-  private fitGrid(
-    obs: Array<{ base: number; k: number; success: boolean }>
-  ): {
+  private fitGrid(obs: Array<{ base: number; k: number; success: boolean }>): {
     best: { alpha: number; beta: number; ll: number };
     llNull: number;
     mixture: CurveComponent[];
@@ -553,7 +510,7 @@ export class CompoundBrain extends EventEmitter {
     for (let ai = 0; ai <= 50; ai++) {
       const alpha = ai / 50;
       for (let bi = 0; bi <= 40; bi++) {
-        const ll = llGrid[idx++];
+        const ll = llGrid[idx++]!;
         if (ll < cutoff) continue;
         if (2 * (ll - llNull) < 1.2) continue;
         const weight = Math.exp(ll - best.ll);
@@ -625,10 +582,10 @@ export class CompoundBrain extends EventEmitter {
    */
   private solveWDP(
     tasks: CompoundTaskSpec[],
-    excludedAgentId: string | null
+    excludedAgentId: string | null,
   ): {
     W: number;
-    edges: Array<{ taskIdx: number; agentId: string; edge: FlowEdge; vQ: number; g: number }>;
+    edges: Array<{ taskIdx: number; agentId: string; edge: FlowEdgeRef; vQ: number; g: number }>;
   } {
     const agentList = [...this.agents.values()].filter((a) => a.spec.id !== excludedAgentId);
     const agentIdx = new Map(agentList.map((a, i) => [a.spec.id, i]));
@@ -646,17 +603,29 @@ export class CompoundBrain extends EventEmitter {
       mcf.addEdge(agentBase + agentIdx.get(a.spec.id)!, T, a.capacity, 0);
     }
 
-    const edges: Array<{ taskIdx: number; agentId: string; edge: FlowEdge; vQ: number; g: number }> = [];
+    const edges: Array<{
+      taskIdx: number;
+      agentId: string;
+      edge: FlowEdgeRef;
+      vQ: number;
+      g: number;
+    }> = [];
     for (let j = 0; j < tasks.length; j++) {
-      const c = tasks[j].capability;
+      const task = tasks[j]!;
+      const c = task.capability;
       const cs = this.caps.get(c);
       for (const a of agentList) {
         if (!a.spec.capabilities.includes(c)) continue;
         const q = this.qHat(a, c, a.capital.get(c) ?? 0);
         const g = cs ? this.growthValue(a, c) : 0;
         // 费用 = b − v·q̂ − g（福利的相反数）
-        const edge = mcf.addEdge(taskBase + j, agentBase + agentIdx.get(a.spec.id)!, 1, a.bid - tasks[j].value * q - g);
-        edges.push({ taskIdx: j, agentId: a.spec.id, edge, vQ: tasks[j].value * q, g });
+        const edge = mcf.addEdge(
+          taskBase + j,
+          agentBase + (agentIdx.get(a.spec.id) ?? 0),
+          1,
+          a.bid - task.value * q - g,
+        );
+        edges.push({ taskIdx: j, agentId: a.spec.id, edge, vQ: task.value * q, g });
       }
     }
 
@@ -666,14 +635,24 @@ export class CompoundBrain extends EventEmitter {
 
   allocateBatch(tasks: CompoundTaskSpec[]): CompoundAllocation {
     if (tasks.length === 0) {
-      return { assignments: [], payments: {}, totalPayment: 0, welfareAugmented: 0, welfareCurrent: 0, growthInvestment: 0, droppedTasks: 0 };
+      return {
+        assignments: [],
+        payments: {},
+        totalPayment: 0,
+        welfareAugmented: 0,
+        welfareCurrent: 0,
+        growthInvestment: 0,
+        droppedTasks: 0,
+      };
     }
 
     // 更新各能力价值 EWMA（公开量）
     for (const c of new Set(tasks.map((t) => t.capability))) {
       const cs = this.caps.get(c);
       if (!cs) continue;
-      const mean = tasks.filter((t) => t.capability === c).reduce((a, t) => a + t.value, 0) / tasks.filter((t) => t.capability === c).length;
+      const mean =
+        tasks.filter((t) => t.capability === c).reduce((a, t) => a + t.value, 0) /
+        tasks.filter((t) => t.capability === c).length;
       cs.valueEwma = cs.valueEwma === null ? mean : 0.8 * cs.valueEwma + 0.2 * mean;
     }
 
@@ -686,7 +665,8 @@ export class CompoundBrain extends EventEmitter {
     // Clarke pivot：逐赢家重解 W*_{−i}
     const payments: Record<string, number> = {};
     const assignmentByTask = new Map<number, { agentId: string; vQ: number; g: number }>();
-    for (const e of winners) assignmentByTask.set(e.taskIdx, { agentId: e.agentId, vQ: e.vQ, g: e.g });
+    for (const e of winners)
+      assignmentByTask.set(e.taskIdx, { agentId: e.agentId, vQ: e.vQ, g: e.g });
 
     for (const [agentId, k] of kOf) {
       const a = this.agents.get(agentId)!;
@@ -707,8 +687,13 @@ export class CompoundBrain extends EventEmitter {
       for (const a of this.agents.values()) {
         if (!a.spec.capabilities.includes(c)) continue;
         const frac = (counts.get(a.spec.id) ?? 0) / cTasks.length;
-        const prev = cs.shareEwma.get(a.spec.id) ?? 1 / [...this.agents.values()].filter((x) => x.spec.capabilities.includes(c)).length;
-        cs.shareEwma.set(a.spec.id, (1 - this.config.shareAlpha) * prev + this.config.shareAlpha * frac);
+        const prev =
+          cs.shareEwma.get(a.spec.id) ??
+          1 / [...this.agents.values()].filter((x) => x.spec.capabilities.includes(c)).length;
+        cs.shareEwma.set(
+          a.spec.id,
+          (1 - this.config.shareAlpha) * prev + this.config.shareAlpha * frac,
+        );
       }
     }
 
@@ -719,18 +704,25 @@ export class CompoundBrain extends EventEmitter {
     for (let j = 0; j < tasks.length; j++) {
       const asg = assignmentByTask.get(j);
       if (!asg) continue;
+      const task = tasks[j]!;
       const a = this.agents.get(asg.agentId)!;
       const taskId = `ct-${++this.taskSeq}`;
-      this.pending.set(taskId, { agentId: asg.agentId, capability: tasks[j].capability, kBefore: a.capital.get(tasks[j].capability) ?? 0 });
-      const estQuality = asg.vQ / tasks[j].value;
+      this.pending.set(taskId, {
+        agentId: asg.agentId,
+        capability: task.capability,
+        kBefore: a.capital.get(task.capability) ?? 0,
+        taskValue: task.value,
+        trueCost: a.spec.trueCost,
+      });
+      const estQuality = asg.vQ / task.value;
       assignments.push({
         taskId,
         agentId: asg.agentId,
-        capability: tasks[j].capability,
-        payment: payments[asg.agentId] / (kOf.get(asg.agentId) ?? 1),
-        taskValue: tasks[j].value,
+        capability: task.capability,
+        payment: (payments[asg.agentId] ?? 0) / (kOf.get(asg.agentId) ?? 1),
+        taskValue: task.value,
         estQuality,
-        growthValue: asg.g
+        growthValue: asg.g,
       });
       welfareCurrent += asg.vQ - a.bid;
       growthInvestment += asg.g;
@@ -745,7 +737,7 @@ export class CompoundBrain extends EventEmitter {
       welfareAugmented: full.W,
       welfareCurrent,
       growthInvestment,
-      droppedTasks: tasks.length - assignments.length
+      droppedTasks: tasks.length - assignments.length,
     };
   }
 
@@ -755,12 +747,16 @@ export class CompoundBrain extends EventEmitter {
     const p = this.pending.get(taskId);
     if (!p) return false;
     this.pending.delete(taskId);
-    const a = this.agents.get(p.agentId)!;
-    const cs = this.caps.get(p.capability)!;
+    const a = this.agents.get(p.agentId);
+    const cs = this.caps.get(p.capability);
+    if (!a || !cs) return false;
+    // 已实现福利：成败按真实动力学入账（成本用分配时点快照）
+    this.netWelfareSum += (success ? p.taskValue : 0) - p.trueCost;
     // 校准观测的归一化基准必须是「时不变」的凭证（而非随观测演化的
     // base 估计——后者会把学习水平吸收进基础质量，破坏 (α,β) 可识别性：
     // E[ŝ] = α(1−e^{−βk}) 要求基准不含 k 的信息）
-    const cred = a.spec.credentialQuality?.[p.capability] ?? a.spec.trueQuality[p.capability] ?? 0.5;
+    const cred =
+      a.spec.credentialQuality?.[p.capability] ?? a.spec.trueQuality[p.capability] ?? 0.5;
     a.attempts.set(p.capability, (a.attempts.get(p.capability) ?? 0) + 1);
     if (success) a.successes.set(p.capability, (a.successes.get(p.capability) ?? 0) + 1);
     a.capital.set(p.capability, (a.capital.get(p.capability) ?? 0) + 1);
@@ -768,22 +764,30 @@ export class CompoundBrain extends EventEmitter {
     hist.push({ k: p.kBefore, success });
     a.obsHistory.set(p.capability, hist);
     cs.observations.push({ base: cred, k: p.kBefore, success });
+    // 观测窗口封顶（FIFO）：校准是每结算一次的全网格重拟合，
+    // 无界增长会使长运行系统每次结算的CPU成本线性恶化
+    const OBS_CAP = 2000;
+    if (cs.observations.length > OBS_CAP) {
+      cs.observations.splice(0, cs.observations.length - OBS_CAP);
+    }
+    if (hist.length > OBS_CAP) {
+      hist.splice(0, hist.length - OBS_CAP);
+    }
     this.calibrate(p.capability);
-    this.emit(
-      'settled',
-      { taskId, agentId: p.agentId, capability: p.capability, success, capitalAtAssignment: p.kBefore } satisfies Settlement
-    );
+    this.emit('settled', {
+      taskId,
+      agentId: p.agentId,
+      capability: p.capability,
+      success,
+      capitalAtAssignment: p.kBefore,
+    } satisfies Settlement);
     return true;
   }
 
   // ---------- 模拟（实验用：真实动力学抽样，机制不可见） ----------
 
   private rng(): number {
-    this.rngState = (this.rngState + 0x6d2b79f5) >>> 0;
-    let t = this.rngState;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return this.rngSource.next();
   }
 
   /** 真实动力学下的成功率（仅 simulate 使用） */
@@ -811,7 +815,13 @@ export class CompoundBrain extends EventEmitter {
       const success = this.rng() < q;
       this.settle(asg.taskId, success);
       realized += (success ? asg.taskValue : 0) - a.spec.trueCost;
-      settlements.push({ taskId: asg.taskId, agentId: asg.agentId, capability: asg.capability, success, capitalAtAssignment: (a.capital.get(asg.capability) ?? 1) - 1 });
+      settlements.push({
+        taskId: asg.taskId,
+        agentId: asg.agentId,
+        capability: asg.capability,
+        success,
+        capitalAtAssignment: (a.capital.get(asg.capability) ?? 1) - 1,
+      });
     }
     return { allocation, settlements, realizedWelfare: realized };
   }
@@ -825,7 +835,7 @@ export class CompoundBrain extends EventEmitter {
       betaHat: cs.betaHat,
       r2: cs.r2,
       attempts: cs.observations.length,
-      learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15
+      learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15,
     }));
   }
 
@@ -843,7 +853,10 @@ export class CompoundBrain extends EventEmitter {
         const k = a.capital.get(c) ?? 0;
         const base = this.baseEstimate(a, c);
         // 最佳替代者的凭证优势（相对于 a）
-        const delta = Math.max(0, ...capable.filter((x) => x !== a).map((x) => this.baseEstimate(x, c) - base));
+        const delta = Math.max(
+          0,
+          ...capable.filter((x) => x !== a).map((x) => this.baseEstimate(x, c) - base),
+        );
         const kMin = lawKMin(base, delta, cs.alphaHat, cs.betaHat, T);
         const deltaMax = lawDeltaMax(base, k, cs.alphaHat, cs.betaHat, T);
         return {
@@ -851,9 +864,9 @@ export class CompoundBrain extends EventEmitter {
           capital: k,
           base,
           qNow: this.qHat(a, c, k),
-          qHorizon: this.qHat(a, c, k + T * 0.5),
+          qHorizon: this.qHat(a, c, k + T),
           kMin,
-          deltaMax
+          deltaMax,
         };
       });
       out.push({
@@ -864,9 +877,9 @@ export class CompoundBrain extends EventEmitter {
           betaHat: cs.betaHat,
           r2: cs.r2,
           attempts: cs.observations.length,
-          learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15
+          learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15,
         },
-        incubations
+        incubations,
       });
     }
     return out;
@@ -883,8 +896,14 @@ export class CompoundBrain extends EventEmitter {
   } | null {
     const alloc = this.allocateBatch([{ capability, value: this.config.defaultTaskValue }]);
     if (alloc.assignments.length === 0) return null;
-    const a = alloc.assignments[0];
-    return { taskId: a.taskId, winnerId: a.agentId, capability, payment: a.payment, socialValue: a.taskValue * a.estQuality };
+    const a = alloc.assignments[0]!;
+    return {
+      taskId: a.taskId,
+      winnerId: a.agentId,
+      capability,
+      payment: a.payment,
+      socialValue: a.taskValue * a.estQuality,
+    };
   }
 
   settleTask(taskId: string, success: boolean): boolean {
@@ -910,14 +929,14 @@ export class CompoundBrain extends EventEmitter {
       capabilities: a.spec.capabilities,
       capital: Object.fromEntries(a.capital),
       attempts: Object.fromEntries(a.attempts),
-      successes: Object.fromEntries(a.successes)
+      successes: Object.fromEntries(a.successes),
     }));
     return {
       settledCount: attempts,
       openTasks: this.pending.size,
       successRate: attempts > 0 ? successes / attempts : 1,
-      netWelfare: 0,
-      agents
+      netWelfare: this.netWelfareSum,
+      agents,
     };
   }
 }

@@ -1,5 +1,7 @@
+/**
+ * ⚠️ 本地模拟实现：web_search 不发起任何网络请求，返回构造的占位结果。
+ * 接入真实搜索 API 时必须校验目标主机（SSRF 防护）。
+ */
 export async function web_search(query: string): Promise<string> {
-  // 这里可以集成真实的搜索引擎API
-  // 目前返回模拟结果
-  return `Search results for "${query}":\n1. Result 1 about ${query}\n2. Result 2 about ${query}\n3. Result 3 about ${query}`;
+  return `[mock] Search results for "${query}":\n1. Result 1 about ${query}\n2. Result 2 about ${query}\n3. Result 3 about ${query}`;
 }

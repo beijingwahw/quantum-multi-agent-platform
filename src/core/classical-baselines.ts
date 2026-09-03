@@ -17,6 +17,7 @@
 
 import type { AssignmentProblem } from './quantum-optimizer';
 import { welfareOf } from './quantum-optimizer';
+import { InfeasibleProblemError, QuantumEngineError } from '../utils/errors';
 
 const BIG = 1e9;
 
@@ -29,15 +30,15 @@ const BIG = 1e9;
  * @returns assignment[t] = agent 索引
  */
 export function hungarianAssignment(weights: number[][], ineligible: boolean[][]): number[] {
-  const m = weights.length;    // 任务数（行）
-  const n = weights[0].length; // agent数（列）
+  const m = weights.length; // 任务数（行）
   if (m === 0) return [];
-  if (m > n) throw new Error('hungarianAssignment requires tasks <= agents');
+  const n = weights[0]!.length; // agent数（列）
+  if (m > n) throw new InfeasibleProblemError('hungarianAssignment requires tasks <= agents');
 
   const cost: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      cost[i][j] = ineligible[i - 1][j - 1] ? BIG : -weights[i - 1][j - 1];
+      cost[i]![j] = ineligible[i - 1]![j - 1]! ? BIG : -weights[i - 1]![j - 1]!;
     }
   }
 
@@ -54,42 +55,54 @@ export function hungarianAssignment(weights: number[][], ineligible: boolean[][]
     let guard = 0;
     do {
       used[j0] = true;
-      const i0 = p[j0];
+      const i0 = p[j0]!;
       let delta = Infinity;
       let j1 = -1;
       for (let j = 1; j <= n; j++) {
         if (used[j]) continue;
-        const cur = cost[i0][j] - u[i0] - v[j];
-        if (cur < minv[j]) {
+        const cur = cost[i0]![j]! - u[i0]! - v[j]!;
+        if (cur < minv[j]!) {
           minv[j] = cur;
           way[j] = j0;
         }
-        if (minv[j] < delta) {
-          delta = minv[j];
+        if (minv[j]! < delta) {
+          delta = minv[j]!;
           j1 = j;
         }
       }
       for (let j = 0; j <= n; j++) {
         if (used[j]) {
-          u[p[j]] += delta;
-          v[j] -= delta;
+          u[p[j]!]! += delta;
+          v[j]! -= delta;
         } else {
-          minv[j] -= delta;
+          minv[j]! -= delta;
         }
       }
       j0 = j1;
-      if (++guard > n + 2) throw new Error('hungarian: augmenting path not found (numeric issue)');
-    } while (p[j0] !== 0);
+      if (++guard > n + 2)
+        throw new QuantumEngineError('hungarian: augmenting path not found (numeric issue)');
+    } while (p[j0]! !== 0);
     do {
-      const j1 = way[j0];
-      p[j0] = p[j1];
+      const j1 = way[j0]!;
+      p[j0] = p[j1]!;
       j0 = j1;
     } while (j0 !== 0);
   }
 
   const assignment = new Array<number>(m).fill(-1);
   for (let j = 1; j <= n; j++) {
-    if (p[j] > 0) assignment[p[j] - 1] = j - 1;
+    if (p[j]! > 0) assignment[p[j]! - 1] = j - 1;
+  }
+  // 不可行检测：无完美可行匹配时，算法会把任务压进 BIG 定价的格子。
+  // 此时返回的"最优"毫无意义——静默返回会让上层把它当真值对照。
+  for (let t = 0; t < m; t++) {
+    const agent = assignment[t]!;
+    if (agent >= 0 && ineligible[t]![agent]!) {
+      throw new InfeasibleProblemError(
+        `hungarianAssignment: no feasible assignment exists ` +
+          `(task ${t} has no eligible free agent)`,
+      );
+    }
   }
   return assignment;
 }
@@ -104,9 +117,9 @@ function greedyStart(problem: AssignmentProblem): number[] {
     let best = -1;
     let bestW = -Infinity;
     for (let a = 0; a < n; a++) {
-      if (problem.ineligible[t][a] || used.has(a)) continue;
-      if (problem.weights[t][a] > bestW) {
-        bestW = problem.weights[t][a];
+      if (problem.ineligible[t]![a]! || used.has(a)) continue;
+      if (problem.weights[t]![a]! > bestW) {
+        bestW = problem.weights[t]![a]!;
         best = a;
       }
     }
@@ -126,7 +139,7 @@ export function localSearchAssignment(problem: AssignmentProblem): number[] {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const assignment = greedyStart(problem);
-  if (assignment.some(a => a < 0)) return assignment; // 不可行起点
+  if (assignment.some((a) => a < 0)) return assignment; // 不可行起点
 
   let current = welfareOf(problem, assignment);
   let improved = true;
@@ -137,17 +150,20 @@ export function localSearchAssignment(problem: AssignmentProblem): number[] {
 
     // 单任务移动到空闲agent
     const owner = new Map<number, number>();
-    for (let t = 0; t < m; t++) owner.set(assignment[t], t);
+    for (let t = 0; t < m; t++) owner.set(assignment[t]!, t);
     for (let t = 0; t < m; t++) {
       for (let a = 0; a < n; a++) {
-        if (problem.ineligible[t][a] || owner.has(a)) continue;
+        if (problem.ineligible[t]![a]! || owner.has(a)) continue;
         const candidate = assignment.slice();
         candidate[t] = a;
         const delta = welfareOf(problem, candidate) - current;
         if (delta > bestDelta) {
           bestDelta = delta;
-          const ct = t, ca = a;
-          bestMove = () => { assignment[ct] = ca; };
+          const ct = t,
+            ca = a;
+          bestMove = () => {
+            assignment[ct] = ca;
+          };
         }
       }
     }
@@ -155,15 +171,20 @@ export function localSearchAssignment(problem: AssignmentProblem): number[] {
     for (let t1 = 0; t1 < m; t1++) {
       for (let t2 = t1 + 1; t2 < m; t2++) {
         const candidate = assignment.slice();
-        const tmp = candidate[t1];
-        candidate[t1] = candidate[t2];
+        const tmp = candidate[t1]!;
+        candidate[t1] = candidate[t2]!;
         candidate[t2] = tmp;
-        if (problem.ineligible[t1][candidate[t1]] || problem.ineligible[t2][candidate[t2]]) continue;
+        if (problem.ineligible[t1]![candidate[t1]!] || problem.ineligible[t2]![candidate[t2]!])
+          continue;
         const delta = welfareOf(problem, candidate) - current;
         if (delta > bestDelta) {
           bestDelta = delta;
-          const c1 = candidate[t1], c2 = candidate[t2];
-          bestMove = () => { assignment[t1] = c1; assignment[t2] = c2; };
+          const c1 = candidate[t1]!,
+            c2 = candidate[t2]!;
+          bestMove = () => {
+            assignment[t1] = c1;
+            assignment[t2] = c2;
+          };
         }
       }
     }

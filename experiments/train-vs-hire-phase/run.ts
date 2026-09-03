@@ -59,7 +59,7 @@ export const PHASE_DEFAULTS: Omit<PhaseParams, 'alpha' | 'beta' | 'seeds'> = {
   delta: 0.12,
   cost: 1.0,
   K: 60,
-  T: 150
+  T: 150,
 };
 
 const BASE = {
@@ -67,7 +67,7 @@ const BASE = {
   priorQuality: 0.5,
   priorWeight: 3,
   exploreCoefficient: 0,
-  switchCostRate: 0
+  switchCostRate: 0,
 };
 
 function vetSpec(p: PhaseParams): BatchAgentSpec {
@@ -77,7 +77,7 @@ function vetSpec(p: PhaseParams): BatchAgentSpec {
     trueCost: p.cost,
     capacity: 1,
     trueQuality: { X: p.q0 },
-    credentialQuality: { X: p.q0 }
+    credentialQuality: { X: p.q0 },
   };
 }
 
@@ -88,7 +88,7 @@ function hireSpec(p: PhaseParams): BatchAgentSpec {
     trueCost: p.cost,
     capacity: 1,
     trueQuality: { X: p.q0 + p.delta },
-    credentialQuality: { X: p.q0 + p.delta }
+    credentialQuality: { X: p.q0 + p.delta },
   };
 }
 
@@ -98,7 +98,7 @@ function makeScheduler(p: PhaseParams, seed: number): BatchVCGScheduler {
     learningCeiling: p.alpha,
     learningRate: p.beta,
     exploreCoefficient: p.explore ?? 0,
-    seed
+    seed,
   });
 }
 
@@ -134,9 +134,11 @@ export function theoreticalDiffRate(p: PhaseParams): number {
 // ---------- 模拟臂 ----------
 
 /** 培训臂 vs 雇佣臂：每单成功率与差值（种子平均） */
-export function counterfactual(
-  p: PhaseParams
-): { trainRate: number; hireRate: number; diffRate: number } {
+export function counterfactual(p: PhaseParams): {
+  trainRate: number;
+  hireRate: number;
+  diffRate: number;
+} {
   let trainSucc = 0;
   let trainN = 0;
   for (const seed of p.seeds) {
@@ -166,9 +168,11 @@ export function counterfactual(
 }
 
 /** 市场臂：vet 份额 / hire 试用次数 / 平均每单福利 */
-export function market(
-  p: PhaseParams
-): { vetShare: number; hireTrials: number; welfarePerTask: number } {
+export function market(p: PhaseParams): {
+  vetShare: number;
+  hireTrials: number;
+  welfarePerTask: number;
+} {
   let vetWins = 0;
   let hireWins = 0;
   let welfare = 0;
@@ -189,7 +193,7 @@ export function market(
   return {
     vetShare: total > 0 ? vetWins / total : 0,
     hireTrials: hireWins / p.seeds.length,
-    welfarePerTask: welfare / (total > 0 ? total : 1)
+    welfarePerTask: welfare / (total > 0 ? total : 1),
   };
 }
 
@@ -228,11 +232,11 @@ function main(): void {
     alpha,
     beta,
     seeds: SEEDS,
-    explore
+    explore,
   });
 
   console.log(
-    `培训 vs 雇佣 相变扫描 | q0=${PHASE_DEFAULTS.q0} δ=${PHASE_DEFAULTS.delta} K=${PHASE_DEFAULTS.K} T=${PHASE_DEFAULTS.T} seeds=${SEEDS.length}`
+    `培训 vs 雇佣 相变扫描 | q0=${PHASE_DEFAULTS.q0} δ=${PHASE_DEFAULTS.delta} K=${PHASE_DEFAULTS.K} T=${PHASE_DEFAULTS.T} seeds=${SEEDS.length}`,
   );
   console.log(`图例：█ 培训显著赢(≥+3pp)  + 培训弱赢  o 边界  − 雇佣弱赢  = 雇佣显著赢\n`);
 
@@ -266,29 +270,21 @@ function main(): void {
   console.log('【经验相图】培训臂 − 雇佣臂 每单成功率差（模拟，种子平均）');
   console.log(header);
   for (const alpha of [...ALPHAS].reverse()) {
-    console.log(
-      row(alpha.toFixed(1), (beta) => empChar(emp.get(`${alpha}|${beta}`)!))
-    );
+    console.log(row(alpha.toFixed(1), (beta) => empChar(emp.get(`${alpha}|${beta}`)!)));
   }
 
   console.log('\n【理论相图】Σadv(k)/T（闭式几何和）');
   console.log(header);
   for (const alpha of [...ALPHAS].reverse()) {
-    console.log(
-      row(alpha.toFixed(1), (beta) => theoChar(theo.get(`${alpha}|${beta}`)!))
-    );
+    console.log(row(alpha.toFixed(1), (beta) => theoChar(theo.get(`${alpha}|${beta}`)!)));
   }
 
-  console.log(
-    `\n符号一致性：${agree}/${solid}（理论 |diff|>2pp 的格子）`
-  );
+  console.log(`\n符号一致性：${agree}/${solid}（理论 |diff|>2pp 的格子）`);
 
   console.log('\n【市场臂】在位者份额（L 锁定≥80% / m 混合 / T 易主≤20%，explore=0）');
   console.log(header);
   for (const alpha of [...ALPHAS].reverse()) {
-    console.log(
-      row(alpha.toFixed(1), (beta) => shareChar(share.get(`${alpha}|${beta}`)!))
-    );
+    console.log(row(alpha.toFixed(1), (beta) => shareChar(share.get(`${alpha}|${beta}`)!)));
   }
 
   // 相变边界提取：每个 α 的培训获胜 β 区间（经验 vs 理论）
@@ -310,12 +306,12 @@ function main(): void {
   for (const [alpha, beta] of [
     [0.5, 0.27],
     [0.7, 0.12],
-    [0.9, 0.27]
+    [0.9, 0.27],
   ] as Array<[number, number]>) {
     for (const explore of [0, 1.5]) {
       const mk = market(cell(alpha, beta, explore));
       console.log(
-        `| ${alpha} | ${beta} | ${explore} | ${mk.hireTrials.toFixed(1)} | ${mk.vetShare.toFixed(2)} | ${mk.welfarePerTask.toFixed(2)} |`
+        `| ${alpha} | ${beta} | ${explore} | ${mk.hireTrials.toFixed(1)} | ${mk.vetShare.toFixed(2)} | ${mk.welfarePerTask.toFixed(2)} |`,
       );
     }
   }

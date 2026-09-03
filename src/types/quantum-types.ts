@@ -26,21 +26,11 @@ export interface Agent {
   lastHeartbeat: Date;
 }
 
-export type AgentType = 
-  | 'developer'
-  | 'tester'
-  | 'deployer'
-  | 'monitor'
-  | 'security'
-  | 'devops'
-  | 'custom';
+export type AgentType =
+  'developer' | 'tester' | 'deployer' | 'monitor' | 'security' | 'devops' | 'custom';
 
-export type AgentState = 
-  | 'idle'
-  | 'working'
-  | 'overloaded'
-  | 'offline'
-  | 'maintenance';
+/** agent 状态机：offline 仅经 setAgentState 显式设置（远端失联） */
+export type AgentState = 'idle' | 'working' | 'overloaded' | 'offline';
 
 export interface Task {
   id: string;
@@ -68,7 +58,8 @@ export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'fai
 export interface TaskRequirement {
   type: 'capability' | 'resource' | 'location' | 'quantum';
   name: string;
-  value: unknown;
+  /** 附加匹配值（resource/location/quantum 类需求使用；capability 可省略） */
+  value?: unknown;
   weight: number;
 }
 
@@ -84,7 +75,7 @@ export interface QuantumMessage {
   quantumState: QuantumState;
 }
 
-export type MessageType = 
+export type MessageType =
   | 'task_assignment'
   | 'task_completed'
   | 'task_failed'
@@ -112,46 +103,6 @@ export interface SchedulingDecision {
   }>;
 }
 
-export interface SystemMetrics {
-  totalAgents: number;
-  activeAgents: number;
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  averageResponseTime: number;
-  systemLoad: number;
-  quantumEfficiency: number;
-  entanglementCount: number;
-}
-
-export interface Config {
-  scheduling: {
-    quantumAlgorithm: 'wave-function' | 'probability' | 'hybrid' | 'quantum-qaoa' | 'quantum-annealing';
-    maxConcurrentTasks: number;
-    taskTimeout: number;
-    loadBalancingStrategy: 'round-robin' | 'least-loaded' | 'capability-based';
-  };
-  communication: {
-    heartbeatInterval: number;
-    messageTtl: number;
-    quantumRange: number;
-    maxMessageSize: number;
-    port: number;
-  };
-  dsh: {
-    apiEndpoint: string;
-    apiTimeout: number;
-    toolIntegration: boolean;
-    workflowEngine: boolean;
-  };
-  performance: {
-    maxAgentCount: number;
-    taskQueueSize: number;
-    metricsInterval: number;
-    retentionDays: number;
-  };
-}
-
 export interface QuantumEntanglement {
   id: string;
   agentId1: string;
@@ -160,15 +111,4 @@ export interface QuantumEntanglement {
   lastInteraction: Date;
   correlation: number;
   sharedResources: string[];
-}
-
-export interface TaskResult {
-  taskId: string;
-  agentId: string;
-  success: boolean;
-  result: unknown;
-  duration: number;
-  quantumCoherence: number;
-  energyConsumed: number;
-  notes?: string;
 }

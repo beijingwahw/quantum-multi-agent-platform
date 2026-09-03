@@ -4,7 +4,7 @@
  * 提供常见场景的预定义规则，可以直接使用或作为模板
  */
 
-import { Rule } from './index';
+import type { Rule } from './index';
 
 // ============================================================================
 // 系统健康监控规则
@@ -26,15 +26,15 @@ export const highCpuUsageRule: Rule = {
       operator: 'greaterThan',
       field: 'system_metrics.cpu',
       value: 80,
-      logicalOperator: 'AND'
+      logicalOperator: 'AND',
     },
     {
       // 至少 5 个事件（修复：此前用 equals 5，只有恰好第 5 个事件时才触发）
       type: 'state',
       operator: 'between',
       field: 'monitorStats.byType.system_metrics',
-      value: [5, Infinity]
-    }
+      value: [5, Infinity],
+    },
   ],
   actions: [
     {
@@ -43,9 +43,9 @@ export const highCpuUsageRule: Rule = {
       parameters: {
         title: '⚠️ CPU使用率警告',
         message: 'CPU使用率超过80%，请检查系统负载',
-        level: 'warning'
+        level: 'warning',
       },
-      timeout: 5000
+      timeout: 5000,
     },
     {
       type: 'workflow',
@@ -53,11 +53,11 @@ export const highCpuUsageRule: Rule = {
       parameters: {
         workflowId: 'system-diagnostics',
         parameters: {
-          focus: 'cpu'
-        }
-      }
-    }
-  ]
+          focus: 'cpu',
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -76,7 +76,7 @@ export const lowMemoryWarningRule: Rule = {
       operator: 'lessThan',
       field: 'system_metrics.memory.available',
       value: 512, // MB
-    }
+    },
   ],
   actions: [
     {
@@ -85,8 +85,8 @@ export const lowMemoryWarningRule: Rule = {
       parameters: {
         title: '💾 内存不足警告',
         message: '可用内存低于512MB，正在执行清理...',
-        level: 'warning'
-      }
+        level: 'warning',
+      },
     },
     {
       type: 'workflow',
@@ -94,11 +94,11 @@ export const lowMemoryWarningRule: Rule = {
       parameters: {
         workflowId: 'cache-cleanup',
         parameters: {
-          aggressive: true
-        }
-      }
-    }
-  ]
+          aggressive: true,
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -116,8 +116,8 @@ export const lowDiskSpaceRule: Rule = {
       type: 'event',
       operator: 'greaterThan',
       field: 'system_metrics.disk.usage',
-      value: 85
-    }
+      value: 85,
+    },
   ],
   actions: [
     {
@@ -126,18 +126,21 @@ export const lowDiskSpaceRule: Rule = {
       parameters: {
         title: '💿 磁盘空间不足',
         message: '磁盘使用率超过85%，请及时清理',
-        level: 'warning'
-      }
+        level: 'warning',
+      },
     },
     {
       type: 'command',
       name: 'analyze_disk',
+      // command 动作经 system-tools 加固管道执行：程序须在白名单
+      // （npm/node/npx/tsc/tsx/git/ls/echo，可用 configureCommandPolicy 扩展），
+      // 且禁止 shell 通配符/元字符——目录请写具体路径。
       parameters: {
-        command: 'du',
-        args: ['-sh', '/data/*']
-      }
-    }
-  ]
+        command: 'ls',
+        args: ['-la', '/data'],
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -159,8 +162,8 @@ export const agentOfflineRule: Rule = {
       type: 'event',
       operator: 'contains',
       field: 'agent_status.state',
-      value: 'offline'
-    }
+      value: 'offline',
+    },
   ],
   actions: [
     {
@@ -169,8 +172,8 @@ export const agentOfflineRule: Rule = {
       parameters: {
         title: '🔌 Agent离线',
         message: '检测到Agent离线，正在尝试重连...',
-        level: 'error'
-      }
+        level: 'error',
+      },
     },
     {
       type: 'workflow',
@@ -178,11 +181,11 @@ export const agentOfflineRule: Rule = {
       parameters: {
         workflowId: 'agent-restart',
         parameters: {
-          maxRetries: 3
-        }
-      }
-    }
-  ]
+          maxRetries: 3,
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -200,8 +203,8 @@ export const agentOverloadedRule: Rule = {
       type: 'event',
       operator: 'greaterThan',
       field: 'agent_status.load',
-      value: 90
-    }
+      value: 90,
+    },
   ],
   actions: [
     {
@@ -210,8 +213,8 @@ export const agentOverloadedRule: Rule = {
       parameters: {
         title: '📊 Agent过载',
         message: 'Agent负载超过90%，正在调整任务分配...',
-        level: 'warning'
-      }
+        level: 'warning',
+      },
     },
     {
       type: 'workflow',
@@ -219,11 +222,11 @@ export const agentOverloadedRule: Rule = {
       parameters: {
         workflowId: 'task-rebalancing',
         parameters: {
-          strategy: 'least-loaded'
-        }
-      }
-    }
-  ]
+          strategy: 'least-loaded',
+        },
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -245,14 +248,15 @@ export const taskTimeoutRule: Rule = {
       type: 'event',
       operator: 'equals',
       field: 'task.status',
-      value: 'running'
+      value: 'running',
     },
     {
+      // task 摘要来自最近一条 task 事件的载荷（data.duration 毫秒）
       type: 'state',
       operator: 'greaterThan',
       field: 'task.duration',
-      value: 3600000 // 1小时
-    }
+      value: 3600000, // 1小时
+    },
   ],
   actions: [
     {
@@ -261,8 +265,8 @@ export const taskTimeoutRule: Rule = {
       parameters: {
         title: '⏰ 任务超时',
         message: '检测到任务运行超过1小时',
-        level: 'warning'
-      }
+        level: 'warning',
+      },
     },
     {
       type: 'workflow',
@@ -270,11 +274,11 @@ export const taskTimeoutRule: Rule = {
       parameters: {
         workflowId: 'task-analysis',
         parameters: {
-          collectStackTrace: true
-        }
-      }
-    }
-  ]
+          collectStackTrace: true,
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -292,14 +296,15 @@ export const taskRetryRule: Rule = {
       type: 'event',
       operator: 'equals',
       field: 'task.status',
-      value: 'failed'
+      value: 'failed',
     },
     {
+      // task 摘要来自最近一条 task 事件的载荷（data.retryCount）
       type: 'state',
       operator: 'lessThan',
       field: 'task.retryCount',
-      value: 3
-    }
+      value: 3,
+    },
   ],
   actions: [
     {
@@ -308,11 +313,11 @@ export const taskRetryRule: Rule = {
       parameters: {
         workflowId: 'task-retry',
         parameters: {
-          backoffStrategy: 'exponential'
-        }
-      }
-    }
-  ]
+          backoffStrategy: 'exponential',
+        },
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -334,8 +339,8 @@ export const suspiciousLoginRule: Rule = {
       type: 'event',
       operator: 'contains',
       field: 'auth.location',
-      value: 'unknown'
-    }
+      value: 'unknown',
+    },
   ],
   actions: [
     {
@@ -344,8 +349,8 @@ export const suspiciousLoginRule: Rule = {
       parameters: {
         title: '🔒 安全警告：异常登录',
         message: '检测到来自未知位置的登录尝试',
-        level: 'critical'
-      }
+        level: 'critical',
+      },
     },
     {
       type: 'workflow',
@@ -354,11 +359,11 @@ export const suspiciousLoginRule: Rule = {
         workflowId: 'security-lock',
         parameters: {
           action: 'temporary_lock',
-          duration: 1800 // 30分钟
-        }
-      }
-    }
-  ]
+          duration: 1800, // 30分钟
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -376,8 +381,8 @@ export const privilegeEscalationRule: Rule = {
       type: 'event',
       operator: 'contains',
       field: 'audit.action',
-      value: 'privilege_escalation'
-    }
+      value: 'privilege_escalation',
+    },
   ],
   actions: [
     {
@@ -386,8 +391,8 @@ export const privilegeEscalationRule: Rule = {
       parameters: {
         title: '🚨 安全警告：权限提升',
         message: '检测到权限提升操作，请立即审查',
-        level: 'critical'
-      }
+        level: 'critical',
+      },
     },
     {
       type: 'workflow',
@@ -395,11 +400,11 @@ export const privilegeEscalationRule: Rule = {
       parameters: {
         workflowId: 'security-audit',
         parameters: {
-          scope: 'privileges'
-        }
-      }
-    }
-  ]
+          scope: 'privileges',
+        },
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -421,14 +426,15 @@ export const autoScaleUpRule: Rule = {
       type: 'event',
       operator: 'greaterThan',
       field: 'system_metrics.systemLoad',
-      value: 0.8
+      value: 0.8,
     },
     {
+      // 数值标量字段（runningExecutions 是数组，Number([])语义不可靠）
       type: 'state',
       operator: 'lessThan',
-      field: 'runningExecutions',
-      value: 5
-    }
+      field: 'runningExecutionCount',
+      value: 5,
+    },
   ],
   actions: [
     {
@@ -437,8 +443,8 @@ export const autoScaleUpRule: Rule = {
       parameters: {
         title: '📈 自动扩容',
         message: '系统负载高，正在增加资源...',
-        level: 'info'
-      }
+        level: 'info',
+      },
     },
     {
       type: 'workflow',
@@ -447,11 +453,11 @@ export const autoScaleUpRule: Rule = {
         workflowId: 'auto-scaling',
         parameters: {
           direction: 'up',
-          instances: 2
-        }
-      }
-    }
-  ]
+          instances: 2,
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -469,14 +475,14 @@ export const autoScaleDownRule: Rule = {
       type: 'event',
       operator: 'lessThan',
       field: 'system_metrics.systemLoad',
-      value: 0.3
+      value: 0.3,
     },
     {
       type: 'time',
       operator: 'equals',
       field: 'isBusinessHours',
-      value: false
-    }
+      value: false,
+    },
   ],
   actions: [
     {
@@ -485,8 +491,8 @@ export const autoScaleDownRule: Rule = {
       parameters: {
         title: '📉 自动缩容',
         message: '系统负载低，正在减少资源以节省成本...',
-        level: 'info'
-      }
+        level: 'info',
+      },
     },
     {
       type: 'workflow',
@@ -495,11 +501,11 @@ export const autoScaleDownRule: Rule = {
         workflowId: 'auto-scaling',
         parameters: {
           direction: 'down',
-          instances: 1
-        }
-      }
-    }
-  ]
+          instances: 1,
+        },
+      },
+    },
+  ],
 };
 
 /**
@@ -517,14 +523,14 @@ export const backupReminderRule: Rule = {
       type: 'time',
       operator: 'equals',
       field: 'hour',
-      value: 17
+      value: 17,
     },
     {
       type: 'time',
       operator: 'notEquals',
       field: 'isWeekend',
-      value: true
-    }
+      value: true,
+    },
   ],
   actions: [
     {
@@ -533,8 +539,8 @@ export const backupReminderRule: Rule = {
       parameters: {
         title: '💾 备份提醒',
         message: '工作日即将结束，建议进行数据备份',
-        level: 'info'
-      }
+        level: 'info',
+      },
     },
     {
       type: 'workflow',
@@ -542,11 +548,11 @@ export const backupReminderRule: Rule = {
       parameters: {
         workflowId: 'backup',
         parameters: {
-          type: 'incremental'
-        }
-      }
-    }
-  ]
+          type: 'incremental',
+        },
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -570,15 +576,15 @@ export const marketUnderperformingRule: Rule = {
       type: 'state',
       operator: 'greaterThan',
       field: 'brain.settledCount',
-      value: 20
+      value: 20,
     },
     {
       type: 'state',
       operator: 'lessThan',
       field: 'brain.successRate',
       value: 0.4,
-      logicalOperator: 'AND'
-    }
+      logicalOperator: 'AND',
+    },
   ],
   actions: [
     {
@@ -587,8 +593,8 @@ export const marketUnderperformingRule: Rule = {
       parameters: {
         title: '📉 市场表现退化',
         message: '任务成功率跌破40%，请检查agent质量与市场配置',
-        level: 'warning'
-      }
+        level: 'warning',
+      },
     },
     {
       type: 'workflow',
@@ -596,11 +602,11 @@ export const marketUnderperformingRule: Rule = {
       parameters: {
         workflowId: 'market-diagnostics',
         parameters: {
-          scope: 'agent-quality'
-        }
-      }
-    }
-  ]
+          scope: 'agent-quality',
+        },
+      },
+    },
+  ],
 };
 
 // ============================================================================
@@ -613,48 +619,33 @@ export const marketUnderperformingRule: Rule = {
 export const systemMonitoringRules: Rule[] = [
   highCpuUsageRule,
   lowMemoryWarningRule,
-  lowDiskSpaceRule
+  lowDiskSpaceRule,
 ];
 
 /**
  * Agent管理规则集合
  */
-export const agentManagementRules: Rule[] = [
-  agentOfflineRule,
-  agentOverloadedRule
-];
+export const agentManagementRules: Rule[] = [agentOfflineRule, agentOverloadedRule];
 
 /**
  * 任务调度规则集合
  */
-export const taskSchedulingRules: Rule[] = [
-  taskTimeoutRule,
-  taskRetryRule
-];
+export const taskSchedulingRules: Rule[] = [taskTimeoutRule, taskRetryRule];
 
 /**
  * 安全监控规则集合
  */
-export const securityMonitoringRules: Rule[] = [
-  suspiciousLoginRule,
-  privilegeEscalationRule
-];
+export const securityMonitoringRules: Rule[] = [suspiciousLoginRule, privilegeEscalationRule];
 
 /**
  * 业务逻辑规则集合
  */
-export const businessLogicRules: Rule[] = [
-  autoScaleUpRule,
-  autoScaleDownRule,
-  backupReminderRule
-];
+export const businessLogicRules: Rule[] = [autoScaleUpRule, autoScaleDownRule, backupReminderRule];
 
 /**
  * 增长市场规则集合（Brain 联动）
  */
-export const growthMarketRules: Rule[] = [
-  marketUnderperformingRule
-];
+export const growthMarketRules: Rule[] = [marketUnderperformingRule];
 
 /**
  * 所有预设规则
@@ -665,7 +656,7 @@ export const allPresetRules: Rule[] = [
   ...taskSchedulingRules,
   ...securityMonitoringRules,
   ...businessLogicRules,
-  ...growthMarketRules
+  ...growthMarketRules,
 ];
 
 /**

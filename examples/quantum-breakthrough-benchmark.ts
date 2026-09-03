@@ -9,20 +9,17 @@
  *
  * 运行：npm run example:quantum
  */
+import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import {
-  AssignmentProblem,
   qaoaSolve,
   annealSolve,
   bruteForceOptimum,
   defaultPenalties,
   couplingKey,
   toIsing,
-  QuantumStateVector
+  QuantumStateVector,
 } from '../src/core/quantum-optimizer.js';
-import {
-  buildSubspaceModel,
-  annealSolveSubspace
-} from '../src/core/subspace-optimizer.js';
+import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 import { hungarianAssignment, localSearchAssignment } from '../src/core/classical-baselines.js';
 import type { Agent } from '../src/types/quantum-types.js';
@@ -39,18 +36,24 @@ function rng(seed: number): () => number {
   };
 }
 
-function makeInstance(m: number, n: number, seed: number, entanglePairs: Array<[number, number]> = []): AssignmentProblem {
+function makeInstance(
+  m: number,
+  n: number,
+  seed: number,
+  entanglePairs: Array<[number, number]> = [],
+): AssignmentProblem {
   const r = rng(seed);
   const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)));
+    Array.from({ length: n }, () => +(0.15 + 0.7 * r()).toFixed(3)),
+  );
   const p: AssignmentProblem = {
     taskIds: Array.from({ length: m }, (_, i) => `t${i}`),
     agentIds: Array.from({ length: n }, (_, i) => `a${i}`),
     weights,
-    ineligible: weights.map(row => row.map(() => false)),
+    ineligible: weights.map((row) => row.map(() => false)),
     couplings: new Map(),
     penaltyOneHot: 0,
-    penaltyCapacity: 0
+    penaltyCapacity: 0,
   };
   const nq = m * n;
   for (const [a1, a2] of entanglePairs) {
@@ -78,9 +81,9 @@ function greedySolve(problem: AssignmentProblem): number[] {
     let best = -1;
     let bestW = -Infinity;
     for (let a = 0; a < n; a++) {
-      if (problem.ineligible[t][a] || used.has(a)) continue;
-      if (problem.weights[t][a] > bestW) {
-        bestW = problem.weights[t][a];
+      if (problem.ineligible[t]![a] || used.has(a)) continue;
+      if (problem.weights[t]![a]! > bestW) {
+        bestW = problem.weights[t]![a]!;
         best = a;
       }
     }
@@ -93,23 +96,36 @@ function greedySolve(problem: AssignmentProblem): number[] {
 }
 
 const welfare = (p: AssignmentProblem, a: number[]) =>
-  a.reduce((s, agent, t) => s + (agent >= 0 ? p.weights[t][agent] : 0), 0);
+  a.reduce((s, agent, t) => s + (agent >= 0 ? p.weights[t]![agent]! : 0), 0);
 
 // ============================================================================
 // 第一部分：分配质量竞赛（多种子统计）
 // ============================================================================
 console.log('='.repeat(96));
-console.log('一、分配质量竞赛：量子演化 vs 经典贪心 vs 穷举最优（每规模5个随机种子，含纠缠对[a0,a1]）');
+console.log(
+  '一、分配质量竞赛：量子演化 vs 经典贪心 vs 穷举最优（每规模5个随机种子，含纠缠对[a0,a1]）',
+);
 console.log('='.repeat(96));
 console.log(
-  '实例(任务×agent)  量子比特  │贪心平均差距  │QAOA命中  QAOA平均差距  QAOA耗时  │退火命中  退火平均差距  退火耗时'
+  '实例(任务×agent)  量子比特  │贪心平均差距  │QAOA命中  QAOA平均差距  QAOA耗时  │退火命中  退火平均差距  退火耗时',
 );
 
-const instances: Array<[number, number]> = [[2, 3], [2, 4], [3, 4], [3, 5]];
+const instances: Array<[number, number]> = [
+  [2, 3],
+  [2, 4],
+  [3, 4],
+  [3, 5],
+];
 const SEEDS = 5;
 for (const [m, n] of instances) {
   const nq = m * n;
-  let greedyGap = 0, qaoaGap = 0, annealGap = 0, qaoaHit = 0, annealHit = 0, tQ = 0, tA = 0;
+  let greedyGap = 0,
+    qaoaGap = 0,
+    annealGap = 0,
+    qaoaHit = 0,
+    annealHit = 0,
+    tQ = 0,
+    tA = 0;
 
   for (let seed = 1; seed <= SEEDS; seed++) {
     const p = makeInstance(m, n, seed * 100, [[0, 1]]);
@@ -119,13 +135,24 @@ for (const [m, n] of instances) {
     greedyGap += 1 - welfare(p, greedy) / brute.welfare;
 
     const tQ0 = Date.now();
-    const qaoa = qaoaSolve(p, { layers: 4, restarts: 2, select: 'shots-best', shots: 512, seed: 42 });
+    const qaoa = qaoaSolve(p, {
+      layers: 4,
+      restarts: 2,
+      select: 'shots-best',
+      shots: 512,
+      seed: 42,
+    });
     tQ += Date.now() - tQ0;
     qaoaGap += 1 - qaoa.welfare / brute.welfare;
     if (Math.abs(qaoa.welfare - brute.welfare) < 1e-9) qaoaHit++;
 
     const tA0 = Date.now();
-    const anneal = annealSolve(p, { anneal: { tau: 120, steps: 1200 }, select: 'shots-best', shots: 512, seed: 42 });
+    const anneal = annealSolve(p, {
+      anneal: { tau: 120, steps: 1200 },
+      select: 'shots-best',
+      shots: 512,
+      seed: 42,
+    });
     tA += Date.now() - tA0;
     annealGap += 1 - anneal.welfare / brute.welfare;
     if (Math.abs(anneal.welfare - brute.welfare) < 1e-9) annealHit++;
@@ -133,14 +160,14 @@ for (const [m, n] of instances) {
 
   console.log(
     `${`${m}×${n}`.padEnd(14)}` +
-    `${String(nq).padEnd(8)}` +
-    `│${((greedyGap / SEEDS) * 100).toFixed(1)}%`.padEnd(14) +
-    `│${qaoaHit}/${SEEDS}`.padEnd(7) +
-    `${((qaoaGap / SEEDS) * 100).toFixed(1)}%`.padEnd(15) +
-    `${Math.round(tQ / SEEDS)}ms`.padEnd(9) +
-    `│${annealHit}/${SEEDS}`.padEnd(7) +
-    `${((annealGap / SEEDS) * 100).toFixed(1)}%`.padEnd(15) +
-    `${Math.round(tA / SEEDS)}ms`
+      `${String(nq).padEnd(8)}` +
+      `│${((greedyGap / SEEDS) * 100).toFixed(1)}%`.padEnd(14) +
+      `│${qaoaHit}/${SEEDS}`.padEnd(7) +
+      `${((qaoaGap / SEEDS) * 100).toFixed(1)}%`.padEnd(15) +
+      `${Math.round(tQ / SEEDS)}ms`.padEnd(9) +
+      `│${annealHit}/${SEEDS}`.padEnd(7) +
+      `${((annealGap / SEEDS) * 100).toFixed(1)}%`.padEnd(15) +
+      `${Math.round(tA / SEEDS)}ms`,
   );
 }
 console.log('\n  注：QAOA在15量子比特上 p=4 命中率下降是变分算法低深度近似比的真实体现；');
@@ -154,7 +181,8 @@ console.log('二、纠缠的真实物理效应：耦合项改变哈密顿量基�
 console.log('='.repeat(86));
 {
   // 无纠缠时贪心与联合最优一致；纠缠后联合最优要求两任务落在纠缠对上
-  const m = 3, n = 3;
+  const m = 3,
+    n = 3;
   const plain = makeInstance(m, n, 777, []);
   const entangled = makeInstance(m, n, 777, [[0, 1]]);
 
@@ -166,13 +194,19 @@ console.log('='.repeat(86));
   const qEnt = qaoaSolve(entangled, { layers: 4, restarts: 2, seed: 1 });
   const bEnt = bruteForceOptimum(entangled);
 
-  console.log(`  无纠缠:   贪心=[${gPlain}] w=${welfare(plain, gPlain).toFixed(3)}  ` +
-    `量子=[${qPlain.assignment}] w=${qPlain.welfare.toFixed(3)}  最优=[${bPlain.assignment}] w=${bPlain.welfare.toFixed(3)}`);
-  console.log(`  纠缠(a0↔a1): 贪心=[${gEnt}] w=${welfare(entangled, gEnt).toFixed(3)}  ` +
-    `量子=[${qEnt.assignment}] w=${qEnt.welfare.toFixed(3)}  最优=[${bEnt.assignment}] w=${bEnt.welfare.toFixed(3)}`);
-  console.log(`  → 量子演化${JSON.stringify(qEnt.assignment) === JSON.stringify(bEnt.assignment) ? '命中' : '未命中'}纠缠耦合后的联合最优` +
-    `（量子福利差距 ${((1 - qEnt.welfare / bEnt.welfare) * 100).toFixed(2)}%，` +
-    `贪心福利差距 ${((1 - welfare(entangled, gEnt) / bEnt.welfare) * 100).toFixed(2)}%）`);
+  console.log(
+    `  无纠缠:   贪心=[${gPlain}] w=${welfare(plain, gPlain).toFixed(3)}  ` +
+      `量子=[${qPlain.assignment}] w=${qPlain.welfare.toFixed(3)}  最优=[${bPlain.assignment}] w=${bPlain.welfare.toFixed(3)}`,
+  );
+  console.log(
+    `  纠缠(a0↔a1): 贪心=[${gEnt}] w=${welfare(entangled, gEnt).toFixed(3)}  ` +
+      `量子=[${qEnt.assignment}] w=${qEnt.welfare.toFixed(3)}  最优=[${bEnt.assignment}] w=${bEnt.welfare.toFixed(3)}`,
+  );
+  console.log(
+    `  → 量子演化${JSON.stringify(qEnt.assignment) === JSON.stringify(bEnt.assignment) ? '命中' : '未命中'}纠缠耦合后的联合最优` +
+      `（量子福利差距 ${((1 - qEnt.welfare / bEnt.welfare) * 100).toFixed(2)}%，` +
+      `贪心福利差距 ${((1 - welfare(entangled, gEnt) / bEnt.welfare) * 100).toFixed(2)}%）`,
+  );
 }
 
 // ============================================================================
@@ -187,11 +221,15 @@ console.log('='.repeat(86));
 
   console.log('  QAOA 末态按 Born 概率排序的候选分配（前5）:');
   for (const c of qaoa.candidates.slice(0, 5)) {
-    console.log(`    分配 [${c.assignment.map((a, t) => `t${t}→a${a}`).join(', ')}]  ` +
-      `福利 ${c.welfare.toFixed(3)}  Born概率 ${(c.probability * 100).toFixed(2)}%`);
+    console.log(
+      `    分配 [${c.assignment.map((a, t) => `t${t}→a${a}`).join(', ')}]  ` +
+        `福利 ${c.welfare.toFixed(3)}  Born概率 ${(c.probability * 100).toFixed(2)}%`,
+    );
   }
-  console.log(`  合法子空间概率质量 validMass = ${(qaoa.validMass * 100).toFixed(1)}%  ` +
-    `能量期望 ⟨E⟩ = ${qaoa.expectation.toFixed(3)}  角度优化评估 ${qaoa.evaluations} 次电路演化`);
+  console.log(
+    `  合法子空间概率质量 validMass = ${(qaoa.validMass * 100).toFixed(1)}%  ` +
+      `能量期望 ⟨E⟩ = ${qaoa.expectation.toFixed(3)}  角度优化评估 ${qaoa.evaluations} 次电路演化`,
+  );
 
   console.log('\n  20 次独立的完整量子-经典混合流程（角度优化→演化→Born坍缩，各流程独立随机）:');
   const counts = new Map<string, number>();
@@ -216,14 +254,20 @@ console.log('='.repeat(86));
     scheduling: {
       quantumAlgorithm: 'quantum-qaoa',
       autoSchedule: false,
-      quantum: { layers: 4, select: 'shots-best', shots: 512 }
-    }
+      quantum: { layers: 4, select: 'shots-best', shots: 512 },
+    },
   });
 
   const mk = (id: string, ent: string[] = []): Agent => ({
-    id, name: `Agent-${id}`, type: 'developer', capabilities: ['quantum-task'],
-    state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: ent, lastHeartbeat: new Date()
+    id,
+    name: `Agent-${id}`,
+    type: 'developer',
+    capabilities: ['quantum-task'],
+    state: 'idle',
+    load: 0,
+    position: { x: 0, y: 0, z: 0 },
+    quantumEntanglement: ent,
+    lastHeartbeat: new Date(),
   });
   scheduler.registerAgent(mk('a0', ['a1']));
   scheduler.registerAgent(mk('a1', ['a0']));
@@ -232,21 +276,32 @@ console.log('='.repeat(86));
   const priorities = ['critical', 'high', 'medium'] as const;
   for (let i = 0; i < 3; i++) {
     scheduler.submitTask({
-      name: `量子任务-${i}`, type: 'quantum', priority: priorities[i],
+      name: `量子任务-${i}`,
+      type: 'quantum',
+      priority: priorities[i],
       requirements: [{ type: 'capability', name: 'quantum-task', value: null, weight: 1 }],
-      dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+      dependencies: [],
+      estimatedDuration: 5000,
+      actualDuration: 0,
+      status: 'pending',
     } as any);
   }
 
   const report = scheduler.scheduleBatchQuantum();
-  console.log(`  引擎: ${report.engine}  分块: ${report.chunks}  分配: ${report.assigned}/3  ` +
-    `纠缠耦合项: ${report.entanglementCouplings}`);
+  console.log(
+    `  引擎: ${report.engine}  分块: ${report.chunks}  分配: ${report.assigned}/3  ` +
+      `纠缠耦合项: ${report.entanglementCouplings}`,
+  );
   for (const a of report.assignments) {
-    console.log(`    ${a.taskName} → ${a.agentId}  (联合Born概率 ${(a.probability * 100).toFixed(2)}%)`);
+    console.log(
+      `    ${a.taskName} → ${a.agentId}  (联合Born概率 ${(a.probability * 100).toFixed(2)}%)`,
+    );
   }
   if (report.optimality) {
-    console.log(`  联合福利 ${report.optimality.achieved.toFixed(3)} / 穷举最优 ${report.optimality.optimal.toFixed(3)}  ` +
-      `最优率 ${(report.optimality.ratio * 100).toFixed(1)}%`);
+    console.log(
+      `  联合福利 ${report.optimality.achieved.toFixed(3)} / 穷举最优 ${report.optimality.optimal.toFixed(3)}  ` +
+        `最优率 ${(report.optimality.ratio * 100).toFixed(1)}%`,
+    );
   }
   console.log('  ' + JSON.stringify(scheduler.getQuantumMetrics()));
 
@@ -254,7 +309,7 @@ console.log('='.repeat(86));
   for (const t of scheduler.getTasks()) {
     scheduler.completeTask(t.id, true, { engine: report.engine });
   }
-  console.log(`  任务全部完成: ${scheduler.getTasks().every(t => t.status === 'completed')}`);
+  console.log(`  任务全部完成: ${scheduler.getTasks().every((t) => t.status === 'completed')}`);
 }
 
 // ============================================================================
@@ -268,8 +323,10 @@ console.log('='.repeat(86));
   const ising = toIsing(p);
   let nonzeroH = 0;
   for (const h of ising.h) if (Math.abs(h) > 1e-12) nonzeroH++;
-  console.log(`  ${ising.nqubits} 量子比特: 非零外场 h ${nonzeroH} 个, 耦合 J ${ising.J.size} 条, ` +
-    `偏移 ${ising.offset.toFixed(3)}`);
+  console.log(
+    `  ${ising.nqubits} 量子比特: 非零外场 h ${nonzeroH} 个, 耦合 J ${ising.J.size} 条, ` +
+      `偏移 ${ising.offset.toFixed(3)}`,
+  );
   console.log('  该 (h, J) 格式可直接提交 D-Wave / QAOA 硬件——态矢量模拟器只是执行位置的差异。');
 }
 
@@ -297,10 +354,15 @@ console.log('六、约束子空间突破：在合法分配子空间（维度P(n,
 console.log('   全空间态矢量需要 2^(m·n) 维——下列规模全空间永远不可行，子空间精确可解');
 console.log('='.repeat(96));
 console.log(
-  '实例(任务×agent)  等效量子比特  全空间维度      子空间维度        构建    退火    贪心差距  退火最优率'
+  '实例(任务×agent)  等效量子比特  全空间维度      子空间维度        构建    退火    贪心差距  退火最优率',
 );
 
-const ladder: Array<[number, number]> = [[5, 6], [6, 8], [7, 9], [8, 10]];
+const ladder: Array<[number, number]> = [
+  [5, 6],
+  [6, 8],
+  [7, 9],
+  [8, 10],
+];
 for (const [m, n] of ladder) {
   const p = makeInstance(m, n, 42 + m, [[0, 1]]);
 
@@ -310,7 +372,10 @@ for (const [m, n] of ladder) {
 
   const tSolve0 = Date.now();
   const solution = annealSolveSubspace(model, {
-    anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 512, seed: 42
+    anneal: { tau: 20, steps: 150 },
+    select: 'shots-best',
+    shots: 512,
+    seed: 42,
   });
   const tSolve = Date.now() - tSolve0;
 
@@ -321,13 +386,13 @@ for (const [m, n] of ladder) {
   const fullDim = `2^${m * n}`;
   console.log(
     `${`${m}×${n}`.padEnd(14)}` +
-    `${String(m * n).padEnd(12)}` +
-    `${fullDim.padEnd(15)}` +
-    `${model.dimension.toLocaleString().padEnd(16)}` +
-    `${tBuild}ms`.padEnd(8) +
-    `${tSolve}ms`.padEnd(8) +
-    `${greedyGap.toFixed(1)}%`.padEnd(9) +
-    `${(solution.optimalityRatio * 100).toFixed(1)}%`
+      `${String(m * n).padEnd(12)}` +
+      `${fullDim.padEnd(15)}` +
+      `${model.dimension.toLocaleString().padEnd(16)}` +
+      `${tBuild}ms`.padEnd(8) +
+      `${tSolve}ms`.padEnd(8) +
+      `${greedyGap.toFixed(1)}%`.padEnd(9) +
+      `${(solution.optimalityRatio * 100).toFixed(1)}%`,
   );
 }
 console.log('\n  例：8×10 全空间 = 2^80 ≈ 1.2×10^24 维（≈10^15 TB 内存，宇宙尺度不可行）；');
@@ -340,13 +405,19 @@ console.log('\n  调度器端到端（6任务×8agent，20160维子空间，等�
     scheduling: {
       quantumAlgorithm: 'quantum-annealing',
       autoSchedule: false,
-      quantum: { anneal: { tau: 20, steps: 150 } }
-    }
+      quantum: { anneal: { tau: 20, steps: 150 } },
+    },
   });
   const mk = (id: string, ent: string[] = []): Agent => ({
-    id, name: `Agent-${id}`, type: 'developer', capabilities: ['quantum-task'],
-    state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: ent, lastHeartbeat: new Date()
+    id,
+    name: `Agent-${id}`,
+    type: 'developer',
+    capabilities: ['quantum-task'],
+    state: 'idle',
+    load: 0,
+    position: { x: 0, y: 0, z: 0 },
+    quantumEntanglement: ent,
+    lastHeartbeat: new Date(),
   });
   for (let i = 0; i < 8; i++) {
     scheduler.registerAgent(mk(`a${i}`, i === 0 ? ['a1'] : i === 1 ? ['a0'] : []));
@@ -354,20 +425,29 @@ console.log('\n  调度器端到端（6任务×8agent，20160维子空间，等�
   const priorities = ['critical', 'critical', 'high', 'high', 'medium', 'low'] as const;
   for (let i = 0; i < 6; i++) {
     scheduler.submitTask({
-      name: `量子任务-${i}`, type: 'quantum', priority: priorities[i],
+      name: `量子任务-${i}`,
+      type: 'quantum',
+      priority: priorities[i],
       requirements: [{ type: 'capability', name: 'quantum-task', value: null, weight: 1 }],
-      dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+      dependencies: [],
+      estimatedDuration: 5000,
+      actualDuration: 0,
+      status: 'pending',
     } as any);
   }
   const report = scheduler.scheduleBatchQuantum();
-  console.log(`    representation=${report.representation}  dim=${report.subspace?.dimension}  ` +
-    `等效=${report.subspace?.equivalentQubits}比特  分配=${report.assigned}/6  ` +
-    `纠缠耦合=${report.entanglementCouplings}  最优率=${(report.optimality!.ratio * 100).toFixed(1)}%`);
+  console.log(
+    `    representation=${report.representation}  dim=${report.subspace?.dimension}  ` +
+      `等效=${report.subspace?.equivalentQubits}比特  分配=${report.assigned}/6  ` +
+      `纠缠耦合=${report.entanglementCouplings}  最优率=${(report.optimality!.ratio * 100).toFixed(1)}%`,
+  );
   for (const a of report.assignments) {
-    console.log(`      ${a.taskName} → ${a.agentId} (联合Born p=${a.probability.toExponential(2)})`);
+    console.log(
+      `      ${a.taskName} → ${a.agentId} (联合Born p=${a.probability.toExponential(2)})`,
+    );
   }
   for (const t of scheduler.getTasks()) scheduler.completeTask(t.id, true);
-  console.log(`    全部完成: ${scheduler.getTasks().every(t => t.status === 'completed')}`);
+  console.log(`    全部完成: ${scheduler.getTasks().every((t) => t.status === 'completed')}`);
 }
 
 // ============================================================================
@@ -388,10 +468,17 @@ console.log('\n  [线性赛道] 5任务×8agent × 5种子：量子子空间 vs 
     const hung = hungarianAssignment(p.weights, p.ineligible);
     const hungW = welfare(p, hung);
     const model = buildSubspaceModel(p, { dimensionCap: 1 << 22 })!;
-    const q = annealSolveSubspace(model, { anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 512, seed: 42 });
+    const q = annealSolveSubspace(model, {
+      anneal: { tau: 20, steps: 150 },
+      select: 'shots-best',
+      shots: 512,
+      seed: 42,
+    });
     if (Math.abs(q.welfare - hungW) < 1e-9) agree++;
-    console.log(`    seed${seed}: 匈牙利 w=${hungW.toFixed(3)}  量子 w=${q.welfare.toFixed(3)}  ` +
-      `${Math.abs(q.welfare - hungW) < 1e-9 ? '一致 ✓' : `不一致 ✗ (Δ=${(q.welfare - hungW).toFixed(3)})`}`);
+    console.log(
+      `    seed${seed}: 匈牙利 w=${hungW.toFixed(3)}  量子 w=${q.welfare.toFixed(3)}  ` +
+        `${Math.abs(q.welfare - hungW) < 1e-9 ? '一致 ✓' : `不一致 ✗ (Δ=${(q.welfare - hungW).toFixed(3)})`}`,
+    );
   }
   console.log(`  → 对照认证 ${agree}/5：量子绝热演化在无耦合问题上达到经典精确多项式算法的最优。`);
 }
@@ -399,8 +486,11 @@ console.log('\n  [线性赛道] 5任务×8agent × 5种子：量子子空间 vs 
 // --- 耦合赛道：NP-hard（QAP型），局部搜索 vs 量子 ---
 console.log('\n  [耦合赛道] 6任务×8agent（纠缠对[a0,a1]）× 5种子：问题为QAP型NP-hard');
 {
-  let quantumOptimal = 0, lsOptimal = 0, greedyOptimal = 0;
-  const gaps: Array<{ seed: number; greedy: number; ls: number; quantum: number; opt: number }> = [];
+  let quantumOptimal = 0,
+    lsOptimal = 0,
+    greedyOptimal = 0;
+  const gaps: Array<{ seed: number; greedy: number; ls: number; quantum: number; opt: number }> =
+    [];
   for (let seed = 1; seed <= 5; seed++) {
     const p = makeInstance(6, 8, seed * 500, [[0, 1]]);
     const model = buildSubspaceModel(p, { dimensionCap: 1 << 22 })!;
@@ -410,7 +500,12 @@ console.log('\n  [耦合赛道] 6任务×8agent（纠缠对[a0,a1]）× 5种子�
     const greedyW = welfare(p, greedy);
     const ls = localSearchAssignment(p);
     const lsW = welfare(p, ls);
-    const q = annealSolveSubspace(model, { anneal: { tau: 20, steps: 150 }, select: 'shots-best', shots: 512, seed: 42 });
+    const q = annealSolveSubspace(model, {
+      anneal: { tau: 20, steps: 150 },
+      select: 'shots-best',
+      shots: 512,
+      seed: 42,
+    });
 
     if (Math.abs(greedyW - opt) < 1e-9) greedyOptimal++;
     if (Math.abs(lsW - opt) < 1e-9) lsOptimal++;
@@ -419,8 +514,12 @@ console.log('\n  [耦合赛道] 6任务×8agent（纠缠对[a0,a1]）× 5种子�
   }
   console.log('    seed │  贪心w │ 局部搜索w │ 量子w │  最优w');
   for (const g of gaps) {
-    console.log(`     ${g.seed}   │${g.greedy.toFixed(3).padEnd(8)}│${g.ls.toFixed(3).padEnd(10)}│${g.quantum.toFixed(3).padEnd(7)}│${g.opt.toFixed(3)}`);
+    console.log(
+      `     ${g.seed}   │${g.greedy.toFixed(3).padEnd(8)}│${g.ls.toFixed(3).padEnd(10)}│${g.quantum.toFixed(3).padEnd(7)}│${g.opt.toFixed(3)}`,
+    );
   }
-  console.log(`  → 命中最优: 贪心 ${greedyOptimal}/5, 局部搜索 ${lsOptimal}/5, 量子 ${quantumOptimal}/5`);
+  console.log(
+    `  → 命中最优: 贪心 ${greedyOptimal}/5, 局部搜索 ${lsOptimal}/5, 量子 ${quantumOptimal}/5`,
+  );
   console.log('    量子联合演化同时利用线性权重与二次耦合的全局结构，不受邻域局部最优盆地限制。');
 }

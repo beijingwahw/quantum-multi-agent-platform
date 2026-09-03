@@ -2,19 +2,17 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import {
-  AssignmentProblem,
-  defaultPenalties,
-  bruteForceOptimum
-} from '../src/core/quantum-optimizer.js';
+import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
+import { defaultPenalties, bruteForceOptimum } from '../src/core/quantum-optimizer.js';
 import {
   LocalQuantumBackend,
   getBackend,
   listBackends,
-  registerBackend
+  registerBackend,
 } from '../src/core/qpu/quantum-backend.js';
 import { DWaveBackend } from '../src/core/qpu/dwave-backend.js';
 import { solveAssignmentOnBackend } from '../src/core/qpu/solve.js';
+import { BackendError } from '../src/utils/errors.js';
 import { toQiskitProgram } from '../src/core/qpu/qiskit-export.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 
@@ -23,21 +21,23 @@ const EPS = 1e-9;
 function makeProblem(m: number, n: number, seed: number): AssignmentProblem {
   let a = seed >>> 0;
   const rng = () => {
-    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => +(0.15 + 0.7 * rng()).toFixed(3)));
+    Array.from({ length: n }, () => +(0.15 + 0.7 * rng()).toFixed(3)),
+  );
   const p: AssignmentProblem = {
     taskIds: Array.from({ length: m }, (_, i) => `t${i}`),
     agentIds: Array.from({ length: n }, (_, i) => `a${i}`),
     weights,
-    ineligible: weights.map(row => row.map(() => false)),
+    ineligible: weights.map((row) => row.map(() => false)),
     couplings: new Map(),
     penaltyOneHot: 0,
-    penaltyCapacity: 0
+    penaltyCapacity: 0,
   };
   const pen = defaultPenalties(p);
   p.penaltyOneHot = pen.oneHot;
@@ -48,7 +48,7 @@ function makeProblem(m: number, n: number, seed: number): AssignmentProblem {
 /** 最优分配 → 自旋向量（z = 1 − 2x） */
 function spinsOf(assignment: number[], m: number, n: number): number[] {
   const spins = new Array<number>(m * n).fill(1);
-  for (let t = 0; t < m; t++) spins[t * n + assignment[t]] = -1;
+  for (let t = 0; t < m; t++) spins[t * n + assignment[t]!] = -1;
   return spins;
 }
 
@@ -63,19 +63,29 @@ interface CapturedRequest {
   body: any;
 }
 
-function startStub(): Promise<{ server: http.Server; url: string; requests: CapturedRequest[]; respondWith: (fn: (req: CapturedRequest) => any) => void }> {
+function startStub(): Promise<{
+  server: http.Server;
+  url: string;
+  requests: CapturedRequest[];
+  respondWith: (fn: (req: CapturedRequest) => any) => void;
+}> {
   const requests: CapturedRequest[] = [];
-  let responder: (req: CapturedRequest) => any = () => ({ status: 'COMPLETED', answer: { solutions: [], energies: [], num_occurrences: [] } });
+  let responder: (req: CapturedRequest) => any = () => ({
+    status: 'COMPLETED',
+    answer: { solutions: [], energies: [], num_occurrences: [] },
+  });
 
   const server = http.createServer((req, res) => {
     let raw = '';
-    req.on('data', chunk => { raw += chunk; });
+    req.on('data', (chunk) => {
+      raw += chunk;
+    });
     req.on('end', () => {
       const captured: CapturedRequest = {
         method: req.method ?? '',
         url: req.url ?? '/',
         token: req.headers['x-auth-token'] as string | undefined,
-        body: raw ? JSON.parse(raw) : null
+        body: raw ? JSON.parse(raw) : null,
       };
       requests.push(captured);
       const payload = responder(captured);
@@ -84,14 +94,16 @@ function startStub(): Promise<{ server: http.Server; url: string; requests: Capt
     });
   });
 
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address() as AddressInfo;
       resolve({
         server,
         url: `http://127.0.0.1:${port}`,
         requests,
-        respondWith: (fn) => { responder = fn; }
+        respondWith: (fn) => {
+          responder = fn;
+        },
       });
     });
   });
@@ -127,13 +139,14 @@ describe('QPU 后端层', () => {
       assert.equal(backend.name, 'local-subspace');
     }
     const listing = listBackends();
-    assert.ok(listing.some(b => b.name === 'local-subspace' && b.available));
+    assert.ok(listing.some((b) => b.name === 'local-subspace' && b.available));
   });
 
   it('D-Wave 客户端（stub 真实 HTTP 往返）：请求编码 + 响应解码 + 最优对照', async () => {
     const p = makeProblem(2, 3, 42);
     const optimal = bruteForceOptimum(p).assignment;
-    const m = 2, n = 3;
+    const m = 2,
+      n = 3;
 
     // stub 返回：最优解（多次出现）+ 一个非法样本（one-hot 违约）
     const badSpins = new Array<number>(m * n).fill(1); // 全 +1 = 空分配（非法）
@@ -143,11 +156,15 @@ describe('QPU 后端层', () => {
       answer: {
         solutions: [spinsOf(optimal, m, n), spinsOf(optimal, m, n), badSpins],
         energies: [-1.18, -1.18, 99],
-        num_occurrences: [60, 30, 10]
-      }
+        num_occurrences: [60, 30, 10],
+      },
     }));
 
-    const backend = new DWaveBackend({ token: 'test-token', endpoint: stub.url, solver: 'hybrid_binary_quadratic_model_version2p' });
+    const backend = new DWaveBackend({
+      token: 'test-token',
+      endpoint: stub.url,
+      solver: 'hybrid_binary_quadratic_model_version2p',
+    });
     assert.equal(backend.isAvailable(), true);
 
     const result = await solveAssignmentOnBackend(p, backend, { numReads: 100 });
@@ -160,7 +177,7 @@ describe('QPU 后端层', () => {
     assert.ok(Math.abs(result.optimality!.ratio - 1) < EPS);
 
     // 请求编码：混合求解器 → bqm 三元组格式 + X-Auth-Token
-    const post = stub.requests.find(r => r.method === 'POST' && r.url.includes('problems'));
+    const post = stub.requests.find((r) => r.method === 'POST' && r.url.includes('problems'));
     assert.ok(post, '应发起 POST /problems/');
     assert.equal(post.token, 'test-token');
     assert.equal(post.body.type, 'bqm');
@@ -179,14 +196,18 @@ describe('QPU 后端层', () => {
       answer: {
         solutions: [spinsOf(optimal, 2, 3)],
         energies: [-1],
-        num_occurrences: [1]
-      }
+        num_occurrences: [1],
+      },
     }));
-    const backend = new DWaveBackend({ token: 't', endpoint: stub.url, solver: 'Advantage_system4.1' });
+    const backend = new DWaveBackend({
+      token: 't',
+      endpoint: stub.url,
+      solver: 'Advantage_system4.1',
+    });
     const result = await solveAssignmentOnBackend(p, backend, { numReads: 1 });
     assert.deepEqual(result.assignment, optimal);
 
-    const post = stub.requests.filter(r => r.method === 'POST').at(-1)!;
+    const post = stub.requests.filter((r) => r.method === 'POST').at(-1)!;
     assert.equal(post.body.type, 'ising');
     assert.ok(post.body.data.h && typeof post.body.data.h === 'object');
     assert.ok(post.body.data.J && typeof post.body.data.J === 'object');
@@ -201,8 +222,9 @@ describe('QPU 后端层', () => {
       pollCount++;
       if (pollCount < 2) return { id: 'prob-3', status: 'PENDING' };
       return {
-        id: 'prob-3', status: 'COMPLETED',
-        answer: { solutions: [spinsOf(optimal, 2, 3)], energies: [-1], num_occurrences: [5] }
+        id: 'prob-3',
+        status: 'COMPLETED',
+        answer: { solutions: [spinsOf(optimal, 2, 3)], energies: [-1], num_occurrences: [5] },
       };
     });
 
@@ -210,7 +232,7 @@ describe('QPU 后端层', () => {
     const result = await solveAssignmentOnBackend(p, backend, { numReads: 5 });
     assert.deepEqual(result.assignment, optimal);
     // 轮询过 GET /problems/prob-3
-    assert.ok(stub.requests.some(r => r.method === 'GET' && r.url.includes('prob-3')));
+    assert.ok(stub.requests.some((r) => r.method === 'GET' && r.url.includes('prob-3')));
   });
 
   it('qp 压缩响应格式解析', async () => {
@@ -223,14 +245,15 @@ describe('QPU 后端层', () => {
       if (spins[q] === -1) word |= 1 << q;
     }
     stub.respondWith(() => ({
-      id: 'prob-4', status: 'COMPLETED',
+      id: 'prob-4',
+      status: 'COMPLETED',
       answer: {
         format: 'qp',
         num_solutions: 1,
         data: { vector: [word] },
         energies: [-1],
-        num_occurrences: [7]
-      }
+        num_occurrences: [7],
+      },
     }));
     const backend = new DWaveBackend({ token: 't', endpoint: stub.url });
     const result = await solveAssignmentOnBackend(p, backend, { numReads: 7 });
@@ -240,13 +263,14 @@ describe('QPU 后端层', () => {
   it('全部样本非法时抛错（真 QPU 噪声防护）', async () => {
     const p = makeProblem(2, 3, 46);
     stub.respondWith(() => ({
-      id: 'prob-5', status: 'COMPLETED',
-      answer: { solutions: [new Array(6).fill(1)], energies: [99], num_occurrences: [3] }
+      id: 'prob-5',
+      status: 'COMPLETED',
+      answer: { solutions: [new Array(6).fill(1)], energies: [99], num_occurrences: [3] },
     }));
     const backend = new DWaveBackend({ token: 't', endpoint: stub.url });
     await assert.rejects(
       () => solveAssignmentOnBackend(p, backend, { numReads: 3 }),
-      /非法/
+      (err: unknown) => err instanceof BackendError && /all failed validation/.test(err.message),
     );
   });
 
@@ -274,31 +298,44 @@ describe('调度器 QPU 入口', () => {
     const scheduler = new QuantumScheduler({
       scheduling: {
         quantumAlgorithm: 'quantum-annealing',
-        autoSchedule: false
-      }
+        autoSchedule: false,
+      },
     });
     for (let i = 0; i < 5; i++) {
       scheduler.registerAgent({
-        id: `a${i}`, name: `a${i}`, type: 'developer', capabilities: ['js'],
-        state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-        quantumEntanglement: [], lastHeartbeat: new Date()
+        id: `a${i}`,
+        name: `a${i}`,
+        type: 'developer',
+        capabilities: ['js'],
+        state: 'idle',
+        load: 0,
+        position: { x: 0, y: 0, z: 0 },
+        quantumEntanglement: [],
+        lastHeartbeat: new Date(),
       });
     }
     for (let i = 0; i < 3; i++) {
       scheduler.submitTask({
-        name: `任务${i}`, type: 'qpu', priority: 'high',
+        name: `任务${i}`,
+        type: 'qpu',
+        priority: 'high',
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-        dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+        dependencies: [],
+        estimatedDuration: 5000,
+        actualDuration: 0,
+        status: 'pending',
       } as any);
     }
 
-    const report = await scheduler.scheduleBatchQuantumQpu(new LocalQuantumBackend(), { numReads: 256 });
+    const report = await scheduler.scheduleBatchQuantumQpu(new LocalQuantumBackend(), {
+      numReads: 256,
+    });
 
     assert.equal(report.representation, 'qpu');
     assert.equal(report.assigned, 3);
     assert.ok(report.optimality!);
     assert.ok(Math.abs(report.optimality!.ratio - 1) < EPS);
-    assert.ok(scheduler.getTasks().every(t => t.status === 'assigned'));
+    assert.ok(scheduler.getTasks().every((t) => t.status === 'assigned'));
     // 决策带采样语义的概率与 reasoning
     const decision = scheduler.getSchedulingHistory().at(-1)!;
     assert.ok(decision.probability > 0 && decision.probability <= 1);
@@ -309,19 +346,30 @@ describe('调度器 QPU 入口', () => {
     const stub2 = await startStub();
     try {
       const scheduler = new QuantumScheduler({
-        scheduling: { quantumAlgorithm: 'quantum-annealing', autoSchedule: false }
+        scheduling: { quantumAlgorithm: 'quantum-annealing', autoSchedule: false },
       });
       for (let i = 0; i < 3; i++) {
         scheduler.registerAgent({
-          id: `a${i}`, name: `a${i}`, type: 'developer', capabilities: ['js'],
-          state: 'idle', load: 0, position: { x: 0, y: 0, z: 0 },
-          quantumEntanglement: [], lastHeartbeat: new Date()
+          id: `a${i}`,
+          name: `a${i}`,
+          type: 'developer',
+          capabilities: ['js'],
+          state: 'idle',
+          load: 0,
+          position: { x: 0, y: 0, z: 0 },
+          quantumEntanglement: [],
+          lastHeartbeat: new Date(),
         });
       }
       scheduler.submitTask({
-        name: 'Q1', type: 'qpu', priority: 'critical',
+        name: 'Q1',
+        type: 'qpu',
+        priority: 'critical',
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
-        dependencies: [], estimatedDuration: 5000, actualDuration: 0, status: 'pending'
+        dependencies: [],
+        estimatedDuration: 5000,
+        actualDuration: 0,
+        status: 'pending',
       } as any);
 
       stub2.respondWith((req) => {
@@ -331,8 +379,9 @@ describe('调度器 QPU 入口', () => {
         void req;
         const spins = [1, 1, -1]; // q2 (t0→a2) 置 −1
         return {
-          id: 's1', status: 'COMPLETED',
-          answer: { solutions: [spins], energies: [-1], num_occurrences: [42] }
+          id: 's1',
+          status: 'COMPLETED',
+          answer: { solutions: [spins], energies: [-1], num_occurrences: [42] },
         };
       });
 
@@ -340,7 +389,7 @@ describe('调度器 QPU 入口', () => {
       const report = await scheduler.scheduleBatchQuantumQpu(backend, { numReads: 42 });
       assert.equal(report.representation, 'qpu');
       assert.equal(report.assigned, 1);
-      const task = scheduler.getTasks()[0];
+      const task = scheduler.getTasks()[0]!;
       assert.equal(task.assignedAgentId, 'a2');
       assert.match(scheduler.getSchedulingHistory().at(-1)!.reasoning, /real QPU/);
     } finally {
