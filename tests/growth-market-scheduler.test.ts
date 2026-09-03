@@ -174,7 +174,9 @@ describe('GrowthMarketScheduler 机制不变量', () => {
     });
     const t = s.submitTask('research')!;
     s.completeTask(t.taskId, true);
-    assert.throws(() => s.completeTask(t.taskId, true));
+    assert.throws(() => {
+      s.completeTask(t.taskId, true);
+    });
   });
 
   it('默认配置与文档一致', () => {

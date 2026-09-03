@@ -25,7 +25,7 @@ function make(
     capabilities: ['X'],
     trueQuality: { X: 0.5 },
     ...spec,
-  } as BatchAgentSpec;
+  };
 }
 
 describe('BatchVCGScheduler · 替代效应：批量 vs 短视', () => {
@@ -196,11 +196,9 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
       assert.ok(tight.totalPayment <= slack.totalPayment * 0.5 + 1e-6);
       for (const [agentId, pay] of Object.entries(tight.payments)) {
         const k = tight.assignments.filter((x) => x.agentId === agentId).length;
-        const rt = s.getSnapshot().find((x) => x.id === agentId)!;
-        void rt;
+        void s.getSnapshot().find((x) => x.id === agentId)!;
         // 报价 = 成本（markup 0）→ IR: p ≥ b·k
-        const spec = [...s.getSnapshot()].find((x) => x.id === agentId);
-        void spec;
+        void [...s.getSnapshot()].find((x) => x.id === agentId);
         assert.ok(pay >= 0 && k >= 1);
       }
     }

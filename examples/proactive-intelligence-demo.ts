@@ -421,7 +421,9 @@ async function dynamicRuleManagementExample() {
   console.log('--- 初始规则列表 ---');
   let rules = plugin.getEngine().getAllRules();
   console.log(`共 ${rules.length} 条规则:`);
-  rules.forEach((r) => console.log(`  - ${r.name}`));
+  rules.forEach((r) => {
+    console.log(`  - ${r.name}`);
+  });
 
   // 动态添加规则
   console.log('\n--- 动态添加规则 ---');

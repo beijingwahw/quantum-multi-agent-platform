@@ -79,6 +79,8 @@ describe('QuantumMultiAgentPlatform 端到端', () => {
   it('stop幂等且未启动的stop安全', () => {
     const p = new QuantumMultiAgentPlatform({ communication: { port: 0 } });
     p.stop(); // 未启动，应安全返回
-    assert.doesNotThrow(() => p.stop());
+    assert.doesNotThrow(() => {
+      p.stop();
+    });
   });
 });

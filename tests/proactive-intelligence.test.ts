@@ -307,7 +307,7 @@ describe('GrowthSchedulerBrain · 单元', () => {
     });
 
     const a = brain.submitTask('Y');
-    assert.ok(a && a.winnerId === 'solo');
+    assert.ok(a?.winnerId === 'solo');
 
     // 未知任务结算返回 false
     assert.equal(brain.settleTask('nonexistent', true), false);

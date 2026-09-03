@@ -84,11 +84,11 @@ describe('subspace-parallel（多线程确定性并行）', () => {
     }
     assert.ok(serialModel);
 
-    assert.equal(parallelModel!.dimension, serialModel!.dimension);
-    assert.equal(parallelModel!.mixers.length, serialModel!.mixers.length);
-    for (let g = 0; g < serialModel!.mixers.length; g++) {
-      const a: { label: string; order: Int32Array; runs: Int32Array } = parallelModel!.mixers[g]!;
-      const b: { label: string; order: Int32Array; runs: Int32Array } = serialModel!.mixers[g]!;
+    assert.equal(parallelModel.dimension, serialModel.dimension);
+    assert.equal(parallelModel.mixers.length, serialModel.mixers.length);
+    for (let g = 0; g < serialModel.mixers.length; g++) {
+      const a: { label: string; order: Int32Array; runs: Int32Array } = parallelModel.mixers[g]!;
+      const b: { label: string; order: Int32Array; runs: Int32Array } = serialModel.mixers[g]!;
       assert.equal(a.label, b.label, `混合器 ${g} 标签一致`);
       assert.equal(a.order.length, b.order.length, `混合器 ${g} order 长度一致`);
       for (let i = 0; i < a.order.length; i++) {
@@ -99,14 +99,14 @@ describe('subspace-parallel（多线程确定性并行）', () => {
         assert.ok(a.runs[i] === b.runs[i], `混合器 ${g} runs[${i}] 逐位一致`);
       }
     }
-    for (let s = 0; s < serialModel!.dimension; s++) {
+    for (let s = 0; s < serialModel.dimension; s++) {
       assert.ok(
-        parallelModel!.energies[s] === serialModel!.energies[s],
+        parallelModel.energies[s] === serialModel.energies[s],
         `energies[${s}] 逐位一致（展平福利计算不改加法次序）`,
       );
     }
-    for (let i = 0; i < serialModel!.assignmentAt.length; i++) {
-      assert.ok(parallelModel!.assignmentAt[i] === serialModel!.assignmentAt[i]);
+    for (let i = 0; i < serialModel.assignmentAt.length; i++) {
+      assert.ok(parallelModel.assignmentAt[i] === serialModel.assignmentAt[i]);
     }
   });
 

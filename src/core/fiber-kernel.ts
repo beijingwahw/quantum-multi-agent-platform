@@ -201,7 +201,7 @@ export function buildFiberGroupKernel(
   const used = new Uint8Array(n);
   const current = new Int32Array(m).fill(-1);
   const varySet = new Uint8Array(m);
-  for (let i = 0; i < vary.length; i++) varySet[vary[i]!] = 1;
+  for (const t of vary) varySet[t] = 1;
 
   const assignVary = (vi: number): void => {
     if (vi === vary.length) {

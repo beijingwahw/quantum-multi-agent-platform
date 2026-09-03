@@ -7,7 +7,9 @@ describe('AgentManager', () => {
 
   after(() => {
     // 清理心跳定时器，避免测试进程无法退出
-    managers.forEach((manager) => manager.shutdown());
+    managers.forEach((manager) => {
+      manager.shutdown();
+    });
   });
 
   function newManager(): AgentManager {

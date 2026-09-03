@@ -6,7 +6,7 @@ import type {
   Vector3D,
 } from '../types/quantum-types';
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { logInfo } from '../utils/logger';
 
 /** agent 负载超过该阈值判定为 overloaded（agent 状态语义的唯一权威定义） */
@@ -38,9 +38,9 @@ export interface SystemHealthReport {
 }
 
 export class AgentManager extends EventEmitter {
-  private agents: Map<string, Agent> = new Map();
-  private entanglements: Map<string, QuantumEntanglement> = new Map();
-  private heartbeatIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private agents = new Map<string, Agent>();
+  private entanglements = new Map<string, QuantumEntanglement>();
+  private heartbeatIntervals = new Map<string, NodeJS.Timeout>();
   private config: AgentManagerConfig;
 
   constructor(config: AgentManagerConfig = {}) {
@@ -57,14 +57,14 @@ export class AgentManager extends EventEmitter {
     entanglementTargets?: string[];
   }): Agent {
     const agent: Agent = {
-      id: uuidv4(),
+      id: randomUUID(),
       name: agentConfig.name,
       type: agentConfig.type,
       capabilities: agentConfig.capabilities,
       state: 'idle',
       load: 0,
-      position: agentConfig.position || { x: 0, y: 0, z: 0 },
-      quantumEntanglement: agentConfig.entanglementTargets || [],
+      position: agentConfig.position ?? { x: 0, y: 0, z: 0 },
+      quantumEntanglement: agentConfig.entanglementTargets ?? [],
       lastHeartbeat: new Date(),
     };
 
@@ -130,7 +130,7 @@ export class AgentManager extends EventEmitter {
     return true;
   }
 
-  increaseLoad(agentId: string, increment: number = 1): boolean {
+  increaseLoad(agentId: string, increment = 1): boolean {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
 
@@ -147,7 +147,7 @@ export class AgentManager extends EventEmitter {
     return true;
   }
 
-  decreaseLoad(agentId: string, decrement: number = 1): boolean {
+  decreaseLoad(agentId: string, decrement = 1): boolean {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
 
@@ -177,10 +177,10 @@ export class AgentManager extends EventEmitter {
       if (agent.state !== 'offline') {
         agent.lastHeartbeat = new Date();
       }
-    }, this.config.communication?.heartbeatInterval || 5000);
+    }, this.config.communication?.heartbeatInterval ?? 5000);
 
     // 定时器不阻止进程退出（仅构造未启动的平台不应挂住事件循环）
-    interval.unref?.();
+    interval.unref();
 
     this.heartbeatIntervals.set(agentId, interval);
   }
@@ -226,7 +226,7 @@ export class AgentManager extends EventEmitter {
     }
 
     const entanglement: QuantumEntanglement = {
-      id: uuidv4(),
+      id: randomUUID(),
       agentId1,
       agentId2,
       strength: 0.1,
@@ -318,20 +318,20 @@ export class AgentManager extends EventEmitter {
   // 统计和监控
   getAgentMetrics(): AgentManagerMetrics {
     const totalAgents = this.agents.size;
-    const agentsByState = Array.from(this.agents.values()).reduce(
+    const agentsByState = Array.from(this.agents.values()).reduce<Record<string, number>>(
       (acc, agent) => {
-        acc[agent.state] = (acc[agent.state] || 0) + 1;
+        acc[agent.state] = (acc[agent.state] ?? 0) + 1;
         return acc;
       },
-      {} as Record<string, number>,
+      {},
     );
 
-    const agentsByType = Array.from(this.agents.values()).reduce(
+    const agentsByType = Array.from(this.agents.values()).reduce<Record<string, number>>(
       (acc, agent) => {
-        acc[agent.type] = (acc[agent.type] || 0) + 1;
+        acc[agent.type] = (acc[agent.type] ?? 0) + 1;
         return acc;
       },
-      {} as Record<string, number>,
+      {},
     );
 
     const averageLoad =
@@ -355,7 +355,7 @@ export class AgentManager extends EventEmitter {
 
     // 失联阈值跟随心跳间隔（至少3个周期，下限30s）：配置了更长心跳间隔的
     // 健康agent不应在两次跳变之间被误判离线
-    const heartbeatInterval = this.config.communication?.heartbeatInterval || 5000;
+    const heartbeatInterval = this.config.communication?.heartbeatInterval ?? 5000;
     const staleThresholdMs = Math.max(30000, 3 * heartbeatInterval);
 
     // 同一个agent可能同时离线且过载，只计一次异常，避免健康度为负

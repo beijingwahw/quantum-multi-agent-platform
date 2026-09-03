@@ -140,7 +140,7 @@ describe('相变闭式定律 · L1–L4 与恒等式', () => {
     ] as Array<[number, number]>) {
       const law: LawParams = { ...org, alpha, beta };
       const closed = cumulativeAdvantageClosed(law);
-      const loop = cumulativeAdvantage({ ...PHASE_DEFAULTS, ...law, seeds: [] } as PhaseParams);
+      const loop = cumulativeAdvantage({ ...PHASE_DEFAULTS, ...law, seeds: [] });
       assert.ok(
         Math.abs(closed - loop) < 1e-9,
         `α=${alpha} β=${beta}: |闭式−逐项|=${Math.abs(closed - loop)}`,
@@ -311,7 +311,7 @@ describe('相变闭式定律 · 坍缩与 K_min 的经验验证', () => {
     }
     assert.ok(flip !== null, '应在 K≤26 内翻转为培训赢');
     assert.ok(
-      Math.abs(flip! - pred) <= 8,
+      Math.abs(flip - pred) <= 8,
       `经验翻转 K=${flip} vs 解析 K_min=${pred.toFixed(1)} 偏差 > 8`,
     );
   });

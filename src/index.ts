@@ -37,10 +37,7 @@ function deepMerge<T extends object>(defaults: T, override: DeepPartial<T> | und
       typeof defaultValue === 'object' &&
       !Array.isArray(defaultValue);
     if (bothArePlainObjects) {
-      (result as Record<string, unknown>)[key] = deepMerge(
-        defaultValue as object,
-        overrideValue as DeepPartial<object>,
-      );
+      (result as Record<string, unknown>)[key] = deepMerge(defaultValue, overrideValue);
     } else if (overrideValue !== undefined) {
       (result as Record<string, unknown>)[key] = overrideValue;
     }
@@ -146,7 +143,7 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
   public readonly quantumBus: QuantumBus;
   public readonly dshIntegration: DSHIntegration;
   public readonly config: PlatformConfig;
-  private isRunning: boolean = false;
+  private isRunning = false;
   private metricsInterval: NodeJS.Timeout | null = null;
   private snapshotTimer: NodeJS.Timeout | null = null;
 
@@ -196,21 +193,24 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
     });
 
     // Task调度事件（负载已由调度器维护，此处仅通知）
-    this.scheduler.on('task_assigned', ({ taskId, agentId }) => {
-      // 定向投递给被分配的agent（第4参是目标；错放source位会广播全文）
-      this.quantumBus.createMessage(
-        'scheduler',
-        'task_assignment',
-        {
-          taskId,
-          message: 'New task assigned',
-        },
-        agentId,
-      );
-      this.broadcastConsoleSnapshot();
-    });
+    this.scheduler.on(
+      'task_assigned',
+      ({ taskId, agentId }: { taskId: string; agentId: string }) => {
+        // 定向投递给被分配的agent（第4参是目标；错放source位会广播全文）
+        this.quantumBus.createMessage(
+          'scheduler',
+          'task_assignment',
+          {
+            taskId,
+            message: 'New task assigned',
+          },
+          agentId,
+        );
+        this.broadcastConsoleSnapshot();
+      },
+    );
 
-    this.scheduler.on('task_completed', ({ taskId, task }) => {
+    this.scheduler.on('task_completed', ({ taskId, task }: { taskId: string; task: Task }) => {
       this.quantumBus.createBroadcastMessage('scheduler', 'task_completed', {
         taskId,
         taskName: task.name,
@@ -219,7 +219,7 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
       this.broadcastConsoleSnapshot();
     });
 
-    this.scheduler.on('task_failed', ({ taskId, task }) => {
+    this.scheduler.on('task_failed', ({ taskId, task }: { taskId: string; task: Task }) => {
       this.quantumBus.createBroadcastMessage('scheduler', 'task_failed', {
         taskId,
         taskName: task.name,
@@ -266,7 +266,7 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
         type: task.type,
         status: task.status,
         priority: task.priority,
-        assignedAgentId: task.assignedAgentId || null,
+        assignedAgentId: task.assignedAgentId ?? null,
         createdAt: task.createdAt,
       })),
       metrics: this.getSystemMetrics(),
@@ -292,7 +292,7 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
     }, 100);
 
     // 不阻止进程退出
-    this.snapshotTimer.unref?.();
+    this.snapshotTimer.unref();
   }
 
   handleConsoleCommand(action: string, payload: unknown): void {
@@ -303,9 +303,10 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
           const priority = p.priority;
           if (
             priority !== undefined &&
-            !['low', 'medium', 'high', 'critical'].includes(String(priority))
+            (typeof priority !== 'string' ||
+              !['low', 'medium', 'high', 'critical'].includes(priority))
           ) {
-            throw new ConfigurationError(`Invalid priority '${String(priority)}'`);
+            throw new ConfigurationError(`Invalid priority '${JSON.stringify(priority)}'`);
           }
           const task = this.submitTask({
             name: typeof p.name === 'string' && p.name ? p.name : 'Console Task',
@@ -460,16 +461,16 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
     // 此前这里手工构建的 quantumState 会被调度器整个丢弃
     return this.scheduler.submitTask({
       ...task,
-      requirements: task.requirements || [],
-      dependencies: task.dependencies || [],
-      estimatedDuration: task.estimatedDuration || 60000,
+      requirements: task.requirements ?? [],
+      dependencies: task.dependencies ?? [],
+      estimatedDuration: task.estimatedDuration ?? 60000,
       actualDuration: 0,
       status: 'pending',
     });
   }
 
   // 任务完成/失败的统一入口
-  completeTask(taskId: string, success: boolean = true, result?: unknown): boolean {
+  completeTask(taskId: string, success = true, result?: unknown): boolean {
     return this.scheduler.completeTask(taskId, success, result);
   }
 
@@ -676,7 +677,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const platform = new QuantumMultiAgentPlatform();
 
   // 启动平台
-  platform.start().catch((err) => console.error('[QuantumPlatform]', err));
+  platform.start().catch((err: unknown) => {
+    console.error('[QuantumPlatform]', err);
+  });
 
   // 监听中断信号
   process.on('SIGINT', () => {

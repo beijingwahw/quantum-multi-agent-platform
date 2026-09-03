@@ -180,13 +180,12 @@ export function market(p: PhaseParams): {
     const s = preRolledVet(p, seed);
     s.register(hireSpec(p));
     for (let i = 0; i < p.T; i++) {
-      const { allocation, settlements, netWelfare } = s.simulateBatch(['X']);
+      const { allocation, netWelfare } = s.simulateBatch(['X']);
       welfare += netWelfare;
       for (const a of allocation.assignments) {
         if (a.agentId === 'vet') vetWins++;
         else hireWins++;
       }
-      void settlements;
     }
   }
   const total = vetWins + hireWins;
@@ -317,4 +316,4 @@ function main(): void {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('run.ts')) main();
+if (process.argv[1]?.endsWith('run.ts')) main();

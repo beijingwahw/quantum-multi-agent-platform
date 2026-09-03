@@ -507,8 +507,7 @@ export class BatchVCGScheduler {
     let vSum = 0;
     let welfare = 0;
 
-    capabilities.forEach((cap, t) => {
-      void t;
+    capabilities.forEach((cap) => {
       const cands = [...this.agents.values()].filter(
         (rt) => rt.spec.capabilities.includes(cap) && (remaining.get(rt.spec.id) ?? 0) > 0,
       );

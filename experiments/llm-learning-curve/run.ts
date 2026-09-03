@@ -98,7 +98,9 @@ async function chat(messages: Array<{ role: string; content: string }>): Promise
     await sem.acquire();
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60_000);
+      const timer = setTimeout(() => {
+        controller.abort();
+      }, 60_000);
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -387,7 +389,7 @@ async function main() {
 
   if (pilot) fs.writeFileSync(JSONL, ''); // pilot 覆盖旧数据
 
-  const jobs: Promise<void>[] = [];
+  const jobs: Array<Promise<void>> = [];
   for (const cond of conditions) {
     for (let run = 0; run < runs; run++) {
       jobs.push(runLifetime(cond, run, tasks, log));
@@ -398,7 +400,7 @@ async function main() {
   analyze();
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });

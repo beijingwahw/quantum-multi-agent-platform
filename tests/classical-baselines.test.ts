@@ -168,7 +168,7 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
     assert.equal(report1.assigned, 3);
     assert.equal(report1.chunks, 1);
     assert.ok(report1.optimality!);
-    assert.ok(report1.optimality!.ratio >= 0.999, '首轮应命中最优');
+    assert.ok(report1.optimality.ratio >= 0.999, '首轮应命中最优');
     assert.equal(
       scheduler.getAgents().every((a) => a.state !== 'idle'),
       true,

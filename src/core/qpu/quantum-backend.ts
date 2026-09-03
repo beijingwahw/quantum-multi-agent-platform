@@ -84,7 +84,7 @@ export class LocalQuantumBackend implements QuantumBackend {
    * 调度场景统一走 solveAssignment(problem, backend)——本地路径直接
    * 在约束子空间精确演化，与真 QPU 路径同接口。
    */
-  async solveIsing(_h: number[], _j: Map<number, number>, nqubits: number): Promise<QpuSampleSet> {
+  solveIsing(_h: number[], _j: Map<number, number>, nqubits: number): Promise<QpuSampleSet> {
     throw new BackendError(
       'LocalQuantumBackend cannot solve raw h/J directly (penalties are folded into ' +
         `linear terms, irreversible). Use solveAssignmentOnBackend(problem, backend). ` +
@@ -93,10 +93,7 @@ export class LocalQuantumBackend implements QuantumBackend {
   }
 
   /** 对调度问题做精确子空间退火（采样语义与真 QPU 报告一致） */
-  async solveProblem(
-    problem: AssignmentProblem,
-    options?: QpuSolveOptions,
-  ): Promise<SubspaceSolution> {
+  solveProblem(problem: AssignmentProblem, options?: QpuSolveOptions): Promise<SubspaceSolution> {
     const model = buildSubspaceModel(problem);
     if (!model) {
       throw new BackendError(
@@ -104,11 +101,13 @@ export class LocalQuantumBackend implements QuantumBackend {
           'reduce the batch size or raise dimensionCap',
       );
     }
-    return annealSolveSubspace(model, {
-      anneal: this.annealParams,
-      select: 'shots-best',
-      shots: options?.numReads,
-    });
+    return Promise.resolve(
+      annealSolveSubspace(model, {
+        anneal: this.annealParams,
+        select: 'shots-best',
+        shots: options?.numReads,
+      }),
+    );
   }
 }
 

@@ -75,7 +75,10 @@ export class MinCostFlow {
     for (;;) {
       const dist = Array<number>(n).fill(Infinity);
       const inQueue = Array<boolean>(n).fill(false);
-      const prev: Array<{ node: number; edgeIdx: number } | null> = Array(n).fill(null);
+      const prev: Array<{ node: number; edgeIdx: number } | null> = Array<{
+        node: number;
+        edgeIdx: number;
+      } | null>(n).fill(null);
       dist[s] = 0;
       const queue: number[] = [s];
       while (queue.length > 0) {

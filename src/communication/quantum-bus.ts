@@ -8,7 +8,7 @@ import type {
 } from '../types/quantum-types';
 import type { RawData } from 'ws';
 import { WebSocket, WebSocketServer } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { logInfo, logWarn } from '../utils/logger';
 
 export interface WebSocketConnection {
@@ -47,7 +47,7 @@ export interface QuantumBusConfig {
  */
 function collapsedSystemQuantumState(): QuantumState {
   return {
-    id: uuidv4(),
+    id: randomUUID(),
     amplitude: 1,
     phase: 0,
     collapsed: true,
@@ -78,12 +78,12 @@ type IncomingClientMessage =
   | QuantumMessage;
 
 export class QuantumBus extends EventEmitter {
-  private messageQueue: Map<string, QuantumMessage[]> = new Map();
-  private connections: Map<string, WebSocketConnection> = new Map();
+  private messageQueue = new Map<string, QuantumMessage[]>();
+  private connections = new Map<string, WebSocketConnection>();
   private wsServer: WebSocketServer | null = null;
   private config: QuantumBusConfig;
-  private started: boolean = false;
-  private droppedMessages: number = 0;
+  private started = false;
+  private droppedMessages = 0;
   // 并发start()复用同一次监听Promise，防止创建两个WebSocketServer
   private startPromise: Promise<void> | null = null;
   // 总线自身启动时刻（uptime基准，非进程存活时间）
@@ -145,7 +145,7 @@ export class QuantumBus extends EventEmitter {
   }
 
   private handleConnection(ws: WebSocket): void {
-    const connectionId = uuidv4();
+    const connectionId = randomUUID();
 
     const connection: WebSocketConnection = {
       id: connectionId,
@@ -159,7 +159,12 @@ export class QuantumBus extends EventEmitter {
 
     ws.on('message', (data: RawData) => {
       try {
-        const message = JSON.parse(data.toString());
+        const text = Buffer.isBuffer(data)
+          ? data.toString('utf8')
+          : Array.isArray(data)
+            ? Buffer.concat(data).toString('utf8')
+            : Buffer.from(data).toString('utf8');
+        const message = JSON.parse(text) as IncomingClientMessage;
         this.handleIncomingMessage(connectionId, message);
       } catch (error) {
         logWarn('QuantumBus', `Error parsing message from ${connectionId}:`, error);
@@ -182,7 +187,7 @@ export class QuantumBus extends EventEmitter {
 
     // 发送连接确认
     this.sendToConnection(connectionId, {
-      id: uuidv4(),
+      id: randomUUID(),
       type: 'connection_ack',
       sourceAgentId: 'quantum-bus',
       content: {
@@ -207,7 +212,7 @@ export class QuantumBus extends EventEmitter {
 
     const interval = setInterval(() => {
       const connection = this.connections.get(connectionId);
-      if (connection && connection.ws.readyState === WebSocket.OPEN) {
+      if (connection?.ws.readyState === WebSocket.OPEN) {
         const now = new Date();
         const timeSinceLastPing = now.getTime() - connection.lastPing.getTime();
 
@@ -225,7 +230,9 @@ export class QuantumBus extends EventEmitter {
     }, intervalMs);
 
     // 确保连接关闭后定时器最终被回收
-    connection.ws.on('close', () => clearInterval(interval));
+    connection.ws.on('close', () => {
+      clearInterval(interval);
+    });
   }
 
   /** 常数时间令牌比较（先哈希再比对，长度差异不泄露时序信息） */
@@ -285,7 +292,7 @@ export class QuantumBus extends EventEmitter {
       // 控制台快照查询：无论是否认证都直接回发到该连接
       const respond = (content: unknown) => {
         this.sendToConnection(connectionId, {
-          id: uuidv4(),
+          id: randomUUID(),
           type: 'status_update',
           sourceAgentId: 'quantum-bus',
           content,
@@ -335,14 +342,7 @@ export class QuantumBus extends EventEmitter {
   }
 
   private validateMessage(message: QuantumMessage): boolean {
-    return Boolean(
-      message &&
-      message.id &&
-      message.type &&
-      message.sourceAgentId &&
-      message.timestamp &&
-      message.quantumState,
-    );
+    return Boolean(message.id && message.sourceAgentId && message.quantumState);
   }
 
   // 消息发送方法
@@ -355,7 +355,7 @@ export class QuantumBus extends EventEmitter {
     // 查找所有连接到该agent的连接
     for (const connection of this.connections.values()) {
       if (connection.agentId === agentId && connection.ws.readyState === WebSocket.OPEN) {
-        if (payload === null) payload = JSON.stringify(message);
+        payload ??= JSON.stringify(message);
         this.sendToConnection(connection.id, message, payload);
         sent = true;
       }
@@ -376,7 +376,7 @@ export class QuantumBus extends EventEmitter {
     preSerialized?: string,
   ): boolean {
     const connection = this.connections.get(connectionId);
-    if (connection && connection.ws.readyState === WebSocket.OPEN) {
+    if (connection?.ws.readyState === WebSocket.OPEN) {
       try {
         connection.ws.send(preSerialized ?? JSON.stringify(message));
         return true;
@@ -397,7 +397,7 @@ export class QuantumBus extends EventEmitter {
     queue.push(message);
 
     // 队列封顶：丢弃最旧消息，防止离线agent导致内存无限增长
-    const cap = this.config?.communication?.maxQueuedMessages ?? 1000;
+    const cap = this.config.communication?.maxQueuedMessages ?? 1000;
     while (queue.length > cap) {
       queue.shift();
       this.droppedMessages++;
@@ -453,7 +453,7 @@ export class QuantumBus extends EventEmitter {
     priority: MessagePriority = 'medium',
   ): QuantumMessage {
     const message: QuantumMessage = {
-      id: uuidv4(),
+      id: randomUUID(),
       type,
       sourceAgentId,
       targetAgentId,

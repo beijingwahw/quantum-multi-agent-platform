@@ -36,7 +36,7 @@ describe('QuantumScheduler', () => {
     const agent = makeAgent('a1', ['javascript']);
     scheduler.registerAgent(agent);
 
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     assert.equal(task.status, 'assigned');
     assert.equal(task.assignedAgentId, 'a1');
@@ -48,7 +48,7 @@ describe('QuantumScheduler', () => {
     const scheduler = new QuantumScheduler({});
     scheduler.registerAgent(makeAgent('a1', ['python']));
 
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     assert.equal(task.status, 'pending');
     assert.equal(task.assignedAgentId, undefined);
@@ -56,7 +56,7 @@ describe('QuantumScheduler', () => {
 
   it('新agent注册后自动重调度挂起任务', () => {
     const scheduler = new QuantumScheduler({});
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
     assert.equal(task.status, 'pending');
 
     // 之后才注册具备能力的agent
@@ -70,7 +70,7 @@ describe('QuantumScheduler', () => {
     const scheduler = new QuantumScheduler({});
     const agent = makeAgent('a1', ['javascript']);
     scheduler.registerAgent(agent);
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     const ok = scheduler.completeTask(task.id, true, { output: 'done' });
 
@@ -86,7 +86,7 @@ describe('QuantumScheduler', () => {
     const scheduler = new QuantumScheduler({});
     const agent = makeAgent('a1', ['javascript']);
     scheduler.registerAgent(agent);
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     scheduler.completeTask(task.id, false);
 
@@ -100,8 +100,8 @@ describe('QuantumScheduler', () => {
     const agent = makeAgent('a1', ['javascript']);
     scheduler.registerAgent(agent);
 
-    const first = scheduler.submitTask(makeTask('T1', 'javascript', 'low') as any);
-    const second = scheduler.submitTask(makeTask('T2', 'javascript', 'low') as any);
+    const first = scheduler.submitTask(makeTask('T1', 'javascript', 'low'));
+    const second = scheduler.submitTask(makeTask('T2', 'javascript', 'low'));
     assert.equal(first.status, 'assigned');
     assert.equal(second.status, 'pending'); // 唯一agent忙
 
@@ -115,10 +115,8 @@ describe('QuantumScheduler', () => {
     const scheduler = new QuantumScheduler({});
 
     // 没有agent时提交，两个任务都挂起
-    const low = scheduler.submitTask(makeTask('low-task', 'javascript', 'low') as any);
-    const critical = scheduler.submitTask(
-      makeTask('critical-task', 'javascript', 'critical') as any,
-    );
+    const low = scheduler.submitTask(makeTask('low-task', 'javascript', 'low'));
+    const critical = scheduler.submitTask(makeTask('critical-task', 'javascript', 'critical'));
 
     scheduler.registerAgent(makeAgent('a1', ['javascript']));
 
@@ -134,7 +132,7 @@ describe('QuantumScheduler', () => {
 
     // 模拟高负载基础
     agent.load = 80;
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     assert.equal(task.status, 'assigned');
     assert.equal(agent.state, 'overloaded');
@@ -150,7 +148,7 @@ describe('QuantumScheduler', () => {
   it('调度历史记录决策', () => {
     const scheduler = new QuantumScheduler({});
     scheduler.registerAgent(makeAgent('a1', ['javascript']));
-    scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    scheduler.submitTask(makeTask('T1', 'javascript'));
 
     const history = scheduler.getSchedulingHistory();
     assert.equal(history.length, 1);
@@ -167,7 +165,7 @@ describe('QuantumScheduler', () => {
     scheduler.registerAgent(a2);
     scheduler.unregisterAgent(a1.id);
 
-    const task = scheduler.submitTask(makeTask('T1', 'rust') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'rust'));
     assert.equal(task.assignedAgentId, 'a2');
   });
 
@@ -202,7 +200,7 @@ describe('QuantumScheduler', () => {
     }
     const tasks = [];
     for (let i = 0; i < 12; i++) {
-      tasks.push(scheduler.submitTask(makeTask(`T${i}`, 'bench') as any));
+      tasks.push(scheduler.submitTask(makeTask(`T${i}`, 'bench')));
     }
 
     // 全部完成
@@ -221,7 +219,7 @@ describe('QuantumScheduler', () => {
   it('updateTaskStatus对pending任务直接完成的路径计数正确', () => {
     const scheduler = new QuantumScheduler({});
     // 无agent → 挂起
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
     assert.equal(task.status, 'pending');
 
     scheduler.updateTaskStatus(task.id, 'completed');

@@ -65,7 +65,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   private engine: DecisionEngine;
   private executor: ActionExecutor;
   private brain: MarketBrain | null = null;
-  private running: boolean = false;
+  private running = false;
   /** 决策批处理：同一 tick 内的事件合并为一次决策（修复决策风暴） */
   private decisionScheduled = false;
   private pendingEvents: MonitorEvent[] = [];
@@ -86,11 +86,9 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
         typeof (config.brain as MarketBrain).submitTask === 'function'
           ? (config.brain as MarketBrain)
           : new GrowthSchedulerBrain(config.brain as Partial<GrowthSchedulerConfig>);
-      const brain = this.brain;
-      if (brain) {
-        for (const agent of config.brainAgents ?? []) {
-          brain.registerAgent?.(agent);
-        }
+      // 上方三元两支都产出非空 Brain，无需再判空
+      for (const agent of config.brainAgents ?? []) {
+        this.brain.registerAgent?.(agent);
       }
     }
 
@@ -121,14 +119,14 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     }
 
     // 执行结果回流决策引擎（修复执行指标恒 0）
-    this.executor.on('action_completed', (execution) => {
+    this.executor.on('action_completed', (execution: ActionExecution) => {
       this.engine.recordExecution(execution);
     });
-    this.executor.on('action_failed', (execution) => {
+    this.executor.on('action_failed', (execution: ActionExecution) => {
       this.engine.recordExecution(execution);
     });
     // 取消同样计入执行统计（按失败口径），否则指标漏项
-    this.executor.on('action_cancelled', (execution) => {
+    this.executor.on('action_cancelled', (execution: ActionExecution) => {
       this.engine.recordExecution(execution);
     });
 
@@ -165,8 +163,10 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
       // Brain 市场决策：task_request 事件提交增长市场（VCG 定价 + 学习资本）
       if (this.brain) {
         for (const event of batch) {
-          if (event.type !== 'task_request' || !event.data?.capability) continue;
-          const assignment = this.brain.submitTask(String(event.data.capability));
+          if (event.type !== 'task_request') continue;
+          const capability = event.data.capability;
+          if (typeof capability !== 'string' || !capability) continue;
+          const assignment = this.brain.submitTask(capability);
           if (assignment) {
             const brainActions = actions.get('brain') ?? [];
             brainActions.push({
@@ -213,18 +213,19 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   }
 
   /** 启动插件 */
-  async start(): Promise<void> {
+  start(): Promise<void> {
     if (this.running) {
       throw new StateError('Plugin is already running');
     }
 
     this.running = true;
     this.emit('started');
+    return Promise.resolve();
   }
 
   /** 停止插件 */
-  async stop(): Promise<void> {
-    if (!this.running) return;
+  stop(): Promise<void> {
+    if (!this.running) return Promise.resolve();
 
     this.running = false;
 
@@ -235,6 +236,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     }
 
     this.emit('stopped');
+    return Promise.resolve();
   }
 
   /** 添加规则 */

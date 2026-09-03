@@ -20,12 +20,12 @@ function resolveInitialLevel(): number {
 let currentLevel: number = resolveInitialLevel();
 
 export function setLogLevel(level: LogLevel): void {
-  currentLevel = LEVEL_ORDER[level] ?? LEVEL_ORDER.info;
+  currentLevel = LEVEL_ORDER[level];
 }
 
 export function getLogLevel(): LogLevel {
   return (
-    (Object.keys(LEVEL_ORDER) as LogLevel[]).find((key) => LEVEL_ORDER[key] === currentLevel) ||
+    (Object.keys(LEVEL_ORDER) as LogLevel[]).find((key) => LEVEL_ORDER[key] === currentLevel) ??
     'info'
   );
 }

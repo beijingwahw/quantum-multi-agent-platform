@@ -4,7 +4,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import type { MonitorEvent } from './types';
 
 /** 状态监控器配置 */
@@ -25,8 +25,8 @@ export interface MonitorStatistics {
 
 export class StateMonitor extends EventEmitter {
   private eventBuffer: MonitorEvent[] = [];
-  private maxBufferSize: number = 10000;
-  private retentionMs: number = 3600000; // 1小时
+  private maxBufferSize = 10000;
+  private retentionMs = 3600000; // 1小时
 
   constructor(private config: StateMonitorConfig = {}) {
     super();
@@ -41,7 +41,7 @@ export class StateMonitor extends EventEmitter {
   /** 监控事件 */
   observe(event: Omit<MonitorEvent, 'id' | 'timestamp'>): MonitorEvent {
     const monitorEvent: MonitorEvent = {
-      id: uuidv4(),
+      id: randomUUID(),
       timestamp: new Date(),
       ...event,
     };
@@ -92,20 +92,14 @@ export class StateMonitor extends EventEmitter {
 
     return {
       total: events.length,
-      byType: events.reduce(
-        (acc, e) => {
-          acc[e.type] = (acc[e.type] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
-      bySeverity: events.reduce(
-        (acc, e) => {
-          acc[e.severity] = (acc[e.severity] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
+      byType: events.reduce<Record<string, number>>((acc, e) => {
+        acc[e.type] = (acc[e.type] ?? 0) + 1;
+        return acc;
+      }, {}),
+      bySeverity: events.reduce<Record<string, number>>((acc, e) => {
+        acc[e.severity] = (acc[e.severity] ?? 0) + 1;
+        return acc;
+      }, {}),
       recent: events.filter((e) => now - e.timestamp.getTime() < 60000).length, // 最近1分钟
       critical: events.filter((e) => e.severity === 'critical').length,
     };

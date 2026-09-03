@@ -25,3 +25,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Coverage（含 90/80/90 防回归门槛）
+        run: npm run coverage
+      - name: Knip（死代码/未用导出门禁）
+        run: npm run knip

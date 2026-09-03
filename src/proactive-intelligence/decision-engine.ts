@@ -16,7 +16,7 @@ import type {
 } from './types';
 
 export class DecisionEngine extends EventEmitter {
-  private rules: Map<string, Rule> = new Map();
+  private rules = new Map<string, Rule>();
   private decisionHistory: DecisionRecord[] = [];
   private metrics: Metrics = {
     totalEventsProcessed: 0,
@@ -69,7 +69,7 @@ export class DecisionEngine extends EventEmitter {
   }
 
   /** 做决策 */
-  async makeDecision(context: DecisionContext): Promise<Map<string, Action[]>> {
+  makeDecision(context: DecisionContext): Promise<Map<string, Action[]>> {
     const startTime = Date.now();
 
     // 更新指标
@@ -87,7 +87,7 @@ export class DecisionEngine extends EventEmitter {
       actions.set(rule.id, rule.actions);
 
       // 更新规则触发计数
-      this.metrics.rulesTriggered[rule.id] = (this.metrics.rulesTriggered[rule.id] || 0) + 1;
+      this.metrics.rulesTriggered[rule.id] = (this.metrics.rulesTriggered[rule.id] ?? 0) + 1;
 
       // 更新最后执行时间
       rule.lastExecuted = new Date();
@@ -121,7 +121,7 @@ export class DecisionEngine extends EventEmitter {
       actions,
     });
 
-    return actions;
+    return Promise.resolve(actions);
   }
 
   /** 评估规则 */
@@ -173,8 +173,8 @@ export class DecisionEngine extends EventEmitter {
       const next = conditions[i + 1];
       if (next) {
         const nextOp = next.logicalOperator ?? 'AND';
-        if (nextOp === 'AND' && result === false) break;
-        if (nextOp === 'OR' && result === true) break;
+        if (nextOp === 'AND' && !result) break;
+        if (nextOp === 'OR' && result) break;
       }
     }
 

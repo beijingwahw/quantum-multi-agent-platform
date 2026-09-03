@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 /** subagent 调用参数 */
 export interface SubagentParams {
@@ -18,14 +18,14 @@ export interface SubagentResult {
   createdAt: string;
 }
 
-export async function subagent(params: SubagentParams): Promise<SubagentResult> {
+export function subagent(params: SubagentParams): Promise<SubagentResult> {
   // 这里可以集成真实的subagent调用
   // 目前返回模拟结果（status='mock' 标记，调用方可据此区分真伪）
-  return {
-    subagentId: uuidv4(),
+  return Promise.resolve({
+    subagentId: randomUUID(),
     description: params.description,
     status: 'mock',
     result: `Subagent task completed: ${params.description}`,
     createdAt: new Date().toISOString(),
-  };
+  });
 }

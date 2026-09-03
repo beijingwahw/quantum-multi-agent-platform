@@ -14,7 +14,6 @@
 
 import {
   GrowthMarketScheduler,
-  DEFAULT_GROWTH_CONFIG,
   type GrowthSchedulerConfig,
   type GrowthAgentSpec,
   type TaskAssignment,
@@ -114,5 +113,4 @@ export class GrowthSchedulerBrain implements MarketBrain {
   }
 }
 
-export { DEFAULT_GROWTH_CONFIG };
 export type { GrowthSchedulerConfig, GrowthAgentSpec, TaskAssignment, AgentSnapshot };

@@ -150,7 +150,7 @@ function popcount(k: number): number {
 export class QuantumStateVector extends ComplexAmplitudes {
   readonly nqubits: number;
 
-  constructor(nqubits: number, basisState: number = 0) {
+  constructor(nqubits: number, basisState = 0) {
     super(1 << nqubits);
     this.nqubits = nqubits;
     this.re[basisState] = 1;

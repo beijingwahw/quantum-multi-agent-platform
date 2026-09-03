@@ -33,7 +33,7 @@ import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from '
 import type { SubspaceModel } from './subspace-optimizer';
 
 /** 并行启用的最小维度（低于此值每步 9 次屏障的延迟支配收益，串行更快） */
-export const PARALLEL_MIN_DIM = 1 << 19;
+const PARALLEL_MIN_DIM = 1 << 19;
 /** Worker 数上限（浮点内核按物理核扩展，超线程与 E 核收益递减） */
 const MAX_WORKERS = 16;
 
@@ -63,12 +63,12 @@ const POISON = 6;
 const F64_BYTE_OFFSET = 32;
 const F64_B = 0; // Float64 视图：混合角 b
 
-export function parallelEnabled(): boolean {
+function parallelEnabled(): boolean {
   return typeof Worker === 'function' && process.env.QUANTUM_DISABLE_PARALLEL !== '1';
 }
 
 function workerCount(dim: number, fibers: number): number {
-  if (process.env.QUANTUM_WORKERS) return Math.max(1, +process.env.QUANTUM_WORKERS!);
+  if (process.env.QUANTUM_WORKERS) return Math.max(1, +process.env.QUANTUM_WORKERS);
   const usable = Math.max(1, cpus().length - 1);
   return Math.max(2, Math.min(usable, MAX_WORKERS, dim, fibers));
 }
@@ -78,7 +78,7 @@ function workerCount(dim: number, fibers: number): number {
  * 注意：Node 的 eval Worker 无 self 全局，消息入口用 parentPort
  * （此字符串在 Worker 内以 CommonJS 运行，require 可用）。
  */
-export function workerSource(): string {
+function workerSource(): string {
   return (
     "'use strict';\n" +
     // esbuild(tsx)会给含嵌套函数的内核注入模块级 __name 辅助调用；函数体
@@ -215,7 +215,7 @@ export function parallelAnnealEvolve(
       w.on('error', (err) => {
         poisoned = true;
         if (process.env.QUANTUM_PARALLEL_DEBUG) {
-          console.error(`[parallel] worker ${rank} error:`, (err as Error).message);
+          console.error(`[parallel] worker ${rank} error:`, err.message);
         }
       });
       w.on('exit', (code) => {
@@ -224,7 +224,7 @@ export function parallelAnnealEvolve(
         }
       });
       w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
-        if (msg?.type === 'worker-fatal') {
+        if (msg.type === 'worker-fatal') {
           poisoned = true;
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(`[parallel] worker ${msg.rank} fatal: ${msg.message}`);
@@ -255,6 +255,9 @@ export function parallelAnnealEvolve(
     // 同步握手：等待全体 Worker 就绪并入栏（Worker 各自的事件循环独立运转）
     const readyDeadline = Date.now() + 10_000;
     while (Atomics.load(H, WAITING) < W) {
+      // poisoned 由 error/worker-fatal 回调闭包改写——流分析看不见闭包赋值，
+      // 此处的"恒假"是误报（见模块注释：阻塞等待期间事件无法送达恰恰依赖它兜底）
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (poisoned || Date.now() > readyDeadline) throw new Error('worker handshake timeout');
       Atomics.wait(H, WAITING, Atomics.load(H, WAITING), 50);
     }
@@ -302,7 +305,9 @@ export function parallelAnnealEvolve(
     return null;
   } finally {
     // Worker 已 unref：正常路径由 close() 自行退出，兜底强杀防止滞留
-    setTimeout(() => terminateAll(), 1_000).unref?.();
+    setTimeout(() => {
+      terminateAll();
+    }, 1_000).unref();
   }
 }
 
@@ -311,7 +316,7 @@ export function parallelAnnealEvolve(
 // ----------------------------------------------------------------------------
 
 /** 构建并行的最小维度（组数少、无逐步屏障，阈值较演化宽松一档） */
-export const PARALLEL_BUILD_MIN_DIM = 1 << 18;
+const PARALLEL_BUILD_MIN_DIM = 1 << 18;
 
 /** 构建结果：每组 {order 精确视图, runs 精确视图}，与串行内核逐位一致 */
 export interface ParallelBuildResult {
@@ -424,7 +429,7 @@ export function parallelBuildFiberGroups(params: {
         poisoned = true;
       });
       w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
-        if (msg?.type === 'worker-fatal') {
+        if (msg.type === 'worker-fatal') {
           poisoned = true;
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(`[parallel-build] worker ${msg.rank} fatal: ${msg.message}`);
@@ -454,6 +459,8 @@ export function parallelBuildFiberGroups(params: {
     // 同步握手
     const readyDeadline = Date.now() + 10_000;
     while (Atomics.load(H, WAITING) < W) {
+      // 同上：闭包改写的标志位，流分析误报
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (poisoned || Date.now() > readyDeadline) throw new Error('build handshake timeout');
       Atomics.wait(H, WAITING, Atomics.load(H, WAITING), 50);
     }
@@ -499,6 +506,8 @@ export function parallelBuildFiberGroups(params: {
     terminateAll();
     return null;
   } finally {
-    setTimeout(() => terminateAll(), 1_000).unref?.();
+    setTimeout(() => {
+      terminateAll();
+    }, 1_000).unref();
   }
 }

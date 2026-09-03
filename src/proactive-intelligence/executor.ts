@@ -8,19 +8,19 @@
  */
 
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import type { Action, ActionExecution, PolicyConfig } from './types';
 import type { BrainAssignment } from './brain';
 import { ToolError } from '../utils/errors';
 import { execute_command } from '../tools/system-tools';
 
 export class ActionExecutor extends EventEmitter {
-  private runningExecutions: Map<string, ActionExecution> = new Map();
+  private runningExecutions = new Map<string, ActionExecution>();
   private executionHistory: ActionExecution[] = [];
   /** 已入史执行ID集合：addToHistory幂等查重O(1)（原some()为O(n²)） */
-  private historyIds: Set<string> = new Set();
+  private historyIds = new Set<string>();
   /** 已取消的执行ID：在飞的executeAction返回时据此放弃覆盖终态 */
-  private cancelledIds: Set<string> = new Set();
+  private cancelledIds = new Set<string>();
   private config: PolicyConfig;
 
   constructor(config: Partial<PolicyConfig> = {}) {
@@ -40,7 +40,7 @@ export class ActionExecutor extends EventEmitter {
   /** 执行动作 */
   async executeAction(ruleId: string, action: Action): Promise<ActionExecution> {
     const execution: ActionExecution = {
-      id: uuidv4(),
+      id: randomUUID(),
       ruleId,
       action,
       status: 'pending',
@@ -116,8 +116,8 @@ export class ActionExecutor extends EventEmitter {
 
   /** 带超时与重试的动作执行 */
   private async performAction(action: Action, _execution: ActionExecution): Promise<unknown> {
-    const timeout = action.timeout || this.config.actionTimeoutMs;
-    const retryPolicy = action.retryPolicy || { maxRetries: 0, backoffMs: 1000 };
+    const timeout = action.timeout ?? this.config.actionTimeoutMs;
+    const retryPolicy = action.retryPolicy ?? { maxRetries: 0, backoffMs: 1000 };
 
     let lastError: Error | null = null;
 
@@ -126,7 +126,9 @@ export class ActionExecutor extends EventEmitter {
         // 创建超时Promise（race 结束后清理定时器，避免泄漏）
         let timeoutHandle: NodeJS.Timeout | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutHandle = setTimeout(() => reject(new ToolError('Action timeout')), timeout);
+          timeoutHandle = setTimeout(() => {
+            reject(new ToolError('Action timeout'));
+          }, timeout);
         });
 
         try {
@@ -141,7 +143,7 @@ export class ActionExecutor extends EventEmitter {
 
         // 超时不是可重试错误：command/workflow等动作有副作用，
         // "只是慢"不构成重跑的理由（重试会放大副作用）
-        if (lastError?.message === 'Action timeout') {
+        if (lastError.message === 'Action timeout') {
           throw lastError;
         }
 
@@ -173,15 +175,15 @@ export class ActionExecutor extends EventEmitter {
       case 'assignment':
         return this.executeAssignment(action);
       default:
-        throw new ToolError(`Unknown action type: ${action.type}`);
+        throw new ToolError(`Unknown action type: ${String(action.type)}`);
     }
   }
 
   /** 执行市场分配动作（来自增长调度器 Brain 的 VCG 定价分配） */
-  private async executeAssignment(action: Action): Promise<unknown> {
+  private executeAssignment(action: Action): Promise<unknown> {
     const assignment = action.parameters.assignment as BrainAssignment | undefined;
 
-    if (!assignment || !assignment.taskId || !assignment.winnerId) {
+    if (!assignment?.taskId || !assignment.winnerId) {
       throw new ToolError(
         'Assignment action requires "assignment" parameter with taskId and winnerId',
       );
@@ -189,14 +191,14 @@ export class ActionExecutor extends EventEmitter {
 
     this.emit('market_allocation', assignment);
 
-    return {
+    return Promise.resolve({
       type: 'assignment',
       taskId: assignment.taskId,
       winnerId: assignment.winnerId,
       capability: assignment.capability,
       payment: assignment.payment,
       socialValue: assignment.socialValue,
-    };
+    });
   }
 
   /**
@@ -216,17 +218,17 @@ export class ActionExecutor extends EventEmitter {
 
     const output = await execute_command([command, ...argList].join(' '));
 
-    return {
+    return Promise.resolve({
       type: 'command',
       command,
       args: argList,
       output,
       exitCode: 0,
-    };
+    });
   }
 
   /** 执行通知 */
-  private async executeNotification(action: Action): Promise<unknown> {
+  private executeNotification(action: Action): Promise<unknown> {
     const { title, message, level } = action.parameters;
 
     if (!title || !message) {
@@ -235,19 +237,19 @@ export class ActionExecutor extends EventEmitter {
 
     this.emit('notification_sent', { title, message, level });
 
-    return {
+    return Promise.resolve({
       type: 'notification',
       title,
       message,
-      level: level || 'info',
-    };
+      level: level ?? 'info',
+    });
   }
 
   /**
    * 执行工作流：发出 workflow_started 事件交由宿主接入 DSH 工作流引擎
    * （宿主监听该事件调用 platform.executeDSHWorkflow）。
    */
-  private async executeWorkflow(action: Action): Promise<unknown> {
+  private executeWorkflow(action: Action): Promise<unknown> {
     const { workflowId, parameters } = action.parameters;
 
     if (!workflowId) {
@@ -256,23 +258,25 @@ export class ActionExecutor extends EventEmitter {
 
     this.emit('workflow_started', { workflowId, parameters });
 
-    return {
+    return Promise.resolve({
       type: 'workflow',
       workflowId,
       parameters,
       status: 'started',
-    };
+    });
   }
 
   /** 执行自定义动作 */
-  private async executeCustom(action: Action): Promise<unknown> {
+  private executeCustom(action: Action): Promise<unknown> {
     const { handler } = action.parameters;
 
     if (!handler || typeof handler !== 'function') {
       throw new ToolError('Custom action requires "handler" function parameter');
     }
 
-    return handler(action.parameters);
+    return Promise.resolve(
+      (handler as (params: Record<string, unknown>) => unknown)(action.parameters),
+    );
   }
 
   /** 检查动作是否允许 */

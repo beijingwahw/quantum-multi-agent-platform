@@ -334,7 +334,7 @@ describe('调度器 QPU 入口', () => {
     assert.equal(report.representation, 'qpu');
     assert.equal(report.assigned, 3);
     assert.ok(report.optimality!);
-    assert.ok(Math.abs(report.optimality!.ratio - 1) < EPS);
+    assert.ok(Math.abs(report.optimality.ratio - 1) < EPS);
     assert.ok(scheduler.getTasks().every((t) => t.status === 'assigned'));
     // 决策带采样语义的概率与 reasoning
     const decision = scheduler.getSchedulingHistory().at(-1)!;
@@ -372,11 +372,10 @@ describe('调度器 QPU 入口', () => {
         status: 'pending',
       } as any);
 
-      stub2.respondWith((req) => {
+      stub2.respondWith((_req) => {
         // 用提交的 h/J 现场求解最优太复杂——直接返回全 +1 外加最优位翻转不可行；
         // 改为从请求侧拿到问题规模，返回一个可行的分配：构造与调度器一致的最优
         // 通过本地下场？此处返回已在测试内静态构造的最优（t0→a2）
-        void req;
         const spins = [1, 1, -1]; // q2 (t0→a2) 置 −1
         return {
           id: 's1',

@@ -472,7 +472,7 @@ function collapseSubspace(
   // 时分配 dim 个对象再 O(dim·log dim) 排序（8×10 实例实测 ~7s），只为取
   // K=3 个候选。线性扫描维护按 p 降序的 K 槽：相等概率保持原有次序（与
   // V8 稳定排序语义一致），产出候选列表与旧实现逐项相同。
-  const top: { s: number; p: number }[] = [];
+  const top: Array<{ s: number; p: number }> = [];
   for (let s = 0; s < probs.length && topK > 0; s++) {
     const p = probs[s]!;
     if (top.length === topK && p <= top[top.length - 1]!.p) continue;

@@ -287,7 +287,7 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     scheduler.registerAgent(makeSchedulerAgent('a2', ['javascript']));
     scheduler.registerAgent(makeSchedulerAgent('a3', ['javascript']));
 
-    const task = scheduler.submitTask(makeTask('T1', 'javascript') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'javascript'));
 
     assert.equal(task.status, 'assigned');
     assert.ok(task.assignedAgentId);
@@ -304,7 +304,7 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     scheduler.registerAgent(makeSchedulerAgent('a1', ['rust']));
     scheduler.registerAgent(makeSchedulerAgent('a2', ['rust']));
 
-    const task = scheduler.submitTask(makeTask('T1', 'rust') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'rust'));
     assert.equal(task.status, 'assigned');
     const decision = scheduler.getSchedulingHistory().at(-1)!;
     assert.match(decision.reasoning, /annealing/i);
@@ -322,8 +322,8 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     scheduler.registerAgent(makeSchedulerAgent('a2', ['js'], ['a1']));
     scheduler.registerAgent(makeSchedulerAgent('a3', ['js']));
 
-    const t1 = scheduler.submitTask(makeTask('Q1', 'js', 'critical') as any);
-    const t2 = scheduler.submitTask(makeTask('Q2', 'js', 'high') as any);
+    const t1 = scheduler.submitTask(makeTask('Q1', 'js', 'critical'));
+    const t2 = scheduler.submitTask(makeTask('Q2', 'js', 'high'));
     assert.equal(t1.status, 'pending');
     assert.equal(t2.status, 'pending');
 
@@ -333,8 +333,8 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     assert.ok(report.entanglementCouplings > 0, '纠缠对应产生哈密顿量耦合项');
     assert.ok(report.optimality, '小规模问题应附带穷举最优对照');
     assert.ok(
-      report.optimality!.ratio >= 0.999,
-      `联合最优率应为100%，实际 ${(report.optimality!.ratio * 100).toFixed(1)}%`,
+      report.optimality.ratio >= 0.999,
+      `联合最优率应为100%，实际 ${(report.optimality.ratio * 100).toFixed(1)}%`,
     );
     assert.ok(report.meanProbability > 0 && report.meanProbability <= 1);
 
@@ -349,13 +349,13 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     const metrics = scheduler.getQuantumMetrics();
     assert.equal(metrics.batchRuns, 1);
     assert.equal(metrics.batchAssigned, 2);
-    assert.equal(metrics.lastOptimalityRatio, report.optimality!.ratio);
+    assert.equal(metrics.lastOptimalityRatio, report.optimality.ratio);
   });
 
   it('默认 hybrid 路径行为不变（回归保护）', () => {
     const scheduler = new QuantumScheduler({});
     scheduler.registerAgent(makeSchedulerAgent('a1', ['python']));
-    const task = scheduler.submitTask(makeTask('T1', 'python') as any);
+    const task = scheduler.submitTask(makeTask('T1', 'python'));
     assert.equal(task.status, 'assigned');
     assert.equal(task.assignedAgentId, 'a1');
     assert.equal(scheduler.getQuantumMetrics().algorithm, 'hybrid');

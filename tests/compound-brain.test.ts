@@ -390,15 +390,15 @@ describe('CompoundBrain · 在线校准', () => {
     const advice = brain.advise();
     const capX = advice.find((a) => a.capability === 'X');
     assert.ok(capX, '应产出 X 能力的建议');
-    assert.ok(capX!.incubations.length === 2);
-    for (const inc of capX!.incubations) {
+    assert.ok(capX.incubations.length === 2);
+    for (const inc of capX.incubations) {
       assert.ok(typeof inc.capital === 'number');
       assert.ok(typeof inc.deltaMax === 'number');
       // 无劣势（已是最佳）→ K_min = 0；有劣势 → 正资本或不可行
       if (inc.kMin !== null) assert.ok(inc.kMin >= 0);
     }
     // expert 无劣势 → kMin = 0
-    const expert = capX!.incubations.find((i) => i.agentId === 'expert')!;
+    const expert = capX.incubations.find((i) => i.agentId === 'expert')!;
     assert.ok(expert.kMin === null || expert.kMin === 0, '最佳者无需孵化资本');
   });
 });
@@ -430,14 +430,17 @@ describe('CompoundBrain · 插件集成', () => {
     });
     await new Promise((r) => {
       let n = 0;
-      const step = () => (++n >= 4 ? r(null) : setImmediate(step));
+      const step = () => {
+        if (++n >= 4) r(null);
+        else setImmediate(step);
+      };
       setImmediate(step);
     });
 
     const hist = plugin.getExecutor().getExecutionHistory();
     const alloc = hist.find((e) => e.status === 'completed' && e.action?.type === 'assignment');
     assert.ok(alloc, 'task_request 应经 CompoundBrain 产出 market_allocate 执行记录');
-    const taskId = (alloc!.result as any).taskId;
+    const taskId = (alloc.result as any).taskId;
 
     // 结算闭环：settleTask 驱动学习资本与校准
     assert.ok(plugin.settleTask(taskId, true), '结算应命中在途任务');

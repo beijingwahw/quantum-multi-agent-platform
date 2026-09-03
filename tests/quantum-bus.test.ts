@@ -7,7 +7,9 @@ describe('QuantumBus', () => {
   const buses: QuantumBus[] = [];
 
   after(() => {
-    buses.forEach((bus) => bus.shutdown());
+    buses.forEach((bus) => {
+      bus.shutdown();
+    });
   });
 
   it('未启动时不占用端口，离线消息进入队列', () => {
@@ -47,14 +49,16 @@ describe('QuantumBus', () => {
     const received: any[] = [];
     await new Promise<void>((resolve, reject) => {
       const client = new WebSocket(`ws://localhost:${port}/quantum-bus`);
-      const timer = setTimeout(() => reject(new Error('test timeout')), 5000);
+      const timer = setTimeout(() => {
+        reject(new Error('test timeout'));
+      }, 5000);
 
       client.on('open', () => {
         client.send(JSON.stringify({ type: 'authenticate', agentId: 'agent-2' }));
       });
 
       client.on('message', (data: WebSocket.RawData) => {
-        const msg = JSON.parse(data.toString());
+        const msg = JSON.parse((data as Buffer).toString('utf8')) as { type?: string };
         received.push(msg);
         if (received.length >= 2) {
           clearTimeout(timer);

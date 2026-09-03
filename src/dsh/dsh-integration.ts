@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { logInfo, logError } from '../utils/logger';
 import { ToolError } from '../utils/errors';
 
@@ -42,11 +42,11 @@ interface DSHIntegrationMetrics {
 }
 
 export class DSHIntegration extends EventEmitter {
-  private tools: Map<string, DSHTool> = new Map();
-  private workflows: Map<string, DSHWorkflow> = new Map();
-  private agentMapping: Map<string, string> = new Map(); // quantum agent -> dsh agent
+  private tools = new Map<string, DSHTool>();
+  private workflows = new Map<string, DSHWorkflow>();
+  private agentMapping = new Map<string, string>(); // quantum agent -> dsh agent
   private config: unknown;
-  private isInitialized: boolean = false;
+  private isInitialized = false;
 
   constructor(config?: unknown) {
     super();
@@ -74,7 +74,7 @@ export class DSHIntegration extends EventEmitter {
     }
   }
 
-  private async initializeTools(): Promise<void> {
+  private initializeTools(): Promise<void> {
     // 这里可以从DSH API获取工具列表
     const defaultTools: DSHTool[] = [
       {
@@ -129,9 +129,10 @@ export class DSHIntegration extends EventEmitter {
     });
 
     logInfo('DSHIntegration', `Initialized ${defaultTools.length} DSH tools`);
+    return Promise.resolve();
   }
 
-  private async initializeWorkflows(): Promise<void> {
+  private initializeWorkflows(): Promise<void> {
     const defaultWorkflows: DSHWorkflow[] = [
       {
         id: 'code_analysis_workflow',
@@ -194,6 +195,7 @@ export class DSHIntegration extends EventEmitter {
     });
 
     logInfo('DSHIntegration', `Initialized ${defaultWorkflows.length} DSH workflows`);
+    return Promise.resolve();
   }
 
   // Agent映射管理
@@ -253,8 +255,13 @@ export class DSHIntegration extends EventEmitter {
     }
   }
 
-  private validateToolParameters(tool: DSHTool, parameters: DSHToolParams): void {
-    if (parameters === null || typeof parameters !== 'object') {
+  // 参数按运行时真实形态（JSON 反序列化产物）以 unknown 接收并收窄——
+  // 类型标注不构成对 JS 调用方的约束
+  private validateToolParameters(
+    tool: DSHTool,
+    parameters: unknown,
+  ): asserts parameters is DSHToolParams {
+    if (typeof parameters !== 'object' || parameters === null) {
       throw new ToolError(`Parameters for tool '${tool.name}' must be an object`);
     }
     tool.parameters.forEach((param) => {
@@ -282,7 +289,7 @@ export class DSHIntegration extends EventEmitter {
     const workdir = parameters.workdir;
     return await execute_command(
       String(parameters.command),
-      workdir === undefined ? undefined : String(workdir),
+      typeof workdir === 'string' ? workdir : undefined,
     );
   }
 
@@ -319,7 +326,7 @@ export class DSHIntegration extends EventEmitter {
       throw new ToolError(`Workflow '${workflowId}' not found`);
     }
 
-    const results: Map<string, unknown> = new Map();
+    const results = new Map<string, unknown>();
     const executedSteps = new Set<string>();
 
     // 按依赖关系排序执行步骤
@@ -357,8 +364,8 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private topologicalSort<T extends { id: string; dependsOn?: string[] }>(steps: T[]): T[] {
-    const graph: Map<string, Set<string>> = new Map();
-    const inDegree: Map<string, number> = new Map();
+    const graph = new Map<string, Set<string>>();
+    const inDegree = new Map<string, number>();
     const queue: string[] = [];
     const result: T[] = [];
 
@@ -376,7 +383,7 @@ export class DSHIntegration extends EventEmitter {
             throw new ToolError(`Workflow step '${step.id}' depends on unknown step '${depId}'`);
           }
           deps.add(step.id);
-          inDegree.set(step.id, (inDegree.get(step.id) || 0) + 1);
+          inDegree.set(step.id, (inDegree.get(step.id) ?? 0) + 1);
         });
       }
     });
@@ -427,7 +434,7 @@ export class DSHIntegration extends EventEmitter {
 
   // 工作流管理
   createWorkflow(workflow: Omit<DSHWorkflow, 'id'>): DSHWorkflow {
-    const id = uuidv4();
+    const id = randomUUID();
     const fullWorkflow: DSHWorkflow = { ...workflow, id };
     this.workflows.set(id, fullWorkflow);
     this.emit('workflow_created', fullWorkflow);

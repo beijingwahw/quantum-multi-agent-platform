@@ -9,8 +9,12 @@ describe('Web控制台协议 端到端', () => {
   const clients: WebSocket[] = [];
 
   after(() => {
-    clients.forEach((c) => c.close());
-    platforms.forEach((p) => p.stop());
+    clients.forEach((c) => {
+      c.close();
+    });
+    platforms.forEach((p) => {
+      p.stop();
+    });
   });
 
   function connectConsole(port: number): Promise<{ latest: () => any }> {
@@ -19,7 +23,9 @@ describe('Web控制台协议 端到端', () => {
       clients.push(ws);
       let latestSnapshot: any = null;
 
-      const timer = setTimeout(() => reject(new Error('console connect timeout')), 8000);
+      const timer = setTimeout(() => {
+        reject(new Error('console connect timeout'));
+      }, 8000);
 
       ws.on('open', () => {
         ws.send(JSON.stringify({ type: 'authenticate', agentId: 'web-console' }));
@@ -27,7 +33,10 @@ describe('Web控制台协议 端到端', () => {
       });
 
       ws.on('message', (data: WebSocket.RawData) => {
-        const msg = JSON.parse(data.toString());
+        const msg = JSON.parse((data as Buffer).toString('utf8')) as {
+          type?: string;
+          content?: { agents?: unknown[] };
+        };
         if (msg.type === 'status_update' && msg.content && Array.isArray(msg.content.agents)) {
           latestSnapshot = msg.content;
           resolve({ latest: () => latestSnapshot });

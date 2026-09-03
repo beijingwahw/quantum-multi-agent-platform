@@ -29,7 +29,7 @@ function startWindow(): WindowStart {
   return { wall: performance.now(), cpu: process.cpuUsage() };
 }
 
-export class QuantumBenchmark {
+class QuantumBenchmark {
   private platform: QuantumMultiAgentPlatform;
   private results: BenchmarkResult[] = [];
 
@@ -54,9 +54,10 @@ export class QuantumBenchmark {
   }
 
   /** 停止平台并清理定时器 */
-  async cleanup(): Promise<void> {
+  cleanup(): Promise<void> {
     this.platform.stop();
     this.out('Platform cleaned up');
+    return Promise.resolve();
   }
 
   /**
@@ -94,7 +95,7 @@ export class QuantumBenchmark {
     return result;
   }
 
-  async benchmarkAgentRegistration(count: number = 100): Promise<BenchmarkResult> {
+  benchmarkAgentRegistration(count = 100): Promise<BenchmarkResult> {
     this.out(`Testing agent registration with ${count} agents...`);
 
     const started = startWindow();
@@ -115,22 +116,24 @@ export class QuantumBenchmark {
       }
     }
 
-    return this.record(
-      this.buildResult(
-        'Agent Registration',
-        started,
-        successCount,
-        {
-          agentsRegistered: this.platform.getAgents().length,
-          tasksSubmitted: 0,
-          tasksCompleted: 0,
-        },
-        errors,
+    return Promise.resolve(
+      this.record(
+        this.buildResult(
+          'Agent Registration',
+          started,
+          successCount,
+          {
+            agentsRegistered: this.platform.getAgents().length,
+            tasksSubmitted: 0,
+            tasksCompleted: 0,
+          },
+          errors,
+        ),
       ),
     );
   }
 
-  async benchmarkTaskSubmission(count: number = 1000): Promise<BenchmarkResult> {
+  async benchmarkTaskSubmission(count = 1000): Promise<BenchmarkResult> {
     this.out(`Testing task submission with ${count} tasks...`);
 
     const started = startWindow();
@@ -165,22 +168,24 @@ export class QuantumBenchmark {
 
     await Promise.all(promises);
 
-    return this.record(
-      this.buildResult(
-        'Task Submission',
-        started,
-        count,
-        {
-          agentsRegistered: this.platform.getAgents().length,
-          tasksSubmitted: this.platform.getTasks().length,
-          tasksCompleted: completedTasks.length,
-        },
-        errors,
+    return Promise.resolve(
+      this.record(
+        this.buildResult(
+          'Task Submission',
+          started,
+          count,
+          {
+            agentsRegistered: this.platform.getAgents().length,
+            tasksSubmitted: this.platform.getTasks().length,
+            tasksCompleted: completedTasks.length,
+          },
+          errors,
+        ),
       ),
     );
   }
 
-  async benchmarkCommunication(count: number = 1000): Promise<BenchmarkResult> {
+  benchmarkCommunication(count = 1000): Promise<BenchmarkResult> {
     this.out(`Testing communication with ${count} messages...`);
 
     const started = startWindow();
@@ -189,16 +194,18 @@ export class QuantumBenchmark {
     const agents = this.platform.getAgents();
     if (agents.length < 2) {
       errors.push('Need at least 2 agents for communication benchmark');
-      return this.buildResult(
-        'Communication',
-        started,
-        0,
-        {
-          agentsRegistered: agents.length,
-          tasksSubmitted: 0,
-          tasksCompleted: 0,
-        },
-        errors,
+      return Promise.resolve(
+        this.buildResult(
+          'Communication',
+          started,
+          0,
+          {
+            agentsRegistered: agents.length,
+            tasksSubmitted: 0,
+            tasksCompleted: 0,
+          },
+          errors,
+        ),
       );
     }
 
@@ -223,22 +230,24 @@ export class QuantumBenchmark {
       }
     }
 
-    return this.record(
-      this.buildResult(
-        'Communication',
-        started,
-        sent,
-        {
-          agentsRegistered: agents.length,
-          tasksSubmitted: 0,
-          tasksCompleted: 0,
-        },
-        errors,
+    return Promise.resolve(
+      this.record(
+        this.buildResult(
+          'Communication',
+          started,
+          sent,
+          {
+            agentsRegistered: agents.length,
+            tasksSubmitted: 0,
+            tasksCompleted: 0,
+          },
+          errors,
+        ),
       ),
     );
   }
 
-  async benchmarkDSHIntegration(count: number = 100): Promise<BenchmarkResult> {
+  async benchmarkDSHIntegration(count = 100): Promise<BenchmarkResult> {
     this.out(`Testing DSH integration with ${count} tool calls...`);
 
     const started = startWindow();
@@ -265,26 +274,25 @@ export class QuantumBenchmark {
 
     await Promise.all(promises);
 
-    return this.record(
-      this.buildResult(
-        'DSH Integration',
-        started,
-        successCount,
-        {
-          agentsRegistered: this.platform.getAgents().length,
-          tasksSubmitted: 0,
-          tasksCompleted: 0,
-        },
-        errors,
+    return Promise.resolve(
+      this.record(
+        this.buildResult(
+          'DSH Integration',
+          started,
+          successCount,
+          {
+            agentsRegistered: this.platform.getAgents().length,
+            tasksSubmitted: 0,
+            tasksCompleted: 0,
+          },
+          errors,
+        ),
       ),
     );
   }
 
   // 调度器纯吞吐：同步提交+分配+完成，无模拟执行等待
-  async benchmarkSchedulerThroughput(
-    taskCount: number = 1000,
-    agentCount: number = 200,
-  ): Promise<BenchmarkResult> {
+  benchmarkSchedulerThroughput(taskCount = 1000, agentCount = 200): Promise<BenchmarkResult> {
     this.out(`Testing scheduler throughput with ${taskCount} tasks / ${agentCount} agents...`);
 
     const errors: string[] = [];
@@ -329,17 +337,19 @@ export class QuantumBenchmark {
     }
 
     const metrics = this.platform.getSystemMetrics();
-    return this.record(
-      this.buildResult(
-        'Scheduler Throughput',
-        started,
-        taskCount,
-        {
-          agentsRegistered: metrics.scheduler.totalAgents,
-          tasksSubmitted: taskCount,
-          tasksCompleted: metrics.scheduler.completedTasks,
-        },
-        errors,
+    return Promise.resolve(
+      this.record(
+        this.buildResult(
+          'Scheduler Throughput',
+          started,
+          taskCount,
+          {
+            agentsRegistered: metrics.scheduler.totalAgents,
+            tasksSubmitted: taskCount,
+            tasksCompleted: metrics.scheduler.completedTasks,
+          },
+          errors,
+        ),
       ),
     );
   }
@@ -471,12 +481,11 @@ export async function runBenchmark(config?: Partial<PlatformConfig>): Promise<Be
 // 如果直接运行此文件（Windows路径兼容）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runBenchmark()
-    .then((results) => {
-      void results;
+    .then(() => {
       console.log('Benchmark completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.error('Benchmark failed:', error);
       process.exit(1);
     });

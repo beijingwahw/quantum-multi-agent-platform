@@ -134,7 +134,7 @@ export function trainingBetaInterval(
   for (let i = 1; i <= N; i++) {
     const beta = bMin * Math.pow(betaHi / bMin, i / N);
     if (alphaStar({ ...p, alpha, beta }) < alpha) {
-      if (lo === null) lo = beta;
+      lo ??= beta;
       hi = beta;
     }
   }
@@ -233,7 +233,7 @@ function main(): void {
   ] as Array<[number, number]>) {
     const law = { ...org, alpha, beta };
     const closed = cumulativeAdvantageClosed(law);
-    const loop = cumulativeAdvantage({ ...PHASE_DEFAULTS, ...law, seeds: [] } as PhaseParams);
+    const loop = cumulativeAdvantage({ ...PHASE_DEFAULTS, ...law, seeds: [] });
     maxErr = Math.max(maxErr, Math.abs(closed - loop));
     const aStar = alphaStar(law);
     if (isFinite(aStar)) {
@@ -358,4 +358,4 @@ function main(): void {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('scaling-law.ts')) main();
+if (process.argv[1]?.endsWith('scaling-law.ts')) main();

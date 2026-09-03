@@ -2,7 +2,7 @@
 
 # Quantum Multi-Agent Development & Scheduling Platform
 
-![version](https://img.shields.io/badge/version-1.6.0-blue)
+![version](https://img.shields.io/badge/version-1.7.0-blue)
 ![tests](https://img.shields.io/badge/tests-226%2F226-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D18-green)
@@ -344,10 +344,23 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 ```bash
 npm run build     # TypeScript 严格模式 + noUncheckedIndexedAccess，0 错误
 npm run typecheck # src+tests+examples 全仓类型检查
-npm run lint      # ESLint 0 错误
+npm run lint      # ESLint 0 错误（类型感知 strict 集:no-floating-promises/
+                  #   no-unnecessary-condition/prefer-nullish-coalescing/
+                  #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
+npm run coverage  # c8 覆盖率 93% 语句 / 83% 分支,含 90/80/90 防回归门槛
+npm run knip      # 死代码/未用导出/未用依赖 0 发现
 npm test          # 226/226 ✅
 npm run format    # Prettier 统一格式
 ```
+
+**质量纪律（v1.7）**：ESLint 升级为 typescript-eslint **recommendedTypeChecked
+基座 + 精选严格规则**——类型感知规则能发现无类型规则抓不到的缺陷类别
+（悬空 Promise、恒真/恒假条件、`||` 吞掉合法 0/''、模板串拼出
+`[object Object]`、any 逃逸），本轮修复 117 项源码违规；`!` 非空断言在
+noUncheckedIndexedAccess 下是热内核的既定约定，有意不禁。测试对
+describe/it 的 Promise 语义与"断言验证不可能不变量"按测试本质豁免
+（配置内注明理由）。依赖面：运行时依赖收敛为 `ws` 一项（uuid 以原生
+`crypto.randomUUID()` 取代，0 供应链告警）。
 
 CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑全部门禁。
 
@@ -408,6 +421,7 @@ timeline
     v1.4 真 QPU 后端 : D-Wave Leap 客户端 : Qiskit 程序导出 : 三道闸门验证
     v1.5 全量质量跃迁 : 跨平台注入免疫执行内核 : noUncheckedIndexedAccess 全仓清零 : ESLint/Prettier/CI 门禁 : 共享内核去重（RNG/MinCostFlow/市场估值层）
     v1.6 确定性并行内核 : 纤维尺寸查表+小纤维特化+相位递推（串行 5.1×） : worker_threads+SharedArrayBuffer 并行演化 23.5×（逐位一致） : 并行构建纤维组 5×（去 Map+展平能量） : 坍缩 top-K 线性选择 ~500×
+    v1.7 全量质量跃迁 : ESLint 类型感知严格集（修复 117 项源码违规） : c8 覆盖率 93%/83% + 防回归门槛 : knip 死代码门禁 : uuid 依赖移除（原生 randomUUID,0 告警）
 ```
 
 ---

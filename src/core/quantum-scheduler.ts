@@ -7,7 +7,7 @@ import type {
   TaskStatus,
 } from '../types/quantum-types';
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { logDebug, logInfo } from '../utils/logger';
 import { SchedulingError } from '../utils/errors';
 import { Mulberry32, DEFAULT_SEED } from '../utils/rng';
@@ -183,20 +183,20 @@ export interface SchedulerSystemMetrics {
 }
 
 export class QuantumScheduler extends EventEmitter {
-  private agents: Map<string, Agent> = new Map();
-  private tasks: Map<string, Task> = new Map();
-  private quantumState: Map<string, QuantumState> = new Map();
+  private agents = new Map<string, Agent>();
+  private tasks = new Map<string, Task>();
+  private quantumState = new Map<string, QuantumState>();
   private schedulingHistory: SchedulingDecision[] = [];
   private config: QuantumSchedulerConfig;
   // 量子态的随机性也走种子化 PRNG：给定 seed 的调度行为完全可复现
   private rngSource: Mulberry32 = new Mulberry32(DEFAULT_SEED);
 
   // 性能索引：能力 → 具备该能力的agentId集合（候选集O(要求数)求交）
-  private capabilityIndex: Map<string, Set<string>> = new Map();
+  private capabilityIndex = new Map<string, Set<string>>();
   // 性能索引：挂起任务按优先级分桶，免除每次重调度的全量排序
-  private pendingBuckets: Map<TaskPriority, string[]> = new Map();
+  private pendingBuckets = new Map<TaskPriority, string[]>();
   // 性能统计：替代每次决策过滤整个调度历史（O(1)量子相关性）
-  private agentStats: Map<string, AgentScheduleStats> = new Map();
+  private agentStats = new Map<string, AgentScheduleStats>();
   // 计数器：指标计算O(1)，不随任务总量增长
   private totalDecisions = 0;
   private completedAssignments = 0;
@@ -204,7 +204,7 @@ export class QuantumScheduler extends EventEmitter {
   private failedCount = 0;
   private pendingCount = 0;
   // 已入桶追踪：保证pendingCount只在真正入过桶的任务上增减
-  private pendingTracked: Set<string> = new Set();
+  private pendingTracked = new Set<string>();
   // 当前占用中的agent数（assigned/running），用于并发上限背压
   private activeAssignments = 0;
   // 周期巡检：超时回收 + 已终结任务保留清理
@@ -223,7 +223,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private get maxHistory(): number {
-    return this.config?.scheduling?.maxHistorySize ?? DEFAULT_MAX_HISTORY;
+    return this.config.scheduling?.maxHistorySize ?? DEFAULT_MAX_HISTORY;
   }
 
   // Agent管理
@@ -236,7 +236,7 @@ export class QuantumScheduler extends EventEmitter {
     logInfo('QuantumScheduler', `Agent registered: ${agent.name} (${agent.id})`);
 
     // 新agent加入后，尝试调度之前无agent可用的挂起任务
-    if (this.config?.scheduling?.autoSchedule !== false) {
+    if (this.config.scheduling?.autoSchedule !== false) {
       this.reschedulePendingTasks();
     }
   }
@@ -286,7 +286,7 @@ export class QuantumScheduler extends EventEmitter {
   // Task管理
   submitTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'quantumState'>): Task {
     // 依赖校验：未知依赖ID直接拒绝，避免任务永远挂起的静默陷阱
-    for (const depId of task.dependencies || []) {
+    for (const depId of task.dependencies) {
       if (!this.tasks.has(depId)) {
         throw new SchedulingError(`Unknown dependency '${depId}' for task '${task.name}'`);
       }
@@ -294,7 +294,7 @@ export class QuantumScheduler extends EventEmitter {
 
     const fullTask: Task = {
       ...task,
-      id: uuidv4(),
+      id: randomUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),
       quantumState: this.generateQuantumState(),
@@ -304,7 +304,7 @@ export class QuantumScheduler extends EventEmitter {
     this.emit('task_submitted', fullTask);
 
     // 立即尝试调度（批量模式下攒起来等联合量子调度）
-    if (this.config?.scheduling?.autoSchedule !== false) {
+    if (this.config.scheduling?.autoSchedule !== false) {
       this.scheduleTask(fullTask.id);
     }
 
@@ -352,7 +352,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   // 任务完成/失败：更新状态、释放agent、触发挂起任务重调度
-  completeTask(taskId: string, success: boolean = true, result?: unknown): boolean {
+  completeTask(taskId: string, success = true, result?: unknown): boolean {
     const task = this.tasks.get(taskId);
     if (!task) return false;
 
@@ -406,7 +406,7 @@ export class QuantumScheduler extends EventEmitter {
     );
 
     // 释放出的容量立即用于挂起任务（批量模式下留待联合调度）
-    if (this.config?.scheduling?.autoSchedule !== false) {
+    if (this.config.scheduling?.autoSchedule !== false) {
       this.reschedulePendingTasks();
     }
     return true;
@@ -437,22 +437,21 @@ export class QuantumScheduler extends EventEmitter {
 
   // 前置依赖是否全部完成
   private dependenciesMet(task: Task): boolean {
-    if (!task.dependencies || task.dependencies.length === 0) return true;
+    if (task.dependencies.length === 0) return true;
     return task.dependencies.every((depId) => {
       const dep = this.tasks.get(depId);
-      return dep !== undefined && dep.status === 'completed';
+      return dep?.status === 'completed';
     });
   }
 
   // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）
-  private cascadeFailure(failedTaskId: string, depth: number = 0): void {
+  private cascadeFailure(failedTaskId: string, depth = 0): void {
     if (depth > MAX_CASCADE_DEPTH) return; // 防御环形依赖导致的无限递归
 
     const dependents: string[] = [];
     for (const t of this.tasks.values()) {
       if (
         (t.status === 'pending' || t.status === 'assigned' || t.status === 'running') &&
-        t.dependencies &&
         t.dependencies.includes(failedTaskId)
       ) {
         dependents.push(t.id);
@@ -469,7 +468,7 @@ export class QuantumScheduler extends EventEmitter {
     if (candidates.length === 0) return null;
 
     // 并发上限背压：占满后任务留待后续释放
-    const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
+    const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
     if (maxConcurrent != null && this.activeAssignments >= maxConcurrent) {
       logDebug(
         'QuantumScheduler',
@@ -522,7 +521,7 @@ export class QuantumScheduler extends EventEmitter {
     const source: Iterable<string> = candidateIds ?? this.agents.keys();
     for (const id of source) {
       const agent = this.agents.get(id);
-      if (agent && agent.state === 'idle') {
+      if (agent?.state === 'idle') {
         available.push(agent);
       }
     }
@@ -558,7 +557,7 @@ export class QuantumScheduler extends EventEmitter {
 
         const task = this.tasks.get(taskId);
         // 惰性清理：已分配/完成/取消的条目直接出桶
-        if (!task || task.status !== 'pending') continue;
+        if (task?.status !== 'pending') continue;
 
         // 依赖未就绪的任务留桶，避免无效的候选匹配
         if (!this.dependenciesMet(task)) {
@@ -601,15 +600,17 @@ export class QuantumScheduler extends EventEmitter {
   // 周期巡检：分配超时回收 + 已终结任务保留清理
   private ensureSweepTimer(): void {
     if (this.sweepTimer) return;
-    const interval = this.config?.scheduling?.sweepInterval ?? 5000;
-    this.sweepTimer = setInterval(() => this.sweep(), interval);
+    const interval = this.config.scheduling?.sweepInterval ?? 5000;
+    this.sweepTimer = setInterval(() => {
+      this.sweep();
+    }, interval);
     // 不阻止进程退出
-    this.sweepTimer.unref?.();
+    this.sweepTimer.unref();
   }
 
   private sweep(): void {
     const now = Date.now();
-    const timeout = this.config?.scheduling?.taskTimeout ?? 30000;
+    const timeout = this.config.scheduling?.taskTimeout ?? 30000;
 
     // 1) 超时回收：assigned/running超时的任务标记失败，释放agent并级联
     for (const task of this.tasks.values()) {
@@ -625,8 +626,8 @@ export class QuantumScheduler extends EventEmitter {
 
     // 2) 保留清理：终结超过保留期的任务从内存移除（计数器指标保留历史总量）
     const retentionMs =
-      this.config?.performance?.retentionMs ??
-      (this.config?.performance?.retentionDays ?? 30) * 86400000;
+      this.config.performance?.retentionMs ??
+      (this.config.performance?.retentionDays ?? 30) * 86400000;
     if (retentionMs > 0) {
       for (const [id, task] of this.tasks) {
         if (task.status === 'completed' || task.status === 'failed') {
@@ -650,7 +651,7 @@ export class QuantumScheduler extends EventEmitter {
   private generateQuantumState(): QuantumState {
     const rng = this.rngSource.next.bind(this.rngSource);
     return {
-      id: uuidv4(),
+      id: randomUUID(),
       amplitude: rng(),
       phase: rng() * 2 * Math.PI,
       collapsed: false,
@@ -664,7 +665,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private makeQuantumDecision(task: Task, agents: Agent[]): SchedulingDecision {
-    const algorithm = this.config?.scheduling?.quantumAlgorithm ?? 'hybrid';
+    const algorithm = this.config.scheduling?.quantumAlgorithm ?? 'hybrid';
     if (algorithm === 'quantum-qaoa' || algorithm === 'quantum-annealing') {
       return this.makeTrueQuantumDecision(task, agents, algorithm);
     }
@@ -715,7 +716,7 @@ export class QuantumScheduler extends EventEmitter {
       // O(1)相关性：直接读预置计数，不回扫历史
       correlationScore: (() => {
         const stats = this.agentStats.get(agent.id);
-        return stats && stats.total > 0 ? (stats.byType.get(task.type) || 0) / stats.total : 0;
+        return stats && stats.total > 0 ? (stats.byType.get(task.type) ?? 0) / stats.total : 0;
       })(),
       distance,
     };
@@ -747,7 +748,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   private buildSolverOptions(): QuantumSolverOptions {
-    const q = this.config?.scheduling?.quantum ?? {};
+    const q = this.config.scheduling?.quantum ?? {};
     return {
       layers: q.layers,
       shots: q.shots,
@@ -825,7 +826,7 @@ export class QuantumScheduler extends EventEmitter {
    */
   scheduleBatchQuantum(taskIds?: string[]): QuantumBatchReport {
     const algorithm: 'quantum-qaoa' | 'quantum-annealing' =
-      this.config?.scheduling?.quantumAlgorithm === 'quantum-annealing'
+      this.config.scheduling?.quantumAlgorithm === 'quantum-annealing'
         ? 'quantum-annealing'
         : 'quantum-qaoa';
     const engineKind = algorithm === 'quantum-qaoa' ? ('qaoa' as const) : ('annealing' as const);
@@ -842,7 +843,7 @@ export class QuantumScheduler extends EventEmitter {
 
     // 2) 空闲agent池与并发余量
     const idlePool = this.getAgents().filter((a) => a.state === 'idle');
-    const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
+    const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
     const slots =
       maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
 
@@ -870,7 +871,7 @@ export class QuantumScheduler extends EventEmitter {
     //    agent（m > n）时自动分轮，联合窗口保持最大，不再退化到全空间小分块。
     //    可联合调度的批量远超全空间态矢量（例：8任务×10agent = 181万维
     //    子空间，等效全空间 2^80 维）。
-    const subspaceCap = this.config?.scheduling?.quantum?.subspaceCap ?? SCHEDULER_SUBSPACE_CAP;
+    const subspaceCap = this.config.scheduling?.quantum?.subspaceCap ?? SCHEDULER_SUBSPACE_CAP;
     if (schedulable.length > 0 && idlePool.length >= 2) {
       const subspaceReport = this.runSubspaceRounds(
         schedulable,
@@ -884,7 +885,7 @@ export class QuantumScheduler extends EventEmitter {
 
     // 5) 回退：全空间态矢量分块路径（子空间超维或不定时使用）
     //    任务数×agent数 ≤ qubitCap（态矢量内存上限）
-    const qubitCap = this.config?.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP;
+    const qubitCap = this.config.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP;
     const chunks: Task[][] = [];
     let current: Task[] = [];
     for (const task of schedulable) {
@@ -993,7 +994,7 @@ export class QuantumScheduler extends EventEmitter {
     for (const priority of PRIORITY_ORDER) {
       for (const id of this.pendingBuckets.get(priority) ?? []) {
         const task = this.tasks.get(id);
-        if (task && task.status === 'pending' && this.dependenciesMet(task)) {
+        if (task?.status === 'pending' && this.dependenciesMet(task)) {
           candidates.push(task);
         }
       }
@@ -1009,7 +1010,7 @@ export class QuantumScheduler extends EventEmitter {
   private applyJointSolution(
     chunk: Task[],
     pool: Agent[],
-    assignment: ReadonlyArray<number>,
+    assignment: readonly number[],
     problem: AssignmentProblem,
     opts: {
       maxAssign: number;
@@ -1022,12 +1023,12 @@ export class QuantumScheduler extends EventEmitter {
     for (let t = 0; t < chunk.length; t++) {
       if (report.assigned >= opts.maxAssign) break;
       const task = chunk[t];
-      if (!task || task.status !== 'pending') continue; // 并发块内前序已占用
+      if (task?.status !== 'pending') continue; // 并发块内前序已占用
       const agentIndex = assignment[t];
       if (agentIndex == null || agentIndex < 0) continue;
       if (problem.ineligible[t]?.[agentIndex]) continue;
       const agent = pool[agentIndex];
-      if (!agent || agent.state !== 'idle') continue; // 同块内被占用
+      if (agent?.state !== 'idle') continue; // 同块内被占用
 
       this.applyAssignmentDecision(task, {
         taskId: task.id,
@@ -1199,7 +1200,7 @@ export class QuantumScheduler extends EventEmitter {
     couplingCount: number;
     nqubits: number;
   } {
-    const entanglementBonus = this.config?.scheduling?.quantum?.entanglementBonus ?? 0.15;
+    const entanglementBonus = this.config.scheduling?.quantum?.entanglementBonus ?? 0.15;
     const problem: AssignmentProblem = {
       taskIds: chunk.map((t) => t.id),
       agentIds: idlePool.map((a) => a.id),
@@ -1223,8 +1224,7 @@ export class QuantumScheduler extends EventEmitter {
     for (let t1 = 0; t1 < chunk.length; t1++) {
       for (let t2 = t1 + 1; t2 < chunk.length; t2++) {
         const pwMin =
-          Math.min(PRIORITY_WEIGHT[chunk[t1]!.priority]!, PRIORITY_WEIGHT[chunk[t2]!.priority]!) /
-          4;
+          Math.min(PRIORITY_WEIGHT[chunk[t1]!.priority], PRIORITY_WEIGHT[chunk[t2]!.priority]) / 4;
         for (let a1 = 0; a1 < idlePool.length; a1++) {
           for (let a2 = 0; a2 < idlePool.length; a2++) {
             if (a1 === a2) continue;
@@ -1268,7 +1268,7 @@ export class QuantumScheduler extends EventEmitter {
     // 收集可调度任务（与 scheduleBatchQuantum 相同语义：优先级桶顺序）
     const candidates = this.collectPendingCandidates();
     const idlePool = this.getAgents().filter((a) => a.state === 'idle');
-    const maxConcurrent = this.config?.scheduling?.maxConcurrentTasks;
+    const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
     const slots =
       maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
 
@@ -1362,7 +1362,7 @@ export class QuantumScheduler extends EventEmitter {
   } {
     const total = this.quantumSingleDecisions + this.quantumBatchAssigned;
     return {
-      algorithm: this.config?.scheduling?.quantumAlgorithm ?? 'hybrid',
+      algorithm: this.config.scheduling?.quantumAlgorithm ?? 'hybrid',
       singleDecisions: this.quantumSingleDecisions,
       batchRuns: this.quantumBatchRuns,
       batchAssigned: this.quantumBatchAssigned,
@@ -1423,7 +1423,7 @@ export class QuantumScheduler extends EventEmitter {
       const stats = this.agentStats.get(agentId);
       if (stats) {
         stats.total++;
-        stats.byType.set(task.type, (stats.byType.get(task.type) || 0) + 1);
+        stats.byType.set(task.type, (stats.byType.get(task.type) ?? 0) + 1);
       }
 
       this.tasks.set(taskId, task);
