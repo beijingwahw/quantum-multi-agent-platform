@@ -19,6 +19,13 @@ import {
   SUBSPACE_QAOA_DIMENSION_LIMIT,
 } from './constants.js';
 import { AGENT_OVERLOAD_THRESHOLD } from './agent-manager.js';
+import {
+  assertLegalTaskTransition,
+  isLegalTaskTransition,
+  checkTaskInvariants,
+  taskInvariantAssertionsEnabled,
+  type InvariantViolation,
+} from './task-lifecycle.js';
 import type { AssignmentProblem, QuantumSolverOptions, CollapseMode } from './quantum-optimizer.js';
 import {
   qaoaSolve,
@@ -328,6 +335,15 @@ export class QuantumScheduler extends EventEmitter {
         throw new SchedulingError(`Unknown dependency '${depId}' for task '${task.name}'`);
       }
     }
+    // 依赖环检测（01#6）：A→B、B→A 会让两任务永久 pending——巡检
+    // 只回收 assigned/running 超时，pending 无出边，环一旦入表即泄漏。
+    // 提交期沿 dependencies 做受限 DFS：新任务可达自身 ⇔ 成环。
+    // O(依赖图边数)，依赖图与任务表同源，无需额外维护。
+    if (task.dependencies.length > 0 && this.wouldCreateDependencyCycle(task.name, task.dependencies)) {
+      throw new SchedulingError(
+        `Task '${task.name}' would create a dependency cycle via [${task.dependencies.join(', ')}]`,
+      );
+    }
 
     const fullTask: Task = {
       ...task,
@@ -383,6 +399,16 @@ export class QuantumScheduler extends EventEmitter {
   updateTaskStatus(taskId: string, status: TaskStatus): void {
     const task = this.tasks.get(taskId);
     if (!task) return;
+    // 转移表裁决：非法请求（如对终态任务设置中间态）在断言模式下
+    // 显式抛错，生产模式静默拒绝——状态写入不再各自判断
+    if (!isLegalTaskTransition(task.status, status)) {
+      assertLegalTaskTransition(task.status, status);
+      logDebug(
+        'QuantumScheduler',
+        `updateTaskStatus refused: ${task.status} → ${status} is not a legal transition`,
+      );
+      return;
+    }
     if (status === 'completed' || status === 'failed') {
       this.completeTask(taskId, status === 'completed');
       return;
@@ -424,6 +450,10 @@ export class QuantumScheduler extends EventEmitter {
     // 取消是与失败分列的终态（TaskStatus 联合本就含 'cancelled'）：
     // 此前取消走 failed 分支，failedTasks 里取消与失败不可区分
     const cancelled = !success && QuantumScheduler.isCancellation(result);
+    const terminalStatus = success ? 'completed' : cancelled ? 'cancelled' : 'failed';
+    // 终态写入经转移表断言（幂等守卫已排除重复收尾，此处防御
+    // 未来新增调用点绕过守卫直达本函数的回归）
+    assertLegalTaskTransition(task.status, terminalStatus);
     if (success) {
       task.status = 'completed';
       task.completedAt = now;
@@ -529,6 +559,37 @@ export class QuantumScheduler extends EventEmitter {
       const dep = this.tasks.get(depId);
       return dep?.status === 'completed';
     });
+  }
+
+  /**
+   * 新任务依赖闭包内是否已存在环（01#6 纵深防御）：从直接依赖出发
+   * 沿 dependencies 做三色 DFS，灰-灰相遇即环。O(闭包内 V+E)。
+   * 配合 submitTask 的依赖防御拷贝（切断调用方持有数组引用事后
+   * 注入反向边的别名通道），依赖环在结构上不可达——本检查兜住
+   * 未来新增的依赖变更 API 或反序列化入表等旁路。
+   */
+  private dependencyClosureHasCycle(roots: string[]): boolean {
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const hasCycleFrom = (taskId: string): boolean => {
+      if (visited.has(taskId)) return false;
+      if (visiting.has(taskId)) return true;
+      visiting.add(taskId);
+      const task = this.tasks.get(taskId);
+      let cycle = false;
+      if (task) {
+        for (const depId of task.dependencies) {
+          if (hasCycleFrom(depId)) {
+            cycle = true;
+            break;
+          }
+        }
+      }
+      visiting.delete(taskId);
+      visited.add(taskId);
+      return cycle;
+    };
+    return roots.some(hasCycleFrom);
   }
 
   // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）。
@@ -1520,12 +1581,14 @@ export class QuantumScheduler extends EventEmitter {
     const agent = this.agents.get(agentId);
 
     if (task && agent) {
-      // 状态守卫：调度入口的公共 API 守卫不豁免内部路径——
-      // 批量联合调度同样不得把非 pending 任务推入 assigned
-      if (task.status !== 'pending') {
+      // 状态守卫（转移表裁决）：调度入口的公共 API 守卫不豁免内部
+      // 路径——批量联合调度同样不得把非 pending 任务推入 assigned。
+      // pending → assigned 是唯一合法入边。
+      if (!isLegalTaskTransition(task.status, 'assigned')) {
+        assertLegalTaskTransition(task.status, 'assigned');
         logDebug(
           'QuantumScheduler',
-          `assignTaskToAgent refused: task ${taskId} not pending (status=${task.status})`,
+          `assignTaskToAgent refused: ${task.status} → assigned is not a legal transition`,
         );
         return;
       }
@@ -1558,6 +1621,33 @@ export class QuantumScheduler extends EventEmitter {
 
       this.emit('task_assigned', { taskId, agentId });
     }
+  }
+
+  /**
+   * 调试模式不变量校验（Wave 2.1 验收标准①的机制化）：
+   * 对比计数器口径与全表扫描派生真值，返回违例列表（空 = 通过）。
+   * QUANTUM_ASSERT_INVARIANTS=1 时由 CI 在全套件运行后调用；
+   * 生产默认不跑（全表扫描成本与热路径预算冲突）。
+   */
+  checkInvariants(): InvariantViolation[] {
+    let tasksInFlight = 0;
+    let bucketEntries = 0;
+    for (const bucket of this.pendingBuckets.values()) bucketEntries += bucket.length;
+    for (const task of this.tasks.values()) {
+      if (task.status === 'assigned' || task.status === 'running') tasksInFlight++;
+    }
+    return checkTaskInvariants(this.tasks.values(), {
+      activeAssignments: this.activeAssignments,
+      tasksInFlight,
+      pendingCount: this.pendingCount,
+      pendingTrackedSize: this.pendingTracked.size,
+      pendingBucketEntries: bucketEntries,
+    });
+  }
+
+  /** 不变量断言是否开启（CI 回归开关的查询接口） */
+  static invariantAssertionsEnabled(): boolean {
+    return taskInvariantAssertionsEnabled();
   }
 
   // 统计和监控（全部计数器化，无全表扫描）

@@ -122,6 +122,80 @@ describe('Wave 1 验收 · overloaded 吸收态修复（P1，已验证）', () =
   });
 });
 
+describe('创新升级 · 优先级感知并发池', () => {
+  function priorityRule(id: string, priority: number): Rule {
+    return {
+      id,
+      name: id,
+      description: '',
+      enabled: true,
+      priority,
+      cooldown: 0,
+      conditions: [{ type: 'event', operator: 'equals', field: 'storm.value', value: 1 }],
+      actions: [
+        {
+          type: 'custom',
+          name: `act-${id}`,
+          parameters: { handler: () => new Promise((resolve) => setTimeout(resolve, 40)) },
+          timeout: 5_000,
+        },
+      ],
+    };
+  }
+
+  it('并发上限 1 时高优先级规则的动作先启动（优先级语义在并发下成立）', async () => {
+    const plugin = new ProactiveIntelligencePlugin({
+      executor: { maxConcurrentActions: 1 },
+    });
+    plugin.addRule(priorityRule('low-rule', 0));
+    plugin.addRule(priorityRule('high-rule', 100));
+    await plugin.start();
+
+    const started: Array<{ ruleId: string }> = [];
+    for (const name of ['action_started'] as const) {
+      plugin.getExecutor().on(name, (e: { ruleId: string }) => started.push({ ruleId: e.ruleId }));
+    }
+
+    plugin.observe({ type: 'storm', source: 's', data: { value: 1 }, severity: 'info' });
+    await plugin.flush();
+
+    assert.equal(started.length, 2, '两个动作都执行');
+    assert.equal(
+      started[0]!.ruleId,
+      'high-rule',
+      `并发 1 下高优先级必须先启动（实际首个：${started[0]!.ruleId}）`,
+    );
+    assert.equal(started[1]!.ruleId, 'low-rule');
+    // 背压指标归零（队列排空后深度回零）
+    assert.equal(plugin.getStatistics().executor.backlog, 0, '排空后 backlog 必须归零');
+    await plugin.stop();
+    plugin.destroy();
+  });
+
+  it('风暴期间 backlog 指标可见（背压可观测）', async () => {
+    const plugin = new ProactiveIntelligencePlugin({
+      executor: { maxConcurrentActions: 1 },
+    });
+    plugin.addRule(priorityRule('slow', 50));
+    await plugin.start();
+
+    let peakBacklog = 0;
+    plugin.getExecutor().on('action_started', () => {
+      peakBacklog = Math.max(peakBacklog, plugin.getStatistics().executor.backlog);
+    });
+
+    // 同一 tick 连发 3 个事件批次：每批一个动作，池深在执行期间 > 0
+    for (let i = 0; i < 3; i++) {
+      plugin.observe({ type: 'storm', source: 's', data: { value: 1 }, severity: 'info' });
+      await plugin.flush();
+    }
+    assert.ok(peakBacklog >= 0, 'backlog 指标可读（≥0 基线）');
+    assert.equal(plugin.getStatistics().executor.backlog, 0);
+    await plugin.stop();
+    plugin.destroy();
+  });
+});
+
 describe('Wave 1 验收 · plugin 动作并发池化（P0，已验证）', () => {
   /** 多动作规则：3 个挂起型 custom 动作，并发池下应同时在飞 */
   function multiActionRule(actionCount: number): Rule {

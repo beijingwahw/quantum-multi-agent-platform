@@ -67,7 +67,7 @@ function mockTransport(responder: (req: CapturedRequest) => any): {
   requests: CapturedRequest[];
 } {
   const requests: CapturedRequest[] = [];
-  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const headers = (init?.headers ?? {}) as Record<string, string>;
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const captured: CapturedRequest = {

@@ -61,6 +61,8 @@ export interface PluginStatistics {
   executor: {
     running: number;
     history: number;
+    /** 待执行动作队列深度（优先级池的背压指标） */
+    backlog: number;
   };
   running: boolean;
 }
@@ -76,6 +78,8 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   private pendingEvents: MonitorEvent[] = [];
   /** 在途决策批数（flush 的确定性等待依据） */
   private inFlightBatches = 0;
+  /** 待执行动作队列深度（背压可观测：事件风暴下的堆积量） */
+  private actionBacklog = 0;
 
   constructor(config: ProactiveIntelligencePluginConfig = {}) {
     super();
@@ -195,11 +199,13 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     this.inFlightBatches++;
     try {
       try {
+        const rules = this.engine.getAllRules();
+        const rulePriorityById = new Map(rules.map((r) => [r.id, r.priority]));
         const context: DecisionContext = {
           events: this.monitor.getEvents(),
           currentState: this.getCurrentState(),
           history: this.engine.getDecisionHistory(10),
-          rules: this.engine.getAllRules(),
+          rules,
         };
 
         const actions = await this.engine.makeDecision(context);
@@ -223,26 +229,58 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
           }
         }
 
-        // 执行所有动作：有限并发池（P0 修复——原双层 for...await 逐动作
-        // 串行，上一动作完成（含 30s 超时与重试退避）才启动下一个，
-        // maxConcurrentActions 形同虚设，事件风暴下动作堆积无界、
-        // 吞吐塌陷）。启动顺序仍按规则优先级（Map 插入序）×动作声明序，
-        // 仅执行重叠；并发上限与执行器预检共用同一配置值，正常路径
-        // 不会触发预检拒绝（预检是其他并发来源的兜底）。
-        const entries: Array<{ ruleId: string; action: Action }> = [];
+        // 执行所有动作：优先级感知的有限并发池（P0 修复的创新升级——
+        // 原双层 for...await 逐动作串行致吞吐塌陷；朴素池化只保证并发，
+        // 这里进一步保证「规则优先级语义在并发下仍然成立」）：
+        // - 有效优先级 = 规则优先级 + 等待老化（每等待 1s 折算 +1：
+        //   老化使低优先级规则在持续高优先级负载下最终浮出——防饿死
+        //   是优先级调度的完备性要求，缺了它「优先级」只是「尽可能插队」；
+        //   量级与规则优先级 0-100 匹配，够慢以尊重优先级、够快以在
+        //   风暴尺度上防饿死）；
+        // - 并发上限与执行器预检共用同一配置值；
+        // - 队列深度入统计（背压可观测：风暴下的堆积从指标可见）。
+        const entries: Array<{
+          ruleId: string;
+          action: Action;
+          priority: number;
+          seq: number;
+          enqueuedAt: number;
+        }> = [];
+        let entrySeq = 0;
         for (const [ruleId, ruleActions] of actions.entries()) {
+          const priority = rulePriorityById.get(ruleId) ?? 0;
           for (const action of ruleActions) {
-            entries.push({ ruleId, action });
+            entries.push({ ruleId, action, priority, seq: entrySeq++, enqueuedAt: Date.now() });
           }
         }
         if (entries.length > 0) {
           const limit = Math.min(this.executor.getConfig().maxConcurrentActions, entries.length);
-          let next = 0;
+          /** 取有效优先级最高的待执行项（同分按入队序——FIFO 决胜） */
+          const pickNext = (): (typeof entries)[number] | undefined => {
+            let bestIndex = -1;
+            let bestScore = -Infinity;
+            const now = Date.now();
+            for (let i = 0; i < entries.length; i++) {
+              const e = entries[i];
+              if (!e) continue;
+              const score = e.priority + (now - e.enqueuedAt) / 1000;
+              const better =
+                score > bestScore ||
+                (score === bestScore && bestIndex >= 0 && e.seq < entries[bestIndex]!.seq);
+              if (better) {
+                bestScore = score;
+                bestIndex = i;
+              }
+            }
+            if (bestIndex < 0) return undefined;
+            const [picked] = entries.splice(bestIndex, 1);
+            return picked;
+          };
           const worker = async (): Promise<void> => {
-            while (next < entries.length) {
-              const entry = entries[next];
-              next++;
-              if (!entry) break; // next < length 已保证存在，防御性收尾
+            for (;;) {
+              const entry = pickNext();
+              if (!entry) return;
+              this.actionBacklog = Math.max(0, this.actionBacklog - 1);
               try {
                 await this.executor.executeAction(entry.ruleId, entry.action);
               } catch (error) {
@@ -250,6 +288,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
               }
             }
           };
+          this.actionBacklog += entries.length;
           const workers: Array<Promise<void>> = [];
           for (let i = 0; i < limit; i++) {
             workers.push(worker());
@@ -374,6 +413,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
       executor: {
         running: this.executor.getRunningExecutions().length,
         history: this.executor.getExecutionHistory().length,
+        backlog: this.actionBacklog,
       },
       running: this.running,
     };

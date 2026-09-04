@@ -15,6 +15,21 @@ export class PlatformError extends Error {
   }
 }
 
+/**
+ * 安全违规：边界拒绝的可结构化判别事件。
+ * code 是稳定契约（测试与监控断言 code，不匹配文案——文案可读性
+ * 优先、code 稳定性优先，两者分离后文案演化不再破坏断言）。
+ */
+export class SecurityViolationError extends PlatformError {
+  constructor(
+    message: string,
+    readonly code: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+  }
+}
+
 /** 配置非法：不允许的配置键、非法枚举值、缺少必填项 */
 export class ConfigurationError extends PlatformError {}
 

@@ -662,6 +662,7 @@ export {
   buildSubspaceModel,
   qaoaSolveSubspace,
   annealSolveSubspace,
+  annealSolveSubspaceAsync,
   SubspaceState,
 } from './core/subspace-optimizer.js';
 export type {
@@ -686,6 +687,7 @@ export type { QiskitExportOptions } from './core/qpu/qiskit-export.js';
 export { AgentManager } from './core/agent-manager.js';
 export {
   PlatformError,
+  SecurityViolationError,
   ConfigurationError,
   StateError,
   SchedulingError,

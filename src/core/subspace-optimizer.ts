@@ -84,7 +84,11 @@ import {
   validateAnnealOptions,
 } from './solver-common.js';
 import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel.js';
-import { parallelAnnealEvolve, parallelBuildFiberGroups } from './subspace-parallel.js';
+import {
+  parallelAnnealEvolve,
+  parallelAnnealEvolveAsync,
+  parallelBuildFiberGroups,
+} from './subspace-parallel.js';
 import {
   BETA_BOUND,
   GAMMA_BOUND,
@@ -754,6 +758,65 @@ export function annealSolveSubspace(
   const evolved =
     parallelAnnealEvolve(model, energies, tau, steps) ??
     serialAnnealEvolve(model, energies, tau, steps);
+  return finishAnnealSolution(model, energies, spectralWidth, evolved, {
+    tau,
+    steps,
+    shots,
+    select,
+    topK,
+    rng,
+  });
+}
+
+/**
+ * 退火求解的异步入口（08#34 彻底解法）：演化走 waitAsync 非阻塞驱动，
+ * 主线程事件循环全程存活（HTTP/WS 心跳、GC 不停摆）；坍缩与报告
+ * 收尾与同步路径共用 finishAnnealSolution——同一 dispatch 序列保证
+ * 与同步求解器逐位一致（由测试锚定）。
+ */
+export async function annealSolveSubspaceAsync(
+  model: SubspaceModel,
+  options: QuantumSolverOptions = {},
+): Promise<SubspaceSolution> {
+  const tau = options.anneal?.tau ?? SUBSPACE_ANNEAL_TAU;
+  const steps = options.anneal?.steps ?? SUBSPACE_ANNEAL_STEPS;
+  validateAnnealOptions(tau, steps);
+  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'shots-best');
+  const rng = mulberry32(seed);
+
+  const spectralWidth =
+    model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
+  const energies = normalizedEnergies(model, 2 * spectralWidth);
+
+  const evolved =
+    (await parallelAnnealEvolveAsync(model, energies, tau, steps)) ??
+    serialAnnealEvolve(model, energies, tau, steps);
+  return finishAnnealSolution(model, energies, spectralWidth, evolved, {
+    tau,
+    steps,
+    shots,
+    select,
+    topK,
+    rng,
+  });
+}
+
+/** 退火求解共享收尾：坍缩 + 期望还原 + 解组装（同步/异步路径单源） */
+function finishAnnealSolution(
+  model: SubspaceModel,
+  energies: Float64Array,
+  spectralWidth: number,
+  evolved: { re: Float64Array; im: Float64Array },
+  ctx: {
+    tau: number;
+    steps: number;
+    shots: number;
+    select: CollapseMode;
+    topK: number;
+    rng: () => number;
+  },
+): SubspaceSolution {
+  const { shots, select, topK, rng, steps: stepCount } = ctx;
   const probs = new Float64Array(model.dimension);
   for (let k = 0; k < probs.length; k++) {
     probs[k] = evolved.re[k]! * evolved.re[k]! + evolved.im[k]! * evolved.im[k]!;
@@ -775,7 +838,7 @@ export function annealSolveSubspace(
     probability: collapse.probability,
     optimalityRatio: safeOptimalityRatio(welfare, model.optimalWelfare),
     expectation: rawExpectation,
-    layers: steps,
+    layers: stepCount,
     angles: null,
     evaluations: 1,
     candidates: collapse.candidates,

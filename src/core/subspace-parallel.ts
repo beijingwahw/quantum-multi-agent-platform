@@ -235,22 +235,41 @@ export function verifyWorkerSourceIntegrity(
 }
 
 /**
- * 多线程绝热退火：返回末态振幅（SharedArrayBuffer 底座），失败返回 null
- * （调用方回退串行）。数值与串行路径逐位一致。
+ * 演化执行上下文：同步/异步两个驱动共享的全部状态（单源准备，
+ * 双驱动零漂移——这是「同一条数值轨迹」承诺的结构保证）。
  */
-export function parallelAnnealEvolve(
+interface EvolutionContext {
+  model: SubspaceModel;
+  dim: number;
+  W: number;
+  H: Int32Array;
+  F: Float64Array;
+  re: Float64Array;
+  im: Float64Array;
+  workers: Worker[];
+  poisoned: boolean;
+  seq: number;
+  terminateAll(): void;
+}
+
+/**
+ * 演化准备（资格检查 + 共享缓冲 + 初态写入 + Worker 孵化）。
+ * 同步与异步驱动共用——两路径从同一份状态出发，逐位一致由结构保证。
+ */
+function prepareEvolution(
   model: SubspaceModel,
   energies: Float64Array,
   tau: number,
   steps: number,
-): { re: Float64Array; im: Float64Array } | null {
+): EvolutionContext | null {
   if (!parallelEnabled()) return null;
   // SAB 不可用的平台直接走串行：下面第一行就分配 SharedArrayBuffer，
   // 抛出而不是回退会让调用方（annealSolveSubspace）整个失败
   if (typeof SharedArrayBuffer !== 'function') return null;
-  // 混合器缓冲必须为 SAB 底座：禁用 SAB（QUANTUM_NO_SAB/QUANTUM_FORCE_AB）下串行构建的产物是普通
-  // ArrayBuffer，postMessage 会为每个 Worker 结构化克隆一份完整拷贝
-  // （大维度下 GB 级内存），零拷贝共享的设计前提被静默破坏
+  // 混合器缓冲必须为 SAB 底座：禁用 SAB（QUANTUM_NO_SAB/QUANTUM_FORCE_AB）
+  // 下串行构建的产物是普通 ArrayBuffer，postMessage 会为每个 Worker
+  // 结构化克隆一份完整拷贝（大维度下 GB 级内存），零拷贝共享的设计
+  // 前提被静默破坏
   if (
     !model.mixers.every(
       (g) =>
@@ -292,61 +311,88 @@ export function parallelAnnealEvolve(
   }
 
   const workers: Worker[] = [];
-  let seq = 0;
-  let poisoned = false;
-
-  const terminateAll = (): void => {
-    for (const w of workers) w.terminate().catch(() => undefined);
+  const ctx: EvolutionContext = {
+    model,
+    dim,
+    W,
+    H,
+    F,
+    re,
+    im,
+    workers,
+    poisoned: false,
+    seq: 0,
+    terminateAll: () => {
+      for (const w of workers) w.terminate().catch(() => undefined);
+    },
   };
 
-  try {
-    const src = workerSource();
-    if (process.env.QUANTUM_PARALLEL_DEBUG) {
-      console.error('[parallel] worker source bytes:', src.length);
-    }
-    for (let rank = 0; rank < W; rank++) {
-      const w = new Worker(src, { eval: true });
-      w.unref();
-      w.on('error', (err) => {
-        poisoned = true;
+  const src = workerSource();
+  if (process.env.QUANTUM_PARALLEL_DEBUG) {
+    console.error('[parallel] worker source bytes:', src.length);
+  }
+  for (let rank = 0; rank < W; rank++) {
+    const w = new Worker(src, { eval: true });
+    w.unref();
+    w.on('error', (err) => {
+      ctx.poisoned = true;
+      if (process.env.QUANTUM_PARALLEL_DEBUG) {
+        console.error(`[parallel] worker ${rank} error:`, err.message);
+      }
+    });
+    w.on('exit', (code) => {
+      if (process.env.QUANTUM_PARALLEL_DEBUG) {
+        console.error(`[parallel] worker ${rank} exit code=${code}`);
+      }
+    });
+    w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
+      if (msg.type === 'worker-fatal') {
+        ctx.poisoned = true;
         if (process.env.QUANTUM_PARALLEL_DEBUG) {
-          console.error(`[parallel] worker ${rank} error:`, err.message);
+          console.error(`[parallel] worker ${msg.rank} fatal: ${msg.message}`);
         }
-      });
-      w.on('exit', (code) => {
-        if (process.env.QUANTUM_PARALLEL_DEBUG) {
-          console.error(`[parallel] worker ${rank} exit code=${code}`);
-        }
-      });
-      w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
-        if (msg.type === 'worker-fatal') {
-          poisoned = true;
-          if (process.env.QUANTUM_PARALLEL_DEBUG) {
-            console.error(`[parallel] worker ${msg.rank} fatal: ${msg.message}`);
-          }
-        }
-      });
-      workers.push(w);
-      w.postMessage({
-        type: 'init',
-        header,
-        re: reBuf,
-        im: imBuf,
-        phRe: phReBuf,
-        phIm: phImBuf,
-        zRe: zReBuf,
-        zIm: zImBuf,
-        dim,
-        workers: W,
-        rank,
-        groups: model.mixers.map((g) => ({
-          // 子视图必须显式传 byteOffset/length：runs 底座按上界分配，尾部未填充
-          order: { buf: g.order.buffer, off: g.order.byteOffset, len: g.order.length },
-          runs: { buf: g.runs.buffer, off: g.runs.byteOffset, len: g.runs.length },
-        })),
-      });
-    }
+      }
+    });
+    workers.push(w);
+    w.postMessage({
+      type: 'init',
+      header,
+      re: reBuf,
+      im: imBuf,
+      phRe: phReBuf,
+      phIm: phImBuf,
+      zRe: zReBuf,
+      zIm: zImBuf,
+      dim,
+      workers: W,
+      rank,
+      groups: model.mixers.map((g) => ({
+        // 子视图必须显式传 byteOffset/length：runs 底座按上界分配，尾部未填充
+        order: { buf: g.order.buffer, off: g.order.byteOffset, len: g.order.length },
+        runs: { buf: g.runs.buffer, off: g.runs.byteOffset, len: g.runs.length },
+      })),
+    });
+  }
+  return ctx;
+}
 
+/**
+ * 多线程绝热退火（同步驱动）：返回末态振幅（SharedArrayBuffer 底座），
+ * 失败返回 null（调用方回退串行）。数值与串行路径逐位一致。
+ */
+export function parallelAnnealEvolve(
+  model: SubspaceModel,
+  energies: Float64Array,
+  tau: number,
+  steps: number,
+): { re: Float64Array; im: Float64Array } | null {
+  const ctx = prepareEvolution(model, energies, tau, steps);
+  if (!ctx) return null;
+  const { H, F, model: m, W } = ctx;
+  let seq = 0;
+  const poisonedRef = { get: (): boolean => ctx.poisoned, set: (v: boolean) => (ctx.poisoned = v) };
+
+  try {
     // 同步握手：等待全体 Worker 就绪并入栏（Worker 各自的事件循环独立运转）
     const readyDeadline = Date.now() + 10_000;
     while (Atomics.load(H, WAITING) < W) {
@@ -357,8 +403,8 @@ export function parallelAnnealEvolve(
       }
       // poisoned 由 error/worker-fatal 回调闭包改写——流分析看不见闭包赋值，
       // 此处的"恒假"是误报（阻塞等待期间事件无法送达恰恰依赖它兜底）
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (poisoned) {
+
+      if (poisonedRef.get()) {
         parallelStructurallyBroken = true;
         throw new QuantumEngineError('worker boot poisoned');
       }
@@ -379,12 +425,12 @@ export function parallelAnnealEvolve(
           // Worker 内核执行即崩（结构性：序列化产物坏）——负缓存，
           // 否则每次 dispatch 重付整个握手+首dispatch的超时税
           parallelStructurallyBroken = true;
-          poisoned = true;
+          poisonedRef.set(true);
         }
-        if (poisoned || Date.now() > deadline) {
+        if (poisonedRef.get() || Date.now() > deadline) {
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(
-              `[parallel] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${poisoned}`,
+              `[parallel] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${poisonedRef.get()}`,
             );
           }
           return false;
@@ -405,7 +451,7 @@ export function parallelAnnealEvolve(
     let evolveRemainingMs = EVOLVE_TOTAL_BUDGET_MS;
     for (let t = 1; t <= steps; t++) {
       const s = t / steps;
-      for (let g = 0; g < model.mixers.length; g++) {
+      for (let g = 0; g < m.mixers.length; g++) {
         if (!dispatch(1, g, -(1 - s) * dt, stepBudget))
           throw new QuantumEngineError('mixer dispatch failed');
       }
@@ -415,14 +461,128 @@ export function parallelAnnealEvolve(
     Atomics.store(H, OP, 3);
     Atomics.store(H, SEQ, ++seq);
     Atomics.notify(H, SEQ, Infinity);
-    return { re, im };
+    return { re: ctx.re, im: ctx.im };
   } catch {
-    terminateAll();
+    ctx.terminateAll();
     return null;
   } finally {
     // Worker 已 unref：正常路径由 close() 自行退出，兜底强杀防止滞留
     setTimeout(() => {
-      terminateAll();
+      ctx.terminateAll();
+    }, 1_000).unref();
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 非阻塞异步驱动（waitAsync）：主线程事件循环全程存活
+// ----------------------------------------------------------------------------
+
+/**
+ * 非阻塞等待一拍：Atomics.waitAsync 在主线程合法且不阻塞事件循环——
+ * 值已变化时立即返回（async:false），否则挂起 Promise 直到 notify 或
+ * 超时。HTTP/WS 心跳、GC、immediate 队列在演化期间照常运转。
+ */
+async function waitTick(H: Int32Array, index: number, expected: number): Promise<void> {
+  const result = Atomics.waitAsync(H, index, expected, 50);
+  if (result.async) {
+    await result.value;
+  }
+}
+
+/**
+ * 多线程绝热退火（异步驱动，08#34 的彻底解法）：与同步驱动共享同一份
+ * prepareEvolution 状态与同一 Worker 协议——数值逐位一致由结构保证
+ * （同一 dispatch 序列、同一内核），唯一区别是主线程用 waitAsync
+ * 等待而非阻塞 wait。
+ *
+ * 推荐所有可 async 化的调用方使用本入口；同步版本保留是为兼容既有
+ * 同步公共 API（迁移评估见审计 Wave 4）。
+ */
+export async function parallelAnnealEvolveAsync(
+  model: SubspaceModel,
+  energies: Float64Array,
+  tau: number,
+  steps: number,
+): Promise<{ re: Float64Array; im: Float64Array } | null> {
+  const ctx = prepareEvolution(model, energies, tau, steps);
+  if (!ctx) return null;
+  const { H, F, model: m, W } = ctx;
+  let seq = 0;
+
+  try {
+    // 异步握手：事件循环存活，Worker error/message 事件一等活动空间
+    const readyDeadline = Date.now() + 10_000;
+    while (Atomics.load(H, WAITING) < W) {
+      if (Date.now() > readyDeadline) {
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('worker handshake timeout');
+      }
+      if (ctx.poisoned) {
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('worker boot poisoned');
+      }
+      await waitTick(H, WAITING, Atomics.load(H, WAITING));
+    }
+
+    const dispatch = async (
+      op: number,
+      group: number,
+      b: number,
+      budgetMs: number,
+      deadlineBudgetMs: number,
+    ): Promise<boolean> => {
+      Atomics.store(H, DONE, 0);
+      Atomics.store(H, GROUP, group);
+      F[F64_B] = b;
+      Atomics.store(H, OP, op);
+      Atomics.store(H, SEQ, ++seq);
+      Atomics.notify(H, SEQ, Infinity);
+      const deadline = Date.now() + Math.min(budgetMs, deadlineBudgetMs);
+      while (Atomics.load(H, DONE) < W) {
+        if (Atomics.load(H, POISON) === 1) {
+          parallelStructurallyBroken = true;
+          ctx.poisoned = true;
+        }
+        if (ctx.poisoned || Date.now() > deadline) {
+          if (process.env.QUANTUM_PARALLEL_DEBUG) {
+            console.error(
+              `[parallel-async] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${ctx.poisoned}`,
+            );
+          }
+          return false;
+        }
+        await waitTick(H, DONE, Atomics.load(H, DONE));
+      }
+      return true;
+    };
+
+    // 演化循环：与同步驱动同一 dispatch 序列（H(s) = −(1−s)ΣA + sC）
+    const dt = tau / steps;
+    const stepBudget = Math.max(2_000, 30_000 / steps);
+    const evolveDeadline = Date.now() + EVOLVE_TOTAL_BUDGET_MS;
+    for (let t = 1; t <= steps; t++) {
+      const s = t / steps;
+      const remaining = evolveDeadline - Date.now();
+      for (let g = 0; g < m.mixers.length; g++) {
+        if (!(await dispatch(1, g, -(1 - s) * dt, stepBudget, remaining))) {
+          throw new QuantumEngineError('mixer dispatch failed');
+        }
+      }
+      if (!(await dispatch(2, 0, 0, stepBudget, evolveDeadline - Date.now()))) {
+        throw new QuantumEngineError('cost dispatch failed');
+      }
+    }
+
+    Atomics.store(H, OP, 3);
+    Atomics.store(H, SEQ, ++seq);
+    Atomics.notify(H, SEQ, Infinity);
+    return { re: ctx.re, im: ctx.im };
+  } catch {
+    ctx.terminateAll();
+    return null;
+  } finally {
+    setTimeout(() => {
+      ctx.terminateAll();
     }, 1_000).unref();
   }
 }

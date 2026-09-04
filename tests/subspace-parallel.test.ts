@@ -15,6 +15,7 @@ import {
 } from '../src/core/subspace-optimizer.js';
 import {
   parallelAnnealEvolve,
+  parallelAnnealEvolveAsync,
   workerSource,
   buildWorkerSource,
   verifyWorkerSourceIntegrity,
@@ -134,6 +135,33 @@ describe('subspace-parallel（多线程确定性并行）', () => {
         `第 ${k} 个振幅并行/串行应逐位一致（并行只在纤维区间上划分，不改任何算术）`,
       );
     }
+  });
+
+  test('异步驱动（waitAsync）与同步驱动逐位一致，且事件循环全程存活', async () => {
+    const { model, energies } = largeModelEnergies();
+    const tau = 20;
+
+    const sync = parallelAnnealEvolve(model!, energies, tau, STEPS);
+    assert.ok(sync, '同步驱动应成功');
+
+    // 事件循环存活探针：异步演化期间 setImmediate 计时器持续推进
+    // （同步驱动会完全停摆事件循环——这正是 waitAsync 驱动的存在意义）
+    let ticksDuringEvolve = 0;
+    const ticker = setInterval(() => {
+      ticksDuringEvolve++;
+    }, 5);
+
+    const asyncResult = await parallelAnnealEvolveAsync(model!, energies, tau, STEPS);
+    clearInterval(ticker);
+    assert.ok(asyncResult, '异步驱动应成功');
+
+    for (let k = 0; k < model!.dimension; k++) {
+      assert.ok(
+        asyncResult.re[k] === sync.re[k] && asyncResult.im[k] === sync.im[k],
+        `第 ${k} 个振幅 async/sync 应逐位一致（共享 prepareEvolution 与同一 dispatch 序列）`,
+      );
+    }
+    assert.ok(ticksDuringEvolve > 0, '演化期间事件循环必须存活（waitAsync 非阻塞契约）');
   });
 
   test('并行演化跨运行确定性（同一输入 → 同一位模式）', () => {

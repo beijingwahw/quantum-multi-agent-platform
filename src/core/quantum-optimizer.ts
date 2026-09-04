@@ -314,29 +314,51 @@ export function defaultPenalties(problem: AssignmentProblem): { oneHot: number; 
  * 能量表按 problem 实例记忆（08#14）：O(2^nq·m·n) 的全量预计算在
  * 同一 problem 重复求解（多种子/多引擎对照、基准）时曾照付全价。
  *
- * 冻结契约：problem 自首次 computeEnergies 起视为冻结——weights/
- * couplings 的后续变更不会被发现。罚项在命中时做廉价一致性校验
- * （两个标量），构建期「先算能量后补罚项」的调用序因此安全。
+ * 冻结契约的**指纹强制**（创新升级）：此前契约只是文档承诺（命中时
+ * 仅校验两个罚项标量，weights/couplings 的后续变更不会被察觉）。
+ * 现在命中时校验完整轻量指纹——罚项 + weights 不变量和 + ineligible
+ * 计数 + couplings 键值滚动哈希。指纹计算 O(m·n + c)，相对被跳过的
+ * O(2^nq) 重算可忽略；任何构建后变更都会使缓存失效并重算，
+ * 「先算能量后补罚项」的调用序依旧安全（罚项在指纹内）。
  */
 const energiesMemo = new WeakMap<
   AssignmentProblem,
-  { penalties: [number, number]; info: ProblemEnergies }
+  { fingerprint: string; info: ProblemEnergies }
 >();
+
+/** 问题实例的轻量指纹：命中校验用，捕捉构建后的一切内容变更 */
+function problemFingerprint(problem: AssignmentProblem): string {
+  let weightsSum = 0;
+  let ineligibleCount = 0;
+  for (let t = 0; t < problem.weights.length; t++) {
+    const row = problem.weights[t]!;
+    for (let a = 0; a < row.length; a++) {
+      weightsSum += row[a]!;
+      if (problem.ineligible[t]![a]) ineligibleCount++;
+    }
+  }
+  let couplingsHash = 0;
+  for (const [key, value] of problem.couplings) {
+    // 32 位滚动哈希：足够区分内容变更，无需密码学强度
+    couplingsHash =
+      (Math.imul(couplingsHash, 31) + Math.imul(key ^ Math.floor(value * 1e9), 7)) | 0;
+  }
+  return (
+    `${problem.weights.length}:${problem.weights[0]?.length ?? 0}:` +
+    `${weightsSum}:${ineligibleCount}:${couplingsHash}:` +
+    `${problem.penaltyOneHot}:${problem.penaltyCapacity}`
+  );
+}
 
 /** 预计算全部基态能量（一次性 O(dim·任务数·agent数)，供对角演化复用） */
 export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
+  const fingerprint = problemFingerprint(problem);
   const cached = energiesMemo.get(problem);
-  if (
-    cached?.penalties[0] === problem.penaltyOneHot &&
-    cached.penalties[1] === problem.penaltyCapacity
-  ) {
+  if (cached?.fingerprint === fingerprint) {
     return cached.info;
   }
   const info = computeEnergiesUncached(problem);
-  energiesMemo.set(problem, {
-    penalties: [problem.penaltyOneHot, problem.penaltyCapacity],
-    info,
-  });
+  energiesMemo.set(problem, { fingerprint, info });
   return info;
 }
 

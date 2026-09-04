@@ -105,6 +105,23 @@ export interface QuantumBusMetrics {
   droppedMessages: number;
   agentsOnline: number;
   uptime: number;
+  /** 攻击面可观测：被边界拒绝的流量分类计数（监控/告警的直接信号） */
+  security: {
+    /** 未认证即尝试订阅/发消息/控制台命令的次数 */
+    unauthenticatedRejections: number;
+    /** 已认证连接冒用他人 agentId 的次数 */
+    identitySpoofRejections: number;
+    /** 同连接改绑身份的拒绝次数 */
+    identityRebindRejections: number;
+    /** 不合法订阅频道（非字符串/超长）的拒绝次数 */
+    invalidChannelRejections: number;
+    /** 限速断开次数 */
+    rateLimitDisconnects: number;
+    /** 畸形消息熔断断开次数 */
+    malformedDisconnects: number;
+    /** 离线队列桶数（基数攻击面的实时暴露面） */
+    queuedAgentBuckets: number;
+  };
 }
 
 // 客户端上行消息：控制协议分支与常规消息的判别联合
@@ -124,6 +141,15 @@ export class QuantumBus extends EventEmitter {
   private config: QuantumBusConfig;
   private started = false;
   private droppedMessages = 0;
+  /** 攻击面分类计数（拒绝路径从日志升级为指标——可告警、可绘图） */
+  private securityCounters = {
+    unauthenticatedRejections: 0,
+    identitySpoofRejections: 0,
+    identityRebindRejections: 0,
+    invalidChannelRejections: 0,
+    rateLimitDisconnects: 0,
+    malformedDisconnects: 0,
+  };
   // 并发start()复用同一次监听Promise，防止创建两个WebSocketServer
   private startPromise: Promise<void> | null = null;
   // 总线自身启动时刻（uptime基准，非进程存活时间）
@@ -221,6 +247,7 @@ export class QuantumBus extends EventEmitter {
       messageTimestamps = messageTimestamps.filter((t) => now - t < 1000);
       if (messageTimestamps.length >= MAX_MESSAGES_PER_SECOND) {
         logWarn('QuantumBus', `Rate limit exceeded on ${connectionId}, closing`);
+        this.securityCounters.rateLimitDisconnects++;
         ws.close(1008, 'rate limit exceeded');
         return;
       }
@@ -244,6 +271,7 @@ export class QuantumBus extends EventEmitter {
             'QuantumBus',
             `Malformed message circuit breaker tripped on ${connectionId}, closing`,
           );
+          this.securityCounters.malformedDisconnects++;
           ws.close(1008, 'malformed message flood');
           return;
         }
@@ -351,6 +379,7 @@ export class QuantumBus extends EventEmitter {
           `Connection ${connectionId} (agent '${sanitizeForLog(connection.agentId)}') ` +
             `attempted identity rebind to '${sanitizeForLog(message.agentId)}' — rejected`,
         );
+        this.securityCounters.identityRebindRejections++;
         this.emit('authentication_failed', { connectionId, agentId: message.agentId });
         connection.ws.close(4001, 'identity rebind not allowed');
         return;
@@ -374,6 +403,7 @@ export class QuantumBus extends EventEmitter {
       // 订阅即流量：鉴权开启时未认证连接不得订阅广播
       if (!this.authenticated(connection)) {
         logWarn('QuantumBus', `Unauthenticated subscribe from ${connectionId} rejected`);
+        this.securityCounters.unauthenticatedRejections++;
         return;
       }
       // 频道名边界校验（F01）：channel 是对端可控的任意 JSON 值——
@@ -384,6 +414,7 @@ export class QuantumBus extends EventEmitter {
           'QuantumBus',
           `Invalid subscribe channel (non-string) from ${connectionId} ignored`,
         );
+        this.securityCounters.invalidChannelRejections++;
         return;
       }
       if (message.channel.length > MAX_CHANNEL_LENGTH) {
@@ -392,6 +423,7 @@ export class QuantumBus extends EventEmitter {
           `Oversized subscribe channel (${message.channel.length} > ${MAX_CHANNEL_LENGTH}) ` +
             `from ${connectionId} ignored`,
         );
+        this.securityCounters.invalidChannelRejections++;
         return;
       }
       const cap = this.config.communication?.maxSubscriptions ?? 64;
@@ -453,6 +485,7 @@ export class QuantumBus extends EventEmitter {
       // 未认证连接不得注入/转发消息，已认证连接不得冒用他人 agentId
       if (!this.authenticated(connection)) {
         logWarn('QuantumBus', `Unauthenticated message from ${connectionId} rejected`);
+        this.securityCounters.unauthenticatedRejections++;
         return;
       }
       if (
@@ -782,6 +815,7 @@ export class QuantumBus extends EventEmitter {
       messageQueueSize: this.getMessageQueueSize(),
       droppedMessages: this.droppedMessages,
       agentsOnline: this.getAgentsOnline().length,
+      security: { ...this.securityCounters, queuedAgentBuckets: this.messageQueue.size },
       uptime: this.startedAt !== null ? (Date.now() - this.startedAt) / 1000 : 0,
     };
   }
