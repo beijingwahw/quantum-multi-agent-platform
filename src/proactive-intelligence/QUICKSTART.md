@@ -5,13 +5,13 @@
 ### 步骤1: 安装
 
 ```bash
-npm install dsh-proactive-intelligence
+npm install quantum-multi-agent-platform  # 本仓库即该包；无独立发布名
 ```
 
 ### 步骤2: 基础代码
 
 ```typescript
-import { ProactiveIntelligencePlugin } from 'dsh-proactive-intelligence';
+import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
 
 // 创建插件
 const plugin = new ProactiveIntelligencePlugin();
@@ -78,7 +78,7 @@ plugin.on('action_completed', (exec) => {
 ### 加载预设规则
 
 ```typescript
-import { ProactiveIntelligencePlugin } from 'dsh-proactive-intelligence';
+import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
 import { allPresetRules } from 'dsh-proactive-intelligence/rules';
 
 const plugin = new ProactiveIntelligencePlugin();

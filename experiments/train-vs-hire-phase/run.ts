@@ -231,7 +231,7 @@ function main(): void {
     alpha,
     beta,
     seeds: SEEDS,
-    explore,
+    ...(explore !== undefined ? { explore } : {}),
   });
 
   console.log(
@@ -316,4 +316,7 @@ function main(): void {
   }
 }
 
-if (process.argv[1]?.endsWith('run.ts')) main();
+// 入口判定用 URL 规范比较（06#12）：endsWith 匹配文件名，改名即静默失效；
+// 被作为模块 import（如网格扫描）时不触发 main 的副作用
+import { pathToFileURL } from 'node:url';
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

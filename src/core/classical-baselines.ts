@@ -15,9 +15,9 @@
  *    量子联合演化应达到 ≥ 局部搜索的质量（且不陷入局部最优盆地）。
  */
 
-import type { AssignmentProblem } from './quantum-optimizer';
-import { welfareOf } from './quantum-optimizer';
-import { InfeasibleProblemError, QuantumEngineError } from '../utils/errors';
+import type { AssignmentProblem } from './quantum-optimizer.js';
+import { welfareOf } from './quantum-optimizer.js';
+import { InfeasibleProblemError, QuantumEngineError } from '../utils/errors.js';
 
 const BIG = 1e9;
 
@@ -134,6 +134,14 @@ function greedyStart(problem: AssignmentProblem): number[] {
 /**
  * 最陡上升局部搜索：邻域 = 单任务移到空闲agent + 两任务交换agent。
  * 每轮执行福利增益最大的动作，直到局部最优。QAP 的标准经典启发式。
+ *
+ * 性能备忘：候选动作的福利增益理论上可做 O(1) 增量评估（单移动只触及
+ * 1 个线性项 + 相关耦合，交换触及 2+4 类项），但 welfareOf 的累加序
+ * （t 序线性项 + Map 插入序耦合）与任何增量形式的结合序不同，ULP 级
+ * 差异可能翻转近平局动作的选择——本仓的位级不变性契约下不可接受。
+ * 该函数仅被基线对照测试消费（非调度热路径），全量重算的正确性优先。
+ * 若未来进入热路径：以增量为筛选、对进入 slack 区间的候选用原全量
+ * 累加器复核（slack 需按邻域类型证明为严格低估）。
  */
 export function localSearchAssignment(problem: AssignmentProblem): number[] {
   const m = problem.taskIds.length;

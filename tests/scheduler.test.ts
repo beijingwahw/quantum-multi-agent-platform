@@ -186,7 +186,7 @@ describe('QuantumScheduler', () => {
       estimatedDuration: 1000,
       actualDuration: 0,
       status: 'pending' as const,
-    } as any);
+    });
 
     assert.equal(task.assignedAgentId, 'a2');
   });

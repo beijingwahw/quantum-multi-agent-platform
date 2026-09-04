@@ -335,8 +335,14 @@ function main(): void {
       `  glm-4-flash 隐性学习拟合（${buckets.reduce((a, b) => a + b.n, 0)} 次评测）：q̂0=${fit.base.toFixed(2)} α̂=${fit.alpha.toFixed(2)} β̂=${fit.beta.toFixed(3)}（R²=${fit.r2.toFixed(3)}）`,
     );
     const modelGain = fit.alpha * (1 - fit.base) * (1 - Math.exp(-fit.beta * 20));
+    // 实测增益取自当前数据（>=20 桶与 0 桶），不再硬编码——数据重跑后
+    // 字面量会静默过期
+    const qHigh =
+      buckets.filter((b) => b.kMid >= 20).reduce((a, b) => a + b.q * b.n, 0) /
+      (buckets.filter((b) => b.kMid >= 20).reduce((a, b) => a + b.n, 0) || 1);
+    const q0bucket = buckets[0]?.q ?? fit.base;
     console.log(
-      `  实测增益 q(k=20)−q(0) = ${(0.771 - 0.417).toFixed(3)}，模型增益 = ${modelGain.toFixed(3)}`,
+      `  实测增益 q(k>=20)−q(0) = ${(qHigh - q0bucket).toFixed(3)}，模型增益 = ${modelGain.toFixed(3)}`,
     );
     for (const T of [20, 150]) {
       const p = { q0: fit.base, delta: 0, K: 20, T, alpha: fit.alpha, beta: fit.beta };

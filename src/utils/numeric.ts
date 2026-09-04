@@ -18,3 +18,10 @@ export function round2(x: number): number {
 export function round3(x: number): number {
   return Math.round(x * 1000) / 1000;
 }
+
+/**
+ * 福利/能量比较的浮点容差（Q2 收口）：同仓两套精度治理（此处集中、
+ * qpu/solve.ts 散写 1e-12）与「集中口径」哲学矛盾。跨路径比较
+ * （QPU 采样 vs 本地精确对照）统一引用本常量。
+ */
+export const WELFARE_COMPARISON_EPSILON = 1e-12;

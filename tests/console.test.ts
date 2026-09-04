@@ -19,7 +19,7 @@ describe('Web控制台协议 端到端', () => {
 
   function connectConsole(port: number): Promise<{ latest: () => any }> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://localhost:${port}/quantum-bus`);
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/quantum-bus`);
       clients.push(ws);
       let latestSnapshot: any = null;
 

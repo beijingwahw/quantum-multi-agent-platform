@@ -139,7 +139,8 @@ interface Rule {
 
 ```typescript
 interface Condition {
-  type: 'event' | 'state' | 'time' | 'composite';
+  // 组合语义由 conditions[] + logicalOperator 左到右链式求值覆盖（无独立类型）
+  type: 'event' | 'state' | 'time';
   operator: 'equals' | 'notEquals' | 'contains' |
             'notContains' | 'greaterThan' | 'lessThan' |
             'between' | 'matches';

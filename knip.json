@@ -6,7 +6,8 @@
     "examples/*.js",
     "experiments/llm-learning-curve/*.ts",
     "experiments/train-vs-hire-phase/*.ts",
-    "scripts/*.mjs"
+    "scripts/*.mjs",
+    "scripts/*.ts"
   ],
   "project": [
     "src/**/*.ts",
@@ -15,6 +16,5 @@
     "experiments/**/*.ts",
     "scripts/**/*.mjs"
   ],
-  "ignoreExportsUsedInFile": true,
-  "ignore": ["src/tools/system-tools.ts"]
+  "ignoreExportsUsedInFile": true
 }

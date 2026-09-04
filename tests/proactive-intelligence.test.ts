@@ -8,8 +8,8 @@ import {
 } from '../src/proactive-intelligence/index.js';
 import { GrowthSchedulerBrain } from '../src/proactive-intelligence/brain.js';
 
-/** 等待 setImmediate 批处理决策完成 */
-function tick(times = 4): Promise<void> {
+/** 仅等待事件循环排空（不涉及插件决策队列的同步路径等待） */
+function tick(times = 2): Promise<void> {
   return new Promise((resolve) => {
     let n = 0;
     const step = () => (++n >= times ? resolve() : setImmediate(step));
@@ -47,7 +47,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     });
 
     plugin.observe({ type: 'test', source: 's', data: { value: 85 }, severity: 'info' });
-    await tick();
+    await plugin.flush();
 
     const hist = plugin.getExecutor().getExecutionHistory();
     assert.ok(
@@ -120,7 +120,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
       notificationRule('ok', [{ type: 'event', operator: 'equals', field: 'evt.x', value: 1 }]),
     );
     plugin.observe({ type: 'evt', source: 's', data: { x: 1 }, severity: 'info' });
-    await tick();
+    await plugin.flush();
 
     const metrics = plugin.getEngine().getMetrics();
     assert.equal(metrics.actionsCompleted, 1, '应记录 1 次完成');
@@ -142,7 +142,7 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     for (let i = 0; i < 50; i++) {
       plugin.observe({ type: 'noise', source: 's', data: { i }, severity: 'info' });
     }
-    await tick();
+    await plugin.flush();
 
     assert.equal(decisions, 1, `50 个同 tick 事件应合并为 1 次决策，实际 ${decisions}`);
     assert.equal(plugin.getEngine().getMetrics().totalEventsProcessed, 50);
@@ -205,7 +205,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       data: { capability: 'X' },
       severity: 'info',
     });
-    await tick();
+    await plugin.flush();
 
     // 分配动作已执行（低成本高质量 a1 应胜出）
     assert.equal(allocations.length, 1);
@@ -239,7 +239,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       data: { capability: 'UNHEARD-OF' },
       severity: 'info',
     });
-    await tick();
+    await plugin.flush();
 
     assert.ok(!errored);
     assert.equal((plugin.getBrain() as GrowthSchedulerBrain).getState().openTasks, 0);
@@ -277,7 +277,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
       if (d.triggeredRules.includes('market-bad')) triggered = true;
     });
     plugin.observe({ type: 'ping', source: 's', data: {}, severity: 'info' });
-    await tick();
+    await plugin.flush();
 
     assert.ok(triggered, 'brain.successRate=0.2 应触发市场退化规则');
 
@@ -291,7 +291,7 @@ describe('proactive-intelligence · 增长调度器 Brain', () => {
     assert.equal(plugin.settleTask('t', true), false);
     await plugin.start();
     plugin.observe({ type: 'x', source: 's', data: {}, severity: 'info' });
-    await tick();
+    await plugin.flush();
     await plugin.stop();
   });
 });

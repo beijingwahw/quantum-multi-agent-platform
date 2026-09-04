@@ -29,9 +29,9 @@
  */
 
 /** 分配策略：market = 本机制；greedy / round-robin = 对照基线 */
-import { mulberry32 } from '../utils/rng';
-import { round2, round3 } from '../utils/numeric';
-import { MechanismError } from '../utils/errors';
+import { mulberry32 } from '../utils/rng.js';
+import { round2, round3 } from '../utils/numeric.js';
+import { MechanismError } from '../utils/errors.js';
 import {
   bidOf,
   dominantOf,
@@ -41,7 +41,7 @@ import {
   recordSettlement,
   socialValueOf,
   SettlementHistory,
-} from './market-estimation';
+} from './market-estimation.js';
 export type AllocationPolicy = 'market' | 'greedy' | 'round-robin';
 
 export interface GrowthAgentSpec {
@@ -254,7 +254,8 @@ export class GrowthMarketScheduler {
       policy,
     };
     this.openTasks.set(taskId, { assignment, winner: winner.rt, openedAt: Date.now() });
-    winner.rt.wins++;
+    // wins 在结算时递增（01#23）：提交即计数会让未结算任务永久虚增
+    // 战绩——快照口径（getSnapshot 的 wins）应是「已结算胜场」
     return assignment;
   }
 
@@ -269,6 +270,8 @@ export class GrowthMarketScheduler {
     recordSettlement(winner, cap, success);
     winner.totalAttempts++;
     winner.reputation = updateReputation(winner.reputation, success, this.config.reputationAlpha);
+    // 战绩与结算对齐：只有真正执行过的任务才计入 wins
+    if (success) winner.wins++;
     this.openTasks.delete(taskId);
     // 真实结算同样计入窗口指标（修复：此前仅 simulateTask 记账，
     // completeTask 路径的结算对 getSettledCount/getWindowSuccessRate 不可见）
@@ -335,12 +338,13 @@ export class GrowthMarketScheduler {
       let dominantShare = 0;
       let entropy = 0;
       if (rt.totalAttempts > 0) {
+        // dominantShare 与循环变量无关（dominant 在循环内不变），循环外一次算清
+        if (dominant !== null) {
+          dominantShare = (rt.attempts.get(dominant) ?? 0) / rt.totalAttempts;
+        }
         for (const n of rt.attempts.values()) {
           const p = n / rt.totalAttempts;
           entropy -= p * Math.log2(p);
-          if (dominant !== null) {
-            dominantShare = (rt.attempts.get(dominant) ?? 0) / rt.totalAttempts;
-          }
         }
       }
       return {

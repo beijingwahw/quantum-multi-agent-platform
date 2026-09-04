@@ -192,7 +192,7 @@ describe('调度器高级特性', () => {
     scheduler.shutdown();
   });
 
-  it('updateTaskStatus cancelled：按失败终态收尾并释放agent', () => {
+  it('updateTaskStatus cancelled：取消终态与失败分列并释放agent', () => {
     const scheduler = new QuantumScheduler({});
     const agent = makeAgent('a1', ['js']);
     scheduler.registerAgent(agent);
@@ -200,9 +200,11 @@ describe('调度器高级特性', () => {
     assert.equal(task.status, 'assigned');
 
     scheduler.updateTaskStatus(task.id, 'cancelled');
-    assert.equal(task.status, 'failed'); // 取消按非成功终态计
+    assert.equal(task.status, 'cancelled'); // 取消是独立终态（01#15：取消≠失败）
     assert.equal(agent.state, 'idle');
-    assert.equal(scheduler.getSystemMetrics().failedTasks, 1);
+    const metrics = scheduler.getSystemMetrics();
+    assert.equal(metrics.failedTasks, 0, '取消不得计入失败口径');
+    assert.equal(metrics.cancelledTasks, 1, '取消有自己的计数');
     scheduler.shutdown();
   });
 });

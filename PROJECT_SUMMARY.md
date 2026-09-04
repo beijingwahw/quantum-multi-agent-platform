@@ -132,7 +132,7 @@ class AgentManager {
 class QuantumBus {
   // 消息路由
   sendToAgent(agentId: string, message: QuantumMessage): boolean
-  broadcastMessage(message: QuantumMessage): void
+  createBroadcastMessage(sourceAgentId, type, content, priority?): QuantumMessage
   
   // 连接管理
   getActiveConnections(): WebSocketConnection[]
@@ -210,7 +210,7 @@ makeQuantumDecision(task: Task, agents: Agent[]): SchedulingDecision {
 createEntanglement(agentId1: string, agentId2: string): boolean {
   // 创建量子纠缠连接
   const entanglement: QuantumEntanglement = {
-    id: uuidv4(),
+    id: randomUUID(),
     agentId1,
     agentId2,
     strength: 0.1,
@@ -265,7 +265,7 @@ DSH Integration:       4,791 ops/sec（优化前 1,489，3.2×）
 
 ### 质量验证结果（全部实际运行通过）
 - **TypeScript严格模式编译**：0错误（`npm run build`）
-- **单元测试**：39个用例 / 6个套件全部通过（`npm test`）
+- **测试**：281 个用例 / 73 个套件全部通过（`npm test`）
   - QuantumScheduler：能力匹配、挂起重调度、优先级排序、生命周期、过载保护
   - AgentManager：注册注销、纠缠幂等、负载状态机、健康检查去重
   - QuantumBus：port 0随机端口、离线队列、认证冲刷、幂等关闭
@@ -366,12 +366,12 @@ npm test
 ```bash
 npm install
 npm run dev
-# 访问 http://localhost:8080/quantum-console
+# web-console 是独立单文件页面（浏览器直接打开 web-console/index.html），平台本身不服务 HTTP
 ```
 
 ### 2. 生产环境
 ```bash
-# Docker部署
+# Docker部署（本仓库未附 Dockerfile，以下为示意——自行补齐镜像定义后使用）
 docker build -t quantum-platform .
 docker run -p 8080:8080 quantum-platform
 

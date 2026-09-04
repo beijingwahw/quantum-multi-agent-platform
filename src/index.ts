@@ -1,17 +1,23 @@
-import type { QuantumAlgorithm, QuantumEngineConfig } from './core/quantum-scheduler';
-import { QuantumScheduler } from './core/quantum-scheduler';
-import { AgentManager } from './core/agent-manager';
-import { QuantumBus } from './communication/quantum-bus';
-import { DSHIntegration } from './dsh/dsh-integration';
+import type { QuantumAlgorithm, QuantumEngineConfig } from './core/quantum-scheduler.js';
+import { QuantumScheduler } from './core/quantum-scheduler.js';
+import { AgentManager } from './core/agent-manager.js';
+import { QuantumBus } from './communication/quantum-bus.js';
+import { DSHIntegration } from './dsh/dsh-integration.js';
 import { EventEmitter } from 'events';
 import { pathToFileURL } from 'url';
-import type { LogLevel } from './utils/logger';
-import { setLogLevel, logInfo, logWarn, logError } from './utils/logger';
-import { ConfigurationError } from './utils/errors';
-import type { Agent, AgentType, TaskPriority, Task, TaskRequirement } from './types/quantum-types';
+import type { LogLevel } from './utils/logger.js';
+import { setLogLevel, logInfo, logWarn, logError } from './utils/logger.js';
+import { ConfigurationError } from './utils/errors.js';
+import type {
+  Agent,
+  AgentType,
+  TaskPriority,
+  Task,
+  TaskRequirement,
+} from './types/quantum-types.js';
 
 /** 递归可选：用户配置只需覆盖关心的字段，其余保留默认值 */
-type DeepPartial<T> = {
+export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
@@ -19,16 +25,31 @@ type DeepPartial<T> = {
 // 会触发 Object.prototype 的 setter，必须整体拒绝
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-// 深合并配置：保留各层级默认值，仅覆盖用户显式传入的字段
-function deepMerge<T extends object>(defaults: T, override: DeepPartial<T> | undefined): T {
-  const result: object = { ...defaults };
-  if (!override) return result as T;
+// 递归深度上限：防御病态嵌套配置导致的栈溢出（含循环引用的配置对象）
+const MAX_MERGE_DEPTH = 10;
+
+// 深合并配置：保留各层级默认值，仅覆盖用户显式传入的字段。
+// 数组整体替换（不逐元素合并——元素语义未知，半合并产物更危险）。
+// 类型边界说明：override 声明为 DeepPartial<T>，运行时按键读取需要
+// 走 Record<string, unknown> 视图，出口一次性收敛回 T——这是本函数
+// 唯一的类型断言点（此前双 as 在入口/出口各散一处）。
+function deepMerge<T extends object>(
+  defaults: T,
+  override: DeepPartial<T> | undefined,
+  depth = 0,
+): T {
+  if (depth > MAX_MERGE_DEPTH) {
+    throw new ConfigurationError(`Configuration nesting exceeds depth limit ${MAX_MERGE_DEPTH}`);
+  }
+  const result = { ...defaults };
+  if (!override) return result;
+  const target = result as Record<string, unknown>;
   for (const key of Object.keys(override) as Array<keyof T & string>) {
     if (DANGEROUS_KEYS.has(key)) {
       throw new ConfigurationError(`Configuration key '${key}' is not allowed`);
     }
-    const overrideValue: unknown = override[key];
-    const defaultValue: unknown = defaults[key];
+    const overrideValue: unknown = (override as Record<string, unknown>)[key];
+    const defaultValue: unknown = (defaults as Record<string, unknown>)[key];
     const bothArePlainObjects =
       overrideValue !== null &&
       typeof overrideValue === 'object' &&
@@ -37,12 +58,12 @@ function deepMerge<T extends object>(defaults: T, override: DeepPartial<T> | und
       typeof defaultValue === 'object' &&
       !Array.isArray(defaultValue);
     if (bothArePlainObjects) {
-      (result as Record<string, unknown>)[key] = deepMerge(defaultValue, overrideValue);
+      target[key] = deepMerge(defaultValue, overrideValue, depth + 1);
     } else if (overrideValue !== undefined) {
-      (result as Record<string, unknown>)[key] = overrideValue;
+      target[key] = overrideValue;
     }
   }
-  return result as T;
+  return result;
 }
 
 /**
@@ -74,6 +95,13 @@ export interface PlatformConfig {
     heartbeatIntervalMs?: number;
     /** 心跳过期阈值（毫秒） */
     heartbeatTimeoutMs?: number;
+    /**
+     * 监听地址（默认 '127.0.0.1'）。无 authToken 的本地开发模式绝不
+     * 暴露到网络接口；LAN 部署显式传入（如 '0.0.0.0'）并务必配置 authToken
+     */
+    host?: string;
+    /** 最大并发连接数（默认 256），超出即以 1013 拒绝新连接 */
+    maxConnections?: number;
   };
   performance: {
     metricsInterval: number;
@@ -308,9 +336,12 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
           ) {
             throw new ConfigurationError(`Invalid priority '${JSON.stringify(priority)}'`);
           }
+          // type 可由调用方指定（协议与 SDK 的 submitTask 能力对齐，
+          // 不再硬编码 'console'——任务类型是下游能力匹配的输入）
+          const taskType = typeof p.type === 'string' && p.type ? p.type : 'console';
           const task = this.submitTask({
             name: typeof p.name === 'string' && p.name ? p.name : 'Console Task',
-            type: 'console',
+            type: taskType,
             priority: (priority ?? 'medium') as TaskPriority,
             requirements: [],
           });
@@ -333,9 +364,12 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
         }
         case 'complete_task': {
           const p = (payload ?? {}) as Record<string, unknown>;
-          if (typeof p.taskId === 'string' && p.taskId) {
-            this.completeTask(p.taskId, p.success !== false);
+          if (typeof p.taskId !== 'string' || !p.taskId) {
+            // 与 submit_task 的 priority 校验同口径：畸形远程输入显式报错，
+            // 而不是静默吞掉（调用方无法得知命令未生效）
+            throw new ConfigurationError("complete_task requires a non-empty 'taskId'");
           }
+          this.completeTask(p.taskId, p.success !== false);
           break;
         }
         default:
@@ -358,28 +392,55 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
   async start(): Promise<void> {
     if (this.isRunning) return;
 
+    // 逆序回滚栈：每成功占用一项资源压栈一条逆操作，中途抛错按 LIFO
+    // 回滚——失败路径零残留。此前只回滚 bus：DSH 半初始化、系统
+    // agents 残留会让「未启动」的平台继续持有活动组件。
+    const rollback: Array<() => void> = [];
     try {
       logInfo('QuantumPlatform', 'Starting Quantum Multi-Agent Platform...');
 
       // 启动通信总线（占用端口）
       await this.quantumBus.start();
+      rollback.push(() => {
+        this.quantumBus.shutdown();
+      });
 
       // 启动DSH集成
       await this.dshIntegration.initialize();
+      rollback.push(() => {
+        this.dshIntegration.shutdown();
+      });
 
       // 注册系统agents
       this.registerSystemAgents();
+      rollback.push(() => {
+        this.agentManager.shutdown();
+      });
 
       // 启动系统监控
       this.metricsInterval = setInterval(() => {
         this.reportMetrics();
       }, this.config.performance.metricsInterval);
+      rollback.push(() => {
+        if (this.metricsInterval) {
+          clearInterval(this.metricsInterval);
+          this.metricsInterval = null;
+        }
+      });
 
       this.isRunning = true;
       this.emit('started');
       logInfo('QuantumPlatform', 'Quantum Multi-Agent Platform started successfully');
     } catch (error) {
       logError('QuantumPlatform', 'Failed to start:', error);
+      for (const undo of rollback.reverse()) {
+        try {
+          undo();
+        } catch (rollbackError) {
+          // 回滚本身失败不能掩盖原始错误，逐项尽力而为
+          logError('QuantumPlatform', 'Rollback step failed:', rollbackError);
+        }
+      }
       throw error;
     }
   }
@@ -405,6 +466,21 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
     this.emit('stopped');
 
     logInfo('QuantumPlatform', 'Quantum Multi-Agent Platform stopped');
+  }
+
+  /**
+   * 彻底销毁平台。stop() 只收尾运行态（定时器/总线/管理器），不解除
+   * setupEventHandlers 注册的跨组件监听——组件引用互相滞留，同进程
+   * 重建平台（测试/热重启）时监听器持续累积、旧实例无法被 GC。
+   * dispose 在 stop 基础上解除全部监听；平台对象此后不可复用。
+   */
+  dispose(): void {
+    this.stop();
+    this.agentManager.removeAllListeners();
+    this.scheduler.removeAllListeners();
+    this.quantumBus.removeAllListeners();
+    this.dshIntegration.removeAllListeners();
+    this.removeAllListeners();
   }
 
   private registerSystemAgents(): void {
@@ -513,6 +589,13 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
   }
 
   // Monitoring and Metrics
+  /**
+   * 平台级系统指标聚合。
+   * 注意：五组件按固定顺序顺序拉取，非事务性快照——高并发下同一份
+   * 报告内的数字可能来自不同的内部时刻（如 scheduler 已记账而 bus
+   * 计数未更新）。组件级原子快照需要各组件提供一致版本号，属后续
+   * 演进项；当前消费方（控制台/日志）对此精度已足够。
+   */
   getSystemMetrics(): PlatformSystemMetrics {
     return {
       scheduler: this.scheduler.getSystemMetrics(),
@@ -544,13 +627,13 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
 }
 
 // 导出主要类和接口
-export { QuantumScheduler } from './core/quantum-scheduler';
+export { QuantumScheduler } from './core/quantum-scheduler.js';
 export type {
   QuantumSchedulerConfig,
   QuantumAlgorithm,
   QuantumEngineConfig,
   QuantumBatchReport,
-} from './core/quantum-scheduler';
+} from './core/quantum-scheduler.js';
 export {
   QuantumStateVector,
   qaoaSolve,
@@ -563,7 +646,7 @@ export {
   decodeAssignment,
   isValidAssignment,
   welfareOf,
-} from './core/quantum-optimizer';
+} from './core/quantum-optimizer.js';
 export type {
   AssignmentProblem,
   QuantumSolverOptions,
@@ -574,33 +657,33 @@ export type {
   ProblemEnergies,
   IsingModel,
   BruteForceResult,
-} from './core/quantum-optimizer';
+} from './core/quantum-optimizer.js';
 export {
   buildSubspaceModel,
   qaoaSolveSubspace,
   annealSolveSubspace,
   SubspaceState,
-} from './core/subspace-optimizer';
+} from './core/subspace-optimizer.js';
 export type {
   SubspaceModel,
   SubspaceSolution,
   SubspaceBuildOptions,
-} from './core/subspace-optimizer';
-export { hungarianAssignment, localSearchAssignment } from './core/classical-baselines';
+} from './core/subspace-optimizer.js';
+export { hungarianAssignment, localSearchAssignment } from './core/classical-baselines.js';
 export {
   LocalQuantumBackend,
   registerBackend,
   getBackend,
   listBackends,
-} from './core/qpu/quantum-backend';
-export type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './core/qpu/quantum-backend';
-export { DWaveBackend } from './core/qpu/dwave-backend';
-export type { DWaveConfig } from './core/qpu/dwave-backend';
-export { solveAssignmentOnBackend } from './core/qpu/solve';
-export type { QpuAssignmentResult } from './core/qpu/solve';
-export { toQiskitProgram } from './core/qpu/qiskit-export';
-export type { QiskitExportOptions } from './core/qpu/qiskit-export';
-export { AgentManager } from './core/agent-manager';
+} from './core/qpu/quantum-backend.js';
+export type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './core/qpu/quantum-backend.js';
+export { DWaveBackend } from './core/qpu/dwave-backend.js';
+export type { DWaveConfig } from './core/qpu/dwave-backend.js';
+export { solveAssignmentOnBackend } from './core/qpu/solve.js';
+export type { QpuAssignmentResult } from './core/qpu/solve.js';
+export { toQiskitProgram } from './core/qpu/qiskit-export.js';
+export type { QiskitExportOptions } from './core/qpu/qiskit-export.js';
+export { AgentManager } from './core/agent-manager.js';
 export {
   PlatformError,
   ConfigurationError,
@@ -611,10 +694,17 @@ export {
   QuantumEngineError,
   BackendError,
   ToolError,
-} from './utils/errors';
-export { QuantumBus } from './communication/quantum-bus';
-export { DSHIntegration } from './dsh/dsh-integration';
-export { GrowthMarketScheduler, DEFAULT_GROWTH_CONFIG } from './core/growth-market-scheduler';
+} from './utils/errors.js';
+export { QuantumBus } from './communication/quantum-bus.js';
+export { DSHIntegration } from './dsh/dsh-integration.js';
+// 命令策略门面：宿主扩展白名单/收紧超时无需深路径导入 system-tools
+export {
+  configureCommandPolicy,
+  resetCommandPolicy,
+  getCommandPolicy,
+  execute_command_argv,
+} from './tools/system-tools.js';
+export { GrowthMarketScheduler, DEFAULT_GROWTH_CONFIG } from './core/growth-market-scheduler.js';
 export type {
   GrowthAgentSpec,
   GrowthSchedulerConfig,
@@ -622,14 +712,18 @@ export type {
   TaskAssignment,
   SettlementResult,
   AgentSnapshot,
-} from './core/growth-market-scheduler';
-export { BatchVCGScheduler, BudgetPacer, DEFAULT_BATCH_CONFIG } from './core/batch-vcg-scheduler';
+} from './core/growth-market-scheduler.js';
+export {
+  BatchVCGScheduler,
+  BudgetPacer,
+  DEFAULT_BATCH_CONFIG,
+} from './core/batch-vcg-scheduler.js';
 export {
   CompoundBrain,
   DEFAULT_COMPOUND_CONFIG,
   lawKMin,
   lawDeltaMax,
-} from './core/compound-brain';
+} from './core/compound-brain.js';
 export type {
   CompoundAgentSpec,
   CompoundTaskSpec,
@@ -640,10 +734,10 @@ export type {
   CalibrationReport,
   CapabilityAdvice,
   IncubationAdvice,
-} from './core/compound-brain';
-export { GrowthSchedulerBrain } from './proactive-intelligence/brain';
-export type { BrainState } from './proactive-intelligence/brain';
-export { ProactiveIntelligencePlugin } from './proactive-intelligence/index';
+} from './core/compound-brain.js';
+export { GrowthSchedulerBrain } from './proactive-intelligence/brain.js';
+export type { BrainState } from './proactive-intelligence/brain.js';
+export { ProactiveIntelligencePlugin } from './proactive-intelligence/index.js';
 export type {
   MonitorEvent,
   DecisionContext,
@@ -653,14 +747,14 @@ export type {
   ActionExecution,
   PolicyConfig,
   Metrics,
-} from './proactive-intelligence/index';
+} from './proactive-intelligence/index.js';
 export type {
   BatchAgentSpec,
   BatchVCGConfig,
   BatchAllocation,
   BatchAssignment,
   BatchSettlement,
-} from './core/batch-vcg-scheduler';
+} from './core/batch-vcg-scheduler.js';
 
 // 导出类型
 export type {
@@ -670,28 +764,36 @@ export type {
   TaskPriority,
   TaskRequirement,
   QuantumMessage,
-} from './types/quantum-types';
+} from './types/quantum-types.js';
 
 // CLI入口（Windows路径兼容）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const platform = new QuantumMultiAgentPlatform();
 
-  // 启动平台
+  // 启动平台（失败必须反映到退出码：脚本/CI 依赖非零退出感知启动失败）
   platform.start().catch((err: unknown) => {
     console.error('[QuantumPlatform]', err);
+    process.exitCode = 1;
   });
 
-  // 监听中断信号
+  // 监听中断信号：让事件循环自然排空（异步日志/关闭握手不被截断），
+  // 定时器已全部 unref/clear，进程会自行退出
+  const shutdown = (signal: string): void => {
+    console.log(`\n[QuantumPlatform] Received ${signal}, shutting down...`);
+    try {
+      platform.stop();
+    } catch (err) {
+      // 信号处理里的异常无人接盘会以未捕获异常杀进程——收尾失败
+      // 显式反映到退出码而非静默
+      console.error('[QuantumPlatform] Shutdown failed:', err);
+      process.exitCode = 1;
+    }
+  };
   process.on('SIGINT', () => {
-    console.log('\n[QuantumPlatform] Received SIGINT, shutting down...');
-    platform.stop();
-    process.exit(0);
+    shutdown('SIGINT');
   });
-
   process.on('SIGTERM', () => {
-    console.log('\n[QuantumPlatform] Received SIGTERM, shutting down...');
-    platform.stop();
-    process.exit(0);
+    shutdown('SIGTERM');
   });
 }
 

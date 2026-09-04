@@ -2,7 +2,7 @@
 /**
  * install-to-dsh.mjs — dsh-proactive 自动化安装到 DeepSeek Harness 官方插件目录
  *
- * 【落地位置】把本文件复制到：C:\Users\molly\dsh-proactive\scripts\install-to-dsh.mjs
+ * 【落地位置】把本文件复制到：<dsh-proactive 仓库>/scripts/install-to-dsh.mjs
  * （同目录请保留 uninstall-from-dsh.mjs / 已有 scripts/ 内容）
  *
  * 触发方式（任一即可）：
@@ -27,6 +27,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { join, resolve, dirname, delimiter as PATH_DELIM } from 'node:path';
@@ -73,7 +74,8 @@ const SAFE_ENV_KEYS = [
 ];
 
 // ─── 颜色 ────────────────────────────────────────────────────────────────
-const useColor = IS_WIN ? process.stdout.isTTY !== false : process.stdout.isTTY === true;
+// isTTY===true 才启用 ANSI：管道/重定向（undefined）下两平台都不应输出转义序列
+const useColor = process.stdout.isTTY === true;
 const c = (code, s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
 const ok = (s) => c('32', s);
 const warn = (s) => c('33', s);
@@ -96,10 +98,15 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === 'install' || a === 'uninstall' || a === 'list') out.cmd = a;
     else if (a === '--dry-run') out.dryRun = true;
-    else if (a === '--dsh-home') out.dshHome = argv[++i];
-    else if (a.startsWith('--dsh-home=')) out.dshHome = a.slice('--dsh-home='.length);
+    else if (a === '--dsh-home') {
+      const v = argv[++i];
+      if (!v) throw new Error('--dsh-home requires a value');
+      out.dshHome = v;
+    } else if (a.startsWith('--dsh-home=')) out.dshHome = a.slice('--dsh-home='.length);
     else if (a === '--profiles') {
-      out.profiles = argv[++i]
+      const v = argv[++i];
+      if (!v) throw new Error('--profiles requires a comma-separated value');
+      out.profiles = v
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
@@ -262,7 +269,9 @@ function clearVersion(manifest) {
 function buildPnpmDepSpec(pluginRoot) {
   let abs = resolve(pluginRoot);
   if (IS_WIN) abs = abs.replace(/\\/g, '/');
-  if (!abs.startsWith('/')) abs = '/' + abs;
+  // 仅 POSIX 需要前导 '/'；Windows 盘符路径（D:/...）再补 '/' 会产生
+  // file:/D:/... ——任何按 Node path 语义解析的消费方都会指向不存在的目录
+  if (!IS_WIN && !abs.startsWith('/')) abs = '/' + abs;
   return `file:${abs}`;
 }
 
@@ -328,11 +337,26 @@ function findPnpmBin() {
 async function runPnpm(cwd, args) {
   const bin = findPnpmBin();
   return new Promise((resolveP, rejectP) => {
-    const child = spawn(bin, args, {
+    // Windows 上 pnpm 是 .cmd 脚本：Node >= 18.20 对 shell:false 的 .cmd
+    // spawn 直接抛 EINVAL（CVE-2024-27980 缓解）。借道 cmd.exe（/d 禁
+    // autorun、/s+外层引号的正规引用协议、verbatim 禁止 Node 二次包裹），
+    // 含空格/特殊字符的参数逐个加引号
+    let command = bin;
+    let spawnArgs = [...args];
+    if (IS_WIN) {
+      const specials = /[\s&|<>(){},^!;]/;
+      const quoted = [bin, ...args].map((a) =>
+        specials.test(a) ? '"' + a.replace(/\\+$/, (m) => m + m) + '"' : a,
+      );
+      command = process.env.ComSpec ?? 'cmd.exe';
+      spawnArgs = ['/d', '/s', '/c', '"' + quoted.join(' ') + '"'];
+    }
+    const child = spawn(command, spawnArgs, {
       cwd,
       env: pickSafeEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
+      ...(IS_WIN ? { windowsVerbatimArguments: true } : {}),
     });
     let stdout = '';
     let stderr = '';
@@ -434,19 +458,45 @@ async function processProfile(profile, opts) {
     return { profile: profile.name, dryRun: true };
   }
 
-  await writeFile(profile.manifestPath, after, 'utf8');
-  console.log(ok(`[${profile.name}] manifest updated`));
+  // 顺序按方向区分：
+  // - install：先写 manifest（加入 file: 依赖与 bundle 声明），pnpm install 落地依赖；
+  // - uninstall：先 pnpm remove（它自己会同步改写 manifest 的 dependencies），
+  //   成功后再套用我们的补充清理（plugin 块/bundle/版本标记）。若先删依赖再
+  //   remove，pnpm 会以 ERR_PNPM_CANNOT_REMOVE_MISSING_PACKAGE 失败，
+  //   留下半应用的卸载（manifest 已改、包还在）。
+  if (opts.cmd === 'install') {
+    await writeFile(profile.manifestPath, after, 'utf8');
+    console.log(ok(`[${profile.name}] manifest updated`));
 
-  const args = opts.cmd === 'install' ? ['install', '--prefer-offline'] : ['remove', PLUGIN_NAME];
-  console.log(info(`[${profile.name}] running pnpm ${args.join(' ')} ...`));
-  const { code, stdout, stderr } = await runPnpm(profile.dir, args);
-  if (code !== 0) {
-    console.error(err(`[${profile.name}] pnpm ${opts.cmd} failed (exit ${code})`));
-    if (stderr) console.error(dim(stderr));
-    if (stdout) console.error(dim(stdout));
-    return { profile: profile.name, failed: true, code };
+    const args = ['install', '--prefer-offline'];
+    console.log(info(`[${profile.name}] running pnpm ${args.join(' ')} ...`));
+    const { code, stdout, stderr } = await runPnpm(profile.dir, args);
+    if (code !== 0) {
+      console.error(err(`[${profile.name}] pnpm ${opts.cmd} failed (exit ${code})`));
+      if (stderr) console.error(dim(stderr));
+      if (stdout) console.error(dim(stdout));
+      return { profile: profile.name, failed: true, code };
+    }
+    console.log(ok(`[${profile.name}] pnpm ${opts.cmd} succeeded`));
+    return { profile: profile.name, ok: true };
   }
-  console.log(ok(`[${profile.name}] pnpm ${opts.cmd} succeeded`));
+
+  // uninstall 路径
+  const removeArgs = ['remove', PLUGIN_NAME];
+  console.log(info(`[${profile.name}] running pnpm ${removeArgs.join(' ')} ...`));
+  const rm = await runPnpm(profile.dir, removeArgs);
+  if (rm.code !== 0) {
+    console.error(err(`[${profile.name}] pnpm ${opts.cmd} failed (exit ${rm.code})`));
+    if (rm.stderr) console.error(dim(rm.stderr));
+    if (rm.stdout) console.error(dim(rm.stdout));
+    return { profile: profile.name, failed: true, code: rm.code };
+  }
+  // pnpm 已自行改写 manifest：在磁盘最新内容上做补充清理（避免覆盖
+  // pnpm 的并发改动），版本标记与 bundle 声明按 after 的清理意图重放
+  const fresh = readJSON(profile.manifestPath) ?? draft;
+  applyUninstallEdits(fresh);
+  await writeFile(profile.manifestPath, JSON.stringify(fresh, null, 2) + '\n', 'utf8');
+  console.log(ok(`[${profile.name}] manifest cleaned`));
   return { profile: profile.name, ok: true };
 }
 
@@ -512,10 +562,12 @@ export {
 };
 
 // ─── 直接执行入口 ────────────────────────────────────────────────────────
-const invokedDirectly =
-  process.argv[1] &&
-  (process.argv[1].endsWith('install-to-dsh.mjs') ||
-    process.env.npm_lifecycle_event === 'postinstall');
+// 入口判定用 URL 规范比较（06#19）：endsWith 匹配文件名，改名即静默失效
+const isEntry =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+// postinstall 触发同样要求本文件是入口：仅被 import（如测试）时即使处于
+// 任意 npm 生命周期也不得对用户的 DSH profiles 做真实写入
+const invokedDirectly = isEntry && process.env.npm_lifecycle_event !== undefined;
 if (invokedDirectly) {
   if (process.env.npm_lifecycle_event === 'postinstall') {
     const opts = parseArgs(process.argv.slice(2));

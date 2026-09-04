@@ -5,32 +5,37 @@ import type {
   QuantumState,
   TaskPriority,
   TaskStatus,
-} from '../types/quantum-types';
+} from '../types/quantum-types.js';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logDebug, logInfo } from '../utils/logger';
-import { SchedulingError } from '../utils/errors';
-import { Mulberry32, DEFAULT_SEED } from '../utils/rng';
+import { logDebug, logInfo } from '../utils/logger.js';
+import { SchedulingError } from '../utils/errors.js';
+import { Mulberry32, DEFAULT_SEED } from '../utils/rng.js';
 import {
   BRUTE_FORCE_QUBIT_LIMIT,
-  MAX_CASCADE_DEPTH,
+  FULLSPACE_QUBIT_LIMIT,
   SCHEDULER_QUBIT_CAP,
   SCHEDULER_SUBSPACE_CAP,
   SUBSPACE_QAOA_DIMENSION_LIMIT,
-} from './constants';
-import { AGENT_OVERLOAD_THRESHOLD } from './agent-manager';
-import type { AssignmentProblem, QuantumSolverOptions, CollapseMode } from './quantum-optimizer';
+} from './constants.js';
+import { AGENT_OVERLOAD_THRESHOLD } from './agent-manager.js';
+import type { AssignmentProblem, QuantumSolverOptions, CollapseMode } from './quantum-optimizer.js';
 import {
   qaoaSolve,
   annealSolve,
   bruteForceOptimum,
   defaultPenalties,
   couplingKey,
-} from './quantum-optimizer';
-import { buildSubspaceModel, qaoaSolveSubspace, annealSolveSubspace } from './subspace-optimizer';
-import type { QuantumBackend } from './qpu/quantum-backend';
-import { getBackend } from './qpu/quantum-backend';
-import { solveAssignmentOnBackend } from './qpu/solve';
+  isValidAssignment,
+} from './quantum-optimizer.js';
+import {
+  buildSubspaceModel,
+  qaoaSolveSubspace,
+  annealSolveSubspace,
+} from './subspace-optimizer.js';
+import type { QuantumBackend } from './qpu/quantum-backend.js';
+import { getBackend } from './qpu/quantum-backend.js';
+import { solveAssignmentOnBackend } from './qpu/solve.js';
 
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   critical: 4,
@@ -68,12 +73,21 @@ const CONFIDENCE_GAIN = 2;
 /** 决策附带的次优候选数 */
 const ALTERNATIVES_COUNT = 2;
 
+/**
+ * 量子距离得分：越近越高（归一化到 (0,1]）。
+ * 单任务与批量两条打分路径共用——此前单任务路径直接用原始距离，
+ * 与批量路径方向相反（同权重下选出不同agent），语义错误。
+ */
+function distanceScoreOf(distance: number): number {
+  return 1 / (1 + distance);
+}
+
 /** 评分四要素（能力/负载/相关性/距离）——单任务决策与批量打分共用同一组件计算 */
 interface AffinityComponents {
   capabilityScore: number;
   loadScore: number;
   correlationScore: number;
-  /** 原始欧氏距离（单任务口径直接用，批量口径取 1/(1+d) 归一） */
+  /** 原始欧氏距离（评分统一经 distanceScoreOf 归一） */
   distance: number;
 }
 
@@ -95,6 +109,18 @@ export interface QuantumEngineConfig {
   select?: CollapseMode;
   /** 随机种子 */
   seed?: number;
+  /**
+   * CVaR-QAOA 分位系数 α ∈ (0,1]（默认 1 = 经典均值目标）。α<1 时
+   * QAOA 路径的角度优化以最优 α 分位能量期望为变分目标
+   * （Barkoutsos et al. 2020），低层数下命中率实证更优
+   */
+  cvarAlpha?: number;
+  /**
+   * QAOA 角度参数化（默认 'layer'）。'multi' = ma-QAOA：每个混合算子
+   * 独立变分角（Chandarana et al. 2020），以 layer 最优为种子 ⇒
+   * 构造性保证不劣于 layer 模式
+   */
+  angleMode?: 'layer' | 'multi';
   /** 退火参数 */
   anneal?: { tau?: number; steps?: number };
   /**
@@ -176,6 +202,8 @@ export interface SchedulerSystemMetrics {
   totalTasks: number;
   completedTasks: number;
   failedTasks: number;
+  /** 取消终态任务数（与 failedTasks 分列——取消≠失败） */
+  cancelledTasks: number;
   pendingTasks: number;
   systemLoad: number;
   quantumEfficiency: number;
@@ -195,6 +223,13 @@ export class QuantumScheduler extends EventEmitter {
   private capabilityIndex = new Map<string, Set<string>>();
   // 性能索引：挂起任务按优先级分桶，免除每次重调度的全量排序
   private pendingBuckets = new Map<TaskPriority, string[]>();
+  /**
+   * 性能索引：依赖 → 其直接下游任务集合。级联失败曾对每次失败做全量
+   * 任务扫描（O(T)/次，批量失败 O(E·T)）。Set 按提交序遍历 == 原全表
+   * 扫描筛选序，级联的 completeTask 调用序列不变（位级行为一致）。
+   * 维护点：submitTask（建立）与 sweep 保留清理（随任务删除收缩）。
+   */
+  private dependents = new Map<string, Set<string>>();
   // 性能统计：替代每次决策过滤整个调度历史（O(1)量子相关性）
   private agentStats = new Map<string, AgentScheduleStats>();
   // 计数器：指标计算O(1)，不随任务总量增长
@@ -202,6 +237,8 @@ export class QuantumScheduler extends EventEmitter {
   private completedAssignments = 0;
   private completedCount = 0;
   private failedCount = 0;
+  /** 取消计数（01#15：取消≠失败，failedTasks 不得混入取消口径） */
+  private cancelledCount = 0;
   private pendingCount = 0;
   // 已入桶追踪：保证pendingCount只在真正入过桶的任务上增减
   private pendingTracked = new Set<string>();
@@ -301,6 +338,14 @@ export class QuantumScheduler extends EventEmitter {
     };
 
     this.tasks.set(fullTask.id, fullTask);
+    for (const depId of fullTask.dependencies) {
+      let ids = this.dependents.get(depId);
+      if (!ids) {
+        ids = new Set<string>();
+        this.dependents.set(depId, ids);
+      }
+      ids.add(fullTask.id);
+    }
     this.emit('task_submitted', fullTask);
 
     // 立即尝试调度（批量模式下攒起来等联合量子调度）
@@ -351,20 +396,43 @@ export class QuantumScheduler extends EventEmitter {
     this.tasks.set(taskId, task);
   }
 
+  /** 取消收尾的判定：result 为 { reason: 'cancelled' } 载荷 */
+  private static isCancellation(result: unknown): boolean {
+    return (
+      typeof result === 'object' &&
+      result !== null &&
+      (result as { reason?: unknown }).reason === 'cancelled'
+    );
+  }
+
   // 任务完成/失败：更新状态、释放agent、触发挂起任务重调度
   completeTask(taskId: string, success = true, result?: unknown): boolean {
     const task = this.tasks.get(taskId);
     if (!task) return false;
 
+    // 幂等守卫：终态任务不得二次收尾——重复调用会重复累计完成数、
+    // 重复扣减 activeAssignments/agent.load（虚增空闲容量、突破并发上限）
+    // 并重复发出终态事件（updateTaskStatus 与巡检超时可能竞争到达）
+    if (task.status === 'completed' || task.status === 'failed') {
+      logDebug('QuantumScheduler', `Task ${taskId} already ${task.status}, ignoring re-completion`);
+      return false;
+    }
+
     const wasPending = task.status === 'pending';
     const now = new Date();
 
+    // 取消是与失败分列的终态（TaskStatus 联合本就含 'cancelled'）：
+    // 此前取消走 failed 分支，failedTasks 里取消与失败不可区分
+    const cancelled = !success && QuantumScheduler.isCancellation(result);
     if (success) {
       task.status = 'completed';
       task.completedAt = now;
       this.completedCount++;
       // 仅统计真正经过调度决策并完成的任务
       if (task.assignedAgentId) this.completedAssignments++;
+    } else if (cancelled) {
+      task.status = 'cancelled';
+      this.cancelledCount++;
     } else {
       task.status = 'failed';
       this.failedCount++;
@@ -373,7 +441,9 @@ export class QuantumScheduler extends EventEmitter {
       this.pendingCount--;
     }
     task.updatedAt = now;
-    task.actualDuration = now.getTime() - task.createdAt.getTime();
+    // 执行时长从分配时点起算（01#16）：从 createdAt 起算把排队等待
+    // 计入执行时长，SLA/超时归因系统性偏大
+    task.actualDuration = now.getTime() - (task.assignedAt ?? task.createdAt).getTime();
     if (result !== undefined) {
       task.result = result;
     }
@@ -385,7 +455,11 @@ export class QuantumScheduler extends EventEmitter {
       const agent = this.agents.get(task.assignedAgentId);
       if (agent) {
         agent.load = Math.max(0, agent.load - 1);
-        if (agent.state === 'working') {
+        // overloaded 必须与 working 同样参与释放重判，否则它是无出边的
+        // 吸收态：load 归零仍停在 overloaded，agent 永久退出空闲候选池，
+        // systemLoad 也随之失真（全员 overloaded 时显示零负载）。
+        // 重判语义与 agent-manager 的 heartbeat 恢复一致：按当前 load 定态。
+        if (agent.state === 'working' || agent.state === 'overloaded') {
           agent.state = agent.load > AGENT_OVERLOAD_THRESHOLD ? 'overloaded' : 'idle';
         }
         this.agents.set(agent.id, agent);
@@ -420,6 +494,19 @@ export class QuantumScheduler extends EventEmitter {
       return null;
     }
 
+    // 状态守卫：仅 pending 任务可进入调度（与 reschedulePendingTasks 的
+    // 惰性状态检查对齐）。缺守卫时外部重试是天然触发场景：
+    // 对 completed 任务重调会改回 assigned、随后被超时巡检改判 failed
+    // （已完成任务被静默改判）；对 assigned/running 重调会覆盖
+    // assignedAgentId、旧 agent 负载不回减、activeAssignments 重复递增。
+    if (task.status !== 'pending') {
+      logDebug(
+        'QuantumScheduler',
+        `Task ${taskId} not pending (status=${task.status}), refusing to schedule`,
+      );
+      return null;
+    }
+
     // 依赖门控：前置任务未全部完成前不调度
     if (!this.dependenciesMet(task)) {
       logDebug('QuantumScheduler', `Task ${taskId} waiting for dependencies`);
@@ -444,17 +531,20 @@ export class QuantumScheduler extends EventEmitter {
     });
   }
 
-  // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）
-  private cascadeFailure(failedTaskId: string, depth = 0): void {
-    if (depth > MAX_CASCADE_DEPTH) return; // 防御环形依赖导致的无限递归
+  // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）。
+  // 终止性由 completeTask 的幂等守卫保证：每个任务恰好一次转入终态，
+  // 环形依赖下重复到达的任务在守卫处早退，不会无限递归。
+  // 经 dependents 反向索引取直接下游（O(度)，原为全量任务扫描）；
+  // 状态过滤保持在读取时进行——任务的终结态转换发生在提交之后。
+  private cascadeFailure(failedTaskId: string): void {
+    const ids = this.dependents.get(failedTaskId);
+    if (!ids) return;
 
     const dependents: string[] = [];
-    for (const t of this.tasks.values()) {
-      if (
-        (t.status === 'pending' || t.status === 'assigned' || t.status === 'running') &&
-        t.dependencies.includes(failedTaskId)
-      ) {
-        dependents.push(t.id);
+    for (const id of ids) {
+      const t = this.tasks.get(id);
+      if (t && (t.status === 'pending' || t.status === 'assigned' || t.status === 'running')) {
+        dependents.push(id);
       }
     }
 
@@ -634,6 +724,14 @@ export class QuantumScheduler extends EventEmitter {
           const endedAt = task.completedAt?.getTime() ?? task.updatedAt.getTime();
           if (now - endedAt > retentionMs) {
             this.tasks.delete(id);
+            // 反向依赖索引同步收缩（该任务不可能再被级联到达：已终结）
+            for (const depId of task.dependencies) {
+              const ids = this.dependents.get(depId);
+              if (ids) {
+                ids.delete(id);
+                if (ids.size === 0) this.dependents.delete(depId);
+              }
+            }
           }
         }
       }
@@ -669,21 +767,13 @@ export class QuantumScheduler extends EventEmitter {
     if (algorithm === 'quantum-qaoa' || algorithm === 'quantum-annealing') {
       return this.makeTrueQuantumDecision(task, agents, algorithm);
     }
-    // 量子波函数调度算法
-    const scores = agents.map((agent) => {
-      const c = this.affinityComponents(agent, task);
-      const w = SINGLE_TASK_WEIGHTS;
-      const totalScore =
-        w.distance * c.distance +
-        w.capability * c.capabilityScore +
-        w.load * c.loadScore +
-        w.correlation * c.correlationScore;
-
-      return {
-        agentId: agent.id,
-        score: totalScore,
-      };
-    });
+    // 量子波函数调度算法（亲和度求和序与批量路径共用同一实现——
+    // 浮点加法不满足结合律，两套手写求和序在近平局处可有 ~1e-17 ULP
+    // 分歧并选出不同 agent，属未声明的口径分歧）
+    const scores = agents.map((agent) => ({
+      agentId: agent.id,
+      score: this.affinityScore(SINGLE_TASK_WEIGHTS, this.affinityComponents(agent, task)),
+    }));
 
     scores.sort((a, b) => b.score - a.score);
     if (scores.length === 0) {
@@ -736,25 +826,38 @@ export class QuantumScheduler extends EventEmitter {
 
   /** agent-任务亲和度：经典评分四要素（能力/负载/相关性/量子距离）的加权和，进入哈密顿量 */
   private agentAffinity(agent: Agent, task: Task): number {
-    const c = this.affinityComponents(agent, task);
-    const distanceScore = 1 / (1 + c.distance); // 距离越近越高（归一化到(0,1]）
-    const w = BATCH_SCORE_WEIGHTS;
+    return this.affinityScore(BATCH_SCORE_WEIGHTS, this.affinityComponents(agent, task));
+  }
+
+  /**
+   * 亲和度加权和的唯一求值实现（01#10 收口）：固定求和序
+   * capability → load → correlation → distance。此前单任务路径
+   * distance-first、批量路径 capability-first 两套手写序并存。
+   */
+  private affinityScore(
+    w: { capability: number; load: number; correlation: number; distance: number },
+    c: AffinityComponents,
+  ): number {
     return (
       w.capability * c.capabilityScore +
       w.load * c.loadScore +
       w.correlation * c.correlationScore +
-      w.distance * distanceScore
+      w.distance * distanceScoreOf(c.distance)
     );
   }
 
   private buildSolverOptions(): QuantumSolverOptions {
     const q = this.config.scheduling?.quantum ?? {};
+    // exactOptionalPropertyTypes：未配置的旋钮以属性缺省表达，
+    // 由求解器缺省解析填充（显式 undefined 不得进入可选属性）
     return {
-      layers: q.layers,
-      shots: q.shots,
-      select: q.select,
-      seed: q.seed,
-      anneal: q.anneal,
+      ...(q.layers !== undefined ? { layers: q.layers } : {}),
+      ...(q.shots !== undefined ? { shots: q.shots } : {}),
+      ...(q.select !== undefined ? { select: q.select } : {}),
+      ...(q.seed !== undefined ? { seed: q.seed } : {}),
+      ...(q.cvarAlpha !== undefined ? { cvarAlpha: q.cvarAlpha } : {}),
+      ...(q.angleMode !== undefined ? { angleMode: q.angleMode } : {}),
+      ...(q.anneal !== undefined ? { anneal: q.anneal } : {}),
     };
   }
 
@@ -796,19 +899,27 @@ export class QuantumScheduler extends EventEmitter {
         : annealSolve(problem, this.buildSolverOptions());
 
     const agentIndex = solution.assignment[0] ?? -1;
+    const degraded = agentIndex < 0 || !isValidAssignment(problem, solution.assignment);
     const chosen = agentIndex >= 0 ? agents[agentIndex]! : agents[0]!;
     this.quantumSingleDecisions++;
-    this.quantumProbabilitySum += solution.probability;
+    // 退化回退（agents[0] 兜底）不得上报 Born 概率/置信度（01#8）：
+    // 上报指标必须与实际决策同源——回退不是测量结果，把它计入
+    // quantumProbabilitySum 会毒化概率口径
+    if (!degraded) {
+      this.quantumProbabilitySum += solution.probability;
+    }
 
     return {
       taskId: task.id,
       agentId: chosen.id,
-      probability: solution.probability,
-      confidence: solution.validMass,
-      reasoning:
-        `${solution.engine}: superposition over ${agents.length} agents, ` +
-        `evolution (${solution.layers} ${solution.engine === 'qaoa' ? 'layers' : 'steps'}), ` +
-        `Born collapse p=${solution.probability.toFixed(3)}`,
+      probability: degraded ? 0 : solution.probability,
+      confidence: degraded ? 0 : solution.validMass,
+      reasoning: degraded
+        ? `${solution.engine}: degenerate solve fell back to first candidate ` +
+          `(reported metrics zeroed — decision is not a measurement)`
+        : `${solution.engine}: superposition over ${agents.length} agents, ` +
+          `evolution (${solution.layers} ${solution.engine === 'qaoa' ? 'layers' : 'steps'}), ` +
+          `Born collapse p=${solution.probability.toFixed(3)}`,
       alternatives: solution.candidates.slice(1, 1 + ALTERNATIVES_COUNT).map((c) => ({
         agentId: agents[c.assignment[0] ?? -1]?.id ?? chosen.id,
         probability: c.probability,
@@ -884,8 +995,12 @@ export class QuantumScheduler extends EventEmitter {
     }
 
     // 5) 回退：全空间态矢量分块路径（子空间超维或不定时使用）
-    //    任务数×agent数 ≤ qubitCap（态矢量内存上限）
-    const qubitCap = this.config.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP;
+    //    任务数×agent数 ≤ qubitCap（态矢量内存上限，钳制到引擎硬顶——
+    //    超限配置应在配置期报错，而不是让引擎在调度中段抛出）
+    const qubitCap = Math.min(
+      this.config.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP,
+      FULLSPACE_QUBIT_LIMIT,
+    );
     const chunks: Task[][] = [];
     let current: Task[] = [];
     for (const task of schedulable) {
@@ -1313,7 +1428,10 @@ export class QuantumScheduler extends EventEmitter {
           welfare: result.welfare,
           probability: result.sampleFrequency,
           validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
-          layers: result.totalReads,
+          // layers 语义是电路层数 p；QPU 采样路径无层数概念，恒 0
+          // （读取次数见 reasoning 与 totalReads——此前把 totalReads
+          // 塞进 layers 是字段挪用）
+          layers: 0,
           evaluations: 1,
         },
       ],
@@ -1402,6 +1520,15 @@ export class QuantumScheduler extends EventEmitter {
     const agent = this.agents.get(agentId);
 
     if (task && agent) {
+      // 状态守卫：调度入口的公共 API 守卫不豁免内部路径——
+      // 批量联合调度同样不得把非 pending 任务推入 assigned
+      if (task.status !== 'pending') {
+        logDebug(
+          'QuantumScheduler',
+          `assignTaskToAgent refused: task ${taskId} not pending (status=${task.status})`,
+        );
+        return;
+      }
       // 仅对真正入过挂起桶的任务回退计数（提交即分配的任务不涉及）
       if (this.pendingTracked.delete(taskId)) {
         this.pendingCount--;
@@ -1438,7 +1565,9 @@ export class QuantumScheduler extends EventEmitter {
     const totalAgents = this.agents.size;
     let activeAgents = 0;
     for (const agent of this.agents.values()) {
-      if (agent.state === 'working') activeAgents++;
+      // overloaded 同为在役状态：只统计 working 会在全员过载时
+      // 报告零负载，监控口径与实际饱和相反
+      if (agent.state === 'working' || agent.state === 'overloaded') activeAgents++;
     }
 
     return {
@@ -1447,6 +1576,7 @@ export class QuantumScheduler extends EventEmitter {
       totalTasks: this.tasks.size,
       completedTasks: this.completedCount,
       failedTasks: this.failedCount,
+      cancelledTasks: this.cancelledCount,
       pendingTasks: this.pendingCount,
       systemLoad: totalAgents > 0 ? activeAgents / totalAgents : 0,
       quantumEfficiency:
@@ -1465,6 +1595,8 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   getSchedulingHistory(): SchedulingDecision[] {
-    return this.schedulingHistory;
+    // 防御性拷贝：外部 push/splice 会破坏长度封顶不变量并使
+    // totalDecisions 与实际历史长度脱钩
+    return this.schedulingHistory.slice();
   }
 }

@@ -18,6 +18,7 @@
  *   node --import tsx experiments/llm-learning-curve/run.ts --analyze
  */
 import fs from 'node:fs';
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mulberry32, shuffled } from '../../src/utils/rng.js';
@@ -35,13 +36,27 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const IMPLICIT = process.argv.includes('--implicit');
 const PROMPT = IMPLICIT ? IMPLICIT_PROMPT : SYSTEM_PROMPT;
 const SUFFIX = IMPLICIT ? '-implicit' : '';
-const JSONL = path.join(HERE, `results${SUFFIX}.jsonl`);
-const OUT = path.join(HERE, `results${SUFFIX}.json`);
+const MODEL = process.env.GLM_MODEL ?? 'glm-4-flash';
+// 输出文件带模型与时间戳（06#14）：固定名覆盖会让 crash 丢历史、
+// 换模型混样本；按运行打戳后每次运行自成一档，analyze 用
+// JSONL_OUT 显式指定输入（缺省回落到固定名以兼容旧工作流）
+const STAMP = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const RUN_TAG = `${SUFFIX || 'main'}-${MODEL}-${STAMP}`;
+const JSONL = process.env.JSONL_OUT ?? path.join(HERE, `results-${RUN_TAG}.jsonl`);
+const OUT = process.env.OUT ?? path.join(HERE, `results-${RUN_TAG}.json`);
 
 const API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const MODEL = process.env.GLM_MODEL ?? 'glm-4-flash';
-const RUNS = Number(process.env.RUNS ?? 12);
-const CONCURRENCY = Number(process.env.CONCURRENCY ?? 8);
+// 参数上限校验（06#15）：误配的大值会直接打爆 API 配额/触发限流
+function boundedEnvInt(name: string, fallback: number, max: number): number {
+  const v = Number(process.env[name]);
+  if (!Number.isFinite(v) || v < 1) return fallback;
+  if (v > max) {
+    throw new Error(`${name}=${v} 超过上限 ${max}——如确有需要请修改代码中的上限`);
+  }
+  return Math.floor(v);
+}
+const RUNS = boundedEnvInt('RUNS', 12, 200);
+const CONCURRENCY = boundedEnvInt('CONCURRENCY', 8, 32);
 const MAX_LIBRARY = 40;
 
 type Condition = 'treatment' | 'control';
@@ -78,13 +93,17 @@ class Semaphore {
       this.active++;
       return;
     }
+    // 槽位由 release 直接移交（见下）：等待者不再自增，否则
+    // 「release 减一 + 等待者加一」的间隙会让并发上限浮动 1
     await new Promise<void>((resolve) => this.queue.push(resolve));
-    this.active++;
   }
   release(): void {
-    this.active--;
     const next = this.queue.shift();
-    if (next) next();
+    if (next) {
+      next(); // 槽位移交给下一个等待者：active 不动，严格上限
+    } else {
+      this.active--; // 无等待者才真正释放
+    }
   }
 }
 
@@ -185,7 +204,7 @@ async function runLifetime(
     messages.push({ role: 'user', content: task.text });
 
     let ok = false;
-    let predStr = '';
+    let predStr: string;
     try {
       const raw = await chat(messages);
       const pred = parseAnswer(raw);
@@ -284,6 +303,22 @@ function analyze() {
     .map((line) => JSON.parse(line));
 
   const report: any = {
+    meta: {
+      model: MODEL,
+      runs: RUNS,
+      concurrency: CONCURRENCY,
+      // git rev 快照（06#16）：参数-结果-代码版本链路；无 git 环境为 null
+      gitRev: (() => {
+        try {
+          return execSync('git rev-parse --short HEAD', { cwd: HERE, stdio: ['ignore', 'pipe'] })
+            .toString()
+            .trim();
+        } catch {
+          return null;
+        }
+      })(),
+      finishedAt: new Date().toISOString(),
+    },
     model: MODEL,
     mode: IMPLICIT ? 'implicit（口径仅存于案例）' : 'explicit（规则已完整告知）',
     totalEvals: records.length,
@@ -387,7 +422,9 @@ async function main() {
     }
   };
 
-  if (pilot) fs.writeFileSync(JSONL, ''); // pilot 覆盖旧数据
+  // JSONL 为本次运行的打戳新文件（06#14）；显式 JSONL_OUT 复用旧文件时
+  // 清空起点，避免追加模式混入上一轮记录。独立 --analyze 时不动数据文件。
+  fs.writeFileSync(JSONL, '');
 
   const jobs: Array<Promise<void>> = [];
   for (const cond of conditions) {

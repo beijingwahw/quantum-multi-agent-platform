@@ -118,11 +118,13 @@ export function applyFiberRunsKernel(
 // ----------------------------------------------------------------------------
 
 /**
- * 在元素区间 [lo, hi) 上推进相位递推并施加：ph ← ph·z 后振幅复乘 ph。
+ * 在元素区间 [lo, hi) 上推进相位递推并施加：ph ← ph·z 后振幅复乘【新】ph。
  * 退火相位 γ_t = (t/steps)·dt 线性增长 ⇒ 每元素相位因子满足
  * ph(t) = ph(t−1)·z_k（z_k = e^{−i·e_k·dt/steps} 常量），逐元素独立，
  * 区间划分不影响数值。与直接 cos(γ_t·e) 的差异 O(t·ε)≈1e−14（双精度
  * 舍入累积），|ph| 全程 1±ε，幺正性不受影响。
+ * 注意：振幅必须乘推进后的 ph(t)（与全空间引擎的 s_t 调度一致）——
+ * 乘旧相位会把总代价角缩短 (steps−1)/steps·τ/2，退火调度滞后一个子步。
  */
 export function advanceCostKernel(
   re: Float64Array,
@@ -139,12 +141,14 @@ export function advanceCostKernel(
     const pi = phIm[k]!;
     const zr = zRe[k]!;
     const zi = zIm[k]!;
-    phRe[k] = pr * zr - pi * zi;
-    phIm[k] = pr * zi + pi * zr;
+    const nr = pr * zr - pi * zi;
+    const ni = pr * zi + pi * zr;
+    phRe[k] = nr;
+    phIm[k] = ni;
     const r = re[k]!;
     const iv = im[k]!;
-    re[k] = r * pr - iv * pi;
-    im[k] = r * pi + iv * pr;
+    re[k] = r * nr - iv * ni;
+    im[k] = r * ni + iv * nr;
   }
 }
 

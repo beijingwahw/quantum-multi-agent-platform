@@ -48,7 +48,7 @@ describe('QuantumBus', () => {
 
     const received: any[] = [];
     await new Promise<void>((resolve, reject) => {
-      const client = new WebSocket(`ws://localhost:${port}/quantum-bus`);
+      const client = new WebSocket(`ws://127.0.0.1:${port}/quantum-bus`);
       const timer = setTimeout(() => {
         reject(new Error('test timeout'));
       }, 5000);

@@ -29,7 +29,13 @@ import {
 const SEEDS = Array.from({ length: 12 }, (_, i) => 100 + i);
 
 function cell(alpha: number, beta: number, explore?: number): PhaseParams {
-  return { ...PHASE_DEFAULTS, alpha, beta, seeds: SEEDS, explore };
+  return {
+    ...PHASE_DEFAULTS,
+    alpha,
+    beta,
+    seeds: SEEDS,
+    ...(explore !== undefined ? { explore } : {}),
+  };
 }
 
 describe('TrainVsHire 相变 · 闭式理论 vs 模拟', () => {

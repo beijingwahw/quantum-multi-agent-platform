@@ -2,10 +2,10 @@
 
 # Quantum Multi-Agent Development & Scheduling Platform
 
-![version](https://img.shields.io/badge/version-1.7.0-blue)
-![tests](https://img.shields.io/badge/tests-226%2F226-brightgreen)
+![version](https://img.shields.io/badge/version-1.10.0-blue)
+![tests](https://img.shields.io/badge/tests-292%2F292-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
-![node](https://img.shields.io/badge/node-%3E%3D18-green)
+![node](https://img.shields.io/badge/node-%3E%3D20-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **中文**｜一个把**真实量子算法**（QAOA / 绝热量子退火 / Born 测量坍缩）作为调度决策引擎的多Agent平台：任务分配被编码为哈密顿量，在约束子空间上精确演化——联合调度规模达**等效 80 量子比特**（全空间模拟需 10¹⁵ TB 内存，宇宙尺度不可行），且在 NP-hard 耦合赛道上 **5/5 精确命中最优**（最强经典启发式 0/5）。
@@ -289,9 +289,11 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 226 用例全通过 | all tests pass
+npm test                # 全部用例通过 | all tests pass
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
+npm run example:basic   # 基础用法全链路（平台启停/调度/控制台协议）
+npm run example:advanced # 高级工作流（纠缠/依赖/批量调度）
 npm run example:quantum # 量子突破基准（7 部分）| quantum benchmark (7 parts)
 npm run example:qpu     # 真 QPU 入口（自动检测 DWAVE_API_TOKEN）| real-QPU entry
 npm run dev             # 启动平台 | start the platform (WS :8080)
@@ -347,9 +349,9 @@ npm run typecheck # src+tests+examples 全仓类型检查
 npm run lint      # ESLint 0 错误（类型感知 strict 集:no-floating-promises/
                   #   no-unnecessary-condition/prefer-nullish-coalescing/
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
-npm run coverage  # c8 覆盖率 93% 语句 / 83% 分支,含 90/80/90 防回归门槛
+npm run coverage  # c8 覆盖率 93% 语句 / 83% 分支,含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖 0 发现
-npm test          # 226/226 ✅
+npm test          # 全部通过 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -368,9 +370,9 @@ CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑�
 
 **中文**｜工具面与控制台协议按不可信输入处理：
 
-- **命令执行闸门**（`execute_command`）：程序白名单（npm/node/npx/tsc/tsx/git 等，可用 `configureCommandPolicy()` 扩展）+ 引号外 shell 元字符（`;` `&` `|` `$()` 反引号等）一律拒绝 + token 值内禁 `"` `'` `` ` `` `%`；执行走**无 shell 数组直呼**（Windows 借道 cmd 时仅传受控引号包裹的安全 token），跨平台引号语义错配在构造上被阻断；超时强制整树终止；`workdir` 须为白名单根目录内的现存目录。
+- **命令执行闸门**（`execute_command` / `execute_command_argv`）：程序白名单默认仅 **tsc/git/ls/echo**——解释器与包管理器（node/npm/npx/tsx）等价于任意代码执行，须宿主经 `configureCommandPolicy()` 显式授权；即便授权，`-e`/`--eval` 类内联代码旗标仍恒拒绝。引号外 shell 元字符（`;` `&` `|` `$()` 反引号等）一律拒绝 + token 值内禁 `"` `'` `` ` `` `%`；执行走**无 shell 数组直呼**（Windows 借道 cmd 时 `/s`+verbatim 引用协议，仅传受控引号包裹的安全 token），跨平台引号语义错配在构造上被阻断；超时强制整树终止；`workdir` 须为白名单根目录内的现存目录。
 - **文件系统沙箱**（`read_file`/`write_file`）：所有路径在**真实路径**（解引用符号链接，含悬空链接）上强制解析到沙箱根内（`setFsSandboxRoot()` 可收紧且要求目录真实存在），绝对路径、`../` 逃逸与符号链接逃逸直接拒绝。
-- **控制台鉴权与消息边界**（可选）：平台配置 `communication.authToken` 后，WebSocket `authenticate` 须携带令牌（SHA-256 后 `timingSafeEqual` 常数时间比较），`console_query`/`console_command` 仅对已认证连接开放；未配置时为本地开发模式（建议仅监听本机）。单帧大小由 `maxMessageSize`（默认 1MB）在 ws 层强制，超大帧直接断连。
+- **总线鉴权与网络边界**：平台配置 `communication.authToken` 后，**全部流量路径**（subscribe/常规消息/console_query/console_command）均须先 `authenticate` 携带令牌（SHA-256 后 `timingSafeEqual` 常数时间比较），已认证连接也不得冒用他人 `sourceAgentId`；未配置 authToken 时总线**默认绑定 127.0.0.1**（`communication.host` 可改；LAN 部署务必同时配置 authToken）。另有 `communication.maxConnections`（默认 256，超限 1013 拒绝）、4MB 慢消费者背压断连、单帧 `maxMessageSize`（默认 1MB）三层资源防线。
 - **配置净化**：`deepMerge` 拒绝 `__proto__`/`constructor`/`prototype` 键，JSON 来源的配置无法污染原型链。
 - **QPU 凭据**：D-Wave endpoint 强制 https（本机调试除外），令牌从不落日志。
 
@@ -397,7 +399,7 @@ CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑�
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/
-├── tests/                            # 226 用例
+├── tests/                            # 测试套件
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）
 │   └── *-benchmark.ts                      # 市场机制基准

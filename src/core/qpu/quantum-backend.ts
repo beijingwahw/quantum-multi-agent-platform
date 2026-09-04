@@ -23,10 +23,10 @@
  *   精确最优对照——真实硬件的噪声意味着结果必须被验证后才进调度器。
  */
 
-import type { AssignmentProblem } from '../quantum-optimizer';
-import { buildSubspaceModel, annealSolveSubspace } from '../subspace-optimizer';
-import type { SubspaceSolution } from '../subspace-optimizer';
-import { BackendError } from '../../utils/errors';
+import type { AssignmentProblem } from '../quantum-optimizer.js';
+import { buildSubspaceModel, annealSolveSubspace } from '../subspace-optimizer.js';
+import type { SubspaceSolution } from '../subspace-optimizer.js';
+import { BackendError } from '../../utils/errors.js';
 
 /** QPU 采样结果：自旋 z_i ∈ {−1,+1}（z = 1 − 2x） */
 export interface QpuSampleSet {
@@ -83,12 +83,16 @@ export class LocalQuantumBackend implements QuantumBackend {
    * 本地后端不从 h/J 反解问题（罚项已折叠进线性项，不可逆）。
    * 调度场景统一走 solveAssignment(problem, backend)——本地路径直接
    * 在约束子空间精确演化，与真 QPU 路径同接口。
+   * 拒绝以 Promise.reject 送达而非同步 throw：同步 throw 会绕过
+   * Promise.all/.catch 组合的调用方（接口契约是 Promise 返回）。
    */
   solveIsing(_h: number[], _j: Map<number, number>, nqubits: number): Promise<QpuSampleSet> {
-    throw new BackendError(
-      'LocalQuantumBackend cannot solve raw h/J directly (penalties are folded into ' +
-        `linear terms, irreversible). Use solveAssignmentOnBackend(problem, backend). ` +
-        `(received nqubits=${nqubits})`,
+    return Promise.reject(
+      new BackendError(
+        'LocalQuantumBackend cannot solve raw h/J directly (penalties are folded into ' +
+          `linear terms, irreversible). Use solveAssignmentOnBackend(problem, backend). ` +
+          `(received nqubits=${nqubits})`,
+      ),
     );
   }
 
@@ -105,7 +109,8 @@ export class LocalQuantumBackend implements QuantumBackend {
       annealSolveSubspace(model, {
         anneal: this.annealParams,
         select: 'shots-best',
-        shots: options?.numReads,
+        // exactOptionalPropertyTypes：显式 undefined 不得进入可选属性
+        ...(options?.numReads !== undefined ? { shots: options.numReads } : {}),
       }),
     );
   }

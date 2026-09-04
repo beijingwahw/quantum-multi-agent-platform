@@ -8,8 +8,9 @@
  * 替换不改变任何数值输出——由 tests/ 的物理不变量与最优性基准守护。
  */
 
-import { DEFAULT_SEED } from '../utils/rng';
-import type { CollapseMode, QuantumSolverOptions } from './quantum-optimizer';
+import { DEFAULT_SEED } from '../utils/rng.js';
+import type { CollapseMode, QuantumSolverOptions } from './quantum-optimizer.js';
+import { QuantumEngineError } from '../utils/errors.js';
 import {
   ANGLE_IMPROVEMENT_EPS,
   ANGLE_STEP_INITIAL,
@@ -21,7 +22,7 @@ import {
   DEFAULT_SHOTS,
   DEFAULT_TOP_K,
   GAMMA_BOUND,
-} from './constants';
+} from './constants.js';
 
 // ----------------------------------------------------------------------------
 // 复振幅寄存器：两个引擎的态矢量公共基座
@@ -91,6 +92,59 @@ export function expectationValue(state: ComplexAmplitudes, energies: Float64Arra
   return sum;
 }
 
+// ----------------------------------------------------------------------------
+// CVaR 目标（CVaR-QAOA，Barkoutsos et al. 2020）
+// ----------------------------------------------------------------------------
+
+/**
+ * 能量升序的基态索引（CVaR 的预排序：一次求解内 energies 不变，排序
+ * 结果跨全部评估复用——每次评估只剩 O(dim) 累加）。
+ */
+export function cvarOrder(energies: Readonly<Float64Array>): Int32Array {
+  const order = new Int32Array(energies.length);
+  for (let k = 0; k < order.length; k++) order[k] = k;
+  order.sort((a, b) => energies[a]! - energies[b]!);
+  return order;
+}
+
+/**
+ * CVaR_α 能量：概率质量最优（能量最低）α 分位上的期望——把变分目标
+ * 从"全场均值"换成"最优尾部的均值"。低层数下组合优化景观的实证收敛
+ * 显著更优（原文献在 MaxCut/组合实例上报告了命中率的大幅提升），
+ * 机理：允许 optimizer 牺牲"差区间的质量"换取好区间的集中度，
+ * 均值目标会为抬高尾部能量而稀释最优分支。
+ *
+ * 精确计算：沿能量升序累计概率至 α（边界态按剩余质量比例计入），
+ * 头部的概率加权均值 ÷ α。注意：α=1 时数学上等于 ⟨E⟩，但累加序
+ * （能量序）与 expectationValue（基态序）不同、浮点结果有 ULP 级差异
+ * ——α≥1 的调用方应走 expectationValue 原路径（位级不变的默认）。
+ */
+export function cvarExpectationOrdered(
+  probs: Readonly<Float64Array>,
+  energies: Readonly<Float64Array>,
+  order: Readonly<Int32Array>,
+  alpha: number,
+): number {
+  let mass = 0;
+  let acc = 0;
+  for (const k of order) {
+    if (mass >= alpha) break;
+    const w = Math.min(probs[k]!, alpha - mass);
+    acc += w * energies[k]!;
+    mass += w;
+  }
+  return acc / alpha;
+}
+
+/** 便捷入口（测试/一次性计算用；热路径请用 cvarOrder + cvarExpectationOrdered） */
+export function cvarExpectationValue(
+  state: ComplexAmplitudes,
+  energies: Float64Array,
+  alpha: number,
+): number {
+  return cvarExpectationOrdered(state.probabilities(), energies, cvarOrder(energies), alpha);
+}
+
 /** 数组的最小/最大值（子空间能量谱的量程计算） */
 export function minMaxOf(values: Readonly<Float64Array>): { min: number; max: number } {
   let min = Infinity;
@@ -100,6 +154,22 @@ export function minMaxOf(values: Readonly<Float64Array>): { min: number; max: nu
     if (v > max) max = v;
   }
   return { min, max };
+}
+
+/**
+ * 归一化期望还原为原始能量尺度（normalizedEnergies 的精确逆，08#24 单点收口）。
+ * 此前同一还原在四处三写（全空间 QAOA/退火 ×2 + 子空间 QAOA/退火 ×2）：
+ * QAOA 路径（scale=1）写作 x·span+min，退火路径写作 (x/scale)·span+min——
+ * 代数等价但无共享函数，改动任一处都会引入跨引擎期望口径漂移。
+ * scale=1 时 x/1 === x（IEEE 754 精确），与既有 QAOA 写法逐位一致。
+ */
+export function denormalizeExpectation(
+  normalizedExpectation: number,
+  scale: number,
+  min: number,
+  max: number,
+): number {
+  return (normalizedExpectation / scale) * (max - min) + min;
 }
 
 /** 能量谱线性归一化到 [0, scale]（span=0 时全零——简并谱无相位结构可分离） */
@@ -131,6 +201,10 @@ export interface ResolvedCommonOptions {
   select: CollapseMode;
   seed: number;
   topK: number;
+  /** CVaR 分位系数（默认 1 = 均值目标；<1 启用 CVaR-QAOA 变分目标） */
+  cvarAlpha: number;
+  /** 角度参数化：'layer'（默认，位级不变）| 'multi'（ma-QAOA） */
+  angleMode: 'layer' | 'multi';
 }
 
 /**
@@ -138,19 +212,55 @@ export interface ResolvedCommonOptions {
  * 全空间在含罚项的完整希尔伯特空间上演化，argmax-valid 直接读取合法
  * 子空间上的 Born 峰值；子空间全部基态合法，shots-best 以多次测量
  * 换取能量更低分支（两种缺省均为各引擎实测最优读取方式）。
+ *
+ * 退化参数在此入口拒绝而非让 NaN 静默流穿整个态矢量（steps=0 ⇒
+ * dt=Infinity ⇒ cos(∞)=NaN ⇒ 全振幅 NaN ⇒ validMass=0 一路无声）。
  */
 export function resolveCommonSolverOptions(
   options: QuantumSolverOptions,
   defaultSelect: CollapseMode,
 ): ResolvedCommonOptions {
+  const layers = options.layers ?? DEFAULT_QAOA_LAYERS;
+  const shots = options.shots ?? DEFAULT_SHOTS;
+  if (!Number.isInteger(layers) || layers < 1) {
+    throw new QuantumEngineError(`layers must be a positive integer, got ${options.layers}`);
+  }
+  if (!Number.isInteger(shots) || shots < 1) {
+    throw new QuantumEngineError(`shots must be a positive integer, got ${options.shots}`);
+  }
+  const cvarAlpha = options.cvarAlpha ?? 1;
+  if (!Number.isFinite(cvarAlpha) || cvarAlpha <= 0 || cvarAlpha > 1) {
+    throw new QuantumEngineError(`cvarAlpha must be in (0, 1], got ${options.cvarAlpha}`);
+  }
+  // 运行时守卫：JS 调用方可传任意字符串（类型层不可见），经 unknown
+  // 收宽后类型流分析不再判定比较恒假
+  const rawAngleMode: unknown = options.angleMode;
+  if (rawAngleMode !== undefined && rawAngleMode !== 'layer' && rawAngleMode !== 'multi') {
+    throw new QuantumEngineError(
+      `angleMode must be 'layer' or 'multi', got ${typeof rawAngleMode}`,
+    );
+  }
+  const angleMode = rawAngleMode ?? 'layer';
   return {
-    layers: options.layers ?? DEFAULT_QAOA_LAYERS,
-    shots: options.shots ?? DEFAULT_SHOTS,
+    layers,
+    shots,
     restarts: options.restarts ?? DEFAULT_RESTARTS,
     select: options.select ?? defaultSelect,
     seed: options.seed ?? DEFAULT_SEED,
     topK: options.topK ?? DEFAULT_TOP_K,
+    cvarAlpha,
+    angleMode,
   };
+}
+
+/** 退火参数校验：tau>0 且 steps 为正整数（dt = tau/steps 不得为 0/∞/NaN） */
+export function validateAnnealOptions(tau: number, steps: number): void {
+  if (!(tau > 0) || !Number.isFinite(tau)) {
+    throw new QuantumEngineError(`anneal.tau must be a positive finite number, got ${tau}`);
+  }
+  if (!Number.isInteger(steps) || steps < 1) {
+    throw new QuantumEngineError(`anneal.steps must be a positive integer, got ${steps}`);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -193,6 +303,79 @@ export function optimizeAnglesByCoordinateDescent(
       let improved = false;
       for (let i = 0; i < angles.length; i++) {
         const bound = i < layers ? GAMMA_BOUND : BETA_BOUND;
+        for (const sign of [1, -1]) {
+          const candidate = angles.slice();
+          candidate[i] = Math.min(bound, Math.max(0, candidate[i]! + sign * delta));
+          const value = evaluationsOf(candidate);
+          if (value < current - ANGLE_IMPROVEMENT_EPS) {
+            angles.splice(0, angles.length, ...candidate);
+            current = value;
+            improved = true;
+          }
+        }
+      }
+      if (!improved) delta *= ANGLE_STEP_SHRINK;
+    }
+
+    if (current < bestExpectation) {
+      bestExpectation = current;
+      bestAngles = angles.slice();
+    }
+  }
+  return { angles: bestAngles, expectation: bestExpectation, evaluations };
+}
+
+/**
+ * 种子化坐标下降（ma-QAOA 用）：任意角度布局（逐角上界）+ 可选种子。
+ *
+ * 支配性保证的机理：restart 0 从 seedAngles 出发，坐标下降只接受严格
+ * 改进（ANGLE_IMPROVEMENT_EPS 阈值），故最终 bestExpectation ≤
+ * evaluate(seedAngles)。配合"layer 最优角展开成的 multi 角在 multi
+ * 电路下产生逐位相同的态"这一事实，ma-QAOA ≥ QAOA 成为构造性定理
+ * 而非经验观察。
+ *
+ * seedAngles 缺省时用 0.5·π/8 均匀初值（仅完整性；主用法必给种子）。
+ */
+export function optimizeAnglesByCoordinateDescentSeeded(
+  evaluate: (angles: number[]) => number,
+  angleCount: number,
+  bounds: readonly number[],
+  restarts: number,
+  rng: () => number,
+  seedAngles?: readonly number[],
+): { angles: number[]; expectation: number; evaluations: number } {
+  if (bounds.length !== angleCount) {
+    throw new QuantumEngineError(
+      `bounds length (${bounds.length}) must equal angle count (${angleCount})`,
+    );
+  }
+  let bestAngles: number[] = [];
+  let bestExpectation = Infinity;
+  let evaluations = 0;
+
+  for (let r = 0; r < restarts; r++) {
+    let angles: number[];
+    if (r === 0 && seedAngles !== undefined) {
+      angles = seedAngles.slice();
+    } else {
+      angles = Array.from(
+        { length: angleCount },
+        (_, i) => rng() * Math.min(bounds[i]!, Math.PI / 2),
+      );
+    }
+
+    const evaluationsOf = (a: number[]): number => {
+      evaluations++;
+      return evaluate(a);
+    };
+
+    let current = evaluationsOf(angles);
+    let delta = ANGLE_STEP_INITIAL;
+
+    while (delta > ANGLE_STEP_MIN) {
+      let improved = false;
+      for (let i = 0; i < angles.length; i++) {
+        const bound = bounds[i]!;
         for (const sign of [1, -1]) {
           const candidate = angles.slice();
           candidate[i] = Math.min(bound, Math.max(0, candidate[i]! + sign * delta));

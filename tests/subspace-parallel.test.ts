@@ -12,10 +12,20 @@ import {
   buildSubspaceModel,
   serialAnnealEvolve,
   annealSolveSubspace,
-} from '../src/core/subspace-optimizer';
-import { parallelAnnealEvolve } from '../src/core/subspace-parallel';
-import { couplingKey, type AssignmentProblem } from '../src/core/quantum-optimizer';
-import { mulberry32 } from '../src/utils/rng';
+} from '../src/core/subspace-optimizer.js';
+import {
+  parallelAnnealEvolve,
+  workerSource,
+  buildWorkerSource,
+  verifyWorkerSourceIntegrity,
+} from '../src/core/subspace-parallel.js';
+import { couplingKey, type AssignmentProblem } from '../src/core/quantum-optimizer.js';
+import { mulberry32 } from '../src/utils/rng.js';
+import {
+  applyFiberRunsKernel,
+  advanceCostKernel,
+  buildFiberGroupKernel,
+} from '../src/core/fiber-kernel.js';
 
 function makeProblem(m: number, n: number, seed: number, coupled: boolean): AssignmentProblem {
   const rng = mulberry32(seed);
@@ -191,5 +201,33 @@ describe('subspace-parallel（多线程确定性并行）', () => {
       solution.optimalityRatio > 1 - 1e-9,
       `简并谱所有分配等价，ratio 应为 1，实际 ${solution.optimalityRatio}`,
     );
+  });
+});
+
+// ----------------------------------------------------------------------------
+// 序列化自检（08#33 机制保证）：打包器对 fiber-kernel 的任何改写先在此
+// 暴露，而不是等到运行时 10s 握手超时 + 回退串行
+// ----------------------------------------------------------------------------
+describe('subspace-parallel · 序列化完整性', () => {
+  test('演化 Worker 源包含 live 内核的逐字序列化', () => {
+    const check = verifyWorkerSourceIntegrity(workerSource(), [
+      { name: 'applyFiberRunsKernel', fn: applyFiberRunsKernel },
+      { name: 'advanceCostKernel', fn: advanceCostKernel },
+    ]);
+    assert.ok(check.ok, check.reason ?? 'serialization mismatch');
+  });
+
+  test('构建 Worker 源包含 live 内核的逐字序列化', () => {
+    const check = verifyWorkerSourceIntegrity(buildWorkerSource(), [
+      { name: 'buildFiberGroupKernel', fn: buildFiberGroupKernel },
+    ]);
+    assert.ok(check.ok, check.reason ?? 'serialization mismatch');
+  });
+
+  test('自检对被改写的源必须报失败（防自检自身失效）', () => {
+    const check = verifyWorkerSourceIntegrity('const broken = 1;', [
+      { name: 'applyFiberRunsKernel', fn: applyFiberRunsKernel },
+    ]);
+    assert.ok(!check.ok, '被改写的源不得通过自检');
   });
 });

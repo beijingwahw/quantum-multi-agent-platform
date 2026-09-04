@@ -140,7 +140,9 @@ async function main(): Promise<void> {
 
     // 2c. Qiskit 程序导出（含 QAOA 训练角度）
     const qaoa = qaoaSolve(problem, { layers: 3, restarts: 2, select: 'shots-best', shots: 256 });
-    const program = toQiskitProgram(problem, { angles: qaoa.angles ?? undefined });
+    const program = toQiskitProgram(problem, {
+      ...(qaoa.angles ? { angles: qaoa.angles } : {}),
+    });
     writeFileSync('qaoa_schedule.py', program);
     console.log(`\n  2c. Qiskit 程序已导出: qaoa_schedule.py`);
     console.log(`      量子比特 15 · QAOA p=${qaoa.layers} · 训练角度已嵌入`);

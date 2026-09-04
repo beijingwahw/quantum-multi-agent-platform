@@ -61,10 +61,11 @@
  */
 
 import { EventEmitter } from 'events';
-import type { FlowEdgeRef } from './min-cost-flow';
-import { MinCostFlow } from './min-cost-flow';
-import { MechanismError } from '../utils/errors';
-import { Mulberry32 } from '../utils/rng';
+import type { FlowEdgeRef } from './min-cost-flow.js';
+import { MinCostFlow } from './min-cost-flow.js';
+import { MechanismError } from '../utils/errors.js';
+import { Mulberry32 } from '../utils/rng.js';
+import { logWarn, logError } from '../utils/logger.js';
 
 // ----------------------------------------------------------------------------
 // 类型
@@ -108,6 +109,12 @@ export interface CompoundConfig {
   simBeta: number;
   /** 模拟专用：随机种子 */
   seed: number;
+  /**
+   * 在途台账积压告警阈值（条数）。达到时发出一次 'backlog_warning' 事件
+   * （迟滞：回落到阈值一半以下才重新武装）；0 禁用。仅可观测性——
+   * 不影响分配、支付与结算的任何数值。
+   */
+  pendingBacklogWarnAt?: number;
 }
 
 export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
@@ -121,6 +128,7 @@ export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   simAlpha: 0,
   simBeta: 0,
   seed: 42,
+  pendingBacklogWarnAt: 1000,
 };
 
 export interface CompoundAssignment {
@@ -231,6 +239,20 @@ interface AgentState {
   obsHistory: Map<string, Array<{ k: number; success: boolean }>>;
 }
 
+/**
+ * 单次 allocateBatch 生命周期内的边估值记忆表：q̂(agent,c,k)、
+ * g(agent,c)、能力 c 的具备者数 n(c) 全部与报价无关（DSIC 定理前提），
+ * 在完整求解与 (1+赢家数) 次 Clarke pivot 重解中重复求值同一批键——
+ * 记忆后求值次数从 O(批次×任务×agent×重解) 压到每 (agent,c) 至多常数次。
+ * 缓存值即首次计算的同一 double：纯替换重复求值，数值位级不变。
+ * 生命周期严禁跨出 allocateBatch（settle 改 mixture/obsHistory 后必错）。
+ */
+interface EdgeMemo {
+  q: Map<string, number>;
+  g: Map<string, number>;
+  nCapable: Map<string, number>;
+}
+
 interface CurveComponent {
   alpha: number;
   beta: number;
@@ -258,14 +280,31 @@ export class CompoundBrain extends EventEmitter {
   private readonly config: CompoundConfig;
   private readonly agents = new Map<string, AgentState>();
   private readonly caps = new Map<string, CapabilityState>();
+  /**
+   * 在途任务台账（分配 → 结算）。学习系统的其余结构全部有界
+   * （obsHistory/observations FIFO 封顶、计数器 O(1)），这是唯一可无界
+   * 增长的结构：结算方晚结算/漏结算（崩溃的流水线阶段、丢失的事件）
+   * 会让条目永久滞留，且这些任务的资本/履历永不前进——静默歪曲学习
+   * 状态。allocatedAt 仅供 getState 的积压可观测性与告警，绝不进入
+   * 定价/分配/结算的任何数值路径（DSIC 域不动一个比特）。
+   */
   private readonly pending = new Map<
     string,
-    { agentId: string; capability: string; kBefore: number; taskValue: number; trueCost: number }
+    {
+      agentId: string;
+      capability: string;
+      kBefore: number;
+      taskValue: number;
+      trueCost: number;
+      allocatedAt: number;
+    }
   >();
   private taskSeq = 0;
   private readonly rngSource: Mulberry32;
   /** 已实现福利累计（结算时按成败与真实成本入账；getState.netWelfare 口径） */
   private netWelfareSum = 0;
+  /** 积压告警的迟滞状态：越过阈值只告警一次，回落到半阈值以下才重新武装 */
+  private backlogWarned = false;
 
   constructor(config: Partial<CompoundConfig> = {}) {
     super();
@@ -308,10 +347,12 @@ export class CompoundBrain extends EventEmitter {
     return this;
   }
 
-  /** 实验用：虚报成本（DSIC 检验） */
+  /** 实验用：虚报成本（DSIC 检验）。未知 id 与 register 的重复注册同类：
+   * 都是调用方 bug，静默跳过会让 DSIC 实验带着错误定价跑完全程 */
   misreport(agentId: string, bid: number): void {
     const a = this.agents.get(agentId);
-    if (a) a.bid = bid;
+    if (!a) throw new MechanismError(`Unknown agent: ${agentId}`);
+    a.bid = bid;
   }
 
   // ---------- 公开估计（与报价无关——DSIC 定理的前提） ----------
@@ -363,8 +404,25 @@ export class CompoundBrain extends EventEmitter {
    * （真值 0.5，实证 seed 33：trainee 被饿死 48 批）。置信插值
    * base = cred + λ·(baseRaw − cred)，λ = m/(m+10)：小样本锚定凭证，
    * 证据积累后收敛到残差一致估计。
+   *
+   * memo ≠ null 时按 (agentId, capability, k) 记忆：q̂ 与报价无关（DSIC
+   * 前提），完整求解与每个 Clarke pivot 重解对同一键取到同一 double，
+   * 纯替换重复求值（位级不变）。记忆表生命周期限于单次 allocateBatch
+   * 调用——settle 会改 mixture/obsHistory，跨批复用必错。
    */
-  private qHat(a: AgentState, c: string, k: number): number {
+  private qHat(a: AgentState, c: string, k: number, memo: EdgeMemo | null = null): number {
+    if (memo) {
+      const key = `${a.spec.id}|${c}|${k}`;
+      const cached = memo.q.get(key);
+      if (cached !== undefined) return cached;
+      const v = this.qHatCompute(a, c, k);
+      memo.q.set(key, v);
+      return v;
+    }
+    return this.qHatCompute(a, c, k);
+  }
+
+  private qHatCompute(a: AgentState, c: string, k: number): number {
     const cs = this.caps.get(c);
     if (!cs || cs.mixture.length === 0) return this.baseEstimate(a, c);
     const cred = a.spec.credentialQuality?.[c] ?? a.spec.trueQuality[c] ?? 0.5;
@@ -419,15 +477,25 @@ export class CompoundBrain extends EventEmitter {
    * γ 门控整体 g（含探索）：探索是信息投资，属于增长预算的一部分——
    * γ=0 时 g≡0，机制严格退化为静态批量 VCG（对照臂纯净性）。
    */
-  private growthValue(a: AgentState, c: string): number {
+  private growthValue(a: AgentState, c: string, memo: EdgeMemo | null = null): number {
+    if (memo) {
+      const cached = memo.g.get(`${a.spec.id}|${c}`);
+      if (cached !== undefined) return cached;
+      const v = this.growthValueCompute(a, c, memo);
+      memo.g.set(`${a.spec.id}|${c}`, v);
+      return v;
+    }
+    return this.growthValueCompute(a, c, memo);
+  }
+
+  private growthValueCompute(a: AgentState, c: string, memo: EdgeMemo | null): number {
     const cs = this.caps.get(c);
     if (!cs) return 0;
     if (this.config.growthDiscount <= 0) return 0;
     const vBar = cs.valueEwma ?? this.config.defaultTaskValue;
     const k = a.capital.get(c) ?? 0;
-    const dQ = this.qHat(a, c, k + this.config.growthHorizon) - this.qHat(a, c, k);
-    const capable = [...this.agents.values()].filter((x) => x.spec.capabilities.includes(c));
-    const n = capable.length;
+    const dQ = this.qHat(a, c, k + this.config.growthHorizon, memo) - this.qHat(a, c, k, memo);
+    const n = this.capableCount(c, memo);
     if (n === 0) return 0;
     // 孵化底线：按学习饱和时标 1/β̂ 随资本衰减（未校准 β̂=0 时底线不衰减，
     // 但此时 Δq=0，无副作用）
@@ -436,6 +504,21 @@ export class CompoundBrain extends EventEmitter {
     const m = a.attempts.get(c) ?? 0;
     const explore = this.config.exploreCoefficient / Math.sqrt(1 + m);
     return vBar * this.config.growthDiscount * (dQ * share + explore);
+  }
+
+  /** 具备能力 c 的 agent 总数（公开分母：不随 VCG 排除集变化）。
+   * 逐批内为常量，经记忆表 O(1) 复用——替代每边一次的 O(A) 过滤扫描 */
+  private capableCount(c: string, memo: EdgeMemo | null = null): number {
+    if (memo) {
+      const cached = memo.nCapable.get(c);
+      if (cached !== undefined) return cached;
+    }
+    let n = 0;
+    for (const x of this.agents.values()) {
+      if (x.spec.capabilities.includes(c)) n++;
+    }
+    if (memo) memo.nCapable.set(c, n);
+    return n;
   }
 
   // ---------- 校准 ----------
@@ -483,17 +566,36 @@ export class CompoundBrain extends EventEmitter {
       const q = Math.min(1 - 1e-6, Math.max(1e-6, p));
       return x > 0.5 ? Math.log(q) : Math.log(1 - q);
     };
+    // exp(−β·k) 与 α 无关：按 β 预计算一列（51×41 网格点 → 41 列），
+    // exp 调用缩减 51 倍。校准在每次 settle 都会重跑，这是经常性 CPU 税；
+    // 预计算与内联求值位级相同（同一 double 输入的同一表达式）。
+    const n = obs.length;
+    const bases = new Float64Array(n);
+    const oneMinusBase = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      bases[i] = obs[i]!.base;
+      oneMinusBase[i] = 1 - obs[i]!.base;
+    }
+    const expNegBetaK: Float64Array[] = [];
+    for (let bi = 0; bi <= 40; bi++) {
+      const beta = Math.pow(10, -3 + (bi * 2.7) / 40);
+      const col = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        col[i] = Math.exp(-beta * obs[i]!.k);
+      }
+      expNegBetaK.push(col);
+    }
     for (let ai = 0; ai <= 50; ai++) {
       const alpha = ai / 50;
       for (let bi = 0; bi <= 40; bi++) {
-        const beta = Math.pow(10, -3 + (bi * 2.7) / 40);
+        const col = expNegBetaK[bi]!;
         let ll = 0;
-        for (const o of obs) {
-          const p = o.base + alpha * (1 - o.base) * (1 - Math.exp(-beta * o.k));
-          ll += logTerm(p, o.success ? 1 : 0);
+        for (let i = 0; i < n; i++) {
+          const p = bases[i]! + alpha * oneMinusBase[i]! * (1 - col[i]!);
+          ll += logTerm(p, obs[i]!.success ? 1 : 0);
         }
         llGrid.push(ll);
-        if (ll > best.ll + 1e-12) best = { alpha, beta, ll };
+        if (ll > best.ll + 1e-12) best = { alpha, beta: Math.pow(10, -3 + (bi * 2.7) / 40), ll };
       }
     }
     // null 对数似然（α=0，p = base 精确值，与 β 无关）
@@ -578,11 +680,13 @@ export class CompoundBrain extends EventEmitter {
 
   /**
    * 求解增广 WDP。excludedAgentId ≠ null 时排除该 agent（重解 W*_{−i}）。
+   * memo 为本批共享的边估值记忆表（跨完整求解与全部 pivot 重解复用）。
    * 返回 { W, assignmentEdges }（assignmentEdges 仅在完整求解时填充）。
    */
   private solveWDP(
     tasks: CompoundTaskSpec[],
     excludedAgentId: string | null,
+    memo: EdgeMemo,
   ): {
     W: number;
     edges: Array<{ taskIdx: number; agentId: string; edge: FlowEdgeRef; vQ: number; g: number }>;
@@ -616,8 +720,8 @@ export class CompoundBrain extends EventEmitter {
       const cs = this.caps.get(c);
       for (const a of agentList) {
         if (!a.spec.capabilities.includes(c)) continue;
-        const q = this.qHat(a, c, a.capital.get(c) ?? 0);
-        const g = cs ? this.growthValue(a, c) : 0;
+        const q = this.qHat(a, c, a.capital.get(c) ?? 0, memo);
+        const g = cs ? this.growthValue(a, c, memo) : 0;
         // 费用 = b − v·q̂ − g（福利的相反数）
         const edge = mcf.addEdge(
           taskBase + j,
@@ -656,8 +760,9 @@ export class CompoundBrain extends EventEmitter {
       cs.valueEwma = cs.valueEwma === null ? mean : 0.8 * cs.valueEwma + 0.2 * mean;
     }
 
-    // 完整求解
-    const full = this.solveWDP(tasks, null);
+    // 完整求解（记忆表生命周期 = 本方法调用：pivot 重解共享同一批边估值）
+    const memo: EdgeMemo = { q: new Map(), g: new Map(), nCapable: new Map() };
+    const full = this.solveWDP(tasks, null, memo);
     const winners = full.edges.filter((e) => e.edge.cap === 0); // 容量耗尽 = 被占用
     const kOf = new Map<string, number>();
     for (const e of winners) kOf.set(e.agentId, (kOf.get(e.agentId) ?? 0) + 1);
@@ -670,7 +775,7 @@ export class CompoundBrain extends EventEmitter {
 
     for (const [agentId, k] of kOf) {
       const a = this.agents.get(agentId)!;
-      const without = this.solveWDP(tasks, agentId);
+      const without = this.solveWDP(tasks, agentId, memo);
       payments[agentId] = a.bid * k + (full.W - without.W);
     }
 
@@ -687,9 +792,7 @@ export class CompoundBrain extends EventEmitter {
       for (const a of this.agents.values()) {
         if (!a.spec.capabilities.includes(c)) continue;
         const frac = (counts.get(a.spec.id) ?? 0) / cTasks.length;
-        const prev =
-          cs.shareEwma.get(a.spec.id) ??
-          1 / [...this.agents.values()].filter((x) => x.spec.capabilities.includes(c)).length;
+        const prev = cs.shareEwma.get(a.spec.id) ?? 1 / this.capableCount(c, memo);
         cs.shareEwma.set(
           a.spec.id,
           (1 - this.config.shareAlpha) * prev + this.config.shareAlpha * frac,
@@ -713,8 +816,11 @@ export class CompoundBrain extends EventEmitter {
         kBefore: a.capital.get(task.capability) ?? 0,
         taskValue: task.value,
         trueCost: a.spec.trueCost,
+        allocatedAt: Date.now(),
       });
-      const estQuality = asg.vQ / task.value;
+      // vQ = V·q̂ 已在边上算好，直接取 q̂——除回 task.value 在 value=0 时
+      // 产生 0/0=NaN 并渗入分配记录与下游比较
+      const estQuality = task.value > 0 ? asg.vQ / task.value : 0;
       assignments.push({
         taskId,
         agentId: asg.agentId,
@@ -729,7 +835,15 @@ export class CompoundBrain extends EventEmitter {
     }
 
     const totalPayment = Object.values(payments).reduce((x, y) => x + y, 0);
-    this.emit('allocated', { assignments, payments });
+    this.warnBacklogIfNeeded();
+    // 监听器异常不得吞掉分配结果（08#1）：pending 台账已登记，调用方
+    // 必须拿到 assignments/taskId 才能驱动 settle——此前 emit 异常同步
+    // 上抛会让「state committed, result lost」，任务永不可结算。
+    try {
+      this.emit('allocated', { assignments, payments });
+    } catch (err) {
+      logError('CompoundBrain', 'allocated listener failed (allocation kept):', err);
+    }
     return {
       assignments,
       payments,
@@ -741,15 +855,66 @@ export class CompoundBrain extends EventEmitter {
     };
   }
 
+  /**
+   * 在途台账积压告警（迟滞）：越过 pendingBacklogWarnAt 发一次
+   * 'backlog_warning' 事件并记警告日志，回落到阈值一半以下才重新武装。
+   * 在 allocateBatch 与 settle 尾部各评估一次（计数只经前者上升、
+   * 只经后者下降，两处齐备迟滞才能完整闭环）。
+   * 纯可观测性钩子——不抛错、不拒绝分配（那会改变机制行为），
+   * 也不读取任何进入定价的数值。
+   */
+  private warnBacklogIfNeeded(): void {
+    const threshold = this.config.pendingBacklogWarnAt ?? 0;
+    if (threshold <= 0) return;
+    const count = this.pending.size;
+    if (!this.backlogWarned && count >= threshold) {
+      this.backlogWarned = true;
+      const oldestAgeMs = this.oldestPendingAgeMs();
+      logWarn(
+        'CompoundBrain',
+        `Settlement backlog reached ${count} (threshold ${threshold}); ` +
+          `oldest entry ${oldestAgeMs}ms old. Late/missing settle() calls stall ` +
+          'learning capital and skew calibration observations.',
+      );
+      this.emit('backlog_warning', { count, oldestAgeMs, threshold });
+    } else if (this.backlogWarned && count <= threshold / 2) {
+      this.backlogWarned = false;
+    }
+  }
+
+  /** 最老在途条目的滞留毫秒数（空台账为 0） */
+  private oldestPendingAgeMs(): number {
+    if (this.pending.size === 0) return 0;
+    const now = Date.now();
+    let oldest = Infinity;
+    for (const p of this.pending.values()) {
+      if (p.allocatedAt < oldest) oldest = p.allocatedAt;
+    }
+    return now - oldest;
+  }
+
   // ---------- 结算（驱动学习资本与校准） ----------
 
   settle(taskId: string, success: boolean): boolean {
     const p = this.pending.get(taskId);
     if (!p) return false;
-    this.pending.delete(taskId);
+    // 先全景校验、后统一变更（validate-then-mutate，08#2）：此前 delete
+    // 先于 agent/capability 有效性校验——校验失败时条目已删、结算既未
+    // 入账也无法重试（再调 settle 恒 false），静默丢结算。
     const a = this.agents.get(p.agentId);
     const cs = this.caps.get(p.capability);
-    if (!a || !cs) return false;
+    if (!a || !cs) {
+      // 台账与组件状态不一致（agent 注销/能力撤除）：显式移除滞留条目
+      // （否则永久毒化 backlog 健康度指标），但绝不静默——发独立事件留痕
+      this.pending.delete(taskId);
+      this.emit('settle_skipped', {
+        taskId,
+        agentId: p.agentId,
+        capability: p.capability,
+        reason: !a ? 'agent_missing' : 'capability_missing',
+      });
+      return false;
+    }
     // 已实现福利：成败按真实动力学入账（成本用分配时点快照）
     this.netWelfareSum += (success ? p.taskValue : 0) - p.trueCost;
     // 校准观测的归一化基准必须是「时不变」的凭证（而非随观测演化的
@@ -774,6 +939,9 @@ export class CompoundBrain extends EventEmitter {
       hist.splice(0, hist.length - OBS_CAP);
     }
     this.calibrate(p.capability);
+    // 台账出账押后到全部变更成功之后：中途异常（如 calibrate 抛错）时
+    // 条目仍在，结算可重试（validate-then-mutate 的回滚语义）
+    this.pending.delete(taskId);
     this.emit('settled', {
       taskId,
       agentId: p.agentId,
@@ -781,6 +949,10 @@ export class CompoundBrain extends EventEmitter {
       success,
       capitalAtAssignment: p.kBefore,
     } satisfies Settlement);
+    // 结算使积压下降——迟滞释放判定必须在此评估（否则计数经 settle
+    // 回落后，下一次越限永远等不到重新武装：释放检查只在 allocate
+    // 尾部跑，而 allocate 只升不降）
+    this.warnBacklogIfNeeded();
     return true;
   }
 
@@ -813,6 +985,9 @@ export class CompoundBrain extends EventEmitter {
       const a = this.agents.get(asg.agentId)!;
       const q = this.trueQuality(a, asg.capability);
       const success = this.rng() < q;
+      // 资本快照必须取自 settle 之前（与 pending 台账/校准观测同一口径）：
+      // 同批多次获胜时 settle 后再读会把 kBefore+1 报成分配时资本
+      const kBefore = a.capital.get(asg.capability) ?? 0;
       this.settle(asg.taskId, success);
       realized += (success ? asg.taskValue : 0) - a.spec.trueCost;
       settlements.push({
@@ -820,7 +995,7 @@ export class CompoundBrain extends EventEmitter {
         agentId: asg.agentId,
         capability: asg.capability,
         success,
-        capitalAtAssignment: (a.capital.get(asg.capability) ?? 1) - 1,
+        capitalAtAssignment: kBefore,
       });
     }
     return { allocation, settlements, realizedWelfare: realized };
@@ -914,8 +1089,10 @@ export class CompoundBrain extends EventEmitter {
   getState(): {
     settledCount: number;
     openTasks: number;
-    successRate: number;
+    successRate: number | null;
     netWelfare: number;
+    /** 在途台账积压：漏结算的量与最长滞留时长（健康管道应接近 0） */
+    pendingBacklog: { count: number; oldestAgeMs: number };
     agents: Array<Record<string, unknown>>;
   } {
     let attempts = 0;
@@ -934,8 +1111,10 @@ export class CompoundBrain extends EventEmitter {
     return {
       settledCount: attempts,
       openTasks: this.pending.size,
-      successRate: attempts > 0 ? successes / attempts : 1,
+      // settledCount=0 时为 null：「无数据」不得报告为「全成功」
+      successRate: attempts > 0 ? successes / attempts : null,
       netWelfare: this.netWelfareSum,
+      pendingBacklog: { count: this.pending.size, oldestAgeMs: this.oldestPendingAgeMs() },
       agents,
     };
   }

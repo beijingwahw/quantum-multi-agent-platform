@@ -30,6 +30,9 @@ async function basicExample() {
 
     // 创建量子纠缠（需要使用目标agent的ID）
     const quantumDev = platform.getAgents().find((a) => a.name === 'Quantum Developer');
+    if (!quantumDev) {
+      throw new Error('System agent "Quantum Developer" not found (registerSystemAgents not run?)');
+    }
     platform.agentManager.createEntanglement(codingAgent.id, quantumDev.id);
     console.log('✓ Quantum entanglement created\n');
 
@@ -79,12 +82,13 @@ async function basicExample() {
     }, 2000);
   } catch (error) {
     console.error('Error in basic example:', error);
+    process.exitCode = 1; // 失败必须反映到退出码（CI/脚本依赖非零退出）
   } finally {
     // 清理
     setTimeout(() => {
       platform.stop();
-      console.log('\n✓ Platform stopped');
-      process.exit(0);
+      console.log('✓ Platform stopped');
+      process.exit(process.exitCode ?? 0);
     }, 4000);
   }
 }

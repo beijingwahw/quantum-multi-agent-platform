@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { read_file, write_file, setFsSandboxRoot } from '../src/tools/fs-tools.js';
 import {
   execute_command,
+  execute_command_argv,
   configureCommandPolicy,
   resetCommandPolicy,
 } from '../src/tools/system-tools.js';
@@ -105,8 +106,44 @@ describe('工具面安全加固', () => {
   });
 
   it('execute_command 超时被强制终止', async () => {
-    configureCommandPolicy({ timeoutMs: 1_500 });
-    await assert.rejects(() => execute_command('node -e "for(;;){}"'), /timed out/i);
+    // 解释器须显式 opted-in；载荷走脚本文件（-e 内联旗标被无条件拒绝）。
+    // 脚本用 cwd 相对名，避免临时目录含空格被 shell 分词拆分。
+    const { writeFile, unlink } = await import('node:fs/promises');
+    const script = 'qmap-spin-forever.test.tmp.js';
+    await writeFile(script, 'for(;;){}\n');
+    // 05#15：超时降至 250ms 量级（原 1.5s 真实等待拖慢 CI；进程终止由
+    // system-tools 的 taskkill /T /F 树杀路径负责，超时缩短不影响覆盖）
+    configureCommandPolicy({ timeoutMs: 250, allowedPrograms: ['node'] });
+    try {
+      await assert.rejects(() => execute_command(`node ${script}`), /timed out/i);
+    } finally {
+      await unlink(script).catch(() => {});
+    }
+  });
+
+  it('默认白名单不含解释器/包管理器（node -e 载荷无需元字符即可 RCE）', async () => {
+    await assert.rejects(() => execute_command('node -v'), /not in the allowed list/);
+    await assert.rejects(() => execute_command('npx some-package'), /not in the allowed list/);
+    await assert.rejects(() => execute_command('npm install evil-pkg'), /not in the allowed list/);
+  });
+
+  it('解释器内联代码旗标被无条件拒绝（即便宿主显式开启解释器）', async () => {
+    configureCommandPolicy({ allowedPrograms: ['node', 'ls', 'echo'] });
+    await assert.rejects(() => execute_command('node -e console.log(42)'), /Inline-code flag '-e'/);
+  });
+
+  it('execute_command_argv 保留参数边界（含空白与 cmd 元字符的参数不被拆分）', async () => {
+    const { writeFile, unlink } = await import('node:fs/promises');
+    const script = 'qmap-echo-argv.test.tmp.js';
+    await writeFile(script, 'console.log(JSON.stringify(process.argv.slice(2)))\n');
+    configureCommandPolicy({ allowedPrograms: ['node'] });
+    try {
+      const out = await execute_command_argv('node', [script, 'fix: handle X', 'plain']);
+      const argv = JSON.parse(out.trim().split('\n').pop()!) as string[];
+      assert.deepEqual(argv, ['fix: handle X', 'plain']);
+    } finally {
+      await unlink(script).catch(() => {});
+    }
   });
 
   it('execute_command 拒绝白名单外程序', async () => {
@@ -126,8 +163,8 @@ describe('工具面安全加固', () => {
   });
 
   it('execute_command 放行白名单程序（引号内容作为参数透传）', async () => {
-    const out = await execute_command('node -e "console.log(42)"');
-    assert.ok(out.includes('42'));
+    const out = await execute_command("echo 'x & whoami'");
+    assert.ok(out.includes('x & whoami'));
   });
 
   it('configureCommandPolicy 可扩展程序白名单', async () => {

@@ -5,7 +5,7 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import type { MonitorEvent } from './types';
+import type { MonitorEvent } from './types.js';
 
 /** 状态监控器配置 */
 export interface StateMonitorConfig {
@@ -15,7 +15,10 @@ export interface StateMonitorConfig {
 
 /** 状态监控聚合统计 */
 export interface MonitorStatistics {
+  /** 累计观察事件总数（自构造/清空起单调递增，不受过期/容量淘汰影响） */
   total: number;
+  /** 当前未过期事件数（受 retentionMs 与容量淘汰影响） */
+  live: number;
   byType: Record<string, number>;
   bySeverity: Record<string, number>;
   /** 最近 1 分钟事件数 */
@@ -27,13 +30,27 @@ export class StateMonitor extends EventEmitter {
   private eventBuffer: MonitorEvent[] = [];
   private maxBufferSize = 10000;
   private retentionMs = 3600000; // 1小时
+  /**
+   * 已淘汰事件的惰性前缀游标（过期与容量超限共用——两者都只影响
+   * 前缀，语义统一为「逻辑上已不可见」）。事件按时间单调入列，
+   * 过期项必然是前缀。读取路径跳过 [0, prefix)，物理压缩推迟到
+   * 前缀过半——每事件均摊 O(1)，事件风暴下不再逐事件全量 filter
+   * （曾为 O(n²)）。
+   */
+  private expiredPrefix = 0;
+  /** 累计观察计数（total 的单一事实源，observe 时 O(1) 递增） */
+  private totalObserved = 0;
+  /** 各类型最新事件索引（observe 时 O(1) 维护，供规则/快照免扫描取用） */
+  private latestByType = new Map<string, MonitorEvent>();
 
   constructor(private config: StateMonitorConfig = {}) {
     super();
-    if (config.maxBufferSize) {
+    // 显式 undefined 判断：falsy 判断会把 maxBufferSize=0 /
+    // retentionMs=0（「立即淘汰/不限量」的合法语义）静默反转回默认值
+    if (config.maxBufferSize !== undefined) {
       this.maxBufferSize = config.maxBufferSize;
     }
-    if (config.retentionMs) {
+    if (config.retentionMs !== undefined) {
       this.retentionMs = config.retentionMs;
     }
   }
@@ -47,6 +64,8 @@ export class StateMonitor extends EventEmitter {
     };
 
     this.eventBuffer.push(monitorEvent);
+    this.totalObserved++;
+    this.latestByType.set(monitorEvent.type, monitorEvent);
 
     // 清理过期事件
     this.cleanup();
@@ -64,7 +83,7 @@ export class StateMonitor extends EventEmitter {
     severity?: string;
     since?: Date;
   }): MonitorEvent[] {
-    let events = [...this.eventBuffer];
+    let events = this.eventBuffer.slice(this.expiredPrefix);
 
     if (filter) {
       if (filter.type) {
@@ -85,42 +104,73 @@ export class StateMonitor extends EventEmitter {
     return events;
   }
 
-  /** 获取聚合统计 */
+  /** 获取聚合统计（单遍聚合：原为 4 次独立 reduce，每批决策 ×4 全量扫描） */
   getStatistics(): MonitorStatistics {
-    const events = this.eventBuffer;
+    const events = this.liveEvents();
     const now = Date.now();
+    const byType: Record<string, number> = {};
+    const bySeverity: Record<string, number> = {};
+    let recent = 0;
+    let critical = 0;
+
+    for (const e of events) {
+      byType[e.type] = (byType[e.type] ?? 0) + 1;
+      bySeverity[e.severity] = (bySeverity[e.severity] ?? 0) + 1;
+      if (now - e.timestamp.getTime() < 60000) recent++;
+      if (e.severity === 'critical') critical++;
+    }
 
     return {
-      total: events.length,
-      byType: events.reduce<Record<string, number>>((acc, e) => {
-        acc[e.type] = (acc[e.type] ?? 0) + 1;
-        return acc;
-      }, {}),
-      bySeverity: events.reduce<Record<string, number>>((acc, e) => {
-        acc[e.severity] = (acc[e.severity] ?? 0) + 1;
-        return acc;
-      }, {}),
-      recent: events.filter((e) => now - e.timestamp.getTime() < 60000).length, // 最近1分钟
-      critical: events.filter((e) => e.severity === 'critical').length,
+      total: this.totalObserved,
+      live: events.length,
+      byType,
+      bySeverity,
+      recent,
+      critical,
     };
+  }
+
+  /**
+   * 取指定类型的最新事件（O(1) 索引读取，淘汰事件同样可查——
+   * 「最新一条」的保留期独立于缓冲区窗口）。
+   */
+  getLatestEventByType(type: string): MonitorEvent | null {
+    return this.latestByType.get(type) ?? null;
+  }
+
+  /** 未过期事件视图（跳过惰性前缀的浅拷贝，仅供只读遍历） */
+  private liveEvents(): MonitorEvent[] {
+    return this.eventBuffer.slice(this.expiredPrefix);
   }
 
   /** 清理过期事件 */
   private cleanup(): void {
-    const now = Date.now();
-    const cutoff = now - this.retentionMs;
+    const cutoff = Date.now() - this.retentionMs;
 
-    // 删除过期事件
-    this.eventBuffer = this.eventBuffer.filter((e) => e.timestamp.getTime() > cutoff);
-
-    // 如果超过最大缓冲区，删除最旧的
-    if (this.eventBuffer.length > this.maxBufferSize) {
-      this.eventBuffer = this.eventBuffer.slice(this.eventBuffer.length - this.maxBufferSize);
+    // 过期项是前缀（时间单调），游标惰性推进
+    while (
+      this.expiredPrefix < this.eventBuffer.length &&
+      this.eventBuffer[this.expiredPrefix]!.timestamp.getTime() <= cutoff
+    ) {
+      this.expiredPrefix++;
+    }
+    // 容量超限：最旧的同样计入前缀
+    const overflow = this.eventBuffer.length - this.maxBufferSize;
+    if (overflow > 0) {
+      this.expiredPrefix = Math.min(this.eventBuffer.length, this.expiredPrefix + overflow);
+    }
+    // 前缀过半才物理压缩（splice 搬移一次覆盖多个事件，均摊 O(1)/事件）
+    if (this.expiredPrefix * 2 >= this.eventBuffer.length) {
+      this.eventBuffer.splice(0, this.expiredPrefix);
+      this.expiredPrefix = 0;
     }
   }
 
   /** 清空事件缓冲区 */
   clear(): void {
     this.eventBuffer = [];
+    this.expiredPrefix = 0;
+    this.latestByType.clear();
+    this.totalObserved = 0;
   }
 }

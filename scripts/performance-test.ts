@@ -27,5 +27,5 @@ async function main() {
   }
 }
 
-// 运行性能测试
-main();
+// 运行性能测试（main 自带 try/catch 与退出码，浮空 Promise 标记为有意）
+void main();

@@ -13,9 +13,9 @@
  * Qiskit RZ(θ)=exp(-iθZ/2)，故代价项 RZ(2γh_i)、RZZ(2γJ_ij)。
  */
 
-import type { AssignmentProblem } from '../quantum-optimizer';
-import { toIsing, computeEnergies } from '../quantum-optimizer';
-import { QuantumEngineError } from '../../utils/errors';
+import type { AssignmentProblem } from '../quantum-optimizer.js';
+import { toIsing, computeEnergies } from '../quantum-optimizer.js';
+import { QuantumEngineError } from '../../utils/errors.js';
 
 export interface QiskitExportOptions {
   /** QAOA 角度 [γ1..γp, β1..βp]（来自 qaoaSolve().angles） */

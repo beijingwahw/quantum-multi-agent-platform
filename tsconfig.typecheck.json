@@ -7,6 +7,6 @@
     "types": ["node"],
     "paths": {}
   },
-  "include": ["src/**/*", "tests/**/*", "examples/**/*", "experiments/**/*"],
+  "include": ["src/**/*", "tests/**/*", "examples/**/*", "experiments/**/*", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

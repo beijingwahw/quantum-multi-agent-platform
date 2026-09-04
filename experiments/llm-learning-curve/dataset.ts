@@ -7,6 +7,29 @@
  * 边角规则（urgent 的字面词匹配、反讽判定、多方面优先级）。零样本基线预计处于
  * 中等水平，为"上下文资本（few-shot 案例积累）"留出可测量的提升空间——
  * 这正是真实 Agent 能力的形态：说明书只定义边界，案例才定义行为。
+ *
+ * ─── 标注审计与所有者决策项（labelAudit） ────────────────────────────────
+ * 本数据集的标注带有已知的类别不平衡与两个 R3 判定争议。**标注本身一律不改**
+ * （改标注 = 改变已发表实验的结论，属于实验所有者的决策），但分歧必须
+ * 机械可见：`labelAudit()` 基于 `ASPECT_KEYWORDS` 词表推导每张工单
+ * "被提及的方面集合"，按 R3 优先级与标注比对。当前快照（由
+ * tests/llm-dataset-audit.test.ts 钉住）：
+ *
+ * 1. 边际分布：sentiment 32 负面 / 10 正面 / 2 中性（多数类基线 72.7%）；
+ *    urgent 9/44（多数类基线 79.5%）；aspect 最多的"质量"仅 12/44（27.3%）。
+ *    不平衡抬高 exact-match 的朴素基线，学习曲线拟合的 base 参数会吸收
+ *    它——解读 q̂0 时须知此背景。
+ * 2. R3 一致性（严格读法，争议词不计入提及）：44 张工单中 43 张与
+ *    R3 优先级推导完全一致；唯一词法静默的是 #42（"退货"仅是 urgent 词，
+ *    无方面关键词）。
+ * 3. 争议词 × 所有者决策（含入读法下标注会翻转的工单）：
+ *    - "保修" 是否构成"质量"的提及？计入 → #32 从 客服 翻转为 质量
+ *      （#14 同含"保修"但已由"坏了"命中质量，不受影响）；
+ *    - "App" 是否构成"功能"的提及？计入 → #11 从 客服 翻转为 功能
+ *      （#16 同含"App"但已由"闪退"命中功能，不受影响）。
+ *    两种读法各有一致性：不计时维持现状即可自洽；计时需同步改 #11/#32
+ *    的标注并重跑实验。词表即裁决入口——改 ASPECT_KEYWORDS 的 disputed
+ *    标记与测试快照，就是显式做出这个决策的机制。
  */
 
 export const ASPECTS = ['物流', '质量', '客服', '价格', '功能'] as const;
@@ -18,6 +41,171 @@ export interface Ticket {
   aspect: string;
   sentiment: string;
   urgent: boolean;
+}
+
+// ─── R3 提及词法（声明式：每个映射决策都可见、可改、被测试钉住） ─────────
+
+/**
+ * 关键词 → 方面 的提及判定词表：R3"只要被提到即计入"的机械可执行形式。
+ * 仅覆盖本数据集 44 张工单实际出现的判定性词汇；单字词（坏/贵/价）在本
+ * 语料内无歧义命中。disputed: true 的词是否构成"提及"未裁决——两种读法
+ * 的审计结果都由 labelAudit 给出（见文件头注释）。
+ */
+export const ASPECT_KEYWORDS: ReadonlyArray<{
+  keywords: readonly string[];
+  aspect: (typeof ASPECTS)[number];
+  disputed?: boolean;
+}> = [
+  { keywords: ['物流', '发货', '快递', '包裹', '签收', '驿站', '分拣', '没收到'], aspect: '物流' },
+  {
+    keywords: [
+      '质量',
+      '划痕',
+      '内胆',
+      '堪忧',
+      '电池',
+      '鼓包',
+      '噪音',
+      '风扇',
+      '手感',
+      '做工',
+      '缝线',
+      '分辨率',
+      '品质',
+      '尺码',
+      '防水',
+      '进水',
+      '左声道',
+      '没声音',
+      '坏',
+      '好货',
+    ],
+    aspect: '质量',
+  },
+  { keywords: ['客服', '发票'], aspect: '客服' },
+  { keywords: ['价格', '便宜', '贵', '价', '划算', '折', '原价', '成本', '扣了'], aspect: '价格' },
+  {
+    keywords: ['功能', '识别', '唤醒', '闪退', '固件', '耗电', '语音助手', '充电'],
+    aspect: '功能',
+  },
+  // ── 争议词（所有者决策项）：计入与否见文件头"所有者决策"说明 ──
+  { keywords: ['保修'], aspect: '质量', disputed: true },
+  { keywords: ['App'], aspect: '功能', disputed: true },
+];
+
+/** R3 优先级（高 → 低），与 SYSTEM_PROMPT 中的声明一致 */
+export const R3_PRIORITY: ReadonlyArray<(typeof ASPECTS)[number]> = [
+  '质量',
+  '价格',
+  '功能',
+  '物流',
+  '客服',
+];
+
+/** 工单文本中被提及的方面集合（按词表子串匹配；includeDisputed 控制争议词） */
+export function mentionedAspects(
+  text: string,
+  opts: { includeDisputed?: boolean } = {},
+): Set<(typeof ASPECTS)[number]> {
+  const hits = new Set<(typeof ASPECTS)[number]>();
+  for (const entry of ASPECT_KEYWORDS) {
+    if (entry.disputed && opts.includeDisputed !== true) continue;
+    if (entry.keywords.some((k) => text.includes(k))) hits.add(entry.aspect);
+  }
+  return hits;
+}
+
+export interface LabelAuditReport {
+  total: number;
+  /** aspect / sentiment / urgent 的边际计数 */
+  aspectCounts: Record<string, number>;
+  sentimentCounts: Record<string, number>;
+  urgentCount: number;
+  /** 多数类朴素基线（exact-match）：不平衡对零样本基线的抬高幅度 */
+  majorityBaseRate: { aspect: number; sentiment: number; urgent: number };
+  /**
+   * R3 不一致工单（严格读法）：按优先级推导的主方面 ≠ 标注。
+   * 当前为空——数据集在严格读法下自洽。
+   */
+  r3Mismatches: Array<{ id: number; labeled: string; derived: string }>;
+  /** 词法静默工单：无任何（严格读法）方面关键词命中，审计无法裁决 */
+  lexiconSilent: number[];
+  /**
+   * 争议词影响（含入读法 − 严格读法）：计入争议词后标注会翻转的工单。
+   * 每项即一个待所有者裁决的决策，翻转需同步改标注并重跑实验。
+   */
+  disputedImpact: Array<{
+    id: number;
+    keyword: string;
+    labeled: string;
+    underInclusiveReading: string;
+  }>;
+}
+
+/** 标注审计：类别不平衡 + R3 一致性 + 争议词影响，一次计算全量可见 */
+export function labelAudit(): LabelAuditReport {
+  const aspectCounts: Record<string, number> = {};
+  const sentimentCounts: Record<string, number> = {};
+  let urgentCount = 0;
+  for (const t of TICKETS) {
+    aspectCounts[t.aspect] = (aspectCounts[t.aspect] ?? 0) + 1;
+    sentimentCounts[t.sentiment] = (sentimentCounts[t.sentiment] ?? 0) + 1;
+    if (t.urgent) urgentCount++;
+  }
+
+  const priorityOf = (a: string): number => R3_PRIORITY.indexOf(a as (typeof ASPECTS)[number]);
+  const r3Mismatches: LabelAuditReport['r3Mismatches'] = [];
+  const lexiconSilent: number[] = [];
+  for (const t of TICKETS) {
+    const hits = [...mentionedAspects(t.text)];
+    if (hits.length === 0) {
+      lexiconSilent.push(t.id);
+      continue;
+    }
+    hits.sort((a, b) => priorityOf(a) - priorityOf(b));
+    const derived = hits[0]!;
+    if (derived !== t.aspect) r3Mismatches.push({ id: t.id, labeled: t.aspect, derived });
+  }
+
+  const disputedImpact: LabelAuditReport['disputedImpact'] = [];
+  for (const t of TICKETS) {
+    const strict = [...mentionedAspects(t.text)];
+    const inclusive = [...mentionedAspects(t.text, { includeDisputed: true })];
+    if (strict.length === 0 || inclusive.length === 0) continue;
+    strict.sort((a, b) => priorityOf(a) - priorityOf(b));
+    inclusive.sort((a, b) => priorityOf(a) - priorityOf(b));
+    const derivedStrict = strict[0]!;
+    const derivedInclusive = inclusive[0]!;
+    if (derivedInclusive !== derivedStrict && derivedInclusive !== t.aspect) {
+      // 找出引发翻转的争议词（该工单文本命中的第一个 disputed 词）
+      const kw = ASPECT_KEYWORDS.find(
+        (e) =>
+          e.disputed && e.keywords.some((k) => t.text.includes(k)) && e.aspect === derivedInclusive,
+      );
+      disputedImpact.push({
+        id: t.id,
+        keyword: kw?.keywords[0] ?? '?',
+        labeled: t.aspect,
+        underInclusiveReading: derivedInclusive,
+      });
+    }
+  }
+
+  const maxOf = (o: Record<string, number>): number => Math.max(...Object.values(o));
+  return {
+    total: TICKETS.length,
+    aspectCounts,
+    sentimentCounts,
+    urgentCount,
+    majorityBaseRate: {
+      aspect: maxOf(aspectCounts) / TICKETS.length,
+      sentiment: maxOf(sentimentCounts) / TICKETS.length,
+      urgent: Math.max(urgentCount, TICKETS.length - urgentCount) / TICKETS.length,
+    },
+    r3Mismatches,
+    lexiconSilent,
+    disputedImpact,
+  };
 }
 
 /**

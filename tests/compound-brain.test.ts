@@ -6,7 +6,7 @@ import {
   lawDeltaMax,
   type CompoundAgentSpec,
   type CompoundTaskSpec,
-} from '../src/core/compound-brain';
+} from '../src/core/compound-brain.js';
 
 /** 确定性随机数（测试内独立于实现） */
 function mulberry32(seed: number): () => number {
@@ -459,5 +459,97 @@ describe('CompoundBrain · 插件集成', () => {
       plugin.getBrain() instanceof GrowthSchedulerBrain,
       '配置对象应构造默认增长市场 Brain',
     );
+  });
+});
+
+// ============================================================================
+// 在途台账积压可观测性（漏结算可见化）
+// ============================================================================
+
+describe('CompoundBrain · 在途台账积压可观测性', () => {
+  function freshBrain(pendingBacklogWarnAt?: number): CompoundBrain {
+    const brain = new CompoundBrain(
+      pendingBacklogWarnAt === undefined ? { seed: 11 } : { seed: 11, pendingBacklogWarnAt },
+    );
+    brain.registerAgent(agent('solo', ['api'], 1, { api: 0.8 }), 1);
+    return brain;
+  }
+  const TASKS: CompoundTaskSpec[] = [{ capability: 'api', value: 10 }];
+
+  it('分配不结算 → getState 暴露积压深度与滞留时长；结算后清零', async () => {
+    const brain = freshBrain();
+    const alloc = brain.allocateBatch(TASKS);
+    assert.ok(alloc.assignments.length > 0, 'solo agent 应赢得任务');
+
+    const backlog = brain.getState().pendingBacklog;
+    assert.equal(backlog.count, 1, '未结算任务必须计入积压');
+    assert.ok(backlog.oldestAgeMs >= 0, '滞留时长非负');
+
+    await new Promise((r) => setTimeout(r, 5));
+    assert.ok(
+      brain.getState().pendingBacklog.oldestAgeMs >= 5,
+      '滞留时长随时间增长（观测时钟真实走动）',
+    );
+
+    assert.equal(brain.settle(alloc.assignments[0]!.taskId, true), true);
+    const after = brain.getState().pendingBacklog;
+    assert.equal(after.count, 0, '结算清空积压');
+    assert.equal(after.oldestAgeMs, 0, '空台账滞留时长为 0');
+  });
+
+  it('backlog_warning 带迟滞：越限告警一次，回落半阈值以下才重新武装', () => {
+    // 阶段一：越限只告警一次，迟滞期内不重复
+    const brain = freshBrain(2);
+    const warnings: number[] = [];
+    brain.on('backlog_warning', (w) => warnings.push(w.count));
+
+    const firstId = brain.allocateBatch(TASKS).assignments[0]!.taskId;
+    brain.allocateBatch(TASKS); // count=2 ≥ 阈值 → 告警 #1
+    assert.deepEqual(warnings, [2]);
+
+    brain.allocateBatch(TASKS); // count=3 仍越限 → 迟滞不重复
+    brain.settle(firstId, true); // count=2，未回落到 ≤1 → 仍不重新武装
+    brain.allocateBatch(TASKS); // count=3
+    assert.deepEqual(warnings, [2], '迟滞期内不得重复告警');
+
+    // 阶段二（干净实例）：回落到 ≤ 半阈值（1）后告警重新武装
+    const brain2 = new CompoundBrain({ seed: 12, pendingBacklogWarnAt: 2 });
+    brain2.registerAgent(agent('solo', ['api'], 1, { api: 0.8 }), 1);
+    const seen: number[] = [];
+    brain2.on('backlog_warning', (w) => seen.push(w.count));
+    const id = brain2.allocateBatch(TASKS).assignments[0]!.taskId;
+    brain2.allocateBatch(TASKS); // count=2 → 告警 #1
+    brain2.settle(id, true); // 2→1 ≤ 半阈值：重新武装
+    brain2.allocateBatch(TASKS); // count=2 再次越限 → 告警 #2（计 2）
+    brain2.allocateBatch(TASKS); // count=3，迟滞期内不重复
+    assert.deepEqual(seen, [2, 2], '半阈值回落后告警应重新武装');
+  });
+
+  it('告警关闭（pendingBacklogWarnAt=0）：积压任意大也不发事件', () => {
+    const brain = freshBrain(0);
+    let warnings = 0;
+    brain.on('backlog_warning', () => warnings++);
+    for (let i = 0; i < 5; i++) brain.allocateBatch(TASKS);
+    assert.equal(warnings, 0);
+    assert.equal(brain.getState().pendingBacklog.count, 5);
+  });
+
+  it('可观测性零数值影响：同 seed 下分配/支付/福利与无观测配置逐位一致', () => {
+    const run = (cfg?: { pendingBacklogWarnAt?: number }): string => {
+      const b = new CompoundBrain({ seed: 99, ...cfg });
+      b.registerAgent(agent('a', ['api'], 1, { api: 0.7 }), 1);
+      b.registerAgent(agent('b', ['api'], 1.5, { api: 0.6 }), 1.5);
+      const alloc = b.allocateBatch([
+        { capability: 'api', value: 10 },
+        { capability: 'api', value: 9 },
+      ]);
+      return JSON.stringify({
+        assignments: alloc.assignments.map((x) => [x.agentId, x.payment, x.estQuality]),
+        payments: alloc.payments,
+        welfareAugmented: alloc.welfareAugmented,
+      });
+    };
+    assert.equal(run(), run({ pendingBacklogWarnAt: 1 }));
+    // pendingBacklogWarnAt:1 触发告警路径（代码覆盖）而结果逐位不变
   });
 });

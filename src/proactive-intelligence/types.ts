@@ -17,10 +17,10 @@ export interface MonitorEvent {
   severity: 'info' | 'warning' | 'error' | 'critical';
 }
 
-export interface DecisionContext {
+export interface DecisionContext<TState = unknown> {
   events: MonitorEvent[];
   /** 当前系统状态（形状由宿主决定，规则按「a.b」路径读取） */
-  currentState: unknown;
+  currentState: TState;
   history: DecisionRecord[];
   rules: Rule[];
 }
@@ -45,22 +45,38 @@ export interface Rule {
   lastExecuted?: Date;
 }
 
-export interface Condition {
-  type: 'event' | 'state' | 'time' | 'composite';
-  operator:
-    | 'equals'
-    | 'notEquals'
-    | 'contains'
-    | 'notContains'
-    | 'greaterThan'
-    | 'lessThan'
-    | 'between'
-    | 'matches';
+/**
+ * 条件多态载荷：按 operator 判别 value 形状（替代此前的 value: unknown——
+ * between 需要二元组、matches 需要正则、标量比较需要标量，编译期即可收窄，
+ * 字段形状错误不再静默流向运行时求值器）。
+ */
+interface ConditionBase {
+  // 'composite' 曾在联合中声明但求值器从不匹配（静默恒 false）——组合
+  // 语义已由 conditions[] + logicalOperator 的左到右链式求值覆盖，移除。
+  type: 'event' | 'state' | 'time';
   field: string;
-  /** 比较目标值：随 operator 语义可为标量、[下限, 上限] 二元组或正则 */
-  value: unknown;
   logicalOperator?: 'AND' | 'OR';
 }
+
+export interface ScalarCondition extends ConditionBase {
+  operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'greaterThan' | 'lessThan';
+  /** 比较目标值（标量语义） */
+  value: string | number | boolean | null;
+}
+
+export interface BetweenCondition extends ConditionBase {
+  operator: 'between';
+  /** [下限, 上限] 二元组（含边界） */
+  value: readonly [number, number];
+}
+
+export interface MatchesCondition extends ConditionBase {
+  operator: 'matches';
+  /** 正则（字符串形式或 RegExp 实例） */
+  value: string | RegExp;
+}
+
+export type Condition = ScalarCondition | BetweenCondition | MatchesCondition;
 
 export interface Action {
   type: 'command' | 'notification' | 'workflow' | 'custom' | 'assignment';
@@ -78,7 +94,14 @@ export interface ActionExecution {
   id: string;
   ruleId: string;
   action: Action;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  /**
+   * 执行状态机（三态分离——拒绝/跳过/失败语义不可混同）：
+   * - rejected：预检拒绝（executor 禁用/策略阻止/并发超限），从未真正发起；
+   * - skipped：safeMode 只记录不执行；
+   * - failed：真实执行失败（含超时/取消）。
+   * 此前三者共用 failed/completed，历史统计与回流指标被系统性污染。
+   */
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'rejected' | 'skipped';
   result?: unknown;
   error?: Error;
   startTime: Date;
@@ -98,9 +121,14 @@ export interface PolicyConfig {
 export interface Metrics {
   totalEventsProcessed: number;
   totalDecisionsMade: number;
+  /** 真实发起过的执行（rejected/skipped 不计入——它们从未执行） */
   totalActionsExecuted: number;
   actionsCompleted: number;
   actionsFailed: number;
+  /** 预检拒绝次数（禁用/策略阻止/并发超限） */
+  actionsRejected: number;
+  /** safeMode 跳过次数 */
+  actionsSkipped: number;
   averageDecisionTime: number;
   averageExecutionTime: number;
   rulesTriggered: Record<string, number>;

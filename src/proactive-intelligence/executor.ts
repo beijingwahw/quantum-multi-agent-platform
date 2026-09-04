@@ -9,10 +9,10 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import type { Action, ActionExecution, PolicyConfig } from './types';
-import type { BrainAssignment } from './brain';
-import { ToolError } from '../utils/errors';
-import { execute_command } from '../tools/system-tools';
+import type { Action, ActionExecution, PolicyConfig } from './types.js';
+import type { BrainAssignment } from './brain.js';
+import { ToolError } from '../utils/errors.js';
+import { execute_command_argv } from '../tools/system-tools.js';
 
 export class ActionExecutor extends EventEmitter {
   private runningExecutions = new Map<string, ActionExecution>();
@@ -47,29 +47,32 @@ export class ActionExecutor extends EventEmitter {
       startTime: new Date(),
     };
 
-    // 检查是否启用
-    if (!this.config.enabled) {
-      execution.status = 'failed';
-      execution.error = new ToolError('Executor is disabled');
+    // 预检拒绝三态分离：disabled/blocked/并发超限从未真正发起执行，
+    // 与真实失败（failed）分列——此前共用「入史 + action_failed + throw」
+    // 路径，被拒动作计入失败统计、监控口径失真。拒绝仍入史（审计不缺位）
+    // 并以独立事件名 action_rejected 广播，但 resolve 返回而非 throw。
+    const reject = (message: string): ActionExecution => {
+      execution.status = 'rejected';
+      execution.error = new ToolError(message);
       execution.endTime = new Date();
       this.addToHistory(execution);
-      this.emit('action_failed', execution);
-      throw execution.error;
+      this.emit('action_rejected', execution);
+      return execution;
+    };
+
+    // 检查是否启用
+    if (!this.config.enabled) {
+      return reject('Executor is disabled');
     }
 
     // 检查动作是否被阻止
     if (!this.isActionAllowed(action)) {
-      execution.status = 'failed';
-      execution.error = new ToolError('Action is blocked by policy');
-      execution.endTime = new Date();
-      this.addToHistory(execution);
-      this.emit('action_failed', execution);
-      throw execution.error;
+      return reject('Action is blocked by policy');
     }
 
-    // 检查并发限制
+    // 检查并发限制（与其余策略拒绝同口径：入史+独立事件，不留审计盲区）
     if (this.runningExecutions.size >= this.config.maxConcurrentActions) {
-      throw new ToolError('Maximum concurrent actions reached');
+      return reject('Maximum concurrent actions reached');
     }
 
     // 添加到运行中列表
@@ -78,9 +81,10 @@ export class ActionExecutor extends EventEmitter {
     this.emit('action_started', execution);
 
     try {
-      // 安全模式：只记录不执行
+      // 安全模式：只记录不执行——skipped 与真实成功（completed）分列，
+      // 否则「跳过」被计入成功率，safeMode 下的指标失真
       if (this.config.safeMode) {
-        execution.status = 'completed';
+        execution.status = 'skipped';
         execution.result = { safeMode: true, skipped: true };
       } else {
         execution.status = 'running';
@@ -97,9 +101,14 @@ export class ActionExecutor extends EventEmitter {
       }
 
       execution.endTime = new Date();
-      this.emit('action_completed', execution);
+      this.emit(execution.status === 'skipped' ? 'action_skipped' : 'action_completed', execution);
     } catch (error) {
-      this.cancelledIds.delete(execution.id);
+      // 取消竞态（对偶分支）：performAction 在 cancelExecution 之后才拒绝——
+      // 终态/事件/历史都已在 cancelExecution 写过，此处不得再发 action_failed
+      // （否则同一执行双终态事件、指标双计数），静默收尾即可
+      if (this.cancelledIds.delete(execution.id)) {
+        throw error;
+      }
       execution.status = 'failed';
       execution.error = error as Error;
       execution.endTime = new Date();
@@ -112,6 +121,20 @@ export class ActionExecutor extends EventEmitter {
     }
 
     return execution;
+  }
+
+  /**
+   * 错误可重试性判别：仅瞬态错误值得重试（02#17）。
+   * ToolError 是本仓的确定性域错误——策略拒绝、参数校验失败、
+   * 未知动作类型都携带它，重试必然得到同一结果，纯属浪费且放大
+   * 副作用（command 类动作重跑即重复执行）；超时同样不可重试
+   * （见下方取消语义注释）。其余错误（网络抖动、资源暂忙等基础设施
+   * 瞬态故障）默认可重试。
+   */
+  private isRetryable(error: Error): boolean {
+    if (error instanceof ToolError) return false;
+    if (error.message === 'Action timeout') return false;
+    return true;
   }
 
   /** 带超时与重试的动作执行 */
@@ -141,9 +164,10 @@ export class ActionExecutor extends EventEmitter {
       } catch (error) {
         lastError = error as Error;
 
-        // 超时不是可重试错误：command/workflow等动作有副作用，
-        // "只是慢"不构成重跑的理由（重试会放大副作用）
-        if (lastError.message === 'Action timeout') {
+        // 确定性失败立即上抛：策略拒绝/参数校验等重试必然同结果，
+        // 超时同理——command/workflow等动作有副作用，"只是慢"不构成
+        // 重跑的理由（重试会放大副作用）
+        if (!this.isRetryable(lastError)) {
           throw lastError;
         }
 
@@ -205,6 +229,9 @@ export class ActionExecutor extends EventEmitter {
    * 执行命令：经 system-tools 加固管道（白名单程序、无 shell 元字符、
    * 超时与 workdir 沙箱）。被策略拒绝的命令以 ToolError 显式失败，
    * 而不是返回假输出。
+   *
+   * 参数以 argv 数组直达（execute_command_argv）：拼回命令行字符串再分词
+   * 会破坏含空白的参数边界（git commit -m "fix: X" 被拆成多个 argv）。
    */
   private async executeCommand(action: Action): Promise<unknown> {
     const { command, args } = action.parameters;
@@ -216,7 +243,7 @@ export class ActionExecutor extends EventEmitter {
 
     this.emit('command_executing', { command, args: argList });
 
-    const output = await execute_command([command, ...argList].join(' '));
+    const output = await execute_command_argv(command, argList);
 
     return Promise.resolve({
       type: 'command',

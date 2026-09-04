@@ -61,10 +61,10 @@
  */
 
 /** 最小费用最大流、确定性 PRNG 与市场估值层由共享内核提供 */
-import { MinCostFlow, type FlowEdgeRef } from './min-cost-flow';
-import { mulberry32 } from '../utils/rng';
-import { round2, round3, round9 } from '../utils/numeric';
-import { MechanismError } from '../utils/errors';
+import { MinCostFlow, type FlowEdgeRef } from './min-cost-flow.js';
+import { mulberry32 } from '../utils/rng.js';
+import { round2, round3, round9 } from '../utils/numeric.js';
+import { MechanismError } from '../utils/errors.js';
 import {
   bidOf,
   dominantOf,
@@ -74,7 +74,7 @@ import {
   updateReputation,
   recordSettlement,
   SettlementHistory,
-} from './market-estimation';
+} from './market-estimation.js';
 
 export interface BatchAgentSpec {
   id: string;
@@ -174,6 +174,15 @@ export class BatchVCGScheduler {
   private lastAllocation: BatchAllocation | null = null;
   private readonly history = new SettlementHistory();
   private netWelfare = 0;
+  /**
+   * totalPullsOf 的按能力缓存：原实现对每次估值做 O(agents) 全表扫描，
+   * 而它是 WDP 边构造的内层依赖（λ-bisection × pivot 重解 × 任务×agent
+   * 边），合计 O(迭代×重解×A²·T)。attempts 仅在 recordSettlement（结算）
+   * 与 register（新 agent 空表）处变化——脏标记失效，重建时按 agents
+   * Map 插入序求和，与原逐次求和位级一致。
+   */
+  private readonly pullsCache = new Map<string, number>();
+  private pullsDirty = true;
 
   constructor(config: Partial<BatchVCGConfig> = {}) {
     this.config = { ...DEFAULT_BATCH_CONFIG, ...config };
@@ -191,6 +200,7 @@ export class BatchVCGScheduler {
       totalAttempts: 0,
       profit: 0,
     });
+    this.pullsDirty = true;
     return this;
   }
 
@@ -204,11 +214,20 @@ export class BatchVCGScheduler {
     return dominantOf(rt);
   }
 
-  /** 全局口径的按能力尝试总数（公开履历，不随排除集变化——保证 VCG 支付一致性） */
+  /** 全局口径的按能力尝试总数（公开履历，不随排除集变化——保证 VCG 支付一致性）。
+   * 经 pullsCache 记忆：脏标记在 settleBatch/register 处失效 */
   private totalPullsOf(capability: string): number {
-    let n = 0;
-    for (const rt of this.agents.values()) n += rt.attempts.get(capability) ?? 0;
-    return n;
+    if (this.pullsDirty) {
+      this.pullsCache.clear();
+      this.pullsDirty = false;
+    }
+    let total = this.pullsCache.get(capability);
+    if (total === undefined) {
+      total = 0;
+      for (const rt of this.agents.values()) total += rt.attempts.get(capability) ?? 0;
+      this.pullsCache.set(capability, total);
+    }
+    return total;
   }
 
   /** 平台对 rt 执行 capability 的公开估值（λ 折价前） */
@@ -533,7 +552,9 @@ export class BatchVCGScheduler {
     });
 
     const total = Object.values(payments).reduce((a, b) => a + b, 0);
-    const maxWelfare = this.welfareOf(capabilities, this.solveWDP(capabilities, 0), 0);
+    // 与 build/allocateAffineBatch 同口径：maxWelfare 统一 round9，
+    // 避免 efficiencyLoss 混用舍入与未舍入操作数
+    const maxWelfare = round9(this.welfareOf(capabilities, this.solveWDP(capabilities, 0), 0));
     const welfareRounded = round9(welfare);
     const alloc: BatchAllocation = {
       assignments,
@@ -555,26 +576,40 @@ export class BatchVCGScheduler {
   settleBatch(results: Array<{ taskId: string; success: boolean }>): void {
     if (!this.lastAllocation) throw new MechanismError('No batch is pending settlement');
     const byTask = new Map(this.lastAllocation.assignments.map((a) => [a.taskId, a]));
+
+    // 先全景校验、后统一变更（validate-then-mutate，01#13）：此前逐条
+    // 变更（履历/声誉/利润）后才检查完整性并 throw——抛出时履历半更新，
+    // 补齐缺失任务重调可成功、带上已结算任务则触发 settled-twice，
+    // 恢复语义不对称。校验全部前置后，任何拒绝都是零残留。
     const settled = new Set<string>();
     for (const r of results) {
       const a = byTask.get(r.taskId);
       if (!a) throw new MechanismError(`Task does not belong to the current batch: ${r.taskId}`);
       if (settled.has(r.taskId)) throw new MechanismError(`Task settled twice: ${r.taskId}`);
       settled.add(r.taskId);
-      const rt = this.agents.get(a.agentId);
-      if (!rt) throw new MechanismError(`Unregistered agent in batch: ${a.agentId}`);
-      recordSettlement(rt, a.capability, r.success);
-      rt.totalAttempts++;
-      rt.reputation = updateReputation(rt.reputation, r.success, this.config.reputationAlpha);
-      const pay = this.lastAllocation.payments[a.agentId] ?? 0;
-      const k = this.lastAllocation.assignments.filter((x) => x.agentId === a.agentId).length;
-      rt.profit += pay / k - rt.spec.trueCost;
+      if (!this.agents.has(a.agentId)) {
+        throw new MechanismError(`Unregistered agent in batch: ${a.agentId}`);
+      }
     }
     // 部分结算会使未结算任务随 lastAllocation 清空而静默消失——
     // 履历（成功率/资本）由此系统性缺项。要么全结算，要么显式报错
     if (settled.size !== byTask.size) {
       const missing = [...byTask.keys()].filter((id) => !settled.has(id));
       throw new MechanismError(`Incomplete batch settlement, missing tasks: ${missing.join(', ')}`);
+    }
+
+    // 全部校验通过：统一变更（此时不可能中途失败）
+    const allocation = this.lastAllocation;
+    for (const r of results) {
+      const a = byTask.get(r.taskId)!;
+      const rt = this.agents.get(a.agentId)!;
+      recordSettlement(rt, a.capability, r.success);
+      this.pullsDirty = true; // attempts 已变化：totalPullsOf 缓存失效
+      rt.totalAttempts++;
+      rt.reputation = updateReputation(rt.reputation, r.success, this.config.reputationAlpha);
+      const pay = allocation.payments[a.agentId] ?? 0;
+      const k = allocation.assignments.filter((x) => x.agentId === a.agentId).length;
+      rt.profit += pay / k - rt.spec.trueCost;
     }
     this.lastAllocation = null;
   }
@@ -590,7 +625,6 @@ export class BatchVCGScheduler {
       : this.allocateBatch(capabilities, opts);
     const settlements: BatchSettlement[] = [];
     let welfare = 0;
-    const capitalBefore = new Map<string, number>();
     const results: Array<{ taskId: string; success: boolean }> = [];
 
     for (const a of allocation.assignments) {
@@ -598,7 +632,6 @@ export class BatchVCGScheduler {
       if (!rt) throw new MechanismError(`Unregistered agent in batch: ${a.agentId}`);
       const cap = a.capability;
       const k0 = rt.capital.get(cap) ?? 0;
-      capitalBefore.set(a.taskId, k0);
       const base = rt.spec.trueQuality[cap] ?? 0;
       const { learningCeiling, learningRate } = this.config;
       const qEff = effectiveQuality(base, k0, learningCeiling, learningRate);
@@ -636,7 +669,10 @@ export class BatchVCGScheduler {
     const run = (): BatchAllocation =>
       opts.affine
         ? this.allocateAffineBatch(capabilities, opts.affine)
-        : this.allocateBatch(capabilities, { budget: opts.budget });
+        : this.allocateBatch(
+            capabilities,
+            opts.budget !== undefined ? { budget: opts.budget } : {},
+          );
 
     const utilityOf = (alloc: BatchAllocation): number => {
       const k = alloc.assignments.filter((a) => a.agentId === agentId).length;
@@ -649,17 +685,25 @@ export class BatchVCGScheduler {
     ];
     let maxGain = 0;
     let bestMarkup = savedMarkup ?? 0;
-    for (const m of markups) {
-      rt.spec.bidMarkup = m;
-      const u = utilityOf(run());
-      details.push({ markup: m, utility: u });
-      if (u - truthful > maxGain) {
-        maxGain = u - truthful;
-        bestMarkup = m;
+    // 中途任何异常都必须还原调用方的 spec 与平台状态：泄漏的战略 markup
+    // 会静默腐蚀后续所有分配与 DSIC 实验结论
+    try {
+      for (const m of markups) {
+        rt.spec.bidMarkup = m;
+        const u = utilityOf(run());
+        details.push({ markup: m, utility: u });
+        if (u - truthful > maxGain) {
+          maxGain = u - truthful;
+          bestMarkup = m;
+        }
       }
+    } finally {
+      // exactOptionalPropertyTypes：恢复原状时未设置过 markup 的 spec
+      // 必须回到"属性缺省"而非"显式 undefined"
+      if (savedMarkup === undefined) delete rt.spec.bidMarkup;
+      else rt.spec.bidMarkup = savedMarkup;
+      this.lastAllocation = savedLast;
     }
-    rt.spec.bidMarkup = savedMarkup;
-    this.lastAllocation = savedLast;
     return { maxGain: round9(maxGain), bestMarkup, details };
   }
 

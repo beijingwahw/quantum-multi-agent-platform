@@ -54,7 +54,12 @@ export function estimateQuality(
   const n = rt.attempts.get(capability) ?? 0;
   const s = rt.successes.get(capability) ?? 0;
   const prior = rt.spec.credentialQuality?.[capability] ?? params.priorQuality;
-  return (s + prior * params.priorWeight) / (n + params.priorWeight);
+  const denom = n + params.priorWeight;
+  // 退化分母（priorWeight=0 且无历史）曾是 0/0=NaN：NaN 会以 NaN 流价
+  // 穿透最小费用流的 dist 比较（一切比较为 false），产出无意义分配而非
+  // 报错。零信息时退回先验本身；有历史时退回裸频率。
+  if (denom <= 0) return n > 0 ? s / n : prior;
+  return (s + prior * params.priorWeight) / denom;
 }
 
 /** 主专业：上下文资本最高的能力 */

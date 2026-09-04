@@ -246,13 +246,13 @@ describe('QuantumScheduler 子空间集成', () => {
       scheduler.submitTask({
         name: `任务${i}`,
         type: 'batch',
-        priority: priorities[i],
+        priority: priorities[i]!,
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
         dependencies: [],
         estimatedDuration: 5000,
         actualDuration: 0,
         status: 'pending',
-      } as any);
+      });
     }
 
     const report = scheduler.scheduleBatchQuantum();
@@ -294,7 +294,7 @@ describe('QuantumScheduler 子空间集成', () => {
       estimatedDuration: 5000,
       actualDuration: 0,
       status: 'pending',
-    } as any);
+    });
 
     const report = scheduler.scheduleBatchQuantum();
     assert.equal(report.representation, 'fullspace');

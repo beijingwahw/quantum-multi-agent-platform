@@ -365,9 +365,9 @@
       <div class="header">
         <h1>Quantum Multi-Agent Platform</h1>
         <p>量子态协同架构的多Agent开发调度平台 - 实时监控面板</p>
-        <div class="status-indicator" id="platform-status">
+        <div class="status-indicator warning" id="platform-status">
           <span>●</span>
-          <span>系统运行中</span>
+          <span>离线演示模式</span>
         </div>
       </div>
 
@@ -437,10 +437,19 @@
               type="text"
               class="input"
               id="bus-url"
-              value="ws://localhost:8080/quantum-bus"
-              placeholder="ws://localhost:8080/quantum-bus"
+              value="ws://127.0.0.1:8080/quantum-bus"
+              placeholder="ws://127.0.0.1:8080/quantum-bus"
             />
             <button class="button" id="connect-btn" onclick="toggleConnection()">连接平台</button>
+          </div>
+          <div class="input-group">
+            <input
+              type="password"
+              class="input"
+              id="bus-token"
+              placeholder="鉴权令牌（平台配置 communication.authToken 时必填）"
+              autocomplete="off"
+            />
           </div>
           <div class="input-group">
             <input type="text" class="input" id="task-name" placeholder="任务名称" />
@@ -582,8 +591,16 @@
         }
 
         ws.onopen = function () {
-          // 以web-console身份认证，随后请求平台快照
-          ws.send(JSON.stringify({ type: 'authenticate', agentId: 'web-console' }));
+          // 以web-console身份认证（携带可选令牌——平台配置 authToken 时必需），
+          // 认证失败会被总线以 4001 断开并走重连退避
+          const token = document.getElementById('bus-token').value.trim();
+          ws.send(
+            JSON.stringify(
+              token
+                ? { type: 'authenticate', agentId: 'web-console', token }
+                : { type: 'authenticate', agentId: 'web-console' },
+            ),
+          );
           ws.send(JSON.stringify({ type: 'console_query' }));
           setConnected(true);
         };
@@ -602,9 +619,15 @@
           }
         };
 
-        ws.onclose = function () {
+        ws.onclose = function (event) {
           setConnected(false);
           ws = null;
+          // 鉴权失败（4001）不是瞬态断线：令牌错误时重连必然再次失败，
+          // 5s 重连死循环只会刷屏——停下来并提示用户修正令牌后手动重连
+          if (event.code === 4001) {
+            setConnected(false, '鉴权失败（令牌无效）——请修正令牌后重新连接');
+            return;
+          }
           scheduleReconnect();
         };
 
@@ -708,6 +731,20 @@
       }
 
       // 更新仪表板
+      // 远程可控字符串（agent/task 名等）不得直插 innerHTML——构造性转义
+      function escapeHtml(v) {
+        return String(v ?? '').replace(
+          /[&<>"']/g,
+          (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch],
+        );
+      }
+
+      // class 属性专用消毒：escapeHtml 不处理空白——含空格的远程值
+      // 可向 class 注入任意额外类名。class token 只允许安全字符集。
+      function classToken(v) {
+        return String(v ?? '').replace(/[^A-Za-z0-9_-]/g, '');
+      }
+
       function updateDashboard() {
         const data = currentData();
 
@@ -727,16 +764,16 @@
           const agentItem = document.createElement('div');
           agentItem.className = 'agent-item';
           agentItem.innerHTML = `
-                    <div class="agent-status status-${agent.state}"></div>
+                    <div class="agent-status status-${classToken(agent.state)}"></div>
                     <div class="agent-info">
-                        <div class="agent-name">${agent.name}</div>
-                        <div class="agent-capabilities">${(agent.capabilities || []).join(', ')}</div>
+                        <div class="agent-name">${escapeHtml(agent.name)}</div>
+                        <div class="agent-capabilities">${escapeHtml((agent.capabilities || []).join(', '))}</div>
                     </div>
                     <div class="agent-load">
                         <div class="load-bar">
-                            <div class="load-fill" style="width: ${agent.load}%"></div>
+                            <div class="load-fill" style="width: ${Number(agent.load) || 0}%"></div>
                         </div>
-                        <div>${agent.load}%</div>
+                        <div>${Number(agent.load) || 0}%</div>
                     </div>
                 `;
           agentList.appendChild(agentItem);
@@ -755,12 +792,12 @@
               ? (data.agents.find((a) => a.id === task.assignedAgentId) || {}).name
               : null;
             taskItem.innerHTML = `
-                    <div class="task-priority priority-${task.priority}"></div>
+                    <div class="task-priority priority-${escapeHtml(task.priority)}"></div>
                     <div class="task-info">
-                        <div class="task-name">${task.name}</div>
-                        <div class="task-meta">${task.type} - ${task.status}</div>
+                        <div class="task-name">${escapeHtml(task.name)}</div>
+                        <div class="task-meta">${escapeHtml(task.type)} - ${escapeHtml(task.status)}</div>
                     </div>
-                    ${assignedName ? `<div>分配给: ${assignedName}</div>` : '<div>等待分配</div>'}
+                    ${assignedName ? `<div>分配给: ${escapeHtml(assignedName)}</div>` : '<div>等待分配</div>'}
                 `;
             taskList.appendChild(taskItem);
           });
@@ -769,35 +806,42 @@
         updatePerformanceChart();
       }
 
-      // 更新性能图表
+      // 性能图表：量子效率的滚动历史（真实指标采样，替代旧的正弦噪声示意）
+      const efficiencyHistory = [];
+      const EFFICIENCY_POINTS = 40;
+
       function updatePerformanceChart() {
         const canvas = document.getElementById('performance-chart');
         const ctx = canvas.getContext('2d');
 
-        // 清除画布
+        const data = currentData();
+        const efficiency = Math.max(0, Math.min(1, Number(data.metrics.quantumEfficiency) || 0));
+        efficiencyHistory.push(efficiency);
+        if (efficiencyHistory.length > EFFICIENCY_POINTS) efficiencyHistory.shift();
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 绘制简单的性能曲线
+        // 参考线：100% / 50%
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        [1, 0.5].forEach((level) => {
+          const y = canvas.height * (1 - level);
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        });
+
+        // 效率历史曲线（值域 [0,1] → 画布高度）
         ctx.strokeStyle = '#667eea';
         ctx.lineWidth = 2;
         ctx.beginPath();
-
-        const points = 20;
-        const amplitude = 50;
-        const frequency = 0.1;
-
-        for (let i = 0; i < points; i++) {
-          const x = (i / points) * canvas.width;
-          const y =
-            canvas.height / 2 + Math.sin(i * frequency) * amplitude + (Math.random() - 0.5) * 20;
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-
+        efficiencyHistory.forEach((v, i) => {
+          const x = (i / (EFFICIENCY_POINTS - 1)) * canvas.width;
+          const y = canvas.height * (1 - v);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
         ctx.stroke();
       }
 

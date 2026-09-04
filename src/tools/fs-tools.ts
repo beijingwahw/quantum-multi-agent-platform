@@ -1,6 +1,6 @@
 import { readFile, writeFile, stat, realpath, readlink } from 'fs/promises';
 import { resolve, sep, dirname, basename, join } from 'path';
-import { ToolError } from '../utils/errors';
+import { ToolError } from '../utils/errors.js';
 
 /**
  * 文件系统沙箱：所有 read_file/write_file 路径都强制解析到该根目录内，
@@ -42,8 +42,10 @@ async function resolveReal(pathStr: string): Promise<string> {
 }
 
 /**
- * 解析路径并校验未逃出沙箱；返回绝对路径（保留调用方的原始拼写，
- * 实际读写由操作系统跟随链接，安全性由 real 路径校验保证）。
+ * 解析路径并校验未逃出沙箱；返回真实绝对路径。
+ * 返回 real（而非调用方拼写）至关重要：校验与实际读写之间若路径组件
+ * 被换成指向沙箱外的符号链接（TOCTOU），使用原拼写即从窗户逃逸；
+ * 使用已解析的 real 路径读写，操作系统不再跟随任何链接。
  */
 async function resolveWithinSandbox(path: string): Promise<string> {
   const absolute = resolve(sandboxRoot, path);
@@ -56,7 +58,7 @@ async function resolveWithinSandbox(path: string): Promise<string> {
   if (!isInside && real !== sandboxRoot) {
     throw new ToolError(`Path '${path}' escapes the filesystem sandbox (root: ${sandboxRoot})`);
   }
-  return absolute;
+  return real;
 }
 
 export async function read_file(path: string): Promise<string> {

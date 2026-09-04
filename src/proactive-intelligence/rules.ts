@@ -4,7 +4,7 @@
  * 提供常见场景的预定义规则，可以直接使用或作为模板
  */
 
-import type { Rule } from './index';
+import type { Rule } from './index.js';
 
 // ============================================================================
 // 系统健康监控规则
@@ -133,7 +133,8 @@ export const lowDiskSpaceRule: Rule = {
       type: 'command',
       name: 'analyze_disk',
       // command 动作经 system-tools 加固管道执行：程序须在白名单
-      // （npm/node/npx/tsc/tsx/git/ls/echo，可用 configureCommandPolicy 扩展），
+      // （默认 tsc/git/ls/echo；node/npm/npx/tsx 须宿主经
+      // configureCommandPolicy 显式授权，-e/--eval 内联旗标恒拒绝），
       // 且禁止 shell 通配符/元字符——目录请写具体路径。
       parameters: {
         command: 'ls',

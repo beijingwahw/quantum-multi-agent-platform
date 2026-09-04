@@ -96,10 +96,13 @@ console.log('\n虚报收益实证（markups ∈ {-30%..+100%}，每 agent 试探
 for (const binding of [true, false]) {
   const s = fresh();
   const budget = binding ? vcgPayment * 0.6 : Infinity;
-  const alloc = s.allocateBatch(TASKS, { budget });
+  const _alloc = s.allocateBatch(TASKS, { budget }); // 求解状态预热（支付明细不再按赢家遍历）
   let worst = 0;
   let who = '';
-  for (const agentId of Object.keys(alloc.payments)) {
+  // 遍历全部注册 agent：payments 只含赢家，被预算挤出的 agent（低凭证者）
+  // 恰是虚报收益最强的候选，按支付键遍历会漏测
+  for (const agent of AGENTS) {
+    const agentId = agent.id;
     const g = s.measureMisreportGain(TASKS, agentId, [-0.3, -0.1, 0.1, 0.3, 0.5, 1.0], { budget });
     if (g.maxGain > worst) {
       worst = g.maxGain;
@@ -125,9 +128,10 @@ for (const mu of [1, 1.15, 1.3, 1.5, 2, 3]) {
 console.log('\n公开乘子下虚报收益（μ ∈ {1.3, 1.8}，应为精确 0）');
 for (const mu of [1.3, 1.8]) {
   const s = fresh();
-  const alloc = s.allocateAffineBatch(TASKS, { mu });
+  const _alloc = s.allocateAffineBatch(TASKS, { mu }); // 同上：状态预热
   let worst = 0;
-  for (const agentId of Object.keys(alloc.payments)) {
+  for (const agent of AGENTS) {
+    const agentId = agent.id;
     const g = s.measureMisreportGain(TASKS, agentId, [-0.3, -0.1, 0.1, 0.3, 0.5, 1.0], {
       affine: { mu },
     });

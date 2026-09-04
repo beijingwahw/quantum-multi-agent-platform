@@ -153,13 +153,13 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
       scheduler.submitTask({
         name: `任务${i}`,
         type: 'batch',
-        priority: priorities[i],
+        priority: priorities[i]!,
         requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
         dependencies: [],
         estimatedDuration: 5000,
         actualDuration: 0,
         status: 'pending',
-      } as any);
+      });
     }
 
     // 首轮：3个agent各承接1个任务（容量1），其余任务挂起等待释放
@@ -213,7 +213,7 @@ describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => 
         estimatedDuration: 5000,
         actualDuration: 0,
         status: 'pending',
-      } as any);
+      });
     }
     const report = scheduler.scheduleBatchQuantum();
     assert.equal(report.representation, 'fullspace');

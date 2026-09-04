@@ -1,17 +1,21 @@
-import { logWarn } from '../utils/logger';
+import { logWarn } from '../utils/logger.js';
 import { spawn } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import { stat } from 'fs/promises';
 import { resolve } from 'path';
-import { ToolError } from '../utils/errors';
+import { ToolError } from '../utils/errors.js';
 
 /**
  * 命令执行策略：execute_command 的输入来自不可信任的调用方（DSH 工具面
  * 暴露在 WebSocket 控制台协议之后），原始实现把任意字符串直接交给 shell，
- * 构造上就是命令注入。这里在进入 shell 前加三道闸门：
+ * 构造上就是命令注入。这里在进入 shell 前加四道闸门：
  *
- * 1. 程序白名单——首 token（程序名）必须命中 allowlist（默认覆盖平台文档
- *    内置工作流用到的 npm/node/npx/tsc/git 等；可用 configureCommandPolicy
- *    调整），程序名本身禁止路径分隔符与扩展名伪装。
+ * 1. 程序白名单——首 token（程序名）必须命中 allowlist。默认只含只读/
+ *    构建类工具（tsc/git/ls/echo）：解释器（node/npx/tsx…）与包管理器
+ *    （npm install 会执行依赖生命周期脚本）等价于任意代码执行，
+ *    `-e`/`String.fromCharCode` 等单 token 载荷可绕过一切词法闸门，
+ *    必须由宿主经 configureCommandPolicy 显式 opted-in。程序名本身
+ *    禁止路径分隔符与扩展名伪装。
  * 2. 元字符拒绝——引号外的 shell 控制运算符（; & | < > ` $ 换行）一律拒绝，
  *    杜绝串联、管道、重定向、命令替换与子 shell 逃逸。
  * 3. token 级字符黑名单——任何参数 token 的值不得包含引号与 %（含反引号）。
@@ -21,6 +25,9 @@ import { ToolError } from '../utils/errors';
  *    已经不存在任何 cmd 活跃元字符（" 与 % 被第 3 条规则禁止）。
  *    这修复了旧实现「按 POSIX 单引号语义解析、却把原文交回 cmd.exe」的
  *    跨平台引号错配（cmd 不认单引号，引号内的 & 仍会逃逸）。
+ * 4. 解释器内联代码旗标拒绝——即便宿主把解释器加入白名单，`-e/--eval`
+ *    类内联代码旗标仍然被无条件拒绝（见 INTERPRETER_EVAL_FLAGS）：
+ *    白名单宿主预期的是 `node script.js`，而非 `node -e <任意代码>`。
  */
 
 export interface CommandPolicy {
@@ -33,7 +40,9 @@ export interface CommandPolicy {
 }
 
 const DEFAULT_POLICY: CommandPolicy = {
-  allowedPrograms: ['npm', 'node', 'npx', 'tsc', 'tsx', 'git', 'ls', 'echo'],
+  // 安全默认：仅只读/构建工具。node/npx/tsx/npm 等价于任意代码执行，
+  // 需要时由宿主显式 configureCommandPolicy({ allowedPrograms: [...] })。
+  allowedPrograms: ['tsc', 'git', 'ls', 'echo'],
   workdirRoot: process.cwd(),
   timeoutMs: 120_000,
 };
@@ -53,6 +62,36 @@ const SHELL_METACHARS = /[;&|<>`\n]|\$\(|\|\|/;
 const FORBIDDEN_TOKEN_CHARS = /["'`%]/;
 // Windows 重建命令行时需要双引号包裹的字符（空白与 cmd 元字符）
 const CMD_SPECIALS = /[\s&|<>(){},^!;]/;
+
+/**
+ * 解释器程序的内联代码旗标：即使宿主显式把解释器加入白名单，
+ * 这些旗标仍被无条件拒绝——它们把「运行脚本文件」升级成「运行任意字符串」，
+ * 是词法闸门无法审计的代码注入面。
+ */
+const INTERPRETER_EVAL_FLAGS: Record<string, readonly string[]> = {
+  node: ['-e', '--eval', '-p', '--print', '-pe', '--experimental-repl'],
+  deno: ['-e', '--eval'],
+  bun: ['-e', '--eval'],
+  tsx: ['-e', '--eval'],
+  npx: ['-e', '--eval'],
+  python: ['-c', '--command'],
+  python3: ['-c', '--command'],
+  perl: ['-e'],
+  ruby: ['-e'],
+};
+
+function validateEvalFlags(program: string, args: readonly string[]): void {
+  const banned = INTERPRETER_EVAL_FLAGS[program.toLowerCase()];
+  if (!banned) return;
+  for (const arg of args) {
+    if (banned.includes(arg)) {
+      throw new ToolError(
+        `Inline-code flag '${arg}' is not allowed for interpreter '${program}' ` +
+          `(it bypasses all command-line auditing). Put the code in a script file instead.`,
+      );
+    }
+  }
+}
 
 /** shell 风格分词：支持单/双引号，遇引号外元字符即抛错 */
 function tokenizeCommand(command: string): string[] {
@@ -165,14 +204,35 @@ interface ProcessResult {
  * - Windows：npm/npx 等是 .cmd 脚本，须借道 cmd.exe（/d 禁 autorun），
  *   命令行由已验证 token 重建，含特殊字符的参数以双引号包裹。
  */
+function quoteForCmd(arg: string): string {
+  if (!CMD_SPECIALS.test(arg)) return arg;
+  // 结尾反斜杠会把收尾双引号转义出 cmd 解析，成对补齐
+  const safe = arg.replace(/\\+$/, (m) => m + m);
+  return `"${safe}"`;
+}
+
+/** Windows 下整树终止（cmd.exe 的孙进程不受 kill() 波及）；失败仅记录 */
+function killProcessTree(pid: number): void {
+  const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true });
+  // 无 error 监听的 spawn 失败会以 uncaughtException 击穿整个进程
+  killer.on('error', (err) => {
+    logWarn('SystemTools', `taskkill failed for pid ${pid}:`, err);
+  });
+}
+
 function runProcess(program: string, args: string[], cwd?: string): Promise<ProcessResult> {
   return new Promise<ProcessResult>((resolvePromise, rejectPromise) => {
-    const spawnArgs: string[] = args;
     let command = program;
+    let spawnArgs: string[] = [...args];
     if (process.platform === 'win32') {
       const comspec = process.env.ComSpec ?? 'cmd.exe';
-      const quoted = [program, ...args].map((a) => (CMD_SPECIALS.test(a) ? `"${a}"` : a));
-      spawnArgs.unshift('/d', '/s', '/c', quoted.join(' '));
+      const quoted = [program, ...args].map(quoteForCmd);
+      // /s + 外层引号是 cmd 的正规引用协议：cmd 剥掉首尾引号、原样保留
+      // 内部引号；配合 windowsVerbatimArguments（禁止 Node 再包一层），
+      // 含空白的参数边界由 quoteForCmd 完全掌控。
+      // 注意 /c 载荷必须独占——unshift 到 args 前面会把参数重复传递
+      // （旧实现的 Windows 命令行实际是 `... /c "payload" arg1 arg2`）。
+      spawnArgs = ['/d', '/s', '/c', `"${quoted.join(' ')}"`];
       command = comspec;
     }
 
@@ -180,16 +240,24 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
       cwd,
       shell: false,
       windowsHide: true,
+      // 引号语义由我们完全掌控：Node 默认会对含空格的 /c 载荷再包一层引号，
+      // 破坏经审计重建的命令行（含空白参数被 cmd 二次拆分）。
+      // verbatim 模式下命令行原样直达 cmd.exe，引号只来自 quoteForCmd。
+      windowsVerbatimArguments: process.platform === 'win32',
     });
 
     let settled = false;
     const chunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
+    // 运行字节计数：每个 data 事件只加长度，避免 Buffer.concat 的 O(n²) 拷贝
+    let totalBytes = 0;
+    let totalErrBytes = 0;
 
     child.stdout.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
-      if (Buffer.concat(chunks).length > MAX_OUTPUT_BYTES) {
-        child.kill();
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_OUTPUT_BYTES) {
+        killProcessTreeOrSignal(child);
         if (!settled) {
           settled = true;
           rejectPromise(new Error(`Command output exceeded ${MAX_OUTPUT_BYTES} bytes`));
@@ -198,8 +266,9 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
     });
     child.stderr.on('data', (chunk: Buffer) => {
       errChunks.push(chunk);
-      if (Buffer.concat(errChunks).length > MAX_OUTPUT_BYTES) {
-        child.kill();
+      totalErrBytes += chunk.length;
+      if (totalErrBytes > MAX_OUTPUT_BYTES) {
+        killProcessTreeOrSignal(child);
         if (!settled) {
           settled = true;
           rejectPromise(new Error(`Command stderr exceeded ${MAX_OUTPUT_BYTES} bytes`));
@@ -210,12 +279,7 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      if (process.platform === 'win32' && child.pid) {
-        // cmd.exe 的子进程不受 kill() 波及，需整树终止
-        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
-      } else {
-        child.kill('SIGKILL');
-      }
+      killProcessTreeOrSignal(child);
       rejectPromise(new Error(`Command timed out after ${policy.timeoutMs}ms`));
     }, policy.timeoutMs);
 
@@ -244,19 +308,42 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
   });
 }
 
-export async function execute_command(command: string, workdir?: string): Promise<string> {
-  if (typeof command !== 'string' || command.trim().length === 0) {
-    throw new ToolError('Command must be a non-empty string');
+/** 溢出/超时共用终止路径：Windows 整树杀，POSIX 直接 SIGKILL */
+function killProcessTreeOrSignal(child: ChildProcess): void {
+  if (process.platform === 'win32' && child.pid) {
+    killProcessTree(child.pid);
+  } else {
+    child.kill('SIGKILL');
   }
+}
 
-  const tokens = tokenizeCommand(command.trim());
-  if (tokens.length === 0) throw new ToolError('Command must contain a program name');
-  validateProgram(tokens[0]!);
-  validateTokenValues(tokens);
+/**
+ * argv 形式的加固执行入口：参数边界由调用方保证（不经 shell 分词），
+ * 适用于结构化携带参数数组的调用方（如 executor 的 command 动作）——
+ * 字符串拼接回 shell 语法会破坏含空白/特殊字符的参数。
+ */
+export async function execute_command_argv(
+  program: string,
+  args: readonly string[],
+  workdir?: string,
+): Promise<string> {
+  if (typeof program !== 'string' || program.length === 0) {
+    throw new ToolError('Command program must be a non-empty string');
+  }
+  const argList = args.map((a) => {
+    if (typeof a !== 'string') {
+      throw new ToolError('Command arguments must be strings');
+    }
+    return a;
+  });
+
+  validateProgram(program);
+  validateTokenValues([program, ...argList]);
+  validateEvalFlags(program, argList);
 
   try {
     const { cwd } = await validateWorkdir(workdir);
-    const { stdout, stderr } = await runProcess(tokens[0]!, tokens.slice(1), cwd);
+    const { stdout, stderr } = await runProcess(program, argList, cwd);
 
     if (stderr) {
       logWarn('SystemTools', `Command stderr: ${stderr}`);
@@ -268,6 +355,17 @@ export async function execute_command(command: string, workdir?: string): Promis
       `Command execution failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+export async function execute_command(command: string, workdir?: string): Promise<string> {
+  if (typeof command !== 'string' || command.trim().length === 0) {
+    throw new ToolError('Command must be a non-empty string');
+  }
+
+  const tokens = tokenizeCommand(command.trim());
+  if (tokens.length === 0) throw new ToolError('Command must contain a program name');
+
+  return execute_command_argv(tokens[0]!, tokens.slice(1), workdir);
 }
 
 /** 仅供测试/工具链复位默认策略 */

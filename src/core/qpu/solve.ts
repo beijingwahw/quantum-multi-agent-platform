@@ -9,19 +9,14 @@
  *      QPU 解的 optimalityRatio 因此是可验证的观测量）。
  */
 
-import type { AssignmentProblem } from '../quantum-optimizer';
-import {
-  toIsing,
-  decodeAssignment,
-  isValidAssignment,
-  welfareOf,
-  bruteForceOptimum,
-} from '../quantum-optimizer';
-import { buildSubspaceModel } from '../subspace-optimizer';
-import type { QuantumBackend, QpuSolveOptions } from './quantum-backend';
-import { LocalQuantumBackend } from './quantum-backend';
-import { BackendError } from '../../utils/errors';
-import { BRUTE_FORCE_QUBIT_LIMIT, SUBSPACE_DIMENSION_CAP } from '../constants';
+import type { AssignmentProblem } from '../quantum-optimizer.js';
+import { toIsing, isValidAssignment, welfareOf, bruteForceOptimum } from '../quantum-optimizer.js';
+import { buildSubspaceModel } from '../subspace-optimizer.js';
+import type { QuantumBackend, QpuSolveOptions } from './quantum-backend.js';
+import { LocalQuantumBackend } from './quantum-backend.js';
+import { BackendError } from '../../utils/errors.js';
+import { WELFARE_COMPARISON_EPSILON } from '../../utils/numeric.js';
+import { BRUTE_FORCE_QUBIT_LIMIT, SUBSPACE_DIMENSION_CAP } from '../constants.js';
 
 export interface QpuAssignmentResult {
   backend: string;
@@ -67,14 +62,16 @@ export async function solveAssignmentOnBackend(
       sampleFrequency: solution.probability,
       totalReads: numReads,
       invalidSamples: 0,
-      optimality:
-        model && model.optimalWelfare > 0
-          ? {
+      // exactOptionalPropertyTypes：optimality 仅在可对照时存在
+      ...(model && model.optimalWelfare > 0
+        ? {
+            optimality: {
               achieved: solution.welfare,
               optimal: model.optimalWelfare,
               ratio: solution.optimalityRatio,
-            }
-          : undefined,
+            },
+          }
+        : {}),
       solver: backend.name,
     };
   }
@@ -84,9 +81,12 @@ export async function solveAssignmentOnBackend(
   const samples = await backend.solveIsing(ising.h, ising.J, nqubits, options);
 
   let invalidSamples = 0;
-  // 按基态聚合出现次数（同一分配的重复样本合并计数）
+  // 按分配聚合出现次数（同一分配的重复样本合并计数）。
+  // 键为分配的字符串形式：QPU 路径不受 30 量子比特限制（一轮可吃满空闲池），
+  // nqubits ≥ 33 时位掩码 `1 << q` 以 int32 回绕（qubit 32 混叠 qubit 0），
+  // 因此不经中间整数态、直接由 spins 解码 one-hot。
   const stateStats = new Map<
-    number,
+    string,
     { assignment: number[]; welfare: number; energy: number; occurrences: number }
   >();
   const totalOccurrences = samples.occurrences.reduce((s, o) => s + o, 0) || 1;
@@ -97,23 +97,33 @@ export async function solveAssignmentOnBackend(
       invalidSamples += samples.occurrences[s] ?? 1;
       continue;
     }
-    // z_i ∈ {−1,+1} → x_i = (1 − z_i)/2
-    let state = 0;
-    for (let q = 0; q < nqubits; q++) {
-      if (spins[q] === -1) state |= 1 << q;
+    // z_i ∈ {−1,+1} → x_i = 1 当且仅当 z_i = −1；逐任务 one-hot 解码
+    const assignment = new Array<number>(m).fill(-1);
+    for (let t = 0; t < m; t++) {
+      let chosen = -1;
+      for (let a = 0; a < n; a++) {
+        if (spins[t * n + a] === -1) {
+          if (chosen >= 0) {
+            chosen = -1; // one-hot 违约
+            break;
+          }
+          chosen = a;
+        }
+      }
+      assignment[t] = chosen;
     }
-    const assignment = decodeAssignment(state, m, n);
     if (!isValidAssignment(problem, assignment)) {
       invalidSamples += samples.occurrences[s] ?? 1;
       continue;
     }
     const welfare = welfareOf(problem, assignment);
     const energy = samples.energies[s] ?? -welfare;
-    const existing = stateStats.get(state);
+    const key = assignment.join(',');
+    const existing = stateStats.get(key);
     if (existing) {
       existing.occurrences += samples.occurrences[s] ?? 1;
     } else {
-      stateStats.set(state, {
+      stateStats.set(key, {
         assignment,
         welfare,
         energy,
@@ -136,8 +146,9 @@ export async function solveAssignmentOnBackend(
   for (const stats of stateStats.values()) {
     if (
       !best ||
-      stats.welfare > best.welfare + 1e-12 ||
-      (Math.abs(stats.welfare - best.welfare) <= 1e-12 && stats.occurrences > best.occurrences)
+      stats.welfare > best.welfare + WELFARE_COMPARISON_EPSILON ||
+      (Math.abs(stats.welfare - best.welfare) <= WELFARE_COMPARISON_EPSILON &&
+        stats.occurrences > best.occurrences)
     ) {
       best = stats;
     }
@@ -161,10 +172,9 @@ export async function solveAssignmentOnBackend(
     sampleFrequency: best.occurrences / totalOccurrences,
     totalReads: totalOccurrences,
     invalidSamples,
-    optimality:
-      optimal !== undefined && optimal > 0
-        ? { achieved: best.welfare, optimal, ratio: best.welfare / optimal }
-        : undefined,
+    ...(optimal !== undefined && optimal > 0
+      ? { optimality: { achieved: best.welfare, optimal, ratio: best.welfare / optimal } }
+      : {}),
     solver: samples.solver,
   };
 }

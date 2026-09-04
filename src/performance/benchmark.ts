@@ -1,4 +1,4 @@
-import type { PlatformConfig } from '../index.js';
+import type { PlatformConfig, DeepPartial } from '../index.js';
 import { QuantumMultiAgentPlatform } from '../index.js';
 import { performance } from 'perf_hooks';
 import { pathToFileURL } from 'url';
@@ -33,7 +33,7 @@ class QuantumBenchmark {
   private platform: QuantumMultiAgentPlatform;
   private results: BenchmarkResult[] = [];
 
-  constructor(config: Partial<PlatformConfig> = {}) {
+  constructor(config: DeepPartial<PlatformConfig> = {}) {
     // 基准测试默认压制热路径日志，排除日志I/O对吞吐测量的干扰
     this.platform = new QuantumMultiAgentPlatform({ logLevel: 'warn', ...config });
   }
@@ -464,7 +464,9 @@ class QuantumBenchmark {
 }
 
 // 导出benchmark运行器
-export async function runBenchmark(config?: Partial<PlatformConfig>): Promise<BenchmarkResult[]> {
+export async function runBenchmark(
+  config?: DeepPartial<PlatformConfig>,
+): Promise<BenchmarkResult[]> {
   const benchmark = new QuantumBenchmark(config);
 
   try {

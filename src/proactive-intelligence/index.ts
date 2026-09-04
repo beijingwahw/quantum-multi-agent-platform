@@ -13,8 +13,8 @@
  * @module proactive-intelligence
  */
 
-export { GrowthSchedulerBrain } from './brain';
-export type { MarketBrain, BrainAssignment, BrainState, GrowthAgentSpec } from './brain';
+export { GrowthSchedulerBrain } from './brain.js';
+export type { MarketBrain, BrainAssignment, BrainState, GrowthAgentSpec } from './brain.js';
 
 export type {
   MonitorEvent,
@@ -26,10 +26,10 @@ export type {
   ActionExecution,
   PolicyConfig,
   Metrics,
-} from './types';
-export { StateMonitor } from './monitor';
-export type { StateMonitorConfig, MonitorStatistics } from './monitor';
-export { DecisionEngine } from './decision-engine';
-export { ActionExecutor } from './executor';
-export { ProactiveIntelligencePlugin } from './plugin';
-export type { ProactiveIntelligencePluginConfig, PluginStatistics } from './plugin';
+} from './types.js';
+export { StateMonitor } from './monitor.js';
+export type { StateMonitorConfig, MonitorStatistics } from './monitor.js';
+export { DecisionEngine } from './decision-engine.js';
+export { ActionExecutor } from './executor.js';
+export { ProactiveIntelligencePlugin } from './plugin.js';
+export type { ProactiveIntelligencePluginConfig, PluginStatistics } from './plugin.js';

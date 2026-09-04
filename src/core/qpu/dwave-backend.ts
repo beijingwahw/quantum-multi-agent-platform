@@ -14,15 +14,21 @@
  * 响应兼容两种格式：经典 solutions 数组与 qp 压缩格式。
  */
 
-import type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './quantum-backend';
-import { registerBackend } from './quantum-backend';
-import { BackendError } from '../../utils/errors';
+import type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './quantum-backend.js';
+import { registerBackend } from './quantum-backend.js';
+import { BackendError } from '../../utils/errors.js';
 
 export interface DWaveConfig {
   token?: string;
   endpoint?: string;
   /** Leap 混合求解器名（默认）或结构化 QPU 求解器名 */
   solver?: string;
+  /**
+   * 可注入传输函数（默认全局 fetch）。测试注入 mock 可去除真实
+   * TCP 握手/端口分配/关闭挂起等网络时序（受限网络 CI 间歇红的主因），
+   * 生产路径不受影响。
+   */
+  fetch?: typeof fetch;
 }
 
 const DEFAULT_ENDPOINT = 'https://cloud.dwavesys.com/sapi/v2';
@@ -54,6 +60,7 @@ export class DWaveBackend implements QuantumBackend {
   private readonly token: string;
   private readonly endpoint: string;
   private readonly solverName: string;
+  private readonly transport: typeof fetch;
 
   constructor(config: DWaveConfig = {}) {
     this.token = config.token ?? process.env.DWAVE_API_TOKEN ?? process.env.D_WAVE_API_TOKEN ?? '';
@@ -69,6 +76,7 @@ export class DWaveBackend implements QuantumBackend {
     }
     this.endpoint = endpoint;
     this.solverName = config.solver ?? process.env.DWAVE_SOLVER ?? DEFAULT_SOLVER;
+    this.transport = config.fetch ?? ((input, init) => fetch(input, init));
     this.name = `dwave:${this.solverName}`;
   }
 
@@ -115,37 +123,42 @@ export class DWaveBackend implements QuantumBackend {
           params: { num_reads: numReads, label: 'quantum-multi-agent-scheduler' },
         };
 
-    // 提交（异步任务可能返回 PENDING → 轮询直到 COMPLETED）
+    // 提交（异步任务可能返回 PENDING → 轮询直到 COMPLETED）。
+    // 提交成功后的任何失败路径都会触发已付费问题的孤儿化——finally 兜底
+    // best-effort 取消，不让它继续烧 QPU 配额。
     const submitted = await this.post<DWaveProblemResponse>('problems/', body, timeoutMs);
     let problem = submitted;
-    const deadline = Date.now() + timeoutMs;
-    while (problem.status !== 'COMPLETED') {
-      if (problem.status === 'FAILED' || problem.status === 'CANCELLED') {
-        throw new BackendError(
-          `DWave problem ${problem.status}: ${JSON.stringify(problem.error_message ?? {})}`,
-        );
+    try {
+      const deadline = Date.now() + timeoutMs;
+      while (problem.status !== 'COMPLETED') {
+        if (problem.status === 'FAILED' || problem.status === 'CANCELLED') {
+          throw new BackendError(
+            `DWave problem ${problem.status}: ${JSON.stringify(problem.error_message ?? {})}`,
+          );
+        }
+        // 未知状态（EXCEPTION 等）不可重试：立即失败而不是空转到超时
+        if (problem.status === undefined || !PENDING_STATUSES.has(problem.status)) {
+          throw new BackendError(
+            `DWave problem entered unknown status '${problem.status}' (id=${problem.id ?? 'none'})`,
+          );
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          throw new BackendError(
+            `DWave polling timed out (${timeoutMs}ms), problem id ${problem.id}`,
+          );
+        }
+        await sleep(Math.min(500, remaining));
+        if (!problem.id) {
+          throw new BackendError('DWave submit response is missing the problem id; cannot poll');
+        }
+        // 每次请求只消耗剩余预算，总墙钟时间不超过 timeoutMs。
+        // 瞬态轮询失败（网络抖动/5xx）重试一次而不是抛弃已提交的问题。
+        problem = await this.pollWithRetry(problem.id, remaining);
       }
-      // 未知状态（EXCEPTION 等）不可重试：立即失败而不是空转到超时
-      if (problem.status === undefined || !PENDING_STATUSES.has(problem.status)) {
-        throw new BackendError(
-          `DWave problem entered unknown status '${problem.status}' (id=${problem.id ?? 'none'})`,
-        );
-      }
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) {
-        throw new BackendError(
-          `DWave polling timed out (${timeoutMs}ms), problem id ${problem.id}`,
-        );
-      }
-      await sleep(Math.min(500, remaining));
-      if (!problem.id) {
-        throw new BackendError('DWave submit response is missing the problem id; cannot poll');
-      }
-      // 每次请求只消耗剩余预算，总墙钟时间不超过 timeoutMs
-      problem = await this.get<DWaveProblemResponse>(
-        `problems/${encodeURIComponent(problem.id)}`,
-        remaining,
-      );
+    } catch (error) {
+      if (problem.id) await this.cancelQuietly(problem.id);
+      throw error;
     }
 
     const answer = parseAnswer(problem.answer, nqubits);
@@ -158,16 +171,62 @@ export class DWaveBackend implements QuantumBackend {
     };
   }
 
+  /** 轮询 + 瞬态重试：单次 GET 失败在剩余预算内退避重试一次，再失败才抛出 */
+  private async pollWithRetry(
+    problemId: string,
+    remainingMs: number,
+  ): Promise<DWaveProblemResponse> {
+    let retried = false;
+    for (;;) {
+      try {
+        return await this.get<DWaveProblemResponse>(
+          `problems/${encodeURIComponent(problemId)}`,
+          Math.max(1, remainingMs),
+        );
+      } catch (error) {
+        // 已提交问题的轮询失败多半是瞬态（连接重置/网关 5xx/429 限流）：
+        // 429 是服务端显式限流信号，固定 500ms 退避在限流窗口内重试
+        // 只会再吃一次 429——优先尊重 Retry-After（存在时），否则退避
+        // 加倍。重试一次，连续失败才升级为错误。
+        if (!retried && remainingMs > 500) {
+          retried = true;
+          const retryAfterMs = (error as { retryAfterMs?: number }).retryAfterMs;
+          const backoff = retryAfterMs ?? (String(error).includes('429') ? 1000 : 500);
+          await sleep(Math.min(backoff, Math.max(1, remainingMs)));
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  /** best-effort 取消远端问题（失败静默——取消本身不应掩盖原始错误） */
+  private async cancelQuietly(problemId: string): Promise<void> {
+    try {
+      await this.del(`problems/${encodeURIComponent(problemId)}`, 5_000);
+    } catch {
+      // 忽略：问题可能已结束，或网络已不可用
+    }
+  }
+
   private async post<T>(path: string, body: unknown, timeoutMs: number): Promise<T> {
-    const response = await fetch(`${this.endpoint}/${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': this.token,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    let response: Response;
+    try {
+      response = await this.transport(`${this.endpoint}/${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': this.token,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      throw new BackendError(
+        `DWave POST ${path} failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
     if (!response.ok) {
       throw new BackendError(
         `DWave POST ${path} → HTTP ${response.status}: ${await safeText(response)}`,
@@ -177,16 +236,43 @@ export class DWaveBackend implements QuantumBackend {
   }
 
   private async get<T>(path: string, timeoutMs: number): Promise<T> {
-    const response = await fetch(`${this.endpoint}/${path}`, {
+    let response: Response;
+    try {
+      response = await this.transport(`${this.endpoint}/${path}`, {
+        headers: { 'X-Auth-Token': this.token },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      throw new BackendError(
+        `DWave GET ${path} failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+    if (!response.ok) {
+      const error = new BackendError(
+        `DWave GET ${path} → HTTP ${response.status}: ${await safeText(response)}`,
+      );
+      // 429 携带 Retry-After：透传给重试方（Q3），避免限流窗口内盲重试
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get('retry-after'));
+        if (Number.isFinite(retryAfter) && retryAfter > 0) {
+          (error as BackendError & { retryAfterMs?: number }).retryAfterMs = retryAfter * 1000;
+        }
+      }
+      throw error;
+    }
+    return parseJson<T>(response, path);
+  }
+
+  private async del(path: string, timeoutMs: number): Promise<void> {
+    const response = await this.transport(`${this.endpoint}/${path}`, {
+      method: 'DELETE',
       headers: { 'X-Auth-Token': this.token },
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!response.ok) {
-      throw new BackendError(
-        `DWave GET ${path} → HTTP ${response.status}: ${await safeText(response)}`,
-      );
+    if (!response.ok && response.status !== 404) {
+      throw new BackendError(`DWave DELETE ${path} → HTTP ${response.status}`);
     }
-    return parseJson<T>(response, path);
   }
 }
 
@@ -241,13 +327,20 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
   }
   const answer = rawAnswer as Record<string, unknown>;
 
-  // 经典格式：solutions 为 ±1 自旋数组
+  // 经典格式：solutions 为 ±1 自旋数组（逐元素验证，不盲信外部 JSON 形状）
   if (Array.isArray(answer.solutions)) {
+    const solutions = answer.solutions.map((row) => {
+      if (!Array.isArray(row) || row.length !== nqubits || !row.every((v) => v === 1 || v === -1)) {
+        throw new BackendError(
+          `DWave classic answer contains a malformed solution row (expected ±1 × ${nqubits})`,
+        );
+      }
+      return row as number[];
+    });
     return {
-      solutions: answer.solutions as number[][],
+      solutions,
       energies: asNumberArray(answer.energies) ?? [],
-      occurrences:
-        asNumberArray(answer.num_occurrences) ?? (answer.solutions as number[][]).map(() => 1),
+      occurrences: asNumberArray(answer.num_occurrences) ?? solutions.map(() => 1),
     };
   }
 
@@ -262,7 +355,17 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
         bits.push((word >> b) & 1);
       }
     }
-    const numSolutions = asNumber(answer.num_solutions) ?? Math.floor(bits.length / nqubits);
+    // 位流按 16 位字对齐填充：解数不得越过实际可用位（否则解码出
+    // 幻影样本，歪曲 invalidSamples 与频率统计）
+    const maxSolutions = Math.floor(bits.length / nqubits);
+    // 缺 num_solutions 时的解数推断（Q9）：优先用 energies/occurrences 的
+    // 数组长度做次级信号——直接全长解码会把位对齐 padding 解成幻影样本，
+    // 歪曲 invalidSamples 与频率统计
+    const energiesLen = (asNumberArray(answer.energies) ?? []).length;
+    const occurrencesLen = (asNumberArray(answer.num_occurrences) ?? []).length;
+    const fallbackCount =
+      energiesLen > 0 ? energiesLen : occurrencesLen > 0 ? occurrencesLen : maxSolutions;
+    const numSolutions = Math.min(asNumber(answer.num_solutions) ?? fallbackCount, maxSolutions);
     const solutions: number[][] = [];
     for (let s = 0; s < numSolutions; s++) {
       const sol: number[] = [];
@@ -301,9 +404,51 @@ async function safeText(response: Response): Promise<string> {
   }
 }
 
-// 按需注册：有凭据时成为默认真实硬件后端（无凭据时 isAvailable()=false，
-// getBackend() 自动回退本地精确引擎）
-const dwave = new DWaveBackend();
-if (dwave.isAvailable()) {
-  registerBackend(dwave);
+// ----------------------------------------------------------------------------
+// 按需注册：导入零副作用，凭据/配置在首次求解时才解析
+// ----------------------------------------------------------------------------
+
+/**
+ * 懒注册代理：替代旧的模块顶层 `new DWaveBackend()`（import 时抛错可击穿
+ * 整个应用；token 在 import 之后才注入的环境变量永远拿不到）。凭据存在
+ * 时成为默认真实硬件后端；构造错误推迟到 solveIsing 调用点，包装为
+ * BackendError 而不是原生异常。
+ */
+class LazyDWaveRegistration implements QuantumBackend {
+  readonly name = 'dwave';
+  readonly realHardware = true;
+  private cached: DWaveBackend | null = null;
+
+  private envToken(): string {
+    return process.env.DWAVE_API_TOKEN ?? process.env.D_WAVE_API_TOKEN ?? '';
+  }
+
+  isAvailable(): boolean {
+    return this.envToken().length > 0;
+  }
+
+  solveIsing(
+    h: number[],
+    j: Map<number, number>,
+    nqubits: number,
+    options?: QpuSolveOptions,
+  ): Promise<QpuSampleSet> {
+    if (!this.cached) {
+      try {
+        this.cached = new DWaveBackend();
+      } catch (error) {
+        return Promise.reject(
+          new BackendError(
+            `DWave backend construction failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            { cause: error },
+          ),
+        );
+      }
+    }
+    return this.cached.solveIsing(h, j, nqubits, options);
+  }
 }
+
+registerBackend(new LazyDWaveRegistration());

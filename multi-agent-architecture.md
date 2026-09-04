@@ -1,5 +1,8 @@
 # 宏大多agent开发调度平台架构设计
 
+> **历史设计稿**：REST/GraphQL/gRPC 接口层、Redis、Prometheus+Grafana 等
+> 为早期概念设想；当前实现为纯 WebSocket（ws）+ 进程内架构，以 README.md 与 src/ 为准。
+
 ## 核心理念：量子态多Agent协同架构 (Quantum State Multi-Agent Coordination)
 
 ### 突破性设计原则

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logInfo, logError } from '../utils/logger';
-import { ToolError } from '../utils/errors';
+import { logInfo, logError } from '../utils/logger.js';
+import { ToolError } from '../utils/errors.js';
 
 // DSH工具参数描述
 interface DSHToolParameter {
@@ -265,14 +265,29 @@ export class DSHIntegration extends EventEmitter {
       throw new ToolError(`Parameters for tool '${tool.name}' must be an object`);
     }
     tool.parameters.forEach((param) => {
+      const value: unknown = (parameters as Record<string, unknown>)[param.name];
       if (param.required && !(param.name in parameters)) {
         throw new ToolError(`Required parameter '${param.name}' missing for tool '${tool.name}'`);
+      }
+      // 存在即校验声明类型：String(obj) 会把任意对象变成 "[object Object]"
+      // 深入工具内部才失败，边界处干净拒绝并指名参数
+      if (value !== undefined && param.type === 'string' && typeof value !== 'string') {
+        throw new ToolError(
+          `Parameter '${param.name}' of tool '${tool.name}' must be a string, ` +
+            `got ${typeof value}`,
+        );
+      }
+      if (value !== undefined && param.type === 'boolean' && typeof value !== 'boolean') {
+        throw new ToolError(
+          `Parameter '${param.name}' of tool '${tool.name}' must be a boolean, ` +
+            `got ${typeof value}`,
+        );
       }
     });
   }
 
   private async executeFileSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { read_file, write_file } = await import('../tools/fs-tools');
+    const { read_file, write_file } = await import('../tools/fs-tools.js');
 
     switch (tool.name) {
       case 'read_file':
@@ -285,7 +300,7 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private async executeSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { execute_command } = await import('../tools/system-tools');
+    const { execute_command } = await import('../tools/system-tools.js');
     const workdir = parameters.workdir;
     return await execute_command(
       String(parameters.command),
@@ -294,7 +309,7 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private async executeWebTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { web_search } = await import('../tools/web-tools');
+    const { web_search } = await import('../tools/web-tools.js');
     return await web_search(String(parameters.query));
   }
 
@@ -303,7 +318,7 @@ export class DSHIntegration extends EventEmitter {
     parameters: DSHToolParams,
     dshAgentId?: string,
   ): Promise<unknown> {
-    const { subagent } = await import('../tools/agent-tools');
+    const { subagent } = await import('../tools/agent-tools.js');
 
     // 构造subagent调用参数（dshAgentId 提供调用方上下文，缺省由子代理自选）
     const subagentParams = {
@@ -445,7 +460,10 @@ export class DSHIntegration extends EventEmitter {
     const workflow = this.workflows.get(id);
     if (!workflow) return false;
 
-    const updatedWorkflow = { ...workflow, ...updates };
+    // id 不可经 updates 变更：否则 Map 键与对象自指脱钩（getWorkflow 双失配、
+    // deleteWorkflow 发出错误的事件载荷）
+    const { id: _ignored, ...rest } = updates;
+    const updatedWorkflow = { ...workflow, ...rest };
     this.workflows.set(id, updatedWorkflow);
     this.emit('workflow_updated', updatedWorkflow);
     return true;

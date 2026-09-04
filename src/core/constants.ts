@@ -50,8 +50,5 @@ export const BETA_BOUND = Math.PI / 2;
 /** 穷举最优对照的量子比特上限（2^16 基态的能量 DFS 在此范围内瞬时完成） */
 export const BRUTE_FORCE_QUBIT_LIMIT = 16;
 
-/** 级联失败防御深度上限（环形依赖兜底） */
-export const MAX_CASCADE_DEPTH = 100;
-
 /** 调度器全空间分块的量子比特上限默认（4096 维希尔伯特空间） */
 export const SCHEDULER_QUBIT_CAP = 12;

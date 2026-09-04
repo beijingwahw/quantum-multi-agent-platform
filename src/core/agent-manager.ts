@@ -4,10 +4,10 @@ import type {
   AgentType,
   QuantumEntanglement,
   Vector3D,
-} from '../types/quantum-types';
+} from '../types/quantum-types.js';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logInfo } from '../utils/logger';
+import { logInfo, logWarn } from '../utils/logger.js';
 
 /** agent 负载超过该阈值判定为 overloaded（agent 状态语义的唯一权威定义） */
 export const AGENT_OVERLOAD_THRESHOLD = 80;
@@ -40,6 +40,14 @@ export interface SystemHealthReport {
 export class AgentManager extends EventEmitter {
   private agents = new Map<string, Agent>();
   private entanglements = new Map<string, QuantumEntanglement>();
+  /**
+   * 纠缠邻接索引（agentId → 其纠缠 id 集合，按创建序）：查重与按 agent
+   * 查询从 O(E) 全表扫描降为 O(度)。Set 按 id 插入序遍历 == 全表 Map 的
+   * 创建序过滤结果，公开 getter 的返回顺序不变。
+   */
+  private entanglementsByAgent = new Map<string, Set<string>>();
+  /** 规范对键（无序对 → 纠缠 id）：O(1) 查重替代 O(E) 线性找重 */
+  private entanglementPairs = new Map<string, string>();
   private heartbeatIntervals = new Map<string, NodeJS.Timeout>();
   private config: AgentManagerConfig;
 
@@ -56,6 +64,17 @@ export class AgentManager extends EventEmitter {
     position?: Vector3D;
     entanglementTargets?: string[];
   }): Agent {
+    // 重名告警（08#44）：不拒绝（重名是合法配置），但日志/快照按名
+    // 区分 agent 的消费方需要知道存在歧义
+    for (const existing of this.agents.values()) {
+      if (existing.name === agentConfig.name) {
+        logWarn(
+          'AgentManager',
+          `Duplicate agent name '${agentConfig.name}' — logs/snapshots by name will be ambiguous`,
+        );
+        break;
+      }
+    }
     const agent: Agent = {
       id: randomUUID(),
       name: agentConfig.name,
@@ -108,11 +127,12 @@ export class AgentManager extends EventEmitter {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
 
-    const updatedAgent = { ...agent, ...updates };
-    updatedAgent.lastHeartbeat = new Date();
-    this.agents.set(agentId, updatedAgent);
+    // 原地合并：其余变更路径（setAgentState/increaseLoad/…）都原地变更，
+    // 若此处替换为新对象，外部持有的 Agent 引用将永久冻结（分裂脑）
+    Object.assign(agent, updates);
+    agent.lastHeartbeat = new Date();
 
-    this.emit('agent_updated', updatedAgent);
+    this.emit('agent_updated', agent);
     return true;
   }
 
@@ -191,7 +211,9 @@ export class AgentManager extends EventEmitter {
     if (!agent) return false;
     agent.lastHeartbeat = new Date();
     if (agent.state === 'offline') {
-      this.setAgentState(agentId, 'idle');
+      // 恢复存活但不得违反过载不变量：load > 阈值的 agent 是 overloaded
+      // 而非 idle（否则 getAvailableAgents 会把过载 agent 当可用放行）
+      this.setAgentState(agentId, agent.load > AGENT_OVERLOAD_THRESHOLD ? 'overloaded' : 'idle');
     }
     return true;
   }
@@ -205,18 +227,21 @@ export class AgentManager extends EventEmitter {
   }
 
   // 量子纠缠管理
+  /** 规范对键：无序 agent 对的唯一字符串（id 不含 NUL 分隔符） */
+  private static pairKey(a: string, b: string): string {
+    return a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
+  }
+
   createEntanglement(agentId1: string, agentId2: string): boolean {
     const agent1 = this.agents.get(agentId1);
     const agent2 = this.agents.get(agentId2);
 
     if (!agent1 || !agent2) return false;
 
-    // 检查是否已经存在纠缠
-    const existingEntanglement = Array.from(this.entanglements.values()).find(
-      (e) =>
-        (e.agentId1 === agentId1 && e.agentId2 === agentId2) ||
-        (e.agentId1 === agentId2 && e.agentId2 === agentId1),
-    );
+    // 检查是否已经存在纠缠（O(1) 对键查重）
+    const pairKey = AgentManager.pairKey(agentId1, agentId2);
+    const existingId = this.entanglementPairs.get(pairKey);
+    const existingEntanglement = existingId ? this.entanglements.get(existingId) : undefined;
 
     if (existingEntanglement) {
       // 更新现有纠缠
@@ -236,6 +261,15 @@ export class AgentManager extends EventEmitter {
     };
 
     this.entanglements.set(entanglement.id, entanglement);
+    this.entanglementPairs.set(pairKey, entanglement.id);
+    for (const id of [agentId1, agentId2]) {
+      let ids = this.entanglementsByAgent.get(id);
+      if (!ids) {
+        ids = new Set<string>();
+        this.entanglementsByAgent.set(id, ids);
+      }
+      ids.add(entanglement.id);
+    }
 
     // 更新agent的纠缠列表
     if (!agent1.quantumEntanglement.includes(agentId2)) {
@@ -251,28 +285,37 @@ export class AgentManager extends EventEmitter {
   }
 
   removeEntanglements(agentId: string): void {
-    // 找到所有与该agent相关的纠缠
-    const entanglementsToRemove = Array.from(this.entanglements.values()).filter(
-      (e) => e.agentId1 === agentId || e.agentId2 === agentId,
-    );
+    // 找到所有与该agent相关的纠缠（O(度)，遍历序 == 创建序）
+    const ids = this.entanglementsByAgent.get(agentId);
+    if (ids) {
+      for (const entanglementId of [...ids]) {
+        const entanglement = this.entanglements.get(entanglementId);
+        if (!entanglement) continue;
+        this.entanglements.delete(entanglementId);
+        this.entanglementPairs.delete(
+          AgentManager.pairKey(entanglement.agentId1, entanglement.agentId2),
+        );
+        // 双端邻接集同步收缩
+        ids.delete(entanglementId);
+        const otherId =
+          entanglement.agentId1 === agentId ? entanglement.agentId2 : entanglement.agentId1;
+        this.entanglementsByAgent.get(otherId)?.delete(entanglementId);
 
-    // 移除纠缠
-    entanglementsToRemove.forEach((entanglement) => {
-      this.entanglements.delete(entanglement.id);
-
-      // 更新相关agent的纠缠列表
-      if (entanglement.agentId1 === agentId) {
-        const agent2 = this.agents.get(entanglement.agentId2);
-        if (agent2) {
-          agent2.quantumEntanglement = agent2.quantumEntanglement.filter((id) => id !== agentId);
-        }
-      } else {
-        const agent1 = this.agents.get(entanglement.agentId1);
-        if (agent1) {
-          agent1.quantumEntanglement = agent1.quantumEntanglement.filter((id) => id !== agentId);
+        // 更新相关agent的纠缠列表
+        if (entanglement.agentId1 === agentId) {
+          const agent2 = this.agents.get(entanglement.agentId2);
+          if (agent2) {
+            agent2.quantumEntanglement = agent2.quantumEntanglement.filter((id) => id !== agentId);
+          }
+        } else {
+          const agent1 = this.agents.get(entanglement.agentId1);
+          if (agent1) {
+            agent1.quantumEntanglement = agent1.quantumEntanglement.filter((id) => id !== agentId);
+          }
         }
       }
-    });
+      this.entanglementsByAgent.delete(agentId);
+    }
 
     // 清除agent的纠缠列表
     const agent = this.agents.get(agentId);
@@ -308,9 +351,15 @@ export class AgentManager extends EventEmitter {
 
   getEntanglements(agentId?: string): QuantumEntanglement[] {
     if (agentId) {
-      return Array.from(this.entanglements.values()).filter(
-        (e) => e.agentId1 === agentId || e.agentId2 === agentId,
-      );
+      // 邻接集按创建序遍历 == 原全表插入序过滤结果
+      const ids = this.entanglementsByAgent.get(agentId);
+      if (!ids) return [];
+      const out: QuantumEntanglement[] = [];
+      for (const id of ids) {
+        const e = this.entanglements.get(id);
+        if (e) out.push(e);
+      }
+      return out;
     }
     return Array.from(this.entanglements.values());
   }

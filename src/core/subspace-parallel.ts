@@ -19,9 +19,20 @@
  * - 主线程在完成计数上等待全体，进入下一算符。同步退火循环里主线程
  *   Atomics.wait 合法（Node 允许主线程等待；Worker 各自有独立事件循环）。
  *
+ * ⚠️ 阻塞契约（08#34 显式声明）：本函数是同步 API——演化期间主线程
+ * 阻塞在 Atomics.wait 上，HTTP/WS 心跳、GC、immediate 队列全部停摆。
+ * 防护是双层时间预算：单 dispatch 预算 + 全程总预算（EVOLVE_TOTAL_BUDGET_MS），
+ * Worker 停摆时最迟在总预算内失败并回退串行，不会无限期挂死主线程。
+ * 彻底解除阻塞需要把求解管线 async 化（主线程 await），属公共 API
+ * 破坏性变更，见审计路线图 Wave 4。
+ *
  * 内存：态矢量/相位递推/纤维 order-runs 全部落在 SharedArrayBuffer 上，
  * 各 Worker 以视图零拷贝共享（order/runs 共 58MB @ 8×10，逐 Worker 复制
  * 不可行）。Worker 按次求解创建、用后即终，无跨调用状态。
+ *
+ * 所有权不变量（08#37 显式声明）：dispatch 超时后共享缓冲可能仍被
+ * Worker 写入中——本函数立即返回 null，所有 SAB 缓冲随调用栈废弃、
+ * 绝不复用给下一次求解（「每次新建」是所有权隔离的机制，不是巧合）。
  *
  * 失败语义：任何环节（创建/握手/分发超时）失败即终止全部 Worker 并返回
  * null，调用方回退串行路径——功能永不中断，只是变慢。
@@ -29,13 +40,21 @@
 
 import { Worker } from 'node:worker_threads';
 import { cpus } from 'node:os';
-import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel';
-import type { SubspaceModel } from './subspace-optimizer';
+import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel.js';
+import { QuantumEngineError } from '../utils/errors.js';
+import type { SubspaceModel } from './subspace-optimizer.js';
 
 /** 并行启用的最小维度（低于此值每步 9 次屏障的延迟支配收益，串行更快） */
 const PARALLEL_MIN_DIM = 1 << 19;
 /** Worker 数上限（浮点内核按物理核扩展，超线程与 E 核收益递减） */
 const MAX_WORKERS = 16;
+/**
+ * 演化全程总预算（毫秒）：Worker 停摆（调度饥饿/内核崩溃挂起）时，
+ * 主线程最迟在此预算内放弃并行、回退串行。典型演化 1350 次 dispatch
+ * × 实际数毫秒 ≈ 数秒；60s 上限为慢机大维度留足余量，同时把
+ * 「分钟级无界阻塞」收敛为有界失败。
+ */
+const EVOLVE_TOTAL_BUDGET_MS = 60_000;
 
 /** header（SharedArrayBuffer，64 字节）的字段布局 */
 const OP = 0; // 1=纤维混合 2=代价相位 3=关闭
@@ -63,14 +82,49 @@ const POISON = 6;
 const F64_BYTE_OFFSET = 32;
 const F64_B = 0; // Float64 视图：混合角 b
 
+/**
+ * 结构性失败负缓存：握手超时/Worker 中毒意味着环境本身坏掉（打包器改写
+ * Function.toString 序列化、SAB 语义异常等），不设置负缓存的话此后每次
+ * 调用都要先付 10s 握手超时才回退串行——记住失败，本进程内直接走串行。
+ * 与 QUANTUM_DISABLE_PARALLEL（用户/环境显式关闭）相互独立。
+ */
+let parallelStructurallyBroken = false;
+
 function parallelEnabled(): boolean {
-  return typeof Worker === 'function' && process.env.QUANTUM_DISABLE_PARALLEL !== '1';
+  return (
+    typeof Worker === 'function' &&
+    process.env.QUANTUM_DISABLE_PARALLEL !== '1' &&
+    !parallelStructurallyBroken
+  );
+}
+
+/**
+ * QUANTUM_WORKERS 的模块级一次解析（08#36）：热路径不再每次求解重读
+ * process.env——运行中改 env 曾可使同进程前后调用使用不同 W，
+ * 破坏「同进程内行为确定」的直觉。非法值（非数字/0/负数）在此收敛为
+ * null（回退自动决策），不会静默变成 NaN 个 Worker。
+ */
+const ENV_WORKERS: number | null = (() => {
+  const raw = process.env.QUANTUM_WORKERS;
+  if (raw === undefined) return null;
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v < 1) return null;
+  return Math.min(Math.floor(v), MAX_WORKERS);
+})();
+
+/** Worker 数统一决策（08#40）：可用核数（留一核给主线程）按上限裁剪，
+ * 再以调用方给出的规模下界（dim/fibers/组数）收紧、保底 2。
+ * 构建与演化路径此前各写一份，口径已收敛至此单点。 */
+function decideWorkerCount(scaleBound: number): number {
+  const usable = Math.max(1, cpus().length - 1);
+  return Math.max(2, Math.min(usable, MAX_WORKERS, scaleBound));
 }
 
 function workerCount(dim: number, fibers: number): number {
-  if (process.env.QUANTUM_WORKERS) return Math.max(1, +process.env.QUANTUM_WORKERS);
-  const usable = Math.max(1, cpus().length - 1);
-  return Math.max(2, Math.min(usable, MAX_WORKERS, dim, fibers));
+  // 显式指定时尊重用户值（含 W=1，仅受 MAX_WORKERS 上限约束）；
+  // 否则按演化规模自动决策——维度与纤维数都不能小于 W（否则 Worker 空转）
+  if (ENV_WORKERS !== null) return ENV_WORKERS;
+  return decideWorkerCount(Math.min(dim, fibers));
 }
 
 /**
@@ -78,7 +132,8 @@ function workerCount(dim: number, fibers: number): number {
  * 注意：Node 的 eval Worker 无 self 全局，消息入口用 parentPort
  * （此字符串在 Worker 内以 CommonJS 运行，require 可用）。
  */
-function workerSource(): string {
+/** 演化 Worker 源（导出供序列化自检测试使用） */
+export function workerSource(): string {
   return (
     "'use strict';\n" +
     // esbuild(tsx)会给含嵌套函数的内核注入模块级 __name 辅助调用；函数体
@@ -153,6 +208,32 @@ parentPort.on('message', function (m) {
   );
 }
 
+// ----------------------------------------------------------------------------
+// 序列化自检（08#33 的机制保证）
+// ----------------------------------------------------------------------------
+
+/**
+ * Worker 源完整性自检：序列化产物中的内核函数体必须与 live 内核的
+ * toString 逐字一致（打包器改写会先在这里暴露，而不是等到 10s 握手
+ * 超时 + 回退串行才显现）。由单元测试在 CI 中对每个 worker 变体调用。
+ */
+export function verifyWorkerSourceIntegrity(
+  source: string,
+  kernels: ReadonlyArray<{ name: string; fn: (...args: never[]) => unknown }>,
+): { ok: boolean; reason?: string } {
+  for (const { name, fn } of kernels) {
+    if (!source.includes(fn.toString())) {
+      return {
+        ok: false,
+        reason:
+          `kernel ${name} serialization mismatch: worker source does not contain the live ` +
+          'toString() output (bundler rewrite suspected)',
+      };
+    }
+  }
+  return { ok: true };
+}
+
 /**
  * 多线程绝热退火：返回末态振幅（SharedArrayBuffer 底座），失败返回 null
  * （调用方回退串行）。数值与串行路径逐位一致。
@@ -164,6 +245,20 @@ export function parallelAnnealEvolve(
   steps: number,
 ): { re: Float64Array; im: Float64Array } | null {
   if (!parallelEnabled()) return null;
+  // SAB 不可用的平台直接走串行：下面第一行就分配 SharedArrayBuffer，
+  // 抛出而不是回退会让调用方（annealSolveSubspace）整个失败
+  if (typeof SharedArrayBuffer !== 'function') return null;
+  // 混合器缓冲必须为 SAB 底座：禁用 SAB（QUANTUM_NO_SAB/QUANTUM_FORCE_AB）下串行构建的产物是普通
+  // ArrayBuffer，postMessage 会为每个 Worker 结构化克隆一份完整拷贝
+  // （大维度下 GB 级内存），零拷贝共享的设计前提被静默破坏
+  if (
+    !model.mixers.every(
+      (g) =>
+        g.order.buffer instanceof SharedArrayBuffer && g.runs.buffer instanceof SharedArrayBuffer,
+    )
+  ) {
+    return null;
+  }
   const dim = model.dimension;
   const totalFibers = model.mixers.reduce((acc, g) => acc + (g.runs.length >> 1), 0);
   if (dim < PARALLEL_MIN_DIM || totalFibers === 0) return null;
@@ -255,10 +350,18 @@ export function parallelAnnealEvolve(
     // 同步握手：等待全体 Worker 就绪并入栏（Worker 各自的事件循环独立运转）
     const readyDeadline = Date.now() + 10_000;
     while (Atomics.load(H, WAITING) < W) {
+      if (Date.now() > readyDeadline) {
+        // 结构性失败：Worker 根本没起来（序列化损坏/资源枯竭），负缓存之
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('worker handshake timeout');
+      }
       // poisoned 由 error/worker-fatal 回调闭包改写——流分析看不见闭包赋值，
-      // 此处的"恒假"是误报（见模块注释：阻塞等待期间事件无法送达恰恰依赖它兜底）
+      // 此处的"恒假"是误报（阻塞等待期间事件无法送达恰恰依赖它兜底）
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (poisoned || Date.now() > readyDeadline) throw new Error('worker handshake timeout');
+      if (poisoned) {
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('worker boot poisoned');
+      }
       Atomics.wait(H, WAITING, Atomics.load(H, WAITING), 50);
     }
 
@@ -269,9 +372,15 @@ export function parallelAnnealEvolve(
       Atomics.store(H, OP, op);
       Atomics.store(H, SEQ, ++seq);
       Atomics.notify(H, SEQ, Infinity);
-      const deadline = Date.now() + budgetMs;
+      // 单次预算同时受全程剩余预算约束：累计停摆由总预算兜底
+      const deadline = Date.now() + Math.min(budgetMs, evolveRemainingMs);
       while (Atomics.load(H, DONE) < W) {
-        if (Atomics.load(H, POISON) === 1) poisoned = true;
+        if (Atomics.load(H, POISON) === 1) {
+          // Worker 内核执行即崩（结构性：序列化产物坏）——负缓存，
+          // 否则每次 dispatch 重付整个握手+首dispatch的超时税
+          parallelStructurallyBroken = true;
+          poisoned = true;
+        }
         if (poisoned || Date.now() > deadline) {
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(
@@ -282,18 +391,25 @@ export function parallelAnnealEvolve(
         }
         Atomics.wait(H, DONE, Atomics.load(H, DONE), 50);
       }
+      evolveRemainingMs = evolveDeadline - Date.now();
       return true;
     };
 
-    // 与串行路径完全一致的演化循环（H(s) = −(1−s)ΣA + sC，−A 方向支路）
+    // 与串行路径完全一致的演化循环（H(s) = −(1−s)ΣA + sC，−A 方向支路）。
+    // 全程总预算（文件头「阻塞契约」）：典型演化 1350 次 dispatch × 实际
+    // 数毫秒 ≈ 数秒，60s 上限只会在 Worker 停摆时触发——超限即失败回退
+    // 串行，主线程阻塞时间由此获得硬上界。
     const dt = tau / steps;
     const stepBudget = Math.max(2_000, 30_000 / steps);
+    const evolveDeadline = Date.now() + EVOLVE_TOTAL_BUDGET_MS;
+    let evolveRemainingMs = EVOLVE_TOTAL_BUDGET_MS;
     for (let t = 1; t <= steps; t++) {
       const s = t / steps;
       for (let g = 0; g < model.mixers.length; g++) {
-        if (!dispatch(1, g, -(1 - s) * dt, stepBudget)) throw new Error('mixer dispatch failed');
+        if (!dispatch(1, g, -(1 - s) * dt, stepBudget))
+          throw new QuantumEngineError('mixer dispatch failed');
       }
-      if (!dispatch(2, 0, 0, stepBudget)) throw new Error('cost dispatch failed');
+      if (!dispatch(2, 0, 0, stepBudget)) throw new QuantumEngineError('cost dispatch failed');
     }
 
     Atomics.store(H, OP, 3);
@@ -325,7 +441,8 @@ export interface ParallelBuildResult {
 }
 
 /** 构建专用 Worker 源码：一次 op=4 出发，各 Worker 按 g % W 领组，单屏障收尾 */
-function buildWorkerSource(): string {
+/** 构建 Worker 源（导出供序列化自检测试使用） */
+export function buildWorkerSource(): string {
   return (
     "'use strict';\n" +
     "const __name = (target, value) => Object.defineProperty(target, 'name', " +
@@ -402,7 +519,8 @@ export function parallelBuildFiberGroups(params: {
   if (!(sortedKeys.buffer instanceof SharedArrayBuffer)) return null;
 
   const G = varies.length;
-  const W = Math.max(2, Math.min(Math.max(1, cpus().length - 1), MAX_WORKERS, G));
+  // 与演化路径共用同一 Worker 数决策单点（此前两套口径各自维护）
+  const W = decideWorkerCount(G);
 
   const header = new SharedArrayBuffer(64);
   const H = new Int32Array(header);
@@ -459,9 +577,16 @@ export function parallelBuildFiberGroups(params: {
     // 同步握手
     const readyDeadline = Date.now() + 10_000;
     while (Atomics.load(H, WAITING) < W) {
+      if (Date.now() > readyDeadline) {
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('build handshake timeout');
+      }
       // 同上：闭包改写的标志位，流分析误报
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (poisoned || Date.now() > readyDeadline) throw new Error('build handshake timeout');
+      if (poisoned) {
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('build worker boot poisoned');
+      }
       Atomics.wait(H, WAITING, Atomics.load(H, WAITING), 50);
     }
 
@@ -473,10 +598,11 @@ export function parallelBuildFiberGroups(params: {
     const deadline = Date.now() + 120_000;
     while (Atomics.load(H, DONE) < W) {
       if (Atomics.load(H, POISON) === 1) {
-        throw new Error('build worker poisoned');
+        parallelStructurallyBroken = true;
+        throw new QuantumEngineError('build worker poisoned');
       }
       if (Date.now() > deadline) {
-        throw new Error(
+        throw new QuantumEngineError(
           `build dispatch timeout (done=${Atomics.load(H, DONE)}/${W}, ` +
             `groupsDone=${Atomics.load(H, 7)})`,
         );
@@ -491,7 +617,9 @@ export function parallelBuildFiberGroups(params: {
       const orderLen = lens[2 * g]!;
       const runsLen = lens[2 * g + 1]!;
       if (orderLen !== dimension || runsLen % 2 !== 0 || runsLen > dimension) {
-        throw new Error(`build sanity failed g=${g} orderLen=${orderLen} runsLen=${runsLen}`);
+        throw new QuantumEngineError(
+          `build sanity failed g=${g} orderLen=${orderLen} runsLen=${runsLen}`,
+        );
       }
       results.push({
         order: new Int32Array(orderBufs[g]!),

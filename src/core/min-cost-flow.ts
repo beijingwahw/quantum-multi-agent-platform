@@ -8,7 +8,7 @@
  * 市场清算）共享，两处此前各持有一份逐行相同的实现。
  */
 
-import { MechanismError } from '../utils/errors';
+import { MechanismError } from '../utils/errors.js';
 
 interface InternalEdge {
   to: number;
@@ -81,8 +81,11 @@ export class MinCostFlow {
       } | null>(n).fill(null);
       dist[s] = 0;
       const queue: number[] = [s];
-      while (queue.length > 0) {
-        const u = queue.shift()!;
+      // 索引头出队：shift() 每次搬移整个数组（O(n)），SPFA 的每次最短路
+      // 相位因此从 O(V·E) 退化到 O(V²·E)；head 前移语义等价、均摊 O(1)
+      let head = 0;
+      while (head < queue.length) {
+        const u = queue[head++]!;
         inQueue[u] = false;
         const edges = this.node(u);
         for (let i = 0; i < edges.length; i++) {

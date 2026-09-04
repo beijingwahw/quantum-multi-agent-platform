@@ -8,7 +8,7 @@ D:\Data\Documents\deepseek harness\ds\
 │   ├── core/                          # 核心模块
 │   │   ├── agent-manager.ts           # Agent管理器
 │   │   ├── quantum-scheduler.ts       # 量子调度器
-│   │   └── quantum-bus.ts            # 量子通信总线
+
 │   │
 │   ├── tools/                         # 工具集成
 │   │   └── agent-tools.ts             # Agent工具
@@ -344,22 +344,22 @@ npm publish --registry https://your-registry.com
 
 ```bash
 # 方式1: npm安装
-dsh plugin add dsh-proactive-intelligence --profile web
+dsh plugin add dsh-proactive --profile web  # 本地插件名（scripts/dsh-proactive-install-to-dsh.mjs 一键装入）
 
 # 方式2: GitHub安装
-dsh plugin add github:your-org/dsh-proactive-intelligence --profile web
+dsh plugin add github:your-org/dsh-proactive --profile web
 
 # 方式3: 本地安装
-dsh plugin add ./dsh-proactive-intelligence-1.0.0.tgz --profile web
+dsh plugin add ./dsh-proactive-1.0.0.tgz --profile web
 ```
 
 ### 自动安装
 
 ```bash
 # 使用安装脚本（参考 dsh-proactive-install-to-dsh.mjs）
-cd dsh-proactive-intelligence
+cd dsh-proactive
 npm install
-node scripts/install-to-dsh.mjs
+node scripts/dsh-proactive-install-to-dsh.mjs
 ```
 
 ## 🎨 扩展点
@@ -422,7 +422,7 @@ class CustomEventListener {
 ### 完整配置示例
 
 ```typescript
-import { ProactiveIntelligencePlugin } from 'dsh-proactive-intelligence';
+import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
 
 const plugin = new ProactiveIntelligencePlugin({
   // 监控器配置
@@ -457,7 +457,7 @@ const plugin = new ProactiveIntelligencePlugin({
 });
 
 // 加载预设规则
-import { allPresetRules } from 'dsh-proactive-intelligence/rules';
+import { allPresetRules } from 'quantum-multi-agent-platform/dist/proactive-intelligence/rules.js';
 allPresetRules.forEach(rule => plugin.addRule(rule));
 
 // 启动插件

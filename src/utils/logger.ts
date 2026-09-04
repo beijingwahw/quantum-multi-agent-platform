@@ -30,25 +30,79 @@ export function getLogLevel(): LogLevel {
   );
 }
 
+/**
+ * 行前缀（Q7）：ISO 时间戳 + 级别 + 标签——生产可观测性的最小结构。
+ * QUANTUM_LOG_JSON=1 时输出单行 JSON（pino 式），供日志采集器解析；
+ * 默认保持人类可读格式（热路径开销考量：前缀拼接 <10ns 量级）。
+ */
+function emit(
+  stream: (line: string, ...rest: unknown[]) => void,
+  level: string,
+  tag: string,
+  args: unknown[],
+): void {
+  if (jsonMode) {
+    const record: Record<string, unknown> = {
+      time: new Date().toISOString(),
+      level,
+      tag,
+      msg: args.length === 1 ? args[0] : args,
+    };
+    stream(JSON.stringify(record));
+    return;
+  }
+  stream(`[${new Date().toISOString()}] [${level.toUpperCase()}] [${tag}]`, ...args);
+}
+
+const jsonMode = process.env.QUANTUM_LOG_JSON === '1';
+
 export function logDebug(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.debug) {
-    console.log(`[${tag}]`, ...args);
+    emit(
+      (line) => {
+        console.log(line);
+      },
+      'debug',
+      tag,
+      args,
+    );
   }
 }
 
 export function logInfo(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.info) {
-    console.log(`[${tag}]`, ...args);
+    emit(
+      (line) => {
+        console.log(line);
+      },
+      'info',
+      tag,
+      args,
+    );
   }
 }
 
 export function logWarn(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.warn) {
-    console.warn(`[${tag}]`, ...args);
+    emit(
+      (line) => {
+        console.warn(line);
+      },
+      'warn',
+      tag,
+      args,
+    );
   }
 }
 
 export function logError(tag: string, ...args: unknown[]): void {
   // 错误永远输出：silent 只应压制噪音，不应吞掉故障信号
-  console.error(`[${tag}]`, ...args);
+  emit(
+    (line) => {
+      console.error(line);
+    },
+    'error',
+    tag,
+    args,
+  );
 }

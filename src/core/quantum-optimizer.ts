@@ -35,18 +35,29 @@
  *   在经典侧完成（这是 QAOA 的本义：变分量子-经典混合算法）。
  */
 
-import { mulberry32 } from '../utils/rng';
-import { QuantumEngineError } from '../utils/errors';
+import { mulberry32 } from '../utils/rng.js';
+import { QuantumEngineError } from '../utils/errors.js';
 import {
   ComplexAmplitudes,
+  cvarExpectationOrdered,
+  cvarOrder,
   expectationValue,
   normalizedEnergies as normalizedEnergiesOf,
+  denormalizeExpectation,
   optimizeAnglesByCoordinateDescent,
+  optimizeAnglesByCoordinateDescentSeeded,
   resolveCommonSolverOptions,
   sampleBestIndexByShots,
   sampleIndexByProbabilities,
-} from './solver-common';
-import { FULLSPACE_ANNEAL_STEPS, FULLSPACE_ANNEAL_TAU, FULLSPACE_QUBIT_LIMIT } from './constants';
+  validateAnnealOptions,
+} from './solver-common.js';
+import {
+  BETA_BOUND,
+  FULLSPACE_ANNEAL_STEPS,
+  FULLSPACE_ANNEAL_TAU,
+  FULLSPACE_QUBIT_LIMIT,
+  GAMMA_BOUND,
+} from './constants.js';
 
 // ----------------------------------------------------------------------------
 // 类型定义
@@ -66,8 +77,11 @@ export interface AssignmentProblem {
   /** 资格掩码：true = 该 (任务, agent) 对不允许 */
   ineligible: boolean[][];
   /**
-   * 二次耦合（纠缠加成等）：键 = q1 * nqubits + q2（q1 < q2），
-   * 值 = 两比特同时为 1 时的福利加成 J（J>0 鼓励共同选中）。
+   * 二次耦合（纠缠加成等）：键 = lo * nqubits + hi（lo < hi，请经
+   * couplingKey() 构造——它归一化传序并拒绝对角键），值 = 两比特
+   * 同时为 1 时的福利加成 J（J>0 鼓励共同选中）。
+   * 对角键（q1 === q2）被四条能量路径按不同语义处理，一律禁止：
+   * 对角耦合请并入 weights（它是线性项）。
    */
   couplings: Map<number, number>;
   /** one-hot 违约罚系数 */
@@ -99,6 +113,22 @@ export interface QuantumSolverOptions {
   seed?: number;
   /** 输出 top-K 候选（默认 3） */
   topK?: number;
+  /**
+   * CVaR-QAOA 分位系数 α ∈ (0,1]（默认 1 = 经典均值目标，位级不变）。
+   * α<1 时 QAOA 角度优化以「最优 α 分位上的能量期望」为目标
+   * （Barkoutsos et al. 2020）——低层数下组合优化命中率的实证提升
+   * 显著。坍缩/报告仍按真实 Born 分布进行，只有变分目标改变。
+   */
+  cvarAlpha?: number;
+  /**
+   * 角度参数化（默认 'layer' 位级不变）。'multi' = ma-QAOA
+   * （Chandarana et al. 2020）：每个混合算子持有独立变分角
+   * （全空间逐量子比特 / 子空间逐纤维组），代价角仍逐层。
+   * 实现以 layer 最优角展开为种子 + 坐标下降单调不劣 ⇒
+   * 构造性保证 ma-QAOA ≥ QAOA（同一变分目标下）。
+   * 与 cvarAlpha 正交可组合。
+   */
+  angleMode?: 'layer' | 'multi';
 }
 
 export interface QuantumCandidate {
@@ -110,15 +140,19 @@ export interface QuantumCandidate {
   probability: number;
 }
 
-export interface QuantumSolution {
+/**
+ * 两套求解器解类型的共同基接口（08#32）：全空间 QuantumSolution 与
+ * 子空间 SubspaceSolution 字段大量重叠——门面层此前被迫双分支处理。
+ * 消费方按基接口编程，引擎特有字段（validMass/repaired 与
+ * optimalityRatio/dimension）留在各自扩展。
+ */
+export interface SolverSolution {
   engine: QuantumEngineKind;
   assignment: number[];
   welfare: number;
   energy: number;
   /** 所选分配的 Born 概率 */
   probability: number;
-  /** 全体合法分配上的概率质量（电路质量指标） */
-  validMass: number;
   /** 末态能量期望 ⟨E⟩（原始能量尺度） */
   expectation: number;
   /** QAOA 实际层数 / 退火步数 */
@@ -127,10 +161,15 @@ export interface QuantumSolution {
   angles: number[] | null;
   /** 角度优化中电路评估次数 */
   evaluations: number;
-  /** born 模式采样到非法解而触发的修复标记 */
-  repaired: boolean;
   /** 按 Born 概率排序的候选分配 */
   candidates: QuantumCandidate[];
+}
+
+export interface QuantumSolution extends SolverSolution {
+  /** 全体合法分配上的概率质量（电路质量指标） */
+  validMass: number;
+  /** born 模式采样到非法解而触发的修复标记 */
+  repaired: boolean;
 }
 
 /** 基态置位数（横场基态 |−⟩^{⊗n} 的相位符号） */
@@ -206,6 +245,32 @@ export class QuantumStateVector extends ComplexAmplitudes {
     }
   }
 
+  /**
+   * 逐量子比特混合角（ma-QAOA）：e^{-i Σ_j β_j X_j}。全部 β_j 相等时
+   * 与 applyMixer(β) 逐位一致（同循环序、同每对比特运算）——这是
+   * ma-QAOA 支配性种子的位级前提。
+   */
+  applyMixerAngles(betas: readonly number[]): void {
+    const { re, im, dim, nqubits } = this;
+    for (let j = 0; j < nqubits; j++) {
+      const c = Math.cos(betas[j]!);
+      const s = Math.sin(betas[j]!);
+      const mask = 1 << j;
+      for (let k = 0; k < dim; k++) {
+        if (k & mask) continue;
+        const p = k | mask;
+        const re0 = re[k]!,
+          im0 = im[k]!;
+        const re1 = re[p]!,
+          im1 = im[p]!;
+        re[k] = c * re0 + s * im1;
+        im[k] = c * im0 - s * re1;
+        re[p] = c * re1 + s * im0;
+        im[p] = c * im1 - s * re0;
+      }
+    }
+  }
+
   /** 各基态的 Born 概率与范数（继承自共享复振幅基座） */
 
   clone(): QuantumStateVector {
@@ -245,8 +310,37 @@ export function defaultPenalties(problem: AssignmentProblem): { oneHot: number; 
   return { oneHot: scale, capacity: scale };
 }
 
+/**
+ * 能量表按 problem 实例记忆（08#14）：O(2^nq·m·n) 的全量预计算在
+ * 同一 problem 重复求解（多种子/多引擎对照、基准）时曾照付全价。
+ *
+ * 冻结契约：problem 自首次 computeEnergies 起视为冻结——weights/
+ * couplings 的后续变更不会被发现。罚项在命中时做廉价一致性校验
+ * （两个标量），构建期「先算能量后补罚项」的调用序因此安全。
+ */
+const energiesMemo = new WeakMap<
+  AssignmentProblem,
+  { penalties: [number, number]; info: ProblemEnergies }
+>();
+
 /** 预计算全部基态能量（一次性 O(dim·任务数·agent数)，供对角演化复用） */
 export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
+  const cached = energiesMemo.get(problem);
+  if (
+    cached?.penalties[0] === problem.penaltyOneHot &&
+    cached.penalties[1] === problem.penaltyCapacity
+  ) {
+    return cached.info;
+  }
+  const info = computeEnergiesUncached(problem);
+  energiesMemo.set(problem, {
+    penalties: [problem.penaltyOneHot, problem.penaltyCapacity],
+    info,
+  });
+  return info;
+}
+
+function computeEnergiesUncached(problem: AssignmentProblem): ProblemEnergies {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const nqubits = nQubitsOf(problem);
@@ -307,9 +401,31 @@ export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
   return { energies, min, max, nqubits, dim };
 }
 
-/** 耦合键编码：q1 < q2 */
+/**
+ * 耦合键编码：归一化为 lo < hi 后编码（lo·nqubits + hi）。
+ *
+ * 契约（对角耦合禁令，3.4.1 疑点验证后的收口）：对角键（q1 === q2，
+ * 即「任务 t 选 agent a」与自身的耦合）在四条消费路径上语义分裂——
+ * computeEnergies 按 q1<q2 过滤排除、bruteForce 的 extra 循环只查询
+ * t2 < t 永不命中、welfareOf 计入一次、toIsing 并入线性项 c[q]——
+ * 同一问题在穷举/态矢量/Ising 导出上会给出不同能量语义，静默腐蚀
+ * 「精确最优对照」的可信度。对角耦合本质是线性项：请并入
+ * weights[t][a]，构造点直接拒绝。
+ *
+ * 顺序归一化：此前传入 q1 > q2 的调用方会得到一个被 computeEnergies
+ * 的 q1<q2 过滤静默丢弃的耦合（编码-解码不对称）；归一化后任意
+ * 传序都落同一键，bruteForce 手工构造的 lo·(m·n)+hi 查询保持一致。
+ */
 export function couplingKey(q1: number, q2: number, nqubits: number): number {
-  return q1 * nqubits + q2;
+  if (q1 === q2) {
+    throw new QuantumEngineError(
+      `Diagonal coupling (q=${q1}) is not allowed: fold it into weights (a diagonal J is a linear term); ` +
+        'couplings must connect two distinct qubits',
+    );
+  }
+  const lo = Math.min(q1, q2);
+  const hi = Math.max(q1, q2);
+  return lo * nqubits + hi;
 }
 
 /** 解码基态 → 分配（assignment[t] = agent 索引；违约记 -1） */
@@ -455,20 +571,114 @@ function expectationOf(state: QuantumStateVector, energies: Float64Array): numbe
   return expectationValue(state, energies);
 }
 
-/** 坐标下降角度优化（共享实现：全空间/子空间两引擎的同一变分循环） */
+/** 坐标下降角度优化（共享实现：全空间/子空间两引擎的同一变分循环）。
+ * cvarAlpha < 1 时变分目标换为 CVaR_α（最优 α 分位的能量期望），
+ * 预排序跨全部评估复用；α ≥ 1 保持均值目标原路径（默认位级不变）。 */
 function optimizeQaoaAngles(
   layers: number,
   nqubits: number,
   energies: Float64Array,
   restarts: number,
   rng: () => number,
+  cvarAlpha = 1,
 ): { angles: number[]; expectation: number; evaluations: number } {
+  if (cvarAlpha < 1) {
+    const order = cvarOrder(energies);
+    return optimizeAnglesByCoordinateDescent(
+      (angles) =>
+        cvarExpectationOrdered(
+          runQaoaCircuit(angles, layers, nqubits, energies).probabilities(),
+          energies,
+          order,
+          cvarAlpha,
+        ),
+      layers,
+      restarts,
+      rng,
+    );
+  }
   return optimizeAnglesByCoordinateDescent(
     (angles) => expectationOf(runQaoaCircuit(angles, layers, nqubits, energies), energies),
     layers,
     restarts,
     rng,
   );
+}
+
+/**
+ * ma-QAOA 角度布局：[γ_1..γ_p, β_{p,q}（层主序 × 量子比特）]。
+ * 全部 β_{p,·} 取 layer 角 β_p 时，multi 电路与 layer 电路产生
+ * 逐位相同的态（applyMixerAngles 与 applyMixer 同循环序同运算）。
+ */
+function expandToMultiAngles(layerAngles: number[], layers: number, nqubits: number): number[] {
+  const out: number[] = layerAngles.slice(0, layers);
+  for (let p = 0; p < layers; p++) {
+    const beta = layerAngles[layers + p]!;
+    for (let q = 0; q < nqubits; q++) out.push(beta);
+  }
+  return out;
+}
+
+function runQaoaCircuitMulti(
+  angles: number[],
+  layers: number,
+  nqubits: number,
+  energies: Float64Array,
+): QuantumStateVector {
+  const state = new QuantumStateVector(nqubits);
+  state.setUniformSuperposition();
+  const betas: number[] = new Array<number>(nqubits);
+  for (let p = 0; p < layers; p++) {
+    state.applyCostPhase(angles[p]!, energies);
+    for (let q = 0; q < nqubits; q++) betas[q] = angles[layers + p * nqubits + q]!;
+    state.applyMixerAngles(betas);
+  }
+  return state;
+}
+
+/**
+ * ma-QAOA 精修：以 layer 最优角的展开为种子做种子化坐标下降。
+ * 支配性 = 两个事实的复合：展开种子的评估值与 layer 最优逐位相同 +
+ * 坐标下降只接受严格改进 ⇒ 返回的变分值 ≤ layer 最优（同目标函数）。
+ */
+function refineQaoaAnglesMulti(
+  layers: number,
+  nqubits: number,
+  energies: Float64Array,
+  restarts: number,
+  rng: () => number,
+  cvarAlpha: number,
+  layerAngles: number[],
+  layerEvaluations: number,
+): { angles: number[]; expectation: number; evaluations: number } {
+  const seed = expandToMultiAngles(layerAngles, layers, nqubits);
+  const angleCount = layers + layers * nqubits;
+  const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
+    i < layers ? GAMMA_BOUND : BETA_BOUND,
+  );
+  const evaluate =
+    cvarAlpha < 1
+      ? (() => {
+          const order = cvarOrder(energies); // 预排序跨全部评估复用
+          return (angles: number[]): number =>
+            cvarExpectationOrdered(
+              runQaoaCircuitMulti(angles, layers, nqubits, energies).probabilities(),
+              energies,
+              order,
+              cvarAlpha,
+            );
+        })()
+      : (angles: number[]): number =>
+          expectationOf(runQaoaCircuitMulti(angles, layers, nqubits, energies), energies);
+  const result = optimizeAnglesByCoordinateDescentSeeded(
+    evaluate,
+    angleCount,
+    bounds,
+    restarts,
+    rng,
+    seed,
+  );
+  return { ...result, evaluations: result.evaluations + layerEvaluations };
 }
 
 // ----------------------------------------------------------------------------
@@ -514,20 +724,33 @@ function selectSolution(
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
 
-  // 合法基态集合、概率质量与最大概率合法基态（坍缩参照）
+  // 合法基态集合、概率质量与最大概率合法基态（坍缩参照）。
+  // validity 为全维度掩码（不限于 p>0 的态）：shots-best 的采样可能落到
+  // 零概率基态（r=0 且前导累计为 0 的角落），掩码必须与原逐次
+  // isValidAssignment(decode(k)) 谓词对所有 k 逐点等价，否则该角落
+  // 的接受判定会分叉。mask[k] 存的就是原谓词的布尔值——严格等价。
   let validMass = 0;
   let bestValidProb = 0;
   const validStates: number[] = [];
+  const validity = new Uint8Array(probs.length);
   for (let k = 0; k < probs.length; k++) {
     const p = probs[k]!;
     if (p <= 0) continue;
     const assignment = decodeAssignment(k, m, n);
     if (isValidAssignment(problem, assignment)) {
+      validity[k] = 1;
       validMass += p;
       validStates.push(k);
       if (p > bestValidProb) bestValidProb = p;
     }
   }
+  // 零概率基态的谓词值延迟补齐（仅当采样真正落到其上才需要）：
+  // 由 validityMask 闭包按需解码——热路径 p>0 部分已就绪，角落语义等价
+  const isValid = (k: number): boolean => {
+    if (validity[k] !== 0) return true;
+    if (probs[k]! > 0) return false; // p>0 且掩码未置位 → 已判非法
+    return isValidAssignment(problem, decodeAssignment(k, m, n));
+  };
 
   let chosenState = -1;
   let repaired = false;
@@ -536,13 +759,15 @@ function selectSolution(
     // 真随机坍缩：按 |ψ|² 采一次样（Born 规则的忠实实现）
     chosenState = sampleIndexByProbabilities(probs, rng);
   } else if (mode === 'shots-best' && validStates.length > 0) {
-    // 多次测量取最优：采样 shots 次在其中选能量最低的合法结果
+    // 多次测量取最优：采样 shots 次在其中选能量最低的合法结果。
+    // 有效性判定走掩码闭包：常规（p>0）情形 O(1) 字节读取，
+    // 不再对每个采样做 O(m·n) 解码+校验
     chosenState = sampleBestIndexByShots(
       probs,
       shots,
       rng,
       (k) => energiesInfo.energies[k]!,
-      (k) => isValidAssignment(problem, decodeAssignment(k, m, n)),
+      isValid,
     );
   }
 
@@ -674,30 +899,54 @@ export function qaoaSolve(
   problem: AssignmentProblem,
   options: QuantumSolverOptions = {},
 ): QuantumSolution {
-  const { layers, shots, restarts, select, seed, topK } = resolveCommonSolverOptions(
-    options,
-    'argmax-valid',
-  );
+  const { layers, shots, restarts, select, seed, topK, cvarAlpha, angleMode } =
+    resolveCommonSolverOptions(options, 'argmax-valid');
   const rng = mulberry32(seed);
 
   const energiesInfo = computeEnergies(problem);
-  const span = energiesInfo.max - energiesInfo.min;
   const normalized = normalizedEnergies(energiesInfo);
 
-  const { angles, expectation, evaluations } = optimizeQaoaAngles(
+  // layer 基线先行；multi 模式以基线最优角的展开为种子精修
+  //（支配性：种子在 multi 电路下的态与基线逐位相同 + 坐标下降单调不劣）
+  const layer = optimizeQaoaAngles(
     layers,
     energiesInfo.nqubits,
     normalized,
     restarts,
     rng,
+    cvarAlpha,
   );
-  const finalState = runQaoaCircuit(angles, layers, energiesInfo.nqubits, normalized);
+  const { angles, evaluations } =
+    angleMode === 'multi'
+      ? refineQaoaAnglesMulti(
+          layers,
+          energiesInfo.nqubits,
+          normalized,
+          restarts,
+          rng,
+          cvarAlpha,
+          layer.angles,
+          layer.evaluations,
+        )
+      : layer;
+  const finalState =
+    angleMode === 'multi'
+      ? runQaoaCircuitMulti(angles, layers, energiesInfo.nqubits, normalized)
+      : runQaoaCircuit(angles, layers, energiesInfo.nqubits, normalized);
   const probs = finalState.probabilities();
 
   const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);
 
+  // 报告口径恒为真实 ⟨E⟩：CVaR/ma 只改变"选哪组角度"，不改变末态的
+  // 物理读数（优化器返回值可能是 CVaR 或不再对应末态，一律以末态重算；
+  // layer+均值模式保持优化器返回值——与历史逐位一致）
+  const meanExpectation =
+    cvarAlpha < 1 || angleMode === 'multi'
+      ? expectationOf(finalState, normalized)
+      : layer.expectation;
+
   return assembleSolution('qaoa', problem, selection, {
-    expectation: expectation * span + energiesInfo.min,
+    expectation: denormalizeExpectation(meanExpectation, 1, energiesInfo.min, energiesInfo.max),
     layers,
     angles,
     evaluations,
@@ -710,11 +959,11 @@ export function annealSolve(
 ): QuantumSolution {
   const tau = options.anneal?.tau ?? FULLSPACE_ANNEAL_TAU;
   const steps = options.anneal?.steps ?? FULLSPACE_ANNEAL_STEPS;
+  validateAnnealOptions(tau, steps);
   const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'argmax-valid');
   const rng = mulberry32(seed);
 
   const energiesInfo = computeEnergies(problem);
-  const span = energiesInfo.max - energiesInfo.min;
   // 代价能量尺度取横场谱宽（≈2·nqubits）同量级：与 ΣX 公平竞争，
   // 过小则合法/非法态近乎简并（实测会把质量散在非法子空间上）
   const scale = 2 * energiesInfo.nqubits;
@@ -726,8 +975,9 @@ export function annealSolve(
 
   let expectation = 0;
   for (let k = 0; k < probs.length; k++) expectation += probs[k]! * normalized[k]!;
-  // normalized = ((E-min)/span)·scale：还原原始能量须除回 scale（与QAOA路径一致）
-  expectation = (expectation / scale) * span + energiesInfo.min;
+  // normalized = ((E-min)/span)·scale：还原原始能量经 denormalizeExpectation
+  // 单一实现（与 QAOA/子空间路径共享同一逆变换）
+  expectation = denormalizeExpectation(expectation, scale, energiesInfo.min, energiesInfo.max);
 
   return assembleSolution('annealing', problem, selection, {
     expectation,

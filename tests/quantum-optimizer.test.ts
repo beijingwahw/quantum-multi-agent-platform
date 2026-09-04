@@ -375,3 +375,23 @@ describe('QuantumScheduler 集成（叠加→演化→坍缩）', () => {
     assert.equal(noPending.assigned, 0);
   });
 });
+
+// ----------------------------------------------------------------------------
+// 耦合键契约（3.4.1 疑点验证后的收口）：对角键在四条能量路径上语义
+// 分裂（computeEnergies 排除 / bruteForce 不查询 / welfareOf 计入 /
+// toIsing 并入线性项），构造点必须拒绝；传序归一化防静默丢耦合
+// ----------------------------------------------------------------------------
+describe('couplingKey 契约', () => {
+  it('对角键（q1 === q2）被构造点拒绝', () => {
+    assert.throws(() => couplingKey(4, 4, 12), /Diagonal coupling/);
+  });
+
+  it('任意传序归一化为同一键（q1>q2 不再被静默丢弃）', () => {
+    assert.equal(couplingKey(3, 5, 10), couplingKey(5, 3, 10));
+    // 归一化键与 computeEnergies/welfareOf 的解码（q1<q2 过滤）一致
+    const key = couplingKey(5, 3, 10);
+    const q1 = Math.floor(key / 10);
+    const q2 = key % 10;
+    assert.ok(q1 < q2, '解码后必须满足 q1 < q2');
+  });
+});

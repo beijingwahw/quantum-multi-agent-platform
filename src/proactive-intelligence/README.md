@@ -172,7 +172,7 @@ interface Rule {
 
 ```typescript
 interface Condition {
-  type: 'event' | 'state' | 'time' | 'composite';
+  type: 'event' | 'state' | 'time';
   operator: 'equals' | 'notEquals' | 'contains' |
             'notContains' | 'greaterThan' | 'lessThan' |
             'between' | 'matches';
@@ -187,7 +187,7 @@ interface Condition {
 - **event**: 从事件数据中提取值
 - **state**: 从当前系统状态中提取值
 - **time**: 时间相关条件（小时、星期、工作时间等）
-- **composite**: 复合条件
+- （组合语义由 `conditions[]` + `logicalOperator` 链式表达，无独立条件类型）
 
 **运算符说明：**
 
