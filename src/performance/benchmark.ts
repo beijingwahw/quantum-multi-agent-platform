@@ -10,6 +10,8 @@ export interface BenchmarkResult {
     agentsRegistered: number;
     tasksSubmitted: number;
     tasksCompleted: number;
+    /** 测量窗口内完成的单位数（各基准自定义单位：任务/消息/调用） */
+    units: number;
     averageResponseTime: number;
     throughput: number;
     memoryUsage: number;
@@ -36,6 +38,11 @@ class QuantumBenchmark {
   constructor(config: DeepPartial<PlatformConfig> = {}) {
     // 基准测试默认压制热路径日志，排除日志I/O对吞吐测量的干扰
     this.platform = new QuantumMultiAgentPlatform({ logLevel: 'warn', ...config });
+  }
+
+  /** 暴露被测平台实例（测试注入故障用；运行语义由各基准方法保证） */
+  getPlatform(): QuantumMultiAgentPlatform {
+    return this.platform;
   }
 
   /**
@@ -81,6 +88,7 @@ class QuantumBenchmark {
       duration,
       metrics: {
         ...counts,
+        units,
         averageResponseTime: duration / Math.max(units, 1),
         throughput: units / (duration / 1000),
         memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024,
@@ -143,20 +151,38 @@ class QuantumBenchmark {
     const promises = [];
     for (let i = 0; i < count; i++) {
       const promise = new Promise<void>((resolve) => {
-        this.platform.submitTask({
-          name: `Benchmark Task ${i}`,
-          type: 'benchmark',
-          priority: i % 10 === 0 ? 'critical' : 'medium',
-          requirements: [
-            { type: 'capability', name: 'testing', weight: 0.8 },
-            { type: 'capability', name: 'benchmarking', weight: 0.6 },
-          ],
-        });
+        let taskId: string | undefined;
+        try {
+          const task = this.platform.submitTask({
+            name: `Benchmark Task ${i}`,
+            type: 'benchmark',
+            priority: i % 10 === 0 ? 'critical' : 'medium',
+            requirements: [
+              { type: 'capability', name: 'testing', weight: 0.8 },
+              { type: 'capability', name: 'benchmarking', weight: 0.6 },
+            ],
+          });
+          taskId = task.id;
+        } catch (error) {
+          // 同步提交失败就地记录并放行：让它在 Promise 执行器里逃逸会
+          // reject 整个 Promise.all，一次坏提交击穿整轮基准
+          errors.push(
+            `Task ${i} submit failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          resolve();
+          return;
+        }
 
-        // 模拟任务完成
+        // 模拟执行时长后走平台真实收尾路径：completedTasks 与平台
+        // completedTasks 指标同源（此前 setTimeout 假计数与平台状态脱节，
+        // 任务在平台上永远挂着 pending）
         setTimeout(
           () => {
-            completedTasks.push(i);
+            if (this.platform.completeTask(taskId, true)) {
+              completedTasks.push(i);
+            } else {
+              errors.push(`Task ${i} could not be completed (unknown or already terminal)`);
+            }
             resolve();
           },
           Math.random() * 1000 + 100,
@@ -195,16 +221,18 @@ class QuantumBenchmark {
     if (agents.length < 2) {
       errors.push('Need at least 2 agents for communication benchmark');
       return Promise.resolve(
-        this.buildResult(
-          'Communication',
-          started,
-          0,
-          {
-            agentsRegistered: agents.length,
-            tasksSubmitted: 0,
-            tasksCompleted: 0,
-          },
-          errors,
+        this.record(
+          this.buildResult(
+            'Communication',
+            started,
+            0,
+            {
+              agentsRegistered: agents.length,
+              tasksSubmitted: 0,
+              tasksCompleted: 0,
+            },
+            errors,
+          ),
         ),
       );
     }
@@ -446,8 +474,9 @@ class QuantumBenchmark {
       // 内存效率评分 (30%)
       const memoryScore = Math.max(0, 1 - result.metrics.memoryUsage / 100) * 30;
 
-      // 错误率评分 (30%)
-      const errorRate = result.errors.length / Math.max(result.metrics.tasksSubmitted, 1);
+      // 错误率评分 (30%)——分母是该基准实际尝试的单位数：
+      // tasksSubmitted 对通信/DSH 基准恒为 0，会把错误率放大成 1
+      const errorRate = result.errors.length / Math.max(result.metrics.units, 1);
       const errorScore = Math.max(0, 1 - errorRate) * 30;
 
       const testScore = throughputScore + memoryScore + errorScore;
@@ -463,7 +492,9 @@ class QuantumBenchmark {
   }
 }
 
-// 导出benchmark运行器
+// 导出benchmark运行器与类（类供测试注入故障/单方法运行）
+export { QuantumBenchmark };
+
 export async function runBenchmark(
   config?: DeepPartial<PlatformConfig>,
 ): Promise<BenchmarkResult[]> {

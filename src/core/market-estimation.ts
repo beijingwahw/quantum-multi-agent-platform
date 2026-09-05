@@ -140,28 +140,44 @@ export function recordSettlement(
 
 /** 结算历史环形窗口：滑动统计不需要无限历史，长运行防内存无界增长 */
 export class SettlementHistory {
-  private readonly entries: boolean[] = [];
+  // 真环形缓冲（01#12）：旧实现是线性数组 + splice(0, overflow)，满员后
+  // 每次结算都 O(cap) 搬移整窗（cap=10000 即每结算搬一万元素）——本仓
+  // min-cost-flow 的头注释批评过同型模式。物理槽位 Uint8Array（0/1），
+  // 逻辑下标 [0, size) 映射 (start + i) % cap，push 均摊 O(1)。
+  private readonly slots: Uint8Array;
   private readonly cap: number;
+  private start = 0;
+  private count = 0;
 
   constructor(cap = 10000) {
-    this.cap = cap;
+    this.cap = Math.max(1, cap);
+    this.slots = new Uint8Array(this.cap);
   }
 
   push(success: boolean): void {
-    this.entries.push(success);
-    if (this.entries.length > this.cap) {
-      this.entries.splice(0, this.entries.length - this.cap);
+    const tail = (this.start + this.count) % this.cap;
+    this.slots[tail] = success ? 1 : 0;
+    if (this.count < this.cap) {
+      this.count++;
+    } else {
+      // 满员：写穿最旧元素，窗口整体前移一格
+      this.start = (this.start + 1) % this.cap;
     }
   }
 
   /** [from, to) 窗口内的成功率（按结算顺序） */
   successRate(from: number, to: number): number {
-    const slice = this.entries.slice(from, to);
-    if (slice.length === 0) return 0;
-    return slice.filter(Boolean).length / slice.length;
+    const lo = Math.max(0, from);
+    const hi = Math.min(this.count, to);
+    if (lo >= hi) return 0;
+    let hits = 0;
+    for (let i = lo; i < hi; i++) {
+      hits += this.slots[(this.start + i) % this.cap]!;
+    }
+    return hits / (hi - lo);
   }
 
   get size(): number {
-    return this.entries.length;
+    return this.count;
   }
 }

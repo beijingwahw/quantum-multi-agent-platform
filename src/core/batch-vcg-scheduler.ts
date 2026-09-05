@@ -538,7 +538,10 @@ export class BatchVCGScheduler {
       scored.sort((a, b) => b.s - a.s || a.rt.spec.id.localeCompare(b.rt.spec.id));
       const winner = scored[0]!; // cands.length > 0 已在上方保证
       const second = scored[1];
-      const pay = Math.min(Math.max(winner.v - (second?.s ?? 0), 0), winner.v);
+      // 逐项 round9（01#17）：与精确 VCG 路径（payments[agentId] = round9(pay)）
+      // 同口径——聚合值 round9 不能代替逐项舍入，浮点累加误差会以未舍入
+      // 形态渗进 paymentShare 与 platformTake
+      const pay = round9(Math.min(Math.max(winner.v - (second?.s ?? 0), 0), winner.v));
       payments[winner.rt.spec.id] = (payments[winner.rt.spec.id] ?? 0) + pay;
       remaining.set(winner.rt.spec.id, remaining.get(winner.rt.spec.id)! - 1);
       assignments.push({
@@ -662,6 +665,10 @@ export class BatchVCGScheduler {
     opts: { budget?: number; affine?: { lambda?: number; mu?: number } } = {},
   ): { maxGain: number; bestMarkup: number; details: Array<{ markup: number; utility: number }> } {
     const savedLast = this.lastAllocation;
+    // taskSeq 是生产 ID 计数器（01#25）：measureMisportGain 的每轮 run()
+    // 都会 ++taskSeq，实验后不还原则对照实验之后的生产任务 ID 整体漂移
+    // ——「实验不留生产副作用」契约在 ID 序列上同样成立
+    const savedTaskSeq = this.taskSeq;
     const rt = this.agents.get(agentId);
     if (!rt) throw new MechanismError(`Unknown agent: ${agentId}`);
     const savedMarkup = rt.spec.bidMarkup;
@@ -703,6 +710,7 @@ export class BatchVCGScheduler {
       if (savedMarkup === undefined) delete rt.spec.bidMarkup;
       else rt.spec.bidMarkup = savedMarkup;
       this.lastAllocation = savedLast;
+      this.taskSeq = savedTaskSeq;
     }
     return { maxGain: round9(maxGain), bestMarkup, details };
   }

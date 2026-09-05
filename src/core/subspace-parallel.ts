@@ -75,6 +75,12 @@ const WAITING = 5;
  */
 const POISON = 6;
 /**
+ * 构建路径专属计数槽（08#38）：Worker 每完成一个纤维组的构建内核就
+ * 自增——主线程的超时诊断用它区分「全体慢」与「部分组卡死」
+ * （done=W 但 groupsDone< 总组数 ⇒ 尾部组悬挂）。
+ */
+const GROUPS_DONE = 7;
+/**
  * Float64 通道：字节偏移 32 起（i32 槽 8+），与控制字段完全不重叠。
  * 曾把 Float64 视图建在偏移 0——写混合角 b 时 double 位模式直接覆写
  * OP/GROUP 两个控制字，Worker 全体错乱（教训：同 SAB 多视图必须显式错开）。
@@ -637,7 +643,7 @@ parentPort.on('message', function (m) {
         const r = buildFiberGroupKernel(mm, nn, ineligible, sortedKeys, grp.vary, dim, grp.order, grp.runs);
         grp.lens[2 * g] = r.orderLen;
         grp.lens[2 * g + 1] = r.runsLen;
-        Atomics.add(H, 7, 1);
+        Atomics.add(H, ${GROUPS_DONE}, 1);
       }
     }
     Atomics.add(H, ${DONE}, 1);
@@ -693,7 +699,10 @@ export function parallelBuildFiberGroups(params: {
   const lensBuf = new SharedArrayBuffer(G * 2 * 4);
 
   const workers: Worker[] = [];
-  let poisoned = false;
+  // 可变持有者（08#39）：闭包改写 let 变量对类型流分析不可见，轮询处
+  // 的读取被判「恒 false」——引用对象属性读写没有这个盲区，不再需要
+  // eslint-disable 压制（与演化路径的 ctx.poisoned 同一类型化手法）
+  const poisoned = { value: false };
   const terminateAll = (): void => {
     for (const w of workers) w.terminate().catch(() => undefined);
   };
@@ -704,11 +713,11 @@ export function parallelBuildFiberGroups(params: {
       const w = new Worker(src, { eval: true });
       w.unref();
       w.on('error', () => {
-        poisoned = true;
+        poisoned.value = true;
       });
       w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
         if (msg.type === 'worker-fatal') {
-          poisoned = true;
+          poisoned.value = true;
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(`[parallel-build] worker ${msg.rank} fatal: ${msg.message}`);
           }
@@ -741,9 +750,7 @@ export function parallelBuildFiberGroups(params: {
         parallelStructurallyBroken = true;
         throw new QuantumEngineError('build handshake timeout');
       }
-      // 同上：闭包改写的标志位，流分析误报
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (poisoned) {
+      if (poisoned.value) {
         parallelStructurallyBroken = true;
         throw new QuantumEngineError('build worker boot poisoned');
       }
@@ -764,7 +771,7 @@ export function parallelBuildFiberGroups(params: {
       if (Date.now() > deadline) {
         throw new QuantumEngineError(
           `build dispatch timeout (done=${Atomics.load(H, DONE)}/${W}, ` +
-            `groupsDone=${Atomics.load(H, 7)})`,
+            `groupsDone=${Atomics.load(H, GROUPS_DONE)})`,
         );
       }
       Atomics.wait(H, DONE, Atomics.load(H, DONE), 50);

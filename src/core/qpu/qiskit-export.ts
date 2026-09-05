@@ -1,6 +1,15 @@
 /**
  * qiskit-export —— IBM 门型 QPU 的 QAOA 程序导出
  *
+ * ⚠ 跨语言双实现契约（Q5）：生成的 Python decode() 与本仓
+ * quantum-optimizer.ts 的 decodeAssignment + isValidAssignment 是同一
+ * 语义的两份手写实现——位串（小端）→ 分配或 None。两处已知且显式声明
+ * 的分歧：TS 侧 isValidAssignment 还检查 ineligible 资格掩码，Python
+ * decode 只查 one-hot + agent 不复用（资格判定留在 TS 侧，导出程序
+ * 的 valid-subspace mass 是该近似口径）。生成物内嵌 SELF_CHECK 自检
+ * 向量（由 TS 侧真值计算），tests/qpu-backend.test.ts 在 CI 中锚定
+ * 向量与 TS 实现逐条一致——两边任何一边漂移即红。
+ *
  * 生成可直接运行的 Qiskit Python 程序：调度问题的全空间 QAOA 电路
  * （含本仓库角度优化得到的 (γ, β)），提交本地 Aer 模拟或 IBM 真机
  * （替换为 qiskit_ibm_runtime 后端即可）。
@@ -14,7 +23,7 @@
  */
 
 import type { AssignmentProblem } from '../quantum-optimizer.js';
-import { toIsing, computeEnergies } from '../quantum-optimizer.js';
+import { toIsing, computeEnergies, decodeAssignment } from '../quantum-optimizer.js';
 import { QuantumEngineError } from '../../utils/errors.js';
 
 export interface QiskitExportOptions {
@@ -77,6 +86,35 @@ export function toQiskitProgram(
     .map((h, q) => [q, +(h * invSpan).toFixed(6)] as [number, number])
     .filter(([, h]) => h !== 0);
 
+  // 自检向量（Q5）：由 TS 真值（decodeAssignment + one-hot/不复用判定）
+  // 计算，嵌入生成物——Python 侧启动即断言，CI 侧由 qpu-backend 测试
+  // 回读锚定。覆盖四类形态：合法分配、one-hot 违约、空任务、agent 复用。
+  const selfCheck: Array<[number, number[] | null]> = [];
+  const bitsOf = (assignment: number[]): number =>
+    assignment.reduce((acc, a, t) => acc | (1 << (t * n + a)), 0);
+  const pythonDecodeSemantics = (bits: number): number[] | null => {
+    const decoded = decodeAssignment(bits, m, n);
+    const used = new Set<number>();
+    for (const a of decoded) {
+      if (a < 0 || used.has(a)) return null;
+      used.add(a);
+    }
+    return decoded;
+  };
+  const seen = new Set<number>();
+  const pushCase = (bits: number) => {
+    if (seen.has(bits)) return;
+    seen.add(bits);
+    selfCheck.push([bits, pythonDecodeSemantics(bits)]);
+  };
+  if (m >= 2 && n >= 2) {
+    pushCase(bitsOf([0, 1])); // 合法：错开分配
+    pushCase(bitsOf([0, 0])); // agent 复用
+    pushCase(0); // 空任务
+    pushCase((1 << 0) | (1 << 1)); // 任务 0 双置位（one-hot 违约）
+    if (n >= 3 && m >= 2) pushCase(bitsOf([2, 0])); // 合法：另一组错开
+  }
+
   return `# ============================================================
 # Quantum Multi-Agent Scheduler → Qiskit QAOA 程序（自动生成）
 # 问题: ${m} 任务 × ${n} agent，${nqubits} 量子比特（one-hot + 罚项编码）
@@ -113,6 +151,9 @@ def build_circuit():
     return qc
 
 def decode(bits):
+    # 跨语言双实现（Q5）：与 quantum-optimizer.ts 的 decodeAssignment +
+    # isValidAssignment（one-hot/不复用部分）语义一致——SELF_CHECK 向量
+    # 双侧锚定，改任意一边都必须同步另一边并重跑向量。
     """测量位串（小端）→ 分配；非法（违约罚）返回 None"""
     x = [(bits >> q) & 1 for q in range(NQ)]
     assignment, used = [], set()
@@ -127,7 +168,19 @@ def decode(bits):
         used.add(chosen)
     return assignment
 
+# TS 侧真值生成的自检向量：[bits, expected_assignment_or_None]
+SELF_CHECK = ${JSON.stringify(selfCheck)}
+
+def _run_self_check():
+    for bits, expected in SELF_CHECK:
+        got = decode(bits)
+        assert got == expected, (
+            f"decode({bits}) = {got}, expected {expected} -- "
+            "cross-language contract broken vs quantum-optimizer.ts"
+        )
+
 def main():
+    _run_self_check()
     qc = build_circuit()
     backend = AerSimulator()  # TODO(真机): qiskit_ibm_runtime QPU 后端
     shots = 2048

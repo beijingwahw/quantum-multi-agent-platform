@@ -115,6 +115,23 @@ export interface CompoundConfig {
    * 不影响分配、支付与结算的任何数值。
    */
   pendingBacklogWarnAt?: number;
+  /**
+   * 时钟注入（08#5）：仅服务 allocatedAt/积压滞留时长等可观测性时间戳，
+   * 绝不进入定价/分配/结算数值路径。测试注入虚拟时钟即可确定性断言
+   * TTL 与积压告警的时序行为，不必真睡。
+   */
+  now?: () => number;
+  /** 价值 EWMA 平滑系数（08#6：份额侧 shareAlpha 已配置化，价值侧对齐） */
+  valueAlpha?: number;
+  /** 校准观测 FIFO 封顶（08#7）：每能力/每 agent 历史的上限 */
+  observationCap?: number;
+  /**
+   * 校准 deviance 双门限（08#8）：已检出状态的保持门限与冷启动的
+   * 检出门限。缺省值经 20 seed × 150 批实证校准（见 calibrate 注释），
+   * 仅在重演同类实证时才应覆盖。
+   */
+  calibrateKeepDeviance?: number;
+  calibrateDetectDeviance?: number;
 }
 
 export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
@@ -129,6 +146,10 @@ export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   simBeta: 0,
   seed: 42,
   pendingBacklogWarnAt: 1000,
+  valueAlpha: 0.2,
+  observationCap: 2000,
+  calibrateKeepDeviance: 1.2,
+  calibrateDetectDeviance: 6,
 };
 
 export interface CompoundAssignment {
@@ -197,7 +218,10 @@ export interface CapabilityAdvice {
 
 function geometricSum(beta: number, T: number): number {
   if (beta < 1e-12) return T;
-  return (1 - Math.exp(-beta * T)) / (1 - Math.exp(-beta));
+  // expm1（08#9）：β 极小时 1−e^{−x} 两侧都逼近 x，分子分母 catastrophic
+  // cancellation 把 ~15 位有效数字抵消到个位数——S = expm1(−βT)/expm1(−β)
+  // 在整个 β 域保满精度（1e-12 早退仅护 β===0 的 0/0）
+  return Math.expm1(-beta * T) / Math.expm1(-beta);
 }
 
 /** L3：反超凭证劣势 δ 所需的最小孵化资本；不可行返回 null */
@@ -310,6 +334,20 @@ export class CompoundBrain extends EventEmitter {
     super();
     this.config = { ...DEFAULT_COMPOUND_CONFIG, ...config };
     this.rngSource = new Mulberry32(this.config.seed);
+  }
+
+  /** 统一时钟出口（08#5）：缺省墙钟，测试注入虚拟时钟 */
+  private now(): number {
+    return this.config.now ? this.config.now() : Date.now();
+  }
+
+  /**
+   * 生命周期收尾（08#10）：EventEmitter 的监听器引用链（外部分析器、
+   * 仪表盘、模拟驱动）会阻止整个 brain 被 GC——长期运行进程里反复
+   * 创建/丢弃 brain 的场景会累积泄漏。dispose 后实例不可再用于分配。
+   */
+  dispose(): void {
+    this.removeAllListeners();
   }
 
   // ---------- 注册与报价 ----------
@@ -661,7 +699,9 @@ export class CompoundBrain extends EventEmitter {
     const { best, llNull, mixture } = this.fitGrid(obs);
     const deviance = 2 * (best.ll - llNull);
     const wasDetected = cs.alphaHat > 0;
-    const threshold = wasDetected ? 1.2 : 6;
+    const threshold = wasDetected
+      ? (this.config.calibrateKeepDeviance ?? 1.2)
+      : (this.config.calibrateDetectDeviance ?? 6);
     if (deviance <= threshold) {
       cs.alphaHat = 0;
       cs.betaHat = 0;
@@ -722,13 +762,16 @@ export class CompoundBrain extends EventEmitter {
         if (!a.spec.capabilities.includes(c)) continue;
         const q = this.qHat(a, c, a.capital.get(c) ?? 0, memo);
         const g = cs ? this.growthValue(a, c, memo) : 0;
-        // 费用 = b − v·q̂ − g（福利的相反数）
-        const edge = mcf.addEdge(
-          taskBase + j,
-          agentBase + (agentIdx.get(a.spec.id) ?? 0),
-          1,
-          a.bid - task.value * q - g,
-        );
+        // 费用 = b − v·q̂ − g（福利的相反数）。索引缺位即不变量违例
+        // （08#4）：?? 0 静默回退会把该边算到 0 号 agent 头上——错账
+        // 无痕。直接抛错让调用方在注入点修复。
+        const idx = agentIdx.get(a.spec.id);
+        if (idx === undefined) {
+          throw new MechanismError(
+            `CompoundBrain.welfareOf: agent '${a.spec.id}' missing from index (internal invariant)`,
+          );
+        }
+        const edge = mcf.addEdge(taskBase + j, agentBase + idx, 1, a.bid - task.value * q - g);
         edges.push({ taskIdx: j, agentId: a.spec.id, edge, vQ: task.value * q, g });
       }
     }
@@ -757,7 +800,10 @@ export class CompoundBrain extends EventEmitter {
       const mean =
         tasks.filter((t) => t.capability === c).reduce((a, t) => a + t.value, 0) /
         tasks.filter((t) => t.capability === c).length;
-      cs.valueEwma = cs.valueEwma === null ? mean : 0.8 * cs.valueEwma + 0.2 * mean;
+      // 价值 EWMA 系数配置化（08#6）：0.8/0.2 硬编码与 shareAlpha 的
+      // 配置面不对称——两条 EWMA 同属「公开平滑量」语义
+      const alphaV = this.config.valueAlpha ?? 0.2;
+      cs.valueEwma = cs.valueEwma === null ? mean : (1 - alphaV) * cs.valueEwma + alphaV * mean;
     }
 
     // 完整求解（记忆表生命周期 = 本方法调用：pivot 重解共享同一批边估值）
@@ -816,7 +862,7 @@ export class CompoundBrain extends EventEmitter {
         kBefore: a.capital.get(task.capability) ?? 0,
         taskValue: task.value,
         trueCost: a.spec.trueCost,
-        allocatedAt: Date.now(),
+        allocatedAt: this.now(),
       });
       // vQ = V·q̂ 已在边上算好，直接取 q̂——除回 task.value 在 value=0 时
       // 产生 0/0=NaN 并渗入分配记录与下游比较
@@ -885,7 +931,7 @@ export class CompoundBrain extends EventEmitter {
   /** 最老在途条目的滞留毫秒数（空台账为 0） */
   private oldestPendingAgeMs(): number {
     if (this.pending.size === 0) return 0;
-    const now = Date.now();
+    const now = this.now();
     let oldest = Infinity;
     for (const p of this.pending.values()) {
       if (p.allocatedAt < oldest) oldest = p.allocatedAt;
@@ -931,12 +977,14 @@ export class CompoundBrain extends EventEmitter {
     cs.observations.push({ base: cred, k: p.kBefore, success });
     // 观测窗口封顶（FIFO）：校准是每结算一次的全网格重拟合，
     // 无界增长会使长运行系统每次结算的CPU成本线性恶化
-    const OBS_CAP = 2000;
-    if (cs.observations.length > OBS_CAP) {
-      cs.observations.splice(0, cs.observations.length - OBS_CAP);
-    }
-    if (hist.length > OBS_CAP) {
-      hist.splice(0, hist.length - OBS_CAP);
+    const OBS_CAP = this.config.observationCap ?? 2000;
+    if (OBS_CAP > 0) {
+      if (cs.observations.length > OBS_CAP) {
+        cs.observations.splice(0, cs.observations.length - OBS_CAP);
+      }
+      if (hist.length > OBS_CAP) {
+        hist.splice(0, hist.length - OBS_CAP);
+      }
     }
     this.calibrate(p.capability);
     // 台账出账押后到全部变更成功之后：中途异常（如 calibrate 抛错）时

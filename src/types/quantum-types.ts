@@ -56,9 +56,16 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface TaskRequirement {
+  /**
+   * 需求类别。本平台调度器只强制执行 'capability'（agent.capabilities
+   * 成员匹配，01#7 起 submitTask 对其余三类直接拒绝——静默忽略硬
+   * 约束比拒绝更危险）。'resource' | 'location' | 'quantum' 保留在
+   * 类型联合里供下游平台（例如带资源账本或位置感知的调度器）扩展，
+   * 本仓调度器遇到即抛 SchedulingError。
+   */
   type: 'capability' | 'resource' | 'location' | 'quantum';
   name: string;
-  /** 附加匹配值（resource/location/quantum 类需求使用；capability 可省略） */
+  /** 附加匹配值（扩展类需求使用；capability 可省略） */
   value?: unknown;
   weight: number;
 }

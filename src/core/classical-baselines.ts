@@ -19,7 +19,19 @@ import type { AssignmentProblem } from './quantum-optimizer.js';
 import { welfareOf } from './quantum-optimizer.js';
 import { InfeasibleProblemError, QuantumEngineError } from '../utils/errors.js';
 
-const BIG = 1e9;
+// 不可行格子的虚拟代价：从实际权重尺度推导（01#22）——固定 1e9 在
+// 权重尺度 ≥ 1e9/m 的实例下会被真实权重追平，不可行解静默伪装成
+// 最优。m·max|w|+1 保证「任一可行分配的总代价都严格低于任一含
+// 不可行格子的分配」在任意尺度下成立（m 行求和的上界即 m·max|w|）。
+const bigPenaltyFor = (weights: number[][]): number => {
+  let maxAbs = 0;
+  for (const row of weights)
+    for (const w of row) {
+      const a = Math.abs(w);
+      if (a > maxAbs) maxAbs = a;
+    }
+  return weights.length * maxAbs + 1;
+};
 
 /**
  * 匈牙利算法（最大化 Σ w）。基于 Jonker-Volgenant 风格的最小费用增广路：
@@ -36,6 +48,7 @@ export function hungarianAssignment(weights: number[][], ineligible: boolean[][]
   if (m > n) throw new InfeasibleProblemError('hungarianAssignment requires tasks <= agents');
 
   const cost: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  const BIG = bigPenaltyFor(weights);
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       cost[i]![j] = ineligible[i - 1]![j - 1]! ? BIG : -weights[i - 1]![j - 1]!;

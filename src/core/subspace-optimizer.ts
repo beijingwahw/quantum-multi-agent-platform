@@ -73,6 +73,8 @@ import {
   cvarExpectationOrdered,
   cvarOrder,
   expectationValue,
+  expectationValueInto,
+  throwIfAborted,
   minMaxOf,
   normalizedEnergies as normalizedEnergiesOf,
   denormalizeExpectation,
@@ -83,6 +85,7 @@ import {
   sampleIndexByProbabilities,
   validateAnnealOptions,
 } from './solver-common.js';
+import type { DescentOptions } from './solver-common.js';
 import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel.js';
 import {
   parallelAnnealEvolve,
@@ -91,11 +94,13 @@ import {
 } from './subspace-parallel.js';
 import {
   BETA_BOUND,
+  BORN_VALID_MASS_FLOOR,
   GAMMA_BOUND,
   SUBSPACE_ANNEAL_STEPS,
   SUBSPACE_ANNEAL_TAU,
   SUBSPACE_DIMENSION_CAP,
 } from './constants.js';
+import { logWarn } from '../utils/logger.js';
 
 // ----------------------------------------------------------------------------
 // 子空间模型
@@ -135,6 +140,13 @@ export interface SubspaceSolution extends SolverSolution {
    */
   optimalityRatio: number;
   dimension: number;
+  /**
+   * 末态 Born 总质量（08#27）：子空间全体基态构造性合法，故它不再像
+   * 全空间那样度量「合法占比」，而是幺正演化保范数的读数——正常电路
+   * |Σ|ψ|² − 1| ≪ 1e-9，显著偏离即数值发散的红旗。与全空间解的
+   * validMass 同名同报告语义（门面层/实验口径统一消费）。
+   */
+  validMass: number;
 }
 
 /** optimalityRatio 的非退化定义：正常域直接取比值；最优 ≤ 0 时比值语义
@@ -459,13 +471,17 @@ function optimizeSubspaceQaoaAngles(
   restarts: number,
   rng: () => number,
   cvarAlpha = 1,
+  descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
+  // scratch 概率缓冲（01#18）：与全空间引擎 optimizeQaoaAngles 同款——
+  // 每次评估一块 dim 维分配改为整求解单块复用，逐位结果不变
+  const scratch = new Float64Array(energies.length);
   if (cvarAlpha < 1) {
     const order = cvarOrder(energies);
     return optimizeAnglesByCoordinateDescent(
       (angles) =>
         cvarExpectationOrdered(
-          runSubspaceQaoaCircuit(angles, layers, model, energies).probabilities(),
+          runSubspaceQaoaCircuit(angles, layers, model, energies).probabilitiesInto(scratch),
           energies,
           order,
           cvarAlpha,
@@ -473,14 +489,16 @@ function optimizeSubspaceQaoaAngles(
       layers,
       restarts,
       rng,
+      descentOpts,
     );
   }
   return optimizeAnglesByCoordinateDescent(
     (angles) =>
-      expectationOfSubspace(runSubspaceQaoaCircuit(angles, layers, model, energies), energies),
+      expectationValueInto(runSubspaceQaoaCircuit(angles, layers, model, energies), energies),
     layers,
     restarts,
     rng,
+    descentOpts,
   );
 }
 
@@ -530,6 +548,7 @@ function refineSubspaceQaoaAnglesMulti(
   cvarAlpha: number,
   layerAngles: number[],
   layerEvaluations: number,
+  descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
   const G = model.mixers.length;
   const seed = expandToMultiAnglesSubspace(layerAngles, layers, G);
@@ -537,20 +556,24 @@ function refineSubspaceQaoaAnglesMulti(
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
   );
+  // scratch 复用（01#18）：multi 角度空间的评估次数更多，收益同上
+  const scratch = new Float64Array(energies.length);
   const evaluate =
     cvarAlpha < 1
       ? (() => {
           const order = cvarOrder(energies); // 预排序跨评估复用
           return (angles: number[]): number =>
             cvarExpectationOrdered(
-              runSubspaceQaoaCircuitMulti(angles, layers, model, energies).probabilities(),
+              runSubspaceQaoaCircuitMulti(angles, layers, model, energies).probabilitiesInto(
+                scratch,
+              ),
               energies,
               order,
               cvarAlpha,
             );
         })()
       : (angles: number[]): number =>
-          expectationOfSubspace(
+          expectationValueInto(
             runSubspaceQaoaCircuitMulti(angles, layers, model, energies),
             energies,
           );
@@ -561,6 +584,7 @@ function refineSubspaceQaoaAnglesMulti(
     restarts,
     rng,
     seed,
+    descentOpts,
   );
   return { ...result, evaluations: result.evaluations + layerEvaluations };
 }
@@ -573,9 +597,26 @@ function collapseSubspace(
   shots: number,
   rng: () => number,
   topK: number,
-): { assignment: number[]; probability: number; candidates: QuantumCandidate[] } {
+): {
+  assignment: number[];
+  probability: number;
+  candidates: QuantumCandidate[];
+  validMass: number;
+} {
   const { m, energies } = model;
   let chosen = -1;
+
+  // 幺正性护栏（08#27）：演化保范数，Σ|ψ|² 显著偏离 1 即数值发散——
+  // 此时 Born 概率的「置信度」语义已经破产，先暴露再继续（结果仍返回，
+  // 下游可用 validMass 判读，不静默吞掉发散）
+  let mass = 0;
+  for (const p of probs) mass += p;
+  if (Math.abs(mass - 1) > BORN_VALID_MASS_FLOOR) {
+    logWarn(
+      'SubspaceOptimizer',
+      `state norm drifted: Σ|ψ|² = ${mass.toExponential(6)} (unitarity violated)`,
+    );
+  }
 
   if (mode === 'born') {
     chosen = sampleIndexByProbabilities(probs, rng);
@@ -628,7 +669,7 @@ function collapseSubspace(
     return { assignment: a, welfare: -energies[s]!, energy: energies[s]!, probability: p };
   });
 
-  return { assignment, probability: probs[chosen]!, candidates };
+  return { assignment, probability: probs[chosen]!, candidates, validMass: mass };
 }
 
 function normalizedEnergies(model: SubspaceModel, scale: number): Float64Array {
@@ -640,13 +681,26 @@ export function qaoaSolveSubspace(
   model: SubspaceModel,
   options: QuantumSolverOptions = {},
 ): SubspaceSolution {
-  const { layers, shots, restarts, select, seed, topK, cvarAlpha, angleMode } =
+  const { layers, shots, restarts, select, seed, topK, cvarAlpha, angleMode, warmStart, signal } =
     resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
+  const descentOpts: DescentOptions = warmStart
+    ? { warmStart: true, ...(signal ? { signal } : {}) }
+    : signal
+      ? { signal }
+      : {};
 
   const energies = normalizedEnergies(model, 1);
   // layer 基线先行；multi 模式以基线最优角的展开为种子精修（支配性同全空间）
-  const layer = optimizeSubspaceQaoaAngles(layers, model, energies, restarts, rng, cvarAlpha);
+  const layer = optimizeSubspaceQaoaAngles(
+    layers,
+    model,
+    energies,
+    restarts,
+    rng,
+    cvarAlpha,
+    descentOpts,
+  );
   const { angles, evaluations } =
     angleMode === 'multi'
       ? refineSubspaceQaoaAnglesMulti(
@@ -658,6 +712,7 @@ export function qaoaSolveSubspace(
           cvarAlpha,
           layer.angles,
           layer.evaluations,
+          descentOpts,
         )
       : layer;
   const finalState =
@@ -684,6 +739,7 @@ export function qaoaSolveSubspace(
     assignment: collapse.assignment,
     welfare: solutionWelfare,
     energy: -solutionWelfare,
+    validMass: collapse.validMass,
     probability: collapse.probability,
     optimalityRatio: safeOptimalityRatio(solutionWelfare, model.optimalWelfare),
     expectation: rawExpectation,
@@ -746,18 +802,28 @@ export function annealSolveSubspace(
   const tau = options.anneal?.tau ?? SUBSPACE_ANNEAL_TAU;
   const steps = options.anneal?.steps ?? SUBSPACE_ANNEAL_STEPS;
   validateAnnealOptions(tau, steps);
-  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'shots-best');
+  const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
-  // 代价尺度与混合算符谱宽同量级：Σ_t A_t 的谱半径 ≈ Σ_t (k_max−1) ≤ m·(n−m)
+  // 代价尺度与混合算符谱宽同量级（08#28：上界估计，刻意保守）：
+  // Σ_t A_t 的谱半径 ≈ Σ_t (k_max−1)，按「最大纤维尺寸」放缩到
+  // m·(n−m)（或 n≤m 时的 C(m,2)）。保守方向是安全的——谱宽高估
+  // ⇒ 归一化能量更小 ⇒ 有效退火更慢，只会多付演化成本、不会发散；
+  // 换实际 fiber 结构（Σ_g(|vary_g|−1)）可收紧，但会平移全部退火
+  // 数值结果，须与黄金基准同步重校，列为 Wave 4 的破坏性变更。
   const spectralWidth =
     model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
   const energies = normalizedEnergies(model, 2 * spectralWidth);
 
+  // 相位边界的协作中止点（08#19）：并行演化内核在 Worker 内部不可打断
+  //（整树终止会留下不可判读的半算态），检查落在构建/演化分发之前——
+  // 中止请求在可预期的最早边界被观察，而非穿透整次求解
+  throwIfAborted(signal);
   // 大维度优先多线程确定性并行（失败自动回退串行，数值逐位一致）
   const evolved =
     parallelAnnealEvolve(model, energies, tau, steps) ??
     serialAnnealEvolve(model, energies, tau, steps);
+  throwIfAborted(signal);
   return finishAnnealSolution(model, energies, spectralWidth, evolved, {
     tau,
     steps,
@@ -784,6 +850,7 @@ export async function annealSolveSubspaceAsync(
   const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
+  // 谱宽上界口径与同步路径逐字相同（08#28 说明见同步路径注释）
   const spectralWidth =
     model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
   const energies = normalizedEnergies(model, 2 * spectralWidth);
@@ -835,6 +902,7 @@ function finishAnnealSolution(
     assignment: collapse.assignment,
     welfare,
     energy: -welfare,
+    validMass: collapse.validMass,
     probability: collapse.probability,
     optimalityRatio: safeOptimalityRatio(welfare, model.optimalWelfare),
     expectation: rawExpectation,

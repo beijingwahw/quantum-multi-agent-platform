@@ -8,7 +8,7 @@ import type {
 } from '../types/quantum-types.js';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logDebug, logInfo } from '../utils/logger.js';
+import { logDebug, logInfo, logWarn } from '../utils/logger.js';
 import { SchedulingError } from '../utils/errors.js';
 import { Mulberry32, DEFAULT_SEED } from '../utils/rng.js';
 import {
@@ -150,6 +150,13 @@ export interface QuantumSchedulerConfig {
     maxConcurrentTasks?: number;
     sweepInterval?: number;
     taskTimeout?: number;
+    /**
+     * 挂起任务 TTL（毫秒，默认关闭）。超时未获得调度的 pending 任务
+     * 以 { reason: 'pending_timeout' } 失败并级联下游——不可满足任务
+     * （能力无人具备、依赖链断裂）不再永久驻留内存与指标。默认关闭
+     * 以保留长依赖链的合法等待语义；配置即启用。
+     */
+    pendingTimeoutMs?: number;
     quantumAlgorithm?: QuantumAlgorithm;
     quantum?: QuantumEngineConfig;
     /**
@@ -272,6 +279,12 @@ export class QuantumScheduler extends EventEmitter {
 
   // Agent管理
   registerAgent(agent: Agent): void {
+    // 重复 ID 拒绝（01#14）：静默覆盖会留下旧能力索引残留（新能力集
+    // 不清理旧条目）与统计归零的半更新状态；本仓另两个调度器
+    // （growth/batch-vcg）同场景均 throw——三调度器口径对齐
+    if (this.agents.has(agent.id)) {
+      throw new SchedulingError(`Agent already registered: ${agent.id}`);
+    }
     this.agents.set(agent.id, agent);
     this.initializeQuantumState(agent);
     this.indexCapabilities(agent);
@@ -335,18 +348,35 @@ export class QuantumScheduler extends EventEmitter {
         throw new SchedulingError(`Unknown dependency '${depId}' for task '${task.name}'`);
       }
     }
-    // 依赖环检测（01#6）：A→B、B→A 会让两任务永久 pending——巡检
-    // 只回收 assigned/running 超时，pending 无出边，环一旦入表即泄漏。
-    // 提交期沿 dependencies 做受限 DFS：新任务可达自身 ⇔ 成环。
-    // O(依赖图边数)，依赖图与任务表同源，无需额外维护。
-    if (task.dependencies.length > 0 && this.wouldCreateDependencyCycle(task.name, task.dependencies)) {
+    // 需求契约诚实化（01#7）：类型层宣告了四类需求（capability/resource/
+    // location/quantum），调度器只实现 capability——其余三类此前静默
+    // 放行，等价于「要求 GPU 的任务被当作无约束调度」。实现不了的
+    // 约束就该在入口拒绝：调用方把 resource/location/quantum 写进
+    // requirements 是在表达硬约束，静默忽略比拒绝危险得多。
+    for (const req of task.requirements) {
+      if (req.type !== 'capability') {
+        throw new SchedulingError(
+          `Task '${task.name}' uses requirement type '${req.type}' ('${req.name}'), ` +
+            `which this scheduler does not enforce — it would be silently ignored. ` +
+            `Express hard constraints as 'capability' requirements or pre-filter candidates yourself.`,
+        );
+      }
+    }
+    // 依赖环检测（01#6）：环下任务永久 pending——巡检只回收
+    // assigned/running 超时，pending 无出边，环一旦入表即泄漏。
+    // 环的唯一现实注入通道是调用方持有 dependencies 数组引用事后
+    // 突变（下方防御拷贝已闭）；本检查兜住未来的依赖变更 API/旁路。
+    if (this.dependencyClosureHasCycle(task.dependencies)) {
       throw new SchedulingError(
-        `Task '${task.name}' would create a dependency cycle via [${task.dependencies.join(', ')}]`,
+        `Task '${task.name}' has a dependency cycle in [${task.dependencies.join(', ')}]`,
       );
     }
 
     const fullTask: Task = {
       ...task,
+      // 依赖数组防御拷贝（规则所有权同款契约）：{...task} 只浅拷，
+      // 调用方保留原数组引用——事后 push 反向边即注入 A↔B 环
+      dependencies: [...task.dependencies],
       id: randomUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -363,6 +393,10 @@ export class QuantumScheduler extends EventEmitter {
       ids.add(fullTask.id);
     }
     this.emit('task_submitted', fullTask);
+
+    // 巡检定时器随首个任务就位（此前首个分配成功才启动：只提交从不
+    // 分配的部署——挂起 TTL 与 assigned/running 超时都不会运行）
+    this.ensureSweepTimer();
 
     // 立即尝试调度（批量模式下攒起来等联合量子调度）
     if (this.config.scheduling?.autoSchedule !== false) {
@@ -775,6 +809,21 @@ export class QuantumScheduler extends EventEmitter {
       }
     }
 
+    // 1b) 挂起 TTL（01#5，默认关闭）：超时未调度的 pending 任务失败
+    // 出清（依赖下游级联），不可满足任务不再永久驻留。elapsed 从
+    // createdAt 起算——pending 任务没有 assignedAt，驻留期即排队期。
+    const pendingTimeoutMs = this.config.scheduling?.pendingTimeoutMs;
+    if (pendingTimeoutMs !== undefined && pendingTimeoutMs > 0) {
+      for (const task of this.tasks.values()) {
+        if (task.status === 'pending' && now - task.createdAt.getTime() > pendingTimeoutMs) {
+          this.completeTask(task.id, false, {
+            reason: 'pending_timeout',
+            elapsedMs: now - task.createdAt.getTime(),
+          });
+        }
+      }
+    }
+
     // 2) 保留清理：终结超过保留期的任务从内存移除（计数器指标保留历史总量）
     const retentionMs =
       this.config.performance?.retentionMs ??
@@ -1092,6 +1141,19 @@ export class QuantumScheduler extends EventEmitter {
 
     for (const chunk of chunks) {
       if (this.activeAssignments >= slots && maxConcurrent != null) break;
+      // 不变量兜底（01#3）：分块条件带 current.length > 0 前缀，
+      // 单任务×大空闲池（子空间引擎超维回退到这里的典型场景）产出的
+      // 单任务块仍可超 cap——引擎会在调度中段抛 QuantumEngineError。
+      // 超限块跳过本轮并告警（任务留 pending 等下一轮），调度循环
+      // 的契约是「不抛错的尽力而为」。
+      if (chunk.length * idlePool.length > qubitCap) {
+        logWarn(
+          'QuantumScheduler',
+          `Skipping batch chunk of ${chunk.length} task(s) over ${idlePool.length} idle agents: ` +
+            `${chunk.length * idlePool.length} qubits exceeds qubitCap=${qubitCap}`,
+        );
+        continue;
+      }
       const remainingSlots = maxConcurrent != null ? slots - this.activeAssignments : Infinity;
 
       const { problem, couplingCount, nqubits } = this.buildBatchProblem(chunk, idlePool);

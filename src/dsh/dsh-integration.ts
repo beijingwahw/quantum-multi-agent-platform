@@ -227,8 +227,8 @@ export class DSHIntegration extends EventEmitter {
       throw new ToolError(`Tool '${toolName}' not found`);
     }
 
-    // 验证参数
-    this.validateToolParameters(tool, parameters);
+    // 验证参数并规范化（校验声明类型、补默认值、丢弃未声明键）
+    const normalizedParams = this.validateAndNormalizeParameters(tool, parameters);
 
     try {
       // quantum agent → DSH agent 映射只在 agent 类工具上有意义
@@ -239,13 +239,13 @@ export class DSHIntegration extends EventEmitter {
       // 根据工具类型执行不同的调用方式
       switch (tool.category) {
         case 'filesystem':
-          return await this.executeFileSystemTool(tool, parameters);
+          return await this.executeFileSystemTool(tool, normalizedParams);
         case 'system':
-          return await this.executeSystemTool(tool, parameters);
+          return await this.executeSystemTool(tool, normalizedParams);
         case 'web':
-          return await this.executeWebTool(tool, parameters);
+          return await this.executeWebTool(tool, normalizedParams);
         case 'agent':
-          return await this.executeAgentTool(tool, parameters, mappedAgentId);
+          return await this.executeAgentTool(tool, normalizedParams, mappedAgentId);
         default:
           throw new ToolError(`Unknown tool category: ${tool.category}`);
       }
@@ -256,34 +256,45 @@ export class DSHIntegration extends EventEmitter {
   }
 
   // 参数按运行时真实形态（JSON 反序列化产物）以 unknown 接收并收窄——
-  // 类型标注不构成对 JS 调用方的约束
-  private validateToolParameters(
-    tool: DSHTool,
-    parameters: unknown,
-  ): asserts parameters is DSHToolParams {
+  // 类型标注不构成对 JS 调用方的约束。返回规范化新对象，不改写调用方输入：
+  // - 显式 undefined 与缺省同义（旧实现仅查键存在性，{path: undefined} 穿透
+  //   校验后 String(undefined) 造出字面量 "undefined" 文件名，属静默损坏）；
+  // - 声明 default 的可选参数在此补齐（default 字段此前是死元数据）；
+  // - 未声明键一律丢弃：执行器只读声明过的参数，多余键不允许夹带。
+  private validateAndNormalizeParameters(tool: DSHTool, parameters: unknown): DSHToolParams {
     if (typeof parameters !== 'object' || parameters === null) {
       throw new ToolError(`Parameters for tool '${tool.name}' must be an object`);
     }
-    tool.parameters.forEach((param) => {
-      const value: unknown = (parameters as Record<string, unknown>)[param.name];
-      if (param.required && !(param.name in parameters)) {
-        throw new ToolError(`Required parameter '${param.name}' missing for tool '${tool.name}'`);
+    const source = parameters as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    for (const param of tool.parameters) {
+      const value = source[param.name];
+      if (value === undefined) {
+        if (param.required) {
+          throw new ToolError(`Required parameter '${param.name}' missing for tool '${tool.name}'`);
+        }
+        if (param.default !== undefined) {
+          normalized[param.name] = param.default;
+        }
+        continue;
       }
-      // 存在即校验声明类型：String(obj) 会把任意对象变成 "[object Object]"
-      // 深入工具内部才失败，边界处干净拒绝并指名参数
-      if (value !== undefined && param.type === 'string' && typeof value !== 'string') {
+      // 存在即校验声明类型：String(obj) 会把任意对象变成 "[object Object]"，
+      // 与其在工具内部才失败，不如边界处干净拒绝并指名参数
+      if (param.type === 'string' && typeof value !== 'string') {
         throw new ToolError(
           `Parameter '${param.name}' of tool '${tool.name}' must be a string, ` +
             `got ${typeof value}`,
         );
       }
-      if (value !== undefined && param.type === 'boolean' && typeof value !== 'boolean') {
+      if (param.type === 'boolean' && typeof value !== 'boolean') {
         throw new ToolError(
           `Parameter '${param.name}' of tool '${tool.name}' must be a boolean, ` +
             `got ${typeof value}`,
         );
       }
-    });
+      normalized[param.name] = value;
+    }
+    return normalized;
   }
 
   private async executeFileSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
@@ -435,6 +446,13 @@ export class DSHIntegration extends EventEmitter {
 
   // 动态工具注册
   registerTool(tool: DSHTool): void {
+    // 重名静默覆盖与 agent 重复注册同罪（审计 01#14）：覆盖会撤掉运行中
+    // 工作流引用的工具语义。替换须显式 unregisterTool 后再注册。
+    if (this.tools.has(tool.name)) {
+      throw new ToolError(
+        `Tool '${tool.name}' is already registered (unregister it first to replace)`,
+      );
+    }
     this.tools.set(tool.name, tool);
     this.emit('tool_registered', tool);
   }
@@ -448,7 +466,37 @@ export class DSHIntegration extends EventEmitter {
   }
 
   // 工作流管理
+  /** 创建/更新时的结构校验：步骤非空、id 唯一、依赖指向存在的步骤、工具名非空。
+   *  环检测留在执行期（topologicalSort）——依赖成环是合法的存储态，
+   *  只是不允许执行（既有契约：创建成功、executeWorkflow 拒绝）。 */
+  private static validateWorkflowSteps(steps: DSHWorkflow['steps']): void {
+    if (steps.length === 0) {
+      throw new ToolError('Workflow must contain at least one step');
+    }
+    const ids = new Set<string>();
+    for (const step of steps) {
+      if (typeof step.id !== 'string' || step.id.length === 0) {
+        throw new ToolError('Workflow step id must be a non-empty string');
+      }
+      if (ids.has(step.id)) {
+        throw new ToolError(`Duplicate workflow step id '${step.id}'`);
+      }
+      ids.add(step.id);
+      if (typeof step.tool !== 'string' || step.tool.length === 0) {
+        throw new ToolError(`Step '${step.id}' must reference a non-empty tool name`);
+      }
+    }
+    for (const step of steps) {
+      for (const depId of step.dependsOn ?? []) {
+        if (!ids.has(depId)) {
+          throw new ToolError(`Workflow step '${step.id}' depends on unknown step '${depId}'`);
+        }
+      }
+    }
+  }
+
   createWorkflow(workflow: Omit<DSHWorkflow, 'id'>): DSHWorkflow {
+    DSHIntegration.validateWorkflowSteps(workflow.steps);
     const id = randomUUID();
     const fullWorkflow: DSHWorkflow = { ...workflow, id };
     this.workflows.set(id, fullWorkflow);
@@ -463,6 +511,9 @@ export class DSHIntegration extends EventEmitter {
     // id 不可经 updates 变更：否则 Map 键与对象自指脱钩（getWorkflow 双失配、
     // deleteWorkflow 发出错误的事件载荷）
     const { id: _ignored, ...rest } = updates;
+    if (rest.steps !== undefined) {
+      DSHIntegration.validateWorkflowSteps(rest.steps);
+    }
     const updatedWorkflow = { ...workflow, ...rest };
     this.workflows.set(id, updatedWorkflow);
     this.emit('workflow_updated', updatedWorkflow);

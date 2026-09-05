@@ -10,6 +10,20 @@
 
 import { MechanismError } from '../utils/errors.js';
 
+/**
+ * 松弛容差（01#21）：SPFA 边松弛仅在改善量超过该阈值时更新，吸收
+ * 「round9 舍入后的费用在 -1e-9 量级抖动」——设得比舍入噪声小会把
+ * 已舍入相等的路径反复翻转，设得比典型费用差大会吞掉真实的次优转移。
+ *
+ * 终止容差取其 1/1000：连续最短增广的停止条件是 t 的最短边际费用
+ * 非负（≥ -TERM_EPS）。两档差三个数量级是量纲耦合——松弛侧容忍的是
+ * 「边费用」的舍入噪声（~1e-9），终止侧判定的是「路费用」的符号，
+ * 必须远小于任何可能被有意构造的负费用路（权重经 round9 后非零
+ * 差异 ≥ 1e-9 × 边数），否则会把真实可改进的分配误判为最优。
+ */
+const RELAX_EPS = 1e-9;
+const TERM_EPS = 1e-12;
+
 interface InternalEdge {
   to: number;
   rev: number;
@@ -91,7 +105,7 @@ export class MinCostFlow {
         for (let i = 0; i < edges.length; i++) {
           const e = this.edge(u, i);
           const distU = dist[u]!;
-          if (e.cap > 0 && distU + e.cost < dist[e.to]! - 1e-9) {
+          if (e.cap > 0 && distU + e.cost < dist[e.to]! - RELAX_EPS) {
             dist[e.to] = distU + e.cost;
             prev[e.to] = { node: u, edgeIdx: i };
             if (!inQueue[e.to]) {
@@ -102,7 +116,7 @@ export class MinCostFlow {
         }
       }
       // 无增广路，或边际费用非负（再分配只会降福利）→ 停止
-      if (dist[t] === Infinity || dist[t]! >= -1e-12) break;
+      if (dist[t] === Infinity || dist[t]! >= -TERM_EPS) break;
       let aug = Infinity;
       for (let v = t; v !== s;) {
         const p = prev[v]!;

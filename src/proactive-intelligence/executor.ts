@@ -70,7 +70,10 @@ export class ActionExecutor extends EventEmitter {
       return reject('Action is blocked by policy');
     }
 
-    // 检查并发限制（与其余策略拒绝同口径：入史+独立事件，不留审计盲区）
+    // 检查并发限制（与其余策略拒绝同口径：入史+独立事件，不留审计盲区）。
+    // check-then-act 的原子性依赖单线程事件循环（02#20）：本方法同步段
+    // 从预检到 runningExecutions.set 之间无 await，JS 单线程保证无交错
+    // 窗口。若未来在此区间引入任何异步点，此处必须先改为原子取号。
     if (this.runningExecutions.size >= this.config.maxConcurrentActions) {
       return reject('Maximum concurrent actions reached');
     }
@@ -146,17 +149,26 @@ export class ActionExecutor extends EventEmitter {
 
     for (let attempt = 0; attempt <= retryPolicy.maxRetries; attempt++) {
       try {
-        // 创建超时Promise（race 结束后清理定时器，避免泄漏）
+        // 超时即真取消（02#18）：此前 Promise.race 只丢弃慢结果，底层
+        // 操作（子进程/句柄）继续在飞——一个超时的 command 动作会在
+        // 超时后继续吃 CPU/持有资源，重试叠加放大。AbortController 把
+        // 「放弃等待」翻译成「请求中止」，execute_command_argv 收到
+        // abort 后整树击杀子进程。
+        const abort = new AbortController();
         let timeoutHandle: NodeJS.Timeout | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => {
+            abort.abort();
             reject(new ToolError('Action timeout'));
           }, timeout);
         });
 
         try {
           // 执行动作
-          const result = await Promise.race([this.executeByType(action), timeoutPromise]);
+          const result = await Promise.race([
+            this.executeByType(action, abort.signal),
+            timeoutPromise,
+          ]);
           return result;
         } finally {
           clearTimeout(timeoutHandle);
@@ -185,11 +197,11 @@ export class ActionExecutor extends EventEmitter {
     throw lastError ?? new ToolError('Action failed');
   }
 
-  /** 根据类型执行动作 */
-  private async executeByType(action: Action): Promise<unknown> {
+  /** 根据类型执行动作（abortSignal：超时/取消时向下传播中止请求） */
+  private async executeByType(action: Action, abortSignal?: AbortSignal): Promise<unknown> {
     switch (action.type) {
       case 'command':
-        return this.executeCommand(action);
+        return this.executeCommand(action, abortSignal);
       case 'notification':
         return this.executeNotification(action);
       case 'workflow':
@@ -233,7 +245,7 @@ export class ActionExecutor extends EventEmitter {
    * 参数以 argv 数组直达（execute_command_argv）：拼回命令行字符串再分词
    * 会破坏含空白的参数边界（git commit -m "fix: X" 被拆成多个 argv）。
    */
-  private async executeCommand(action: Action): Promise<unknown> {
+  private async executeCommand(action: Action, abortSignal?: AbortSignal): Promise<unknown> {
     const { command, args } = action.parameters;
 
     if (typeof command !== 'string' || !command) {
@@ -243,7 +255,7 @@ export class ActionExecutor extends EventEmitter {
 
     this.emit('command_executing', { command, args: argList });
 
-    const output = await execute_command_argv(command, argList);
+    const output = await execute_command_argv(command, argList, undefined, abortSignal);
 
     return Promise.resolve({
       type: 'command',

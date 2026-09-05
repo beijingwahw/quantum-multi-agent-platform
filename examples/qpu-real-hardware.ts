@@ -12,6 +12,7 @@
  * 运行：npm run example:qpu
  */
 import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import {
   defaultPenalties,
@@ -143,7 +144,11 @@ async function main(): Promise<void> {
     const program = toQiskitProgram(problem, {
       ...(qaoa.angles ? { angles: qaoa.angles } : {}),
     });
-    writeFileSync('qaoa_schedule.py', program);
+    // 相对脚本自身目录落盘（06#9）：相对 CWD 写入会让「从仓库根运行
+    // npm run example:qpu」把生成物丢进根目录污染仓库；固定在示例旁，
+    // 无论从哪个 CWD 启动都落在同一处
+    const outPath = fileURLToPath(new URL('./qaoa_schedule.py', import.meta.url));
+    writeFileSync(outPath, program);
     console.log(`\n  2c. Qiskit 程序已导出: qaoa_schedule.py`);
     console.log(`      量子比特 15 · QAOA p=${qaoa.layers} · 训练角度已嵌入`);
     console.log(`      本地运行: pip install qiskit qiskit-aer && python qaoa_schedule.py`);

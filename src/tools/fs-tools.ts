@@ -61,8 +61,16 @@ async function resolveWithinSandbox(path: string): Promise<string> {
   return real;
 }
 
+// 读取上限与 system-tools 的 MAX_OUTPUT_BYTES 对齐：readFile 无界读入
+// 10GB 沙箱内文件会把整个进程拖进字符串内存
+const MAX_READ_BYTES = 10 * 1024 * 1024;
+
 export async function read_file(path: string): Promise<string> {
   const safePath = await resolveWithinSandbox(path);
+  const info = await stat(safePath).catch(() => null);
+  if (info && info.size > MAX_READ_BYTES) {
+    throw new ToolError(`File '${path}' exceeds the ${MAX_READ_BYTES} byte read limit`);
+  }
   try {
     return await readFile(safePath, 'utf-8');
   } catch (error) {

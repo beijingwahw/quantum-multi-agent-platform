@@ -28,8 +28,6 @@ import { StateError } from '../utils/errors.js';
 /** 插件配置：各组件配置透传；brain 为市场大脑（实例或调度器配置） */
 export interface ProactiveIntelligencePluginConfig {
   monitor?: StateMonitorConfig;
-  /** 决策引擎配置（当前未消费，预留扩展） */
-  engine?: Record<string, unknown>;
   executor?: Partial<PolicyConfig>;
   brain?: MarketBrain | Partial<GrowthSchedulerConfig>;
   /** 初始市场参与者（config.brain 存在时经 registerAgent 注册） */
@@ -85,7 +83,7 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     super();
 
     this.monitor = new StateMonitor(config.monitor);
-    this.engine = new DecisionEngine(config.engine);
+    this.engine = new DecisionEngine();
     this.executor = new ActionExecutor(config.executor);
 
     // 市场 Brain 判别：config.brain 可以是

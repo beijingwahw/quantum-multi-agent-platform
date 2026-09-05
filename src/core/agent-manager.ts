@@ -7,7 +7,8 @@ import type {
 } from '../types/quantum-types.js';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logInfo, logWarn } from '../utils/logger.js';
+import { performance } from 'node:perf_hooks';
+import { logError, logInfo, logWarn } from '../utils/logger.js';
 
 /** agent 负载超过该阈值判定为 overloaded（agent 状态语义的唯一权威定义） */
 export const AGENT_OVERLOAD_THRESHOLD = 80;
@@ -49,11 +50,38 @@ export class AgentManager extends EventEmitter {
   /** 规范对键（无序对 → 纠缠 id）：O(1) 查重替代 O(E) 线性找重 */
   private entanglementPairs = new Map<string, string>();
   private heartbeatIntervals = new Map<string, NodeJS.Timeout>();
+  /**
+   * 心跳的单调时钟旁账（08#45）：lastHeartbeat 是公开 Date 字段（Q4 有意
+   * 保留），但失联判定不能吃墙钟——NTP 跳变/手动改时会凭空制造或掩盖
+   * offline。performance.now() 单调且不受系统时钟调整影响；两条账在
+   * 同一处刷新，消费方（checkSystemHealth）只读旁账。
+   */
+  private lastBeatMonotonic = new Map<string, number>();
   private config: AgentManagerConfig;
 
   constructor(config: AgentManagerConfig = {}) {
     super();
     this.config = config;
+  }
+
+  /**
+   * 监听器异常隔离（08#41）：emit 是同步调用栈——一个坏监听器会把异常
+   * 上抛进管理器本体，让 registerAgent/createEntanglement 等核心操作
+   * 「半提交」（agent 已入表、调用方却拿到异常）。与 compound-brain
+   * 08#1 的修法同款：事件分发失败记日志，绝不动摇状态变更。
+   */
+  private guardedEmit(event: string, payload: unknown): void {
+    try {
+      this.emit(event, payload);
+    } catch (err) {
+      logError('AgentManager', `'${event}' listener failed (state change kept):`, err);
+    }
+  }
+
+  /** 心跳时戳双账同刷：公开 Date + 内部单调毫秒 */
+  private touchHeartbeat(agent: Agent): void {
+    agent.lastHeartbeat = new Date();
+    this.lastBeatMonotonic.set(agent.id, performance.now());
   }
 
   // Agent注册和管理
@@ -99,7 +127,7 @@ export class AgentManager extends EventEmitter {
       });
     }
 
-    this.emit('agent_registered', agent);
+    this.guardedEmit('agent_registered', agent);
     logInfo('AgentManager', `Agent registered: ${agent.name} (${agent.id})`);
 
     return agent;
@@ -111,12 +139,13 @@ export class AgentManager extends EventEmitter {
 
     // 停止心跳检测
     this.stopHeartbeat(agentId);
+    this.lastBeatMonotonic.delete(agentId);
 
     // 移除所有量子纠缠
     this.removeEntanglements(agentId);
 
     this.agents.delete(agentId);
-    this.emit('agent_unregistered', agent);
+    this.guardedEmit('agent_unregistered', agent);
     logInfo('AgentManager', `Agent unregistered: ${agent.name} (${agentId})`);
 
     return true;
@@ -130,9 +159,27 @@ export class AgentManager extends EventEmitter {
     // 原地合并：其余变更路径（setAgentState/increaseLoad/…）都原地变更，
     // 若此处替换为新对象，外部持有的 Agent 引用将永久冻结（分裂脑）
     Object.assign(agent, updates);
-    agent.lastHeartbeat = new Date();
 
-    this.emit('agent_updated', agent);
+    // 不变量收口（08#42）：Object.assign 此前可绕过 load/state 的全部
+    // 约束——写 load=95 留 state='idle'、写 state='idle' 留 load=95 都
+    // 会让 getAvailableAgents 与三处负载入口口径分裂。凡触及 load 或
+    // state 的更新，合并后统一重导出过载不变量：
+    //   非 offline 状态 ⇒ state === 'overloaded' ⟺ load > 阈值
+    // （offline 是显式失联语义，不由负载推导，heartbeat 恢复时另行收敛）
+    if (updates.load !== undefined) {
+      agent.load = Math.min(Math.max(agent.load, 0), 100);
+    }
+    if ((updates.load !== undefined || updates.state !== undefined) && agent.state !== 'offline') {
+      const shouldOverload = agent.load > AGENT_OVERLOAD_THRESHOLD;
+      if (shouldOverload && agent.state !== 'overloaded') {
+        agent.state = 'overloaded';
+      } else if (!shouldOverload && agent.state === 'overloaded') {
+        agent.state = 'idle';
+      }
+    }
+    this.touchHeartbeat(agent);
+
+    this.guardedEmit('agent_updated', agent);
     return true;
   }
 
@@ -143,10 +190,10 @@ export class AgentManager extends EventEmitter {
 
     const previousState = agent.state;
     agent.state = state;
-    agent.lastHeartbeat = new Date();
+    this.touchHeartbeat(agent);
     this.agents.set(agentId, agent);
 
-    this.emit('agent_state_changed', { agentId, previousState, newState: state });
+    this.guardedEmit('agent_state_changed', { agentId, previousState, newState: state });
     return true;
   }
 
@@ -155,7 +202,7 @@ export class AgentManager extends EventEmitter {
     if (!agent) return false;
 
     agent.load = Math.min(agent.load + increment, 100); // 最大负载100
-    agent.lastHeartbeat = new Date();
+    this.touchHeartbeat(agent);
     this.agents.set(agentId, agent);
 
     // 如果负载过高，可能需要调整状态
@@ -163,7 +210,7 @@ export class AgentManager extends EventEmitter {
       this.setAgentState(agentId, 'overloaded');
     }
 
-    this.emit('agent_load_changed', agent);
+    this.guardedEmit('agent_load_changed', agent);
     return true;
   }
 
@@ -172,7 +219,7 @@ export class AgentManager extends EventEmitter {
     if (!agent) return false;
 
     agent.load = Math.max(agent.load - decrement, 0);
-    agent.lastHeartbeat = new Date();
+    this.touchHeartbeat(agent);
     this.agents.set(agentId, agent);
 
     // 如果负载降低，可以恢复正常状态
@@ -180,7 +227,7 @@ export class AgentManager extends EventEmitter {
       this.setAgentState(agentId, 'idle');
     }
 
-    this.emit('agent_load_changed', agent);
+    this.guardedEmit('agent_load_changed', agent);
     return true;
   }
 
@@ -195,7 +242,7 @@ export class AgentManager extends EventEmitter {
         return;
       }
       if (agent.state !== 'offline') {
-        agent.lastHeartbeat = new Date();
+        this.touchHeartbeat(agent);
       }
     }, this.config.communication?.heartbeatInterval ?? 5000);
 
@@ -209,7 +256,7 @@ export class AgentManager extends EventEmitter {
   heartbeat(agentId: string): boolean {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
-    agent.lastHeartbeat = new Date();
+    this.touchHeartbeat(agent);
     if (agent.state === 'offline') {
       // 恢复存活但不得违反过载不变量：load > 阈值的 agent 是 overloaded
       // 而非 idle（否则 getAvailableAgents 会把过载 agent 当可用放行）
@@ -236,7 +283,13 @@ export class AgentManager extends EventEmitter {
     const agent1 = this.agents.get(agentId1);
     const agent2 = this.agents.get(agentId2);
 
-    if (!agent1 || !agent2) return false;
+    // 静默 false 是排障黑洞（08#41）：调用方拿不到「为何纠缠没建立」
+    // 的任何信号。保留 false 返回值（既有契约），补告警使失效可见。
+    if (!agent1 || !agent2) {
+      const missing = agent1 ? agentId2 : agent2 ? agentId1 : `${agentId1}&${agentId2}`;
+      logWarn('AgentManager', `createEntanglement: unknown agent '${missing}' — returning false`);
+      return false;
+    }
 
     // 检查是否已经存在纠缠（O(1) 对键查重）
     const pairKey = AgentManager.pairKey(agentId1, agentId2);
@@ -279,7 +332,7 @@ export class AgentManager extends EventEmitter {
       agent2.quantumEntanglement.push(agentId1);
     }
 
-    this.emit('entanglement_created', entanglement);
+    this.guardedEmit('entanglement_created', entanglement);
     logInfo('AgentManager', `Entanglement created between ${agent1.name} and ${agent2.name}`);
     return true;
   }
@@ -301,17 +354,11 @@ export class AgentManager extends EventEmitter {
           entanglement.agentId1 === agentId ? entanglement.agentId2 : entanglement.agentId1;
         this.entanglementsByAgent.get(otherId)?.delete(entanglementId);
 
-        // 更新相关agent的纠缠列表
-        if (entanglement.agentId1 === agentId) {
-          const agent2 = this.agents.get(entanglement.agentId2);
-          if (agent2) {
-            agent2.quantumEntanglement = agent2.quantumEntanglement.filter((id) => id !== agentId);
-          }
-        } else {
-          const agent1 = this.agents.get(entanglement.agentId1);
-          if (agent1) {
-            agent1.quantumEntanglement = agent1.quantumEntanglement.filter((id) => id !== agentId);
-          }
+        // 对端引用清理（08#46）：按「对端」而非按 1/2 分支书写——两分支
+        // 代码逐字相同只是主语不同，N-way 纠缠若引入会在此静默漏清一半
+        const other = this.agents.get(otherId);
+        if (other) {
+          other.quantumEntanglement = other.quantumEntanglement.filter((id) => id !== agentId);
         }
       }
       this.entanglementsByAgent.delete(agentId);
@@ -399,7 +446,12 @@ export class AgentManager extends EventEmitter {
 
   // 健康检查
   checkSystemHealth(): SystemHealthReport {
-    const now = new Date();
+    // 失联判定走单调旁账（08#45，见 lastBeatMonotonic 字段注释）：墙钟
+    // 在 NTP 跳变/手动调整时会凭空制造或掩盖 offline。单调毫秒对
+    // 「多久没心跳」才是忠实的度量。无旁账的 agent（理论上只有旁账
+    // 尚未初始化的窗口期）退回墙钟判定，保持行为连续。
+    const nowMono = performance.now();
+    const nowWall = Date.now();
     const agentsArray = Array.from(this.agents.values());
 
     // 失联阈值跟随心跳间隔（至少3个周期，下限30s）：配置了更长心跳间隔的
@@ -410,7 +462,12 @@ export class AgentManager extends EventEmitter {
     // 同一个agent可能同时离线且过载，只计一次异常，避免健康度为负
     const offlineIds = new Set(
       agentsArray
-        .filter((agent) => now.getTime() - agent.lastHeartbeat.getTime() > staleThresholdMs)
+        .filter((agent) => {
+          const mono = this.lastBeatMonotonic.get(agent.id);
+          const ageMs =
+            mono !== undefined ? nowMono - mono : nowWall - agent.lastHeartbeat.getTime();
+          return ageMs > staleThresholdMs;
+        })
         .map((agent) => agent.id),
     );
     const overloadedIds = new Set(
@@ -435,5 +492,6 @@ export class AgentManager extends EventEmitter {
       clearInterval(interval);
     }
     this.heartbeatIntervals.clear();
+    this.lastBeatMonotonic.clear();
   }
 }

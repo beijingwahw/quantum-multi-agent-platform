@@ -25,9 +25,10 @@ import { ToolError } from '../utils/errors.js';
  *    已经不存在任何 cmd 活跃元字符（" 与 % 被第 3 条规则禁止）。
  *    这修复了旧实现「按 POSIX 单引号语义解析、却把原文交回 cmd.exe」的
  *    跨平台引号错配（cmd 不认单引号，引号内的 & 仍会逃逸）。
- * 4. 解释器内联代码旗标拒绝——即便宿主把解释器加入白名单，`-e/--eval`
- *    类内联代码旗标仍然被无条件拒绝（见 INTERPRETER_EVAL_FLAGS）：
- *    白名单宿主预期的是 `node script.js`，而非 `node -e <任意代码>`。
+ * 4. 内联代码/配置注入旗标拒绝——即便宿主把解释器加入白名单，`-e/--eval`
+ *    类内联代码旗标仍然被无条件拒绝（见 INLINE_EXEC_FLAGS）：白名单宿主
+ *    预期的是 `node script.js`，而非 `node -e <任意代码>`；git 的 `-c`
+ *    同理（alias.`!<命令>` 等价于任意执行）。
  */
 
 export interface CommandPolicy {
@@ -64,11 +65,14 @@ const FORBIDDEN_TOKEN_CHARS = /["'`%]/;
 const CMD_SPECIALS = /[\s&|<>(){},^!;]/;
 
 /**
- * 解释器程序的内联代码旗标：即使宿主显式把解释器加入白名单，
- * 这些旗标仍被无条件拒绝——它们把「运行脚本文件」升级成「运行任意字符串」，
- * 是词法闸门无法审计的代码注入面。
+ * 能把「受控参数」升级成「任意代码执行」的旗标：即使宿主显式把程序加入
+ * 白名单，这些旗标仍被无条件拒绝。
+ * - 解释器的 -e/--eval/-c：直接运行任意字符串，词法闸门无法审计；
+ * - git 的 -c/--config：config 可定义 `alias.x = "!<shell 命令>"`、
+ *   core.pager/core.editor 等，等价于任意执行——argv 直 exec 绕不过它。
+ * `--eval=<code>` 的等号形式与裸旗标语义相同，一并拒绝。
  */
-const INTERPRETER_EVAL_FLAGS: Record<string, readonly string[]> = {
+const INLINE_EXEC_FLAGS: Record<string, readonly string[]> = {
   node: ['-e', '--eval', '-p', '--print', '-pe', '--experimental-repl'],
   deno: ['-e', '--eval'],
   bun: ['-e', '--eval'],
@@ -78,15 +82,16 @@ const INTERPRETER_EVAL_FLAGS: Record<string, readonly string[]> = {
   python3: ['-c', '--command'],
   perl: ['-e'],
   ruby: ['-e'],
+  git: ['-c', '--config'],
 };
 
 function validateEvalFlags(program: string, args: readonly string[]): void {
-  const banned = INTERPRETER_EVAL_FLAGS[program.toLowerCase()];
+  const banned = INLINE_EXEC_FLAGS[program.toLowerCase()];
   if (!banned) return;
   for (const arg of args) {
-    if (banned.includes(arg)) {
+    if (banned.some((flag) => arg === flag || arg.startsWith(flag + '='))) {
       throw new ToolError(
-        `Inline-code flag '${arg}' is not allowed for interpreter '${program}' ` +
+        `Inline-code flag '${arg}' is not allowed for program '${program}' ` +
           `(it bypasses all command-line auditing). Put the code in a script file instead.`,
       );
     }
@@ -220,7 +225,12 @@ function killProcessTree(pid: number): void {
   });
 }
 
-function runProcess(program: string, args: string[], cwd?: string): Promise<ProcessResult> {
+function runProcess(
+  program: string,
+  args: string[],
+  cwd?: string,
+  abortSignal?: AbortSignal,
+): Promise<ProcessResult> {
   return new Promise<ProcessResult>((resolvePromise, rejectPromise) => {
     let command = program;
     let spawnArgs: string[] = [...args];
@@ -245,6 +255,13 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
       // verbatim 模式下命令行原样直达 cmd.exe，引号只来自 quoteForCmd。
       windowsVerbatimArguments: process.platform === 'win32',
     });
+
+    // 工具调用语义下无人写 stdin：显式关闭，防止读取 stdin 的程序
+    // 一直挂到超时（默认 stdio 三管道，stdin 管道保持打开）
+    child.stdin.on('error', () => {
+      /* EPIPE 等写入侧错误由 close 事件统一收尾 */
+    });
+    child.stdin.end();
 
     let settled = false;
     const chunks: Buffer[] = [];
@@ -283,6 +300,25 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
       rejectPromise(new Error(`Command timed out after ${policy.timeoutMs}ms`));
     }, policy.timeoutMs);
 
+    // 外部取消（02#18）：调用方（executor 的动作超时）经 AbortSignal
+    // 请求中止——整树击杀与内部超时同一终止路径，race 返回后子进程
+    // 不再滞留在飞。信号已触发时立即中止（监听器注册前的窗口）。
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      killProcessTreeOrSignal(child);
+      rejectPromise(
+        abortSignal?.reason instanceof Error
+          ? abortSignal.reason
+          : new Error('Command aborted by caller'),
+      );
+    };
+    if (abortSignal) {
+      if (abortSignal.aborted) onAbort();
+      else abortSignal.addEventListener('abort', onAbort, { once: true });
+    }
+
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
@@ -291,6 +327,9 @@ function runProcess(program: string, args: string[], cwd?: string): Promise<Proc
     });
     child.on('close', (code, signal) => {
       clearTimeout(timer);
+      // 正常收尾时摘除中止监听：abortSignal 常由调用方长期持有（executor
+      // 逐动作创建例外，但契约上不承诺），挂着的监听器会拉长 child 生存期
+      abortSignal?.removeEventListener('abort', onAbort);
       if (settled) return;
       settled = true;
       const stdout = Buffer.concat(chunks).toString('utf8');
@@ -326,6 +365,7 @@ export async function execute_command_argv(
   program: string,
   args: readonly string[],
   workdir?: string,
+  abortSignal?: AbortSignal,
 ): Promise<string> {
   if (typeof program !== 'string' || program.length === 0) {
     throw new ToolError('Command program must be a non-empty string');
@@ -343,7 +383,7 @@ export async function execute_command_argv(
 
   try {
     const { cwd } = await validateWorkdir(workdir);
-    const { stdout, stderr } = await runProcess(program, argList, cwd);
+    const { stdout, stderr } = await runProcess(program, argList, cwd, abortSignal);
 
     if (stderr) {
       logWarn('SystemTools', `Command stderr: ${stderr}`);
@@ -357,7 +397,11 @@ export async function execute_command_argv(
   }
 }
 
-export async function execute_command(command: string, workdir?: string): Promise<string> {
+export async function execute_command(
+  command: string,
+  workdir?: string,
+  abortSignal?: AbortSignal,
+): Promise<string> {
   if (typeof command !== 'string' || command.trim().length === 0) {
     throw new ToolError('Command must be a non-empty string');
   }
@@ -365,7 +409,7 @@ export async function execute_command(command: string, workdir?: string): Promis
   const tokens = tokenizeCommand(command.trim());
   if (tokens.length === 0) throw new ToolError('Command must contain a program name');
 
-  return execute_command_argv(tokens[0]!, tokens.slice(1), workdir);
+  return execute_command_argv(tokens[0]!, tokens.slice(1), workdir, abortSignal);
 }
 
 /** 仅供测试/工具链复位默认策略 */

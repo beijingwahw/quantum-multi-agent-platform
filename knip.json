@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip-json-schema@5.json",
   "entry": [
+    "src/index.ts",
     "src/proactive-intelligence/index.ts",
     "examples/*.ts",
     "examples/*.js",

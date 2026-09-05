@@ -299,6 +299,11 @@ npm run example:qpu     # 真 QPU 入口（自动检测 DWAVE_API_TOKEN）| real
 npm run dev             # 启动平台 | start the platform (WS :8080)
 ```
 
+> 端口口径（06#6）：架构图与 `npm run dev` 的 :8080 是**平台默认端口**；
+> 示例刻意错开（basic=8081、advanced=8083），为的是示例可与运行中的
+> dev 平台并存不打架。两套端口都是配置项，不是硬编码约定。
+```
+
 ### 批量联合量子调度 | Joint Batch Quantum Scheduling
 
 ```typescript

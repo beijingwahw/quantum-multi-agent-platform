@@ -494,8 +494,8 @@ export class QuantumBus extends EventEmitter {
       ) {
         logWarn(
           'QuantumBus',
-          `Connection ${connectionId} (agent '${connection.agentId}') spoofed ` +
-            `sourceAgentId '${message.sourceAgentId}' — rejected`,
+          `Connection ${connectionId} (agent '${sanitizeForLog(connection.agentId)}') spoofed ` +
+            `sourceAgentId '${sanitizeForLog(message.sourceAgentId)}' — rejected`,
         );
         return;
       }
@@ -506,7 +506,14 @@ export class QuantumBus extends EventEmitter {
   private processMessage(message: QuantumMessage): void {
     // 验证消息格式
     if (!this.validateMessage(message)) {
-      logWarn('QuantumBus', 'Invalid message format:', message);
+      // 结构化消毒（F10）：畸形消息体逐字段进日志会放大攻击面——
+      // 对端可控字段经 sanitizeForLog，且不整体倾倒原始对象
+      logWarn(
+        'QuantumBus',
+        `Invalid message format (id=${sanitizeForLog(message.id)} ` +
+          `source=${sanitizeForLog(message.sourceAgentId)} ` +
+          `type=${sanitizeForLog(message.type)})`,
+      );
       return;
     }
 

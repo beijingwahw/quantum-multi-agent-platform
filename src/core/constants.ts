@@ -43,6 +43,15 @@ export const ANGLE_STEP_INITIAL = 0.3;
 export const ANGLE_STEP_MIN = 1e-3;
 export const ANGLE_IMPROVEMENT_EPS = 1e-12;
 export const ANGLE_STEP_SHRINK = 0.5;
+
+/**
+ * born 坍缩的合法质量下限（08#18/08#27）：末态落在合法分配上的 Born
+ * 质量低于该值时（罚参数失效/演化发散的病态电路），单次 Born 采样几乎
+ * 必然采到非法态、随即被修复逻辑改写成「伪 Born」结果——与其伪造一次
+ * 随机坍缩，不如显式走 argmax-valid 兜底并把漂移暴露给日志。
+ * 子空间引擎全体基态合法，同一常数充当幺正性漂移的护栏阈值。
+ */
+export const BORN_VALID_MASS_FLOOR = 1e-6;
 /** 坐标下降角度边界：γ ∈ [0, π]，β ∈ [0, π/2] */
 export const GAMMA_BOUND = Math.PI;
 export const BETA_BOUND = Math.PI / 2;

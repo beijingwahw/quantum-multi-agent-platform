@@ -95,7 +95,10 @@ export class DecisionEngine extends EventEmitter {
     rulesTriggered: {},
   };
 
-  constructor(_config: Record<string, unknown> = {}) {
+  // 无构造配置（02#7）：引擎的全部行为参数都活在规则本身（阈值/窗口/
+  // 重试策略），不存在引擎级旋钮——曾经保留的 _config 参数承诺了不
+  // 存在的可配置性，是签名层面的谎言，删除而非实现假配置。
+  constructor() {
     super();
   }
 
@@ -154,7 +157,14 @@ export class DecisionEngine extends EventEmitter {
     return true;
   }
 
-  /** 做决策 */
+  /**
+   * 做决策。
+   *
+   * 返回 Promise 是刻意的接口预留而非实现缺陷（02#8）：调用方（插件
+   * 主循环）以 await 消费，未来执行链路异步化（如决策期引入异步特征
+   * 提取）时签名不必破坏性变更。同步内核被 Promise.resolve 包装的
+   * 「半异步」成本是一次微任务跳转，在此显式声明以正名。
+   */
   makeDecision(context: DecisionContext): Promise<Map<string, Action[]>> {
     const startTime = Date.now();
 

@@ -4,7 +4,6 @@ import { AgentManager } from './core/agent-manager.js';
 import { QuantumBus } from './communication/quantum-bus.js';
 import { DSHIntegration } from './dsh/dsh-integration.js';
 import { EventEmitter } from 'events';
-import { pathToFileURL } from 'url';
 import type { LogLevel } from './utils/logger.js';
 import { setLogLevel, logInfo, logWarn, logError } from './utils/logger.js';
 import { ConfigurationError } from './utils/errors.js';
@@ -626,7 +625,11 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
   }
 }
 
-// 导出主要类和接口
+// 导出主要类和接口。
+// 桶文件决策（08#52）：单一根出口是刻意设计——本库的唯一重依赖是 ws
+//（通信层），其余域零外部依赖，ESM 按需 tree-shaking 已足够；子路径
+// 分桶（./core、./qpu …）会新增一层必须长期维护的 API 面，收益不成
+// 比例。knip 将本文件锚定为 entry（I9），公共 API 面由此处显式声明。
 export { QuantumScheduler } from './core/quantum-scheduler.js';
 export type {
   QuantumSchedulerConfig,
@@ -768,35 +771,8 @@ export type {
   QuantumMessage,
 } from './types/quantum-types.js';
 
-// CLI入口（Windows路径兼容）
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const platform = new QuantumMultiAgentPlatform();
-
-  // 启动平台（失败必须反映到退出码：脚本/CI 依赖非零退出感知启动失败）
-  platform.start().catch((err: unknown) => {
-    console.error('[QuantumPlatform]', err);
-    process.exitCode = 1;
-  });
-
-  // 监听中断信号：让事件循环自然排空（异步日志/关闭握手不被截断），
-  // 定时器已全部 unref/clear，进程会自行退出
-  const shutdown = (signal: string): void => {
-    console.log(`\n[QuantumPlatform] Received ${signal}, shutting down...`);
-    try {
-      platform.stop();
-    } catch (err) {
-      // 信号处理里的异常无人接盘会以未捕获异常杀进程——收尾失败
-      // 显式反映到退出码而非静默
-      console.error('[QuantumPlatform] Shutdown failed:', err);
-      process.exitCode = 1;
-    }
-  };
-  process.on('SIGINT', () => {
-    shutdown('SIGINT');
-  });
-  process.on('SIGTERM', () => {
-    shutdown('SIGTERM');
-  });
-}
+// CLI 入口已抽离至 src/cli.ts（08#53）：本文件是纯库出口（零进程
+// 副作用——import 本模块不再携带信号监听/argv 探测面），可执行装配
+// （bin / npm start）在 cli.ts。
 
 export default QuantumMultiAgentPlatform;

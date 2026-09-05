@@ -35,7 +35,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { counterfactual, cumulativeAdvantage, PHASE_DEFAULTS, type PhaseParams } from './run.js';
 
 export interface LawParams {
@@ -364,4 +364,6 @@ function main(): void {
   }
 }
 
-if (process.argv[1]?.endsWith('scaling-law.ts')) main();
+// 入口判定用路径解析而非 endsWith（06#12）：文件改名/符号链接/同名
+// 脚本都会让子串匹配静默失效（main 不跑、退出码 0）
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

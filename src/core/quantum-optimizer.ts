@@ -37,22 +37,27 @@
 
 import { mulberry32 } from '../utils/rng.js';
 import { QuantumEngineError } from '../utils/errors.js';
+import { logWarn } from '../utils/logger.js';
 import {
   ComplexAmplitudes,
   cvarExpectationOrdered,
   cvarOrder,
-  expectationValue,
-  normalizedEnergies as normalizedEnergiesOf,
   denormalizeExpectation,
+  expectationValue,
+  expectationValueInto,
+  normalizedEnergies as normalizedEnergiesOf,
   optimizeAnglesByCoordinateDescent,
   optimizeAnglesByCoordinateDescentSeeded,
   resolveCommonSolverOptions,
   sampleBestIndexByShots,
   sampleIndexByProbabilities,
+  throwIfAborted,
   validateAnnealOptions,
 } from './solver-common.js';
+import type { DescentOptions } from './solver-common.js';
 import {
   BETA_BOUND,
+  BORN_VALID_MASS_FLOOR,
   FULLSPACE_ANNEAL_STEPS,
   FULLSPACE_ANNEAL_TAU,
   FULLSPACE_QUBIT_LIMIT,
@@ -86,7 +91,13 @@ export interface AssignmentProblem {
   couplings: Map<number, number>;
   /** one-hot 违约罚系数 */
   penaltyOneHot: number;
-  /** agent 容量违约罚系数 */
+  /**
+   * agent 容量违约罚系数。注意容量契约（08#22）：本问题表示的每
+   * agent 容量恒为 1（isValidAssignment 以 used 集合强制）——多容量
+   * 场景由上层市场清算承担（compound-brain 向 MinCostFlow 传
+   * a.capacity，cap>1），再复制任务/分裂 agent 归约到本引擎。
+   * 两层契约刻意分层：变分引擎只解「每任务一 agent、每 agent 一任务」。
+   */
   penaltyCapacity: number;
 }
 
@@ -129,6 +140,21 @@ export interface QuantumSolverOptions {
    * 与 cvarAlpha 正交可组合。
    */
   angleMode?: 'layer' | 'multi';
+  /**
+   * 重启热启动（08#20，默认关闭 = 位级不变）。开启后随机重启的初值
+   * 不再纯随机，而是「当前最优角度 + 受限扰动」——已找到的好角度成为
+   * 后续探索的锚点，多重启的预算不再浪费在远离好盆地的起跑线上。
+   * 只影响重启初值，坐标下降与坍缩语义不变。
+   */
+  warmStart?: boolean;
+  /**
+   * 协作式中止（08#19，默认无）。求解是同步长计算——中止请求在
+   * 协作点被观察：角度优化的每次评估边界、退火演化的每一步。
+   * 触发即抛 QuantumEngineError（name='AbortError'），部分计算的
+   * 状态不外泄。并行演化内核在 Worker 内部不可打断，检查落在
+   * 分发边界（构建/演化相位之间）。
+   */
+  signal?: AbortSignal;
 }
 
 export interface QuantumCandidate {
@@ -451,6 +477,11 @@ export function couplingKey(q1: number, q2: number, nqubits: number): number {
 }
 
 /** 解码基态 → 分配（assignment[t] = agent 索引；违约记 -1） */
+/**
+ * 基态 → 分配解码。跨语言双实现（Q5）：qpu/qiskit-export.ts 生成的
+ * Python decode() 与本函数 + isValidAssignment 的 one-hot/不复用部分
+ * 语义一致——生成物内嵌 SELF_CHECK 向量（此处为真值源），CI 双侧锚定。
+ */
 export function decodeAssignment(state: number, m: number, n: number): number[] {
   const assignment = new Array<number>(m).fill(-1);
   for (let t = 0; t < m; t++) {
@@ -603,13 +634,18 @@ function optimizeQaoaAngles(
   restarts: number,
   rng: () => number,
   cvarAlpha = 1,
+  descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
+  // 目标闭包的 scratch 概率缓冲（01#18）：坐标下降每次评估物化一块
+  // dim 维 Float64Array——同一求解内 energies/维度不变，一块缓冲反复
+  // 覆写即可；逐位结果与逐次新建完全一致
+  const scratch = new Float64Array(energies.length);
   if (cvarAlpha < 1) {
     const order = cvarOrder(energies);
     return optimizeAnglesByCoordinateDescent(
       (angles) =>
         cvarExpectationOrdered(
-          runQaoaCircuit(angles, layers, nqubits, energies).probabilities(),
+          runQaoaCircuit(angles, layers, nqubits, energies).probabilitiesInto(scratch),
           energies,
           order,
           cvarAlpha,
@@ -617,13 +653,15 @@ function optimizeQaoaAngles(
       layers,
       restarts,
       rng,
+      descentOpts,
     );
   }
   return optimizeAnglesByCoordinateDescent(
-    (angles) => expectationOf(runQaoaCircuit(angles, layers, nqubits, energies), energies),
+    (angles) => expectationValueInto(runQaoaCircuit(angles, layers, nqubits, energies), energies),
     layers,
     restarts,
     rng,
+    descentOpts,
   );
 }
 
@@ -672,26 +710,30 @@ function refineQaoaAnglesMulti(
   cvarAlpha: number,
   layerAngles: number[],
   layerEvaluations: number,
+  descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
   const seed = expandToMultiAngles(layerAngles, layers, nqubits);
   const angleCount = layers + layers * nqubits;
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
   );
+  // scratch 复用同 optimizeQaoaAngles（01#18）：ma-QAOA 的角度维数更大，
+  // 评估次数只多不少，分配噪音收益更显著
+  const scratch = new Float64Array(energies.length);
   const evaluate =
     cvarAlpha < 1
       ? (() => {
           const order = cvarOrder(energies); // 预排序跨全部评估复用
           return (angles: number[]): number =>
             cvarExpectationOrdered(
-              runQaoaCircuitMulti(angles, layers, nqubits, energies).probabilities(),
+              runQaoaCircuitMulti(angles, layers, nqubits, energies).probabilitiesInto(scratch),
               energies,
               order,
               cvarAlpha,
             );
         })()
       : (angles: number[]): number =>
-          expectationOf(runQaoaCircuitMulti(angles, layers, nqubits, energies), energies);
+          expectationValueInto(runQaoaCircuitMulti(angles, layers, nqubits, energies), energies);
   const result = optimizeAnglesByCoordinateDescentSeeded(
     evaluate,
     angleCount,
@@ -699,6 +741,7 @@ function refineQaoaAnglesMulti(
     restarts,
     rng,
     seed,
+    descentOpts,
   );
   return { ...result, evaluations: result.evaluations + layerEvaluations };
 }
@@ -707,16 +750,29 @@ function refineQaoaAnglesMulti(
 // 量子退火：绝热演化的 Trotter 化薛定谔模拟
 // ----------------------------------------------------------------------------
 
+/**
+ * 一阶 Trotter 化绝热演化（08#17 误差预算说明）：
+ * 每步的算符分裂误差为 O(dt²·‖[H_X(s), C]‖)——固定步长不设运行期
+ * 收敛判据是刻意的工程取舍：误差上界由 (τ/steps)² 与谱范数的乘积
+ * **先验**控制，steps 翻倍误差降 4 倍，且分段幺正保范数（末态
+ * validMass/范数护栏可后验观测漂移）。缺省 FULLSPACE_ANNEAL_STEPS
+ * 经基准校准至该预算内（tests/ 的最优性基准即收敛性验收）；调用方
+ * 缩短 tau/steps 时应自查 dt²·谱宽 是否仍在可接受预算内。
+ */
 function runAnnealingCircuit(
   tau: number,
   steps: number,
   nqubits: number,
   energies: Float64Array,
+  abortSignal?: AbortSignal,
 ): QuantumStateVector {
   const state = new QuantumStateVector(nqubits);
   state.setTransverseGroundState(); // H_X 基态 |−⟩^{⊗n}
   const dt = tau / steps;
   for (let t = 1; t <= steps; t++) {
+    // 逐步协作点（08#19）：布尔读取代价远低于两步幺正演化，退火是
+    // 求解器里最长的同步循环——外部中止请求在此可预期地被观察到
+    throwIfAborted(abortSignal);
     const s = t / steps; // 绝热调度 s: 0 → 1
     state.applyMixer((1 - s) * dt); // e^{-i(1-s)dt ΣX}（X_j 对易，精确）
     state.applyCostPhase(s * dt, energies); // e^{-i s dt C}（对角，精确）
@@ -778,8 +834,20 @@ function selectSolution(
   let repaired = false;
 
   if (mode === 'born') {
-    // 真随机坍缩：按 |ψ|² 采一次样（Born 规则的忠实实现）
-    chosenState = sampleIndexByProbabilities(probs, rng);
+    // 合法质量护栏（08#18）：病态电路（罚参数失效）下合法质量近零，
+    // 单次 Born 采样几乎必然采到非法态、随即被改写成「采样→修复」的
+    // 伪 Born——随机性只是伪装。显式放弃采样、落入下方 argmax-valid
+    // 兜底（确定性、可解释），漂移进日志而非静默。
+    if (validMass < BORN_VALID_MASS_FLOOR) {
+      logWarn(
+        'QuantumOptimizer',
+        `born collapse: valid mass ${validMass.toExponential(3)} below floor ` +
+          `${BORN_VALID_MASS_FLOOR} — falling back to argmax-valid`,
+      );
+    } else {
+      // 真随机坍缩：按 |ψ|² 采一次样（Born 规则的忠实实现）
+      chosenState = sampleIndexByProbabilities(probs, rng);
+    }
   } else if (mode === 'shots-best' && validStates.length > 0) {
     // 多次测量取最优：采样 shots 次在其中选能量最低的合法结果。
     // 有效性判定走掩码闭包：常规（p>0）情形 O(1) 字节读取，
@@ -921,9 +989,15 @@ export function qaoaSolve(
   problem: AssignmentProblem,
   options: QuantumSolverOptions = {},
 ): QuantumSolution {
-  const { layers, shots, restarts, select, seed, topK, cvarAlpha, angleMode } =
+  const { layers, shots, restarts, select, seed, topK, cvarAlpha, angleMode, warmStart, signal } =
     resolveCommonSolverOptions(options, 'argmax-valid');
   const rng = mulberry32(seed);
+  // exactOptionalPropertyTypes：signal 缺省时键不存在（而非显式 undefined）
+  const descentOpts: DescentOptions = warmStart
+    ? { warmStart: true, ...(signal ? { signal } : {}) }
+    : signal
+      ? { signal }
+      : {};
 
   const energiesInfo = computeEnergies(problem);
   const normalized = normalizedEnergies(energiesInfo);
@@ -937,6 +1011,7 @@ export function qaoaSolve(
     restarts,
     rng,
     cvarAlpha,
+    descentOpts,
   );
   const { angles, evaluations } =
     angleMode === 'multi'
@@ -949,6 +1024,7 @@ export function qaoaSolve(
           cvarAlpha,
           layer.angles,
           layer.evaluations,
+          descentOpts,
         )
       : layer;
   const finalState =
@@ -991,7 +1067,13 @@ export function annealSolve(
   const scale = 2 * energiesInfo.nqubits;
   const normalized = normalizedEnergies(energiesInfo, scale);
 
-  const finalState = runAnnealingCircuit(tau, steps, energiesInfo.nqubits, normalized);
+  const finalState = runAnnealingCircuit(
+    tau,
+    steps,
+    energiesInfo.nqubits,
+    normalized,
+    resolveCommonSolverOptions(options, 'argmax-valid').signal,
+  );
   const probs = finalState.probabilities();
   const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);
 
