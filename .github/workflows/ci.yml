@@ -43,7 +43,7 @@ jobs:
         run: npm run coverage
       - name: 上传覆盖率报告（I11：失败可查明细）
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-node${{ matrix.node-version }}
           path: coverage/
