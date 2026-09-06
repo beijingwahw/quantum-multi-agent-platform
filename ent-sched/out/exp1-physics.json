@@ -1,0 +1,11 @@
+{
+  "maxAbsDiff": {
+    "swapVec": 4.440892098500626e-16,
+    "swapFrameFix": 4.440892098500626e-16,
+    "purifyProb": 1.3322676295501878e-15,
+    "purifyF": 1.1102230246251565e-15,
+    "depolVec": 4.440892098500626e-16
+  },
+  "purifyImprovementThreshold": 0.5000000000000002,
+  "keyFractionThreshold": 0.8107103750847684
+}

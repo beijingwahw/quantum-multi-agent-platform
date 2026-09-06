@@ -1,0 +1,153 @@
+{
+  "experiment": "exp1-sign-barrier",
+  "seed": 20260905,
+  "schedulePoint": 0.5,
+  "note": "ground-state sign ratio P = sum(psi)/sum(|psi|) via imaginary-time projection at s=0.5; kappa on the problem's coupling edges; gamma=1",
+  "rows": [
+    {
+      "n": 6,
+      "kappa": 0,
+      "stoquastic": true,
+      "signRatio": 1,
+      "energy": -4.038525471112713,
+      "converged": true,
+      "steps": 621
+    },
+    {
+      "n": 6,
+      "kappa": 0.1,
+      "stoquastic": false,
+      "signRatio": 0.9999334771112949,
+      "energy": -3.738711737436267,
+      "converged": true,
+      "steps": 559
+    },
+    {
+      "n": 6,
+      "kappa": 0.3,
+      "stoquastic": false,
+      "signRatio": 0.5436680085027648,
+      "energy": -3.5329641254255213,
+      "converged": true,
+      "steps": 364
+    },
+    {
+      "n": 6,
+      "kappa": 1,
+      "stoquastic": false,
+      "signRatio": 0.07839952363036881,
+      "energy": -3.83133121846304,
+      "converged": true,
+      "steps": 521
+    },
+    {
+      "n": 8,
+      "kappa": 0,
+      "stoquastic": true,
+      "signRatio": 1,
+      "energy": -5.248501912511379,
+      "converged": true,
+      "steps": 437
+    },
+    {
+      "n": 8,
+      "kappa": 0.1,
+      "stoquastic": false,
+      "signRatio": 0.9741482748192606,
+      "energy": -4.893593553381764,
+      "converged": true,
+      "steps": 371
+    },
+    {
+      "n": 8,
+      "kappa": 0.3,
+      "stoquastic": false,
+      "signRatio": 0.41177501301474595,
+      "energy": -4.663079552096731,
+      "converged": true,
+      "steps": 421
+    },
+    {
+      "n": 8,
+      "kappa": 1,
+      "stoquastic": false,
+      "signRatio": 0.020412756082329033,
+      "energy": -5.286538582703647,
+      "converged": true,
+      "steps": 614
+    },
+    {
+      "n": 10,
+      "kappa": 0,
+      "stoquastic": true,
+      "signRatio": 1,
+      "energy": -7.347053033570356,
+      "converged": true,
+      "steps": 277
+    },
+    {
+      "n": 10,
+      "kappa": 0.1,
+      "stoquastic": false,
+      "signRatio": 0.9703882924136725,
+      "energy": -6.932228417744909,
+      "converged": true,
+      "steps": 324
+    },
+    {
+      "n": 10,
+      "kappa": 0.3,
+      "stoquastic": false,
+      "signRatio": 0.35208044054061444,
+      "energy": -6.60977887194595,
+      "converged": true,
+      "steps": 355
+    },
+    {
+      "n": 10,
+      "kappa": 1,
+      "stoquastic": false,
+      "signRatio": 0.00229259162870466,
+      "energy": -7.844822161764375,
+      "converged": true,
+      "steps": 424
+    },
+    {
+      "n": 12,
+      "kappa": 0,
+      "stoquastic": true,
+      "signRatio": 1,
+      "energy": -9.394428333521692,
+      "converged": true,
+      "steps": 374
+    },
+    {
+      "n": 12,
+      "kappa": 0.1,
+      "stoquastic": false,
+      "signRatio": 0.95839506189515,
+      "energy": -9.005401551211518,
+      "converged": true,
+      "steps": 337
+    },
+    {
+      "n": 12,
+      "kappa": 0.3,
+      "stoquastic": false,
+      "signRatio": 0.23913213578598924,
+      "energy": -8.778199829192044,
+      "converged": true,
+      "steps": 333
+    },
+    {
+      "n": 12,
+      "kappa": 1,
+      "stoquastic": false,
+      "signRatio": 0.0010258299857562937,
+      "energy": -10.563385929295999,
+      "converged": true,
+      "steps": 645
+    }
+  ],
+  "stoquasticBaselineUnity": true
+}

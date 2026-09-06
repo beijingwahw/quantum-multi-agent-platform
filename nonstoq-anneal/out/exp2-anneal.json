@@ -1,0 +1,687 @@
+{
+  "experiment": "exp2-anneal",
+  "seed": 20260905,
+  "slices": 200,
+  "instances": [
+    "random-n10-s20260905",
+    "random-n10-s20260906",
+    "random-n10-s20260907",
+    "random-n10-s20260908",
+    "random-n10-s20260909",
+    "maxcut-n10-s20261005"
+  ],
+  "rows": [
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.12956602031081846,
+      "energyRatio": 0.7591707829043647
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.4398813074083949,
+      "energyRatio": 0.903040988049341
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.874603230433764,
+      "energyRatio": 0.9832242610662503
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.9944813179684934,
+      "energyRatio": 0.9993185918969755
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.10295389140252689,
+      "energyRatio": 0.7170867129227119
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.37226149632672967,
+      "energyRatio": 0.8764494476076925
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.8377364280076495,
+      "energyRatio": 0.9767797277922438
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.9856816121990396,
+      "energyRatio": 0.9982477972028833
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.03554340177104441,
+      "energyRatio": 0.5081447574181344
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.07864257217185358,
+      "energyRatio": 0.6414850022211201
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.15279305513139868,
+      "energyRatio": 0.7526959979379338
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.17294297604574702,
+      "energyRatio": 0.822728359548604
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.027367479275954138,
+      "energyRatio": 0.5652355936547091
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.03716382040227646,
+      "energyRatio": 0.6854602971439182
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.04298034811978384,
+      "energyRatio": 0.7611702337814716
+    },
+    {
+      "instance": "random-n10-s20260905",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.08926040822924615,
+      "energyRatio": 0.8052128709712008
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.15948290728610842,
+      "energyRatio": 0.7231058267376251
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.4900514039163467,
+      "energyRatio": 0.8807760448747336
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.8285284479961631,
+      "energyRatio": 0.9683215103946903
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.9889549030331719,
+      "energyRatio": 0.9982245148797846
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.1313577635431597,
+      "energyRatio": 0.6932322641415287
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.3554413032008302,
+      "energyRatio": 0.8339200151227708
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.7507057630759706,
+      "energyRatio": 0.950580591116522
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.9718654746235631,
+      "energyRatio": 0.9948975811680322
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.023302824491823682,
+      "energyRatio": 0.515818453107266
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.051774152309353935,
+      "energyRatio": 0.6315930200714872
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.08498097686904015,
+      "energyRatio": 0.7128282192875334
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.09751178837326532,
+      "energyRatio": 0.7794026585272179
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.043898998902895656,
+      "energyRatio": 0.6458131709392095
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.0724092842895351,
+      "energyRatio": 0.7579142464008972
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.07911107253815859,
+      "energyRatio": 0.834902035695233
+    },
+    {
+      "instance": "random-n10-s20260906",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.09751727933532844,
+      "energyRatio": 0.8873296861988696
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.19321049065543505,
+      "energyRatio": 0.7305192281855827
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.5485147952845916,
+      "energyRatio": 0.8940822494072398
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.878658173680696,
+      "energyRatio": 0.9758560458898641
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.9939519349959928,
+      "energyRatio": 0.9987917669917625
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.15140409813471892,
+      "energyRatio": 0.6941991293994683
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.4322672128246632,
+      "energyRatio": 0.8505873789810281
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.8485515553373896,
+      "energyRatio": 0.9674555487152349
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.9837925083845531,
+      "energyRatio": 0.9965003010669741
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.09748473487224098,
+      "energyRatio": 0.5702351992372654
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.21600096843172023,
+      "energyRatio": 0.707390511703403
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.4528192806925201,
+      "energyRatio": 0.8267224349021379
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.6535212844806733,
+      "energyRatio": 0.8954558458641158
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.07498148430277679,
+      "energyRatio": 0.6486951065733841
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.21056769206443776,
+      "energyRatio": 0.802628498903441
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.5167503446212693,
+      "energyRatio": 0.9211317813641078
+    },
+    {
+      "instance": "random-n10-s20260907",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.8221879384690054,
+      "energyRatio": 0.9776598433691835
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.20102612576043125,
+      "energyRatio": 0.7427462892885733
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.39788020700835103,
+      "energyRatio": 0.8685941986033204
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.6290921388468705,
+      "energyRatio": 0.9500703304553479
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.8079595452678479,
+      "energyRatio": 0.9823754668935146
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.15440684360076806,
+      "energyRatio": 0.6807083690377904
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.3427710436102743,
+      "energyRatio": 0.8502074899412569
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.5615933945758447,
+      "energyRatio": 0.9303626172965052
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.7536028051425266,
+      "energyRatio": 0.9749919477122017
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.03741812761462199,
+      "energyRatio": 0.4659711503646775
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.0922982549080235,
+      "energyRatio": 0.6285623640320149
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.19799422798060629,
+      "energyRatio": 0.7604078453647228
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.37906146306419747,
+      "energyRatio": 0.8696142396230656
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.057457926563159276,
+      "energyRatio": 0.5794971217883825
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.15177350560697822,
+      "energyRatio": 0.7420878775329436
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.2907062287899196,
+      "energyRatio": 0.8436545363381991
+    },
+    {
+      "instance": "random-n10-s20260908",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.47391467578783947,
+      "energyRatio": 0.9244978928231421
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.24470404581660887,
+      "energyRatio": 0.6922506830168207
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.6128322664299178,
+      "energyRatio": 0.885010458310208
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.8872451436668929,
+      "energyRatio": 0.9704778959728929
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.9909688484753287,
+      "energyRatio": 0.9977593291763844
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.17776963111492253,
+      "energyRatio": 0.6383482864324168
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.4503628363701504,
+      "energyRatio": 0.8177543071064048
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.7711149477226598,
+      "energyRatio": 0.9395855740914786
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.9611674171000897,
+      "energyRatio": 0.9903125436946928
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.03264568074643949,
+      "energyRatio": 0.47363925004462354
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.05272867110172383,
+      "energyRatio": 0.620990173098834
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.10303008590133908,
+      "energyRatio": 0.7235609964739831
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.16863332945624945,
+      "energyRatio": 0.7905870457685438
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.08176582314098067,
+      "energyRatio": 0.5435020604376802
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.23195800780343007,
+      "energyRatio": 0.7051741267648514
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.5645671640032397,
+      "energyRatio": 0.844252665129015
+    },
+    {
+      "instance": "random-n10-s20260909",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.6972448098970789,
+      "energyRatio": 0.8911623171236236
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0,
+      "time": 4,
+      "successProbability": 0.6442581833249245,
+      "energyRatio": 0.8925443836029481
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0,
+      "time": 8,
+      "successProbability": 0.8866533915458488,
+      "energyRatio": 0.9764326379720906
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0,
+      "time": 16,
+      "successProbability": 0.9920348498992637,
+      "energyRatio": 0.9984709205543286
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0,
+      "time": 32,
+      "successProbability": 0.9995172398317284,
+      "energyRatio": 0.999897646499008
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.05,
+      "time": 4,
+      "successProbability": 0.6104431037792788,
+      "energyRatio": 0.8759581246661864
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.05,
+      "time": 8,
+      "successProbability": 0.8583690743335164,
+      "energyRatio": 0.9689509533869923
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.05,
+      "time": 16,
+      "successProbability": 0.9878644672765865,
+      "energyRatio": 0.9976629158248342
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.05,
+      "time": 32,
+      "successProbability": 0.9994982300535491,
+      "energyRatio": 0.9998787384728781
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.2,
+      "time": 4,
+      "successProbability": 0.3633083646652525,
+      "energyRatio": 0.727414557477504
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.2,
+      "time": 8,
+      "successProbability": 0.6171340050191156,
+      "energyRatio": 0.8925430801975054
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.2,
+      "time": 16,
+      "successProbability": 0.90971121943507,
+      "energyRatio": 0.9810408486698354
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.2,
+      "time": 32,
+      "successProbability": 0.9947936010085423,
+      "energyRatio": 0.9988231844514729
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.5,
+      "time": 4,
+      "successProbability": 0.05853509319766763,
+      "energyRatio": 0.6016265224272922
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.5,
+      "time": 8,
+      "successProbability": 0.11001653704735091,
+      "energyRatio": 0.7212109433599032
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.5,
+      "time": 16,
+      "successProbability": 0.1447001815557815,
+      "energyRatio": 0.7703616843015001
+    },
+    {
+      "instance": "maxcut-n10-s20261005",
+      "kappa": 0.5,
+      "time": 32,
+      "successProbability": 0.25376934415636354,
+      "energyRatio": 0.8163614634581017
+    }
+  ]
+}

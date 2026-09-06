@@ -1,0 +1,320 @@
+{
+  "experiment": "exp1-monotonicity",
+  "seedBase": 20260905,
+  "ladderDepths": [
+    8,
+    16,
+    32,
+    64,
+    96,
+    128
+  ],
+  "embeddingTolerance": 1e-10,
+  "embeddingChecks": [
+    {
+      "p": 1,
+      "gap": 0,
+      "passed": true
+    },
+    {
+      "p": 7,
+      "gap": 0,
+      "passed": true
+    },
+    {
+      "p": 63,
+      "gap": 0,
+      "passed": true
+    },
+    {
+      "p": 127,
+      "gap": 0,
+      "passed": true
+    }
+  ],
+  "exactLadder": {
+    "instance": "random-n10-s20260905",
+    "optimum": 9.923766984138638,
+    "points": [
+      {
+        "p": 1,
+        "best": 4.823463261845295,
+        "ratio": 0.4860516444566601
+      },
+      {
+        "p": 2,
+        "best": 6.161580645884684,
+        "ratio": 0.6208913062683622
+      },
+      {
+        "p": 3,
+        "best": 7.01742486889962,
+        "ratio": 0.7071331763548777
+      },
+      {
+        "p": 4,
+        "best": 7.298049395337443,
+        "ratio": 0.7354112009080892
+      },
+      {
+        "p": 5,
+        "best": 7.874782419121456,
+        "ratio": 0.793527541679272
+      },
+      {
+        "p": 6,
+        "best": 8.160896104562482,
+        "ratio": 0.8223586988294074
+      }
+    ],
+    "monotone": true,
+    "violations": []
+  },
+  "ladders": [
+    {
+      "instanceId": "random-n10-s20260905",
+      "kind": "random-ising",
+      "n": 10,
+      "optimum": 9.923766984138638,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.8341725937969395
+        },
+        {
+          "p": 16,
+          "ratio": 0.9382128762287097
+        },
+        {
+          "p": 32,
+          "ratio": 0.9913409098685978
+        },
+        {
+          "p": 64,
+          "ratio": 0.9994040565548775
+        },
+        {
+          "p": 96,
+          "ratio": 0.9998941509421069
+        },
+        {
+          "p": 128,
+          "ratio": 0.9999113742504319
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "random-n10-s20260906",
+      "kind": "random-ising",
+      "n": 10,
+      "optimum": 10.916440144181252,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.7956314828410647
+        },
+        {
+          "p": 16,
+          "ratio": 0.9131457903077085
+        },
+        {
+          "p": 32,
+          "ratio": 0.9793217349886563
+        },
+        {
+          "p": 64,
+          "ratio": 0.9977990376956772
+        },
+        {
+          "p": 96,
+          "ratio": 0.9996847102479992
+        },
+        {
+          "p": 128,
+          "ratio": 0.9999230910168413
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "random-n10-s20260907",
+      "kind": "random-ising",
+      "n": 10,
+      "optimum": 11.268318310845643,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.7970993617653129
+        },
+        {
+          "p": 16,
+          "ratio": 0.9187737274695394
+        },
+        {
+          "p": 32,
+          "ratio": 0.9816952356201987
+        },
+        {
+          "p": 64,
+          "ratio": 0.9975302955354391
+        },
+        {
+          "p": 96,
+          "ratio": 0.9994998562513264
+        },
+        {
+          "p": 128,
+          "ratio": 0.9999014298029271
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "random-n10-s20260908",
+      "kind": "random-ising",
+      "n": 10,
+      "optimum": 14.013227742165327,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.7796494214925835
+        },
+        {
+          "p": 16,
+          "ratio": 0.8810488356955011
+        },
+        {
+          "p": 32,
+          "ratio": 0.9477251094424223
+        },
+        {
+          "p": 64,
+          "ratio": 0.9799686331312196
+        },
+        {
+          "p": 96,
+          "ratio": 0.9893773836831795
+        },
+        {
+          "p": 128,
+          "ratio": 0.9940251070852406
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "random-n10-s20260909",
+      "kind": "random-ising",
+      "n": 10,
+      "optimum": 13.243808571249247,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.7923218291567756
+        },
+        {
+          "p": 16,
+          "ratio": 0.9215800966049666
+        },
+        {
+          "p": 32,
+          "ratio": 0.9821746549573703
+        },
+        {
+          "p": 64,
+          "ratio": 0.9984969486715792
+        },
+        {
+          "p": 96,
+          "ratio": 0.9997831148578172
+        },
+        {
+          "p": 128,
+          "ratio": 0.9999095627043866
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "maxcut-n12-s20261005",
+      "kind": "maxcut-3reg",
+      "n": 12,
+      "optimum": 12,
+      "maxcutOptimum": 15,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.8949174488674682
+        },
+        {
+          "p": 16,
+          "ratio": 0.9483467829230432
+        },
+        {
+          "p": 32,
+          "ratio": 0.9855141684023782
+        },
+        {
+          "p": 64,
+          "ratio": 0.9983906391054469
+        },
+        {
+          "p": 96,
+          "ratio": 0.999786798335249
+        },
+        {
+          "p": 128,
+          "ratio": 0.9998689938500983
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    },
+    {
+      "instanceId": "random-n14-s20261105",
+      "kind": "random-ising",
+      "n": 14,
+      "optimum": 12.665242852643132,
+      "maxcutOptimum": null,
+      "points": [
+        {
+          "p": 8,
+          "ratio": 0.7975661024193612
+        },
+        {
+          "p": 16,
+          "ratio": 0.8803807553921943
+        },
+        {
+          "p": 32,
+          "ratio": 0.9272791176662463
+        },
+        {
+          "p": 64,
+          "ratio": 0.9643104495496513
+        },
+        {
+          "p": 96,
+          "ratio": 0.9829569001177042
+        },
+        {
+          "p": 128,
+          "ratio": 0.9911663739100626
+        }
+      ],
+      "monotonic": true,
+      "violationCount": 0
+    }
+  ]
+}

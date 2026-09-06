@@ -1,0 +1,185 @@
+{
+  "experiment": "exp3-decoder-scheduling",
+  "seed": 20260905,
+  "circuit": {
+    "code": "gross-bb-144-12-12",
+    "logicalQubits": 80,
+    "qaoaDepth": 128,
+    "blocks": 7,
+    "syndromeRoundsTotal": 614400,
+    "syndromeBitsPerRound": 1008,
+    "syndromeDataRateMbps": 1008
+  },
+  "scenarios": [
+    {
+      "id": "cpu-bposd-1u",
+      "unit": {
+        "latencyUs": 1000,
+        "roundsPerSecond": 1000
+      },
+      "units": 1,
+      "windowRounds": 8,
+      "note": "CPU BP+OSD, ~1 ms per round, single unit"
+    },
+    {
+      "id": "cpu-bposd-64u",
+      "unit": {
+        "latencyUs": 1000,
+        "roundsPerSecond": 1000
+      },
+      "units": 64,
+      "windowRounds": 8,
+      "note": "CPU BP+OSD fleet x64"
+    },
+    {
+      "id": "fpga-100us-32u",
+      "unit": {
+        "latencyUs": 100,
+        "roundsPerSecond": 20000
+      },
+      "units": 32,
+      "windowRounds": 8,
+      "note": "FPGA-class decoder, ~100 us/round, 32 units"
+    },
+    {
+      "id": "asic-10us-32u",
+      "unit": {
+        "latencyUs": 10,
+        "roundsPerSecond": 200000
+      },
+      "units": 32,
+      "windowRounds": 8,
+      "note": "ASIC-class decoder, ~10 us/round, 32 units"
+    },
+    {
+      "id": "asic-1us-16u",
+      "unit": {
+        "latencyUs": 1,
+        "roundsPerSecond": 2000000
+      },
+      "units": 16,
+      "windowRounds": 8,
+      "note": "aggressive ASIC, ~1 us/round, 16 units"
+    },
+    {
+      "id": "fpga-256u",
+      "unit": {
+        "latencyUs": 100,
+        "roundsPerSecond": 20000
+      },
+      "units": 256,
+      "windowRounds": 8,
+      "note": "FPGA-class decoder, ~100 us/round, 32 units (fleet 256)"
+    },
+    {
+      "id": "fpga-512u",
+      "unit": {
+        "latencyUs": 100,
+        "roundsPerSecond": 20000
+      },
+      "units": 512,
+      "windowRounds": 8,
+      "note": "FPGA-class decoder, ~100 us/round, 32 units (fleet 512)"
+    }
+  ],
+  "results": [
+    {
+      "scenarioId": "cpu-bposd-1u",
+      "utilization": 1125,
+      "maxBacklogRounds": 159856,
+      "p95BacklogRounds": 151872,
+      "maxEndToEndDelayUs": 163923.9375092499,
+      "verdict": "backlog-grows",
+      "extrapolatedDrainUs": null,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 1,
+      "servicePerWindowUs": 9000,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "cpu-bposd-64u",
+      "utilization": 125,
+      "maxBacklogRounds": 158688,
+      "p95BacklogRounds": 150752,
+      "maxEndToEndDelayUs": 166214.73504018039,
+      "verdict": "backlog-grows",
+      "extrapolatedDrainUs": null,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 9,
+      "servicePerWindowUs": 9000,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "fpga-100us-32u",
+      "utilization": 15.625,
+      "maxBacklogRounds": 149832,
+      "p95BacklogRounds": 142352,
+      "maxEndToEndDelayUs": 150285.12514537014,
+      "verdict": "backlog-grows",
+      "extrapolatedDrainUs": null,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 4,
+      "servicePerWindowUs": 500,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "asic-10us-32u",
+      "utilization": 1.5625,
+      "maxBacklogRounds": 65824,
+      "p95BacklogRounds": 62520,
+      "maxEndToEndDelayUs": 65865.95512586366,
+      "verdict": "backlog-grows",
+      "extrapolatedDrainUs": null,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 4,
+      "servicePerWindowUs": 50,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "asic-1us-16u",
+      "utilization": 0.3125,
+      "maxBacklogRounds": 0,
+      "p95BacklogRounds": 0,
+      "maxEndToEndDelayUs": 5.999885372351855,
+      "verdict": "realtime",
+      "extrapolatedDrainUs": 5,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 2,
+      "servicePerWindowUs": 5,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "fpga-256u",
+      "utilization": 1.7361111111111112,
+      "maxBacklogRounds": 68432,
+      "p95BacklogRounds": 65032,
+      "maxEndToEndDelayUs": 68976.98973120749,
+      "verdict": "backlog-grows",
+      "extrapolatedDrainUs": null,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 36,
+      "servicePerWindowUs": 500,
+      "arrivalPerWindowUs": 8
+    },
+    {
+      "scenarioId": "fpga-512u",
+      "utilization": 0.8561643835616438,
+      "maxBacklogRounds": 0,
+      "p95BacklogRounds": 0,
+      "maxEndToEndDelayUs": 599.9899058137089,
+      "verdict": "realtime",
+      "extrapolatedDrainUs": 500,
+      "simulatedWindows": 20000,
+      "totalWindows": 76800,
+      "unitsPerBlock": 73,
+      "servicePerWindowUs": 500,
+      "arrivalPerWindowUs": 8
+    }
+  ]
+}

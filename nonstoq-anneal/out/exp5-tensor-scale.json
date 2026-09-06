@@ -1,0 +1,141 @@
+{
+  "experiment": "exp5-tensor-scale",
+  "method": "two-site DMRG (chi<=48) on open NN chains; sign metric by random amplitude sampling (K=1000)",
+  "rows": [
+    {
+      "n": 16,
+      "kappa": 0,
+      "energy": -9.272226956451584,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 5293
+    },
+    {
+      "n": 16,
+      "kappa": 0.5,
+      "energy": -8.940067097257879,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 5089
+    },
+    {
+      "n": 16,
+      "kappa": 1,
+      "energy": -7.145338250854012,
+      "signP": 0.5187328094976777,
+      "negativeFraction": 0.501,
+      "maxBond": 48,
+      "wallMs": 5025
+    },
+    {
+      "n": 24,
+      "kappa": 0,
+      "energy": -12.673625108854418,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 11643
+    },
+    {
+      "n": 24,
+      "kappa": 0.5,
+      "energy": -10.33773052719976,
+      "signP": 1,
+      "negativeFraction": 1,
+      "maxBond": 48,
+      "wallMs": 12895
+    },
+    {
+      "n": 24,
+      "kappa": 1,
+      "energy": -4.816696228439204,
+      "signP": 0.2631834146415393,
+      "negativeFraction": 0.489,
+      "maxBond": 48,
+      "wallMs": 13083
+    },
+    {
+      "n": 32,
+      "kappa": 0,
+      "energy": -18.251380504055827,
+      "signP": 1,
+      "negativeFraction": 1,
+      "maxBond": 48,
+      "wallMs": 16430
+    },
+    {
+      "n": 32,
+      "kappa": 0.5,
+      "energy": -18.66339686407271,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 16889
+    },
+    {
+      "n": 32,
+      "kappa": 1,
+      "energy": -13.612409453128384,
+      "signP": 0.9554664289635328,
+      "negativeFraction": 0.516,
+      "maxBond": 48,
+      "wallMs": 17234
+    },
+    {
+      "n": 48,
+      "kappa": 0,
+      "energy": -27.455679645942183,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 26876
+    },
+    {
+      "n": 48,
+      "kappa": 0.5,
+      "energy": -27.42742894271979,
+      "signP": 1,
+      "negativeFraction": 0,
+      "maxBond": 48,
+      "wallMs": 27860
+    },
+    {
+      "n": 48,
+      "kappa": 1,
+      "energy": -25.57871702731569,
+      "signP": 1,
+      "negativeFraction": 1,
+      "maxBond": 48,
+      "wallMs": 28137
+    },
+    {
+      "n": 64,
+      "kappa": 0,
+      "energy": -33.3938188079127,
+      "signP": 1,
+      "negativeFraction": 1,
+      "maxBond": 48,
+      "wallMs": 39663
+    },
+    {
+      "n": 64,
+      "kappa": 0.5,
+      "energy": -33.46526418767788,
+      "signP": 1,
+      "negativeFraction": 1,
+      "maxBond": 48,
+      "wallMs": 39546
+    },
+    {
+      "n": 64,
+      "kappa": 1,
+      "energy": -12.057081984236365,
+      "signP": 0.8530611172532518,
+      "negativeFraction": 0.46,
+      "maxBond": 48,
+      "wallMs": 40221
+    }
+  ]
+}
