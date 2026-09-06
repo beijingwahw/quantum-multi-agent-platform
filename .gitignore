@@ -30,8 +30,8 @@ Thumbs.db
 # Temporarily excluded: locked by another process (close it and remove this line to include)
 DELIVERY/code-quality-audit-report.docx
 
-# Nested repo history backup (renamed from ds_extracted/ds/.git)
-.git_nested_backup/
+# Legacy clone removed locally; old state preserved in branch legacy-pre-rebuild
+ds_extracted/ds/
 
 # Personal form-filling working files (contains signature image & personal docs)
 .formwork/work/
