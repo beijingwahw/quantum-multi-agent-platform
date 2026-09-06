@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      最小充分 CSP：本文件是单文件控制台（README 口径），内联 <script>/<style>/
+      onclick 既有形态保留——script-src/style-src 需要 'unsafe-inline'。
+      connect-src 放行 ws:/wss:：总线地址由用户输入（默认 ws://127.0.0.1:8080）。
+      object-src 'none' + base-uri 'self' 为纯收紧项（本页无 object/embed/base）。
+      页面无任何外部资源（脚本/样式/字体/图片全内联），default-src 'self'
+      不影响现有功能；canvas 绘制与 CSSOM 写入不受 CSP 限制。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'"
+    />
+    <title>Quantum Multi-Agent Platform 控制台</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #333;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .header p {
+        color: #7f8c8d;
+        font-size: 1.1rem;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+      }
+
+      .card h3 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 10px;
+        margin-bottom: 15px;
+      }
+
+      .metric-label {
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      .agent-list {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .agent-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+      }
+
+      .agent-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+      }
+
+      .agent-status {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .status-idle {
+        background: #28a745;
+      }
+      .status-working {
+        background: #ffc107;
+      }
+      .status-overloaded {
+        background: #fd7e14;
+      }
+      .status-offline {
+        background: #dc3545;
+      }
+
+      .agent-info {
+        flex: 1;
+      }
+
+      .agent-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 5px;
+      }
+
+      .agent-capabilities {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+      }
+
+      .agent-load {
+        text-align: right;
+      }
+
+      .load-bar {
+        width: 100px;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 5px;
+      }
+
+      .load-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+        transition: width 0.3s ease;
+      }
+
+      .task-list {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .task-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+      }
+
+      .task-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+      }
+
+      .task-priority {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .priority-low {
+        background: #6c757d;
+      }
+      .priority-medium {
+        background: #17a2b8;
+      }
+      .priority-high {
+        background: #fd7e14;
+      }
+      .priority-critical {
+        background: #dc3545;
+      }
+
+      .task-info {
+        flex: 1;
+      }
+
+      .task-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 5px;
+      }
+
+      .task-meta {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+      }
+
+      .quantum-visualization {
+        height: 300px;
+        background: radial-gradient(
+          circle at center,
+          rgba(102, 126, 234, 0.1) 0%,
+          rgba(118, 75, 162, 0.1) 100%
+        );
+        border-radius: 15px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .quantum-particle {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: radial-gradient(
+          circle,
+          rgba(102, 126, 234, 0.8) 0%,
+          rgba(102, 126, 234, 0.2) 100%
+        );
+        border-radius: 50%;
+        animation: float 4s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-20px);
+        }
+      }
+
+      .control-panel {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      }
+
+      .button {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-right: 10px;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .button.secondary {
+        background: linear-gradient(45deg, #6c757d, #495057);
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .input {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+      }
+
+      .input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .chart-container {
+        height: 200px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        position: relative;
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: #28a745;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .status-indicator.warning {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .status-indicator.error {
+        background: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Quantum Multi-Agent Platform</h1>
+        <p>量子态协同架构的多Agent开发调度平台 - 实时监控面板</p>
+        <div class="status-indicator warning" id="platform-status">
+          <span>●</span>
+          <span>离线演示模式</span>
+        </div>
+      </div>
+
+      <div class="dashboard">
+        <!-- 系统状态卡片 -->
+        <div class="card">
+          <h3>📊 系统状态</h3>
+          <div class="metric">
+            <span class="metric-label">活跃 Agents</span>
+            <span class="metric-value" id="active-agents">0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">待处理任务</span>
+            <span class="metric-value" id="pending-tasks">0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">已完成任务</span>
+            <span class="metric-value" id="completed-tasks">0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">系统健康度</span>
+            <span class="metric-value" id="system-health">0%</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">量子效率</span>
+            <span class="metric-value" id="quantum-efficiency">0%</span>
+          </div>
+        </div>
+
+        <!-- 量子可视化 -->
+        <div class="card">
+          <h3>⚛️ 量子态可视化</h3>
+          <div class="quantum-visualization" id="quantum-viz">
+            <!-- 量子粒子将在这里动态生成 -->
+          </div>
+        </div>
+
+        <!-- Agents列表 -->
+        <div class="card">
+          <h3>🤖 Agents 状态</h3>
+          <div class="agent-list" id="agent-list">
+            <!-- Agents列表将在这里动态生成 -->
+          </div>
+        </div>
+
+        <!-- Tasks列表 -->
+        <div class="card">
+          <h3>📋 任务队列</h3>
+          <div class="task-list" id="task-list">
+            <!-- 任务列表将在这里动态生成 -->
+          </div>
+        </div>
+
+        <!-- 性能图表 -->
+        <div class="card">
+          <h3>📈 性能监控</h3>
+          <div class="chart-container">
+            <canvas id="performance-chart" width="400" height="160"></canvas>
+          </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="card">
+          <h3>🎮 控制面板</h3>
+          <div class="input-group">
+            <input
+              type="text"
+              class="input"
+              id="bus-url"
+              value="ws://127.0.0.1:8080/quantum-bus"
+              placeholder="ws://127.0.0.1:8080/quantum-bus"
+            />
+            <button class="button" id="connect-btn" onclick="toggleConnection()">连接平台</button>
+          </div>
+          <div class="input-group">
+            <input
+              type="password"
+              class="input"
+              id="bus-token"
+              placeholder="鉴权令牌（平台配置 communication.authToken 时必填）"
+              autocomplete="off"
+            />
+          </div>
+          <div class="input-group">
+            <input type="text" class="input" id="task-name" placeholder="任务名称" />
+            <select class="input" id="task-priority">
+              <option value="low">低优先级</option>
+              <option value="medium" selected>中优先级</option>
+              <option value="high">高优先级</option>
+              <option value="critical">紧急</option>
+            </select>
+          </div>
+          <button class="button" onclick="submitTask()">提交任务</button>
+          <button class="button secondary" onclick="addAgent()">添加Agent</button>
+          <button class="button secondary" onclick="refreshData()">刷新数据</button>
+          <label
+            style="
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              margin-left: 10px;
+              color: #7f8c8d;
+              font-size: 0.9rem;
+            "
+          >
+            <input type="checkbox" id="auto-complete" checked /> 自动完成任务
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ====== 连接状态 ======
+      let ws = null;
+      let connected = false;
+      let reconnectTimer = null;
+
+      // ====== 数据源：已连接用平台实时快照，未连接用模拟演示 ======
+      let snapshot = { agents: [], tasks: [], metrics: null };
+
+      // 模拟数据（离线演示模式）
+      let simulation = {
+        agents: [
+          {
+            id: 1,
+            name: 'Quantum Developer',
+            type: 'developer',
+            state: 'working',
+            load: 75,
+            capabilities: ['code_analysis', 'debugging', 'refactoring'],
+          },
+          {
+            id: 2,
+            name: 'Quantum Tester',
+            type: 'tester',
+            state: 'idle',
+            load: 20,
+            capabilities: ['unit_testing', 'integration_testing'],
+          },
+          {
+            id: 3,
+            name: 'Quantum Deployer',
+            type: 'deployer',
+            state: 'working',
+            load: 60,
+            capabilities: ['deployment', 'monitoring'],
+          },
+          {
+            id: 4,
+            name: 'Quantum Monitor',
+            type: 'monitor',
+            state: 'idle',
+            load: 10,
+            capabilities: ['health_check', 'alerting'],
+          },
+        ],
+        tasks: [
+          {
+            id: 1,
+            name: '代码审查',
+            priority: 'high',
+            status: 'running',
+            type: 'code_review',
+            assignedAgentId: 1,
+          },
+          {
+            id: 2,
+            name: '性能测试',
+            priority: 'medium',
+            status: 'pending',
+            type: 'performance_test',
+            assignedAgentId: null,
+          },
+          {
+            id: 3,
+            name: '部署准备',
+            priority: 'critical',
+            status: 'assigned',
+            type: 'deployment',
+            assignedAgentId: 3,
+          },
+          {
+            id: 4,
+            name: '监控配置',
+            priority: 'low',
+            status: 'completed',
+            type: 'monitoring',
+            assignedAgentId: 4,
+          },
+        ],
+      };
+
+      // 初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        initializeQuantumVisualization();
+        updateDashboard();
+        startDataRefresh();
+      });
+
+      // ====== 平台连接 ======
+      function toggleConnection() {
+        if (connected) {
+          disconnect();
+        } else {
+          connect();
+        }
+      }
+
+      function connect() {
+        const url = document.getElementById('bus-url').value.trim();
+        if (!url) {
+          alert('请输入总线地址');
+          return;
+        }
+
+        try {
+          ws = new WebSocket(url);
+        } catch (error) {
+          setConnected(false, '地址无效');
+          return;
+        }
+
+        ws.onopen = function () {
+          // 以web-console身份认证（携带可选令牌——平台配置 authToken 时必需），
+          // 认证失败会被总线以 4001 断开并走重连退避
+          const token = document.getElementById('bus-token').value.trim();
+          ws.send(
+            JSON.stringify(
+              token
+                ? { type: 'authenticate', agentId: 'web-console', token }
+                : { type: 'authenticate', agentId: 'web-console' },
+            ),
+          );
+          ws.send(JSON.stringify({ type: 'console_query' }));
+          setConnected(true);
+        };
+
+        ws.onmessage = function (event) {
+          let msg;
+          try {
+            msg = JSON.parse(event.data);
+          } catch (e) {
+            return;
+          }
+
+          if (msg.type === 'status_update' && msg.content && msg.content.agents) {
+            snapshot = msg.content;
+            updateDashboard();
+          }
+        };
+
+        ws.onclose = function (event) {
+          setConnected(false);
+          ws = null;
+          // 鉴权失败（4001）不是瞬态断线：令牌错误时重连必然再次失败，
+          // 5s 重连死循环只会刷屏——停下来并提示用户修正令牌后手动重连
+          if (event.code === 4001) {
+            setConnected(false, '鉴权失败（令牌无效）——请修正令牌后重新连接');
+            return;
+          }
+          scheduleReconnect();
+        };
+
+        ws.onerror = function () {
+          setConnected(false, '连接失败');
+        };
+      }
+
+      function disconnect() {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+        if (ws) {
+          ws.onclose = null; // 主动断开不重连
+          ws.close();
+          ws = null;
+        }
+        setConnected(false);
+        snapshot = { agents: [], tasks: [], metrics: null };
+        updateDashboard();
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          if (!connected) connect();
+        }, 5000);
+      }
+
+      function setConnected(value, reason) {
+        connected = value;
+        const indicator = document.getElementById('platform-status');
+        const btn = document.getElementById('connect-btn');
+        if (value) {
+          indicator.className = 'status-indicator';
+          indicator.innerHTML = '<span>●</span><span>已连接实时平台</span>';
+          btn.textContent = '断开连接';
+        } else {
+          indicator.className = 'status-indicator ' + (reason ? 'error' : 'warning');
+          indicator.innerHTML =
+            '<span>●</span><span>' + (reason ? reason + ' · ' : '') + '离线演示模式</span>';
+          btn.textContent = '连接平台';
+        }
+      }
+
+      function sendCommand(action, payload) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'console_command', action: action, payload: payload }));
+          return true;
+        }
+        return false;
+      }
+
+      // ====== 数据视图 ======
+      function currentData() {
+        if (connected && snapshot.agents.length > 0) {
+          const metrics = snapshot.metrics || {};
+          return {
+            agents: snapshot.agents,
+            tasks: snapshot.tasks,
+            metrics: {
+              activeAgents:
+                (metrics.agents &&
+                  metrics.agents.agentsByState &&
+                  metrics.agents.agentsByState.working) ||
+                0,
+              pendingTasks: (metrics.scheduler && metrics.scheduler.pendingTasks) || 0,
+              completedTasks: (metrics.scheduler && metrics.scheduler.completedTasks) || 0,
+              systemHealth: (metrics.health && metrics.health.systemHealth) || 0,
+              quantumEfficiency: (metrics.scheduler && metrics.scheduler.quantumEfficiency) || 0,
+            },
+          };
+        }
+        // 离线演示视图
+        const activeAgents = simulation.agents.filter((a) => a.state === 'working').length;
+        const completed = simulation.tasks.filter((t) => t.status === 'completed').length;
+        return {
+          agents: simulation.agents,
+          tasks: simulation.tasks,
+          metrics: {
+            activeAgents,
+            pendingTasks: simulation.tasks.filter((t) => t.status === 'pending').length,
+            completedTasks: completed,
+            systemHealth: simulation.agents.length ? activeAgents / simulation.agents.length : 0,
+            quantumEfficiency: simulation.tasks.length ? completed / simulation.tasks.length : 0,
+          },
+        };
+      }
+
+      // 量子可视化初始化
+      function initializeQuantumVisualization() {
+        const container = document.getElementById('quantum-viz');
+        for (let i = 0; i < 15; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'quantum-particle';
+          particle.style.left = Math.random() * 90 + '%';
+          particle.style.top = Math.random() * 90 + '%';
+          particle.style.animationDelay = Math.random() * 4 + 's';
+          container.appendChild(particle);
+        }
+      }
+
+      // 更新仪表板
+      // 远程可控字符串（agent/task 名等）不得直插 innerHTML——构造性转义
+      function escapeHtml(v) {
+        return String(v ?? '').replace(
+          /[&<>"']/g,
+          (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch],
+        );
+      }
+
+      // class 属性专用消毒：escapeHtml 不处理空白——含空格的远程值
+      // 可向 class 注入任意额外类名。class token 只允许安全字符集。
+      function classToken(v) {
+        return String(v ?? '').replace(/[^A-Za-z0-9_-]/g, '');
+      }
+
+      function updateDashboard() {
+        const data = currentData();
+
+        // 更新系统状态
+        document.getElementById('active-agents').textContent = data.metrics.activeAgents;
+        document.getElementById('pending-tasks').textContent = data.metrics.pendingTasks;
+        document.getElementById('completed-tasks').textContent = data.metrics.completedTasks;
+        document.getElementById('system-health').textContent =
+          Math.round(data.metrics.systemHealth * 100) + '%';
+        document.getElementById('quantum-efficiency').textContent =
+          Math.round(data.metrics.quantumEfficiency * 100) + '%';
+
+        // 更新Agents列表
+        const agentList = document.getElementById('agent-list');
+        agentList.innerHTML = '';
+        data.agents.forEach((agent) => {
+          const agentItem = document.createElement('div');
+          agentItem.className = 'agent-item';
+          agentItem.innerHTML = `
+                    <div class="agent-status status-${classToken(agent.state)}"></div>
+                    <div class="agent-info">
+                        <div class="agent-name">${escapeHtml(agent.name)}</div>
+                        <div class="agent-capabilities">${escapeHtml((agent.capabilities || []).join(', '))}</div>
+                    </div>
+                    <div class="agent-load">
+                        <div class="load-bar">
+                            <div class="load-fill" style="width: ${Number(agent.load) || 0}%"></div>
+                        </div>
+                        <div>${Number(agent.load) || 0}%</div>
+                    </div>
+                `;
+          agentList.appendChild(agentItem);
+        });
+
+        // 更新Tasks列表
+        const taskList = document.getElementById('task-list');
+        taskList.innerHTML = '';
+        data.tasks
+          .slice(-20)
+          .reverse()
+          .forEach((task) => {
+            const taskItem = document.createElement('div');
+            taskItem.className = 'task-item';
+            const assignedName = task.assignedAgentId
+              ? (data.agents.find((a) => a.id === task.assignedAgentId) || {}).name
+              : null;
+            taskItem.innerHTML = `
+                    <div class="task-priority priority-${escapeHtml(task.priority)}"></div>
+                    <div class="task-info">
+                        <div class="task-name">${escapeHtml(task.name)}</div>
+                        <div class="task-meta">${escapeHtml(task.type)} - ${escapeHtml(task.status)}</div>
+                    </div>
+                    ${assignedName ? `<div>分配给: ${escapeHtml(assignedName)}</div>` : '<div>等待分配</div>'}
+                `;
+            taskList.appendChild(taskItem);
+          });
+
+        // 更新性能图表
+        updatePerformanceChart();
+      }
+
+      // 性能图表：量子效率的滚动历史（真实指标采样，替代旧的正弦噪声示意）
+      const efficiencyHistory = [];
+      const EFFICIENCY_POINTS = 40;
+
+      function updatePerformanceChart() {
+        const canvas = document.getElementById('performance-chart');
+        const ctx = canvas.getContext('2d');
+
+        const data = currentData();
+        const efficiency = Math.max(0, Math.min(1, Number(data.metrics.quantumEfficiency) || 0));
+        efficiencyHistory.push(efficiency);
+        if (efficiencyHistory.length > EFFICIENCY_POINTS) efficiencyHistory.shift();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 参考线：100% / 50%
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        [1, 0.5].forEach((level) => {
+          const y = canvas.height * (1 - level);
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        });
+
+        // 效率历史曲线（值域 [0,1] → 画布高度）
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        efficiencyHistory.forEach((v, i) => {
+          const x = (i / (EFFICIENCY_POINTS - 1)) * canvas.width;
+          const y = canvas.height * (1 - v);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // 提交任务：已连接走真实总线命令，未连接本地模拟
+      function submitTask() {
+        const taskName = document.getElementById('task-name').value;
+        const taskPriority = document.getElementById('task-priority').value;
+
+        if (!taskName) {
+          alert('请输入任务名称');
+          return;
+        }
+
+        if (connected) {
+          sendCommand('submit_task', { name: taskName, priority: taskPriority });
+        } else {
+          const newTask = {
+            id: simulation.tasks.length + 1,
+            name: taskName,
+            priority: taskPriority,
+            status: 'pending',
+            type: 'custom',
+            assignedAgentId: null,
+          };
+          simulation.tasks.push(newTask);
+
+          // 模拟任务分配
+          setTimeout(() => {
+            const availableAgent = simulation.agents.find((a) => a.state === 'idle');
+            if (availableAgent) {
+              newTask.status = 'assigned';
+              newTask.assignedAgentId = availableAgent.id;
+              availableAgent.state = 'working';
+              updateDashboard();
+            }
+          }, 2000);
+        }
+
+        document.getElementById('task-name').value = '';
+        updateDashboard();
+      }
+
+      // 添加Agent
+      function addAgent() {
+        if (connected) {
+          sendCommand('add_agent', {});
+        } else {
+          simulation.agents.push({
+            id: simulation.agents.length + 1,
+            name: `Quantum Agent ${simulation.agents.length + 1}`,
+            type: 'custom',
+            state: 'idle',
+            load: 0,
+            capabilities: ['Custom Task'],
+          });
+          updateDashboard();
+        }
+      }
+
+      // 刷新数据：已连接重新查询快照，未连接随机演化模拟数据
+      function refreshData() {
+        if (connected) {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'console_query' }));
+          }
+          return;
+        }
+
+        simulation.agents.forEach((agent) => {
+          if (agent.state === 'working' && Math.random() > 0.7) {
+            agent.state = 'idle';
+            agent.load = Math.max(0, agent.load - Math.random() * 30);
+          }
+        });
+
+        simulation.tasks.forEach((task) => {
+          if (task.status === 'pending' && Math.random() > 0.8) {
+            task.status = 'running';
+          } else if (task.status === 'running' && Math.random() > 0.9) {
+            task.status = 'completed';
+          }
+        });
+
+        updateDashboard();
+      }
+
+      // 定时刷新
+      function startDataRefresh() {
+        setInterval(() => {
+          if (!connected) {
+            refreshData();
+          } else {
+            // 已连接时周期性轮询快照作为广播的兜底
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'console_query' }));
+            }
+          }
+        }, 5000);
+
+        // 自动完成已连接平台上的assigned任务（模拟执行者完成工作）
+        setInterval(() => {
+          if (!connected || !document.getElementById('auto-complete').checked) return;
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+          const assigned = (snapshot.tasks || []).find(
+            (t) => t.status === 'assigned' || t.status === 'running',
+          );
+          if (assigned) {
+            sendCommand('complete_task', { taskId: assigned.id, success: true });
+          }
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>

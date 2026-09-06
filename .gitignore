@@ -8,6 +8,8 @@ SOUL.md
 IDENTITY.md
 TOOLS.md
 HEARTBEAT.md
+GENESIS-PHASE1.md
+本源悟空180机时申请书.md
 
 # Local tool state & backups
 .backup/
@@ -30,8 +32,10 @@ Thumbs.db
 # Temporarily excluded: locked by another process (close it and remove this line to include)
 DELIVERY/code-quality-audit-report.docx
 
-# Legacy clone removed locally; old state preserved in branch legacy-pre-rebuild
-ds_extracted/ds/
+# Platform clone: publish source & reports, exclude build artifacts and nested git history
+ds_extracted/ds/.git_nested_backup/
+ds_extracted/ds/dist/
+ds_extracted/ds/coverage/
 
 # Personal form-filling working files (contains signature image & personal docs)
 .formwork/work/

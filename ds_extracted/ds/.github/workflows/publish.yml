@@ -1,0 +1,49 @@
+# 发布供应链（2026-09 基线标配位，审计报告 2.2 主题 5）：
+# OIDC trusted publishing + npm provenance——classic token 已于
+# 2025-12-09 废弃，发布身份由 GitHub Actions OIDC 断言承载，
+# npm 侧需在包设置中关联本仓库（trusted publisher 一次性配置）。
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  # provenance 生成需要 id-token（仅发布工作流授予——最小权限原则）
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 发布前的完整验证与 CI 同源：不发布未过门禁的提交
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: 构建产物冒烟
+        run: node -e "import('./dist/index.js').then(m => { if (typeof m.QuantumMultiAgentPlatform !== 'function') throw new Error('dist smoke failed'); console.log('dist smoke OK'); })"
+      - run: npm test
+      - name: Coverage 门禁
+        run: npm run coverage
+      - name: Knip 门禁
+        run: npm run knip
+      - name: 发布（OIDC trusted publishing + provenance）
+        # --provenance 由 OIDC id-token 签名构建来源链；
+        # 公共包默认开启，此处显式声明意图
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
