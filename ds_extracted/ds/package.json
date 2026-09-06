@@ -1,0 +1,74 @@
+{
+  "name": "quantum-multi-agent-platform",
+  "version": "1.11.0",
+  "description": "Quantum-inspired multi-agent scheduling platform: QAOA kernel, subspace annealing, VCG mechanism market, proactive intelligence, WebSocket bus (v1.10: ma-QAOA constructive dominance + baseline calibration)",
+  "main": "dist/index.js",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build",
+    "start": "tsx src/cli.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "example:basic": "tsx examples/basic-usage.js",
+    "example:advanced": "tsx examples/advanced-workflow.js",
+    "example:quantum": "tsx examples/quantum-breakthrough-benchmark.ts",
+    "example:qpu": "tsx examples/qpu-real-hardware.ts",
+    "performance": "tsx scripts/performance-test.ts",
+    "coverage": "c8 --include src/** --check-coverage --statements 92 --branches 82 --functions 92 --lines 92 --reporter=text --reporter=text-summary --reporter=json-summary node --import tsx --test \"tests/**/*.test.ts\"",
+    "knip": "knip",
+    "bench": "tsx scripts/bench.ts",
+    "bench:regenerate": "tsx scripts/bench.ts regenerate"
+  },
+  "keywords": [
+    "multi-agent",
+    "quantum-inspired",
+    "scheduling",
+    "qaoa",
+    "annealing",
+    "vcg",
+    "mechanism-design",
+    "orchestration",
+    "typescript"
+  ],
+  "author": "Quantum Agent Team",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "@types/ws": "^8.5.5",
+    "c8": "^12.0.0",
+    "eslint": "^10.10.0",
+    "knip": "^6.34.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "quantum-multi-agent": "./dist/cli.js"
+  }
+}

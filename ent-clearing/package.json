@@ -1,0 +1,31 @@
+{
+  "name": "ent-clearing",
+  "version": "0.1.0",
+  "description": "The settlement layer of ledger row #12, executed: the coin, the notary, and the binding market were already books — this page is the CLEARING. Redemption: teleportation burns the coin to deliver an unknown qubit (fidelity exact over pure and mixed payloads; post-trade pairwise concurrence exactly 0; the goods do not move until the 2-bit classical leg settles — Bob's pre-bits marginal is exactly I/2). Reverse quote: dense coding buys exactly 2 cbits with 1 transmitted qubit and RETURNS the coin as a known Bell pair (post-decode concurrence exactly 1) — the coin is fuel in one trade and catalyst in the other, and that asymmetry is the parity 1 ebit = 1 qubit = 2 cbits. Netting: a weak coin of concurrence 2*sqrt(l0*l1) nets to a standard coin with probability exactly 2*l_min (Procrustean filter, success branch exactly |Phi+>, failure a worthless product state; mixed-coin netting stays asymptotic, BBPS96 quoted). The mint wall: local channels never raise E_F (200-trial census; the monotonicity is Vidal00, cited), a single global CNOT mints C 0->1 — the clearing house moves, spends, nets; it never prints. The checker enforces the board laws; the renderer refuses illegal boards.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "entanglement-standard",
+    "teleportation-economics",
+    "dense-coding",
+    "procrustean-distillation",
+    "locc-monotonicity"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

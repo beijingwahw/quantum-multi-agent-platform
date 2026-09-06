@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip-json-schema@5.json",
+  "entry": [
+    "src/proactive-intelligence/index.ts",
+    "examples/*.ts",
+    "examples/*.js",
+    "experiments/llm-learning-curve/*.ts",
+    "experiments/train-vs-hire-phase/*.ts",
+    "scripts/*.mjs",
+    "scripts/*.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "examples/**/*.ts",
+    "experiments/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "ignoreExportsUsedInFile": true
+}

@@ -1,0 +1,204 @@
+b1#0 [toolchain] ds_extracted/ds :: moduleResolution node10 is fine: extensionless relative imports compile, so dist will load
+b1#1 [process] ds_extracted/ds :: tests that lock in audited-defective semantics (precheck-reject = failed+throw; cancelled 
+b1#2 [process] ds_extracted/ds :: a synchronous API can be de-blocked in place with Atomics.wait
+b1#3 [process] ds_extracted/ds :: callers always pass coupling keys as (q1<q2); the reversed order can be ignored
+b1#4 [process] ds_extracted/ds :: deferred audit items (fitGrid refit, global seed, Date DTO) are loose ends to forget
+b2#0 [bogus-comparison] ds_extracted/ds :: verify an expm1 refactor by continuity across beta
+b2#1 [process] ds_extracted/ds :: silently ignore demand classes the scheduler cannot implement
+b2#2 [wrong-object] ds_extracted/ds :: Promise.race cancels the runaway command
+b2#3 [process] ds_extracted/ds :: TS-Python parity requires running both toolchains in CI
+b2#4 [toolchain] ds_extracted/ds :: pass {signal: undefined} into an optional {signal?:}
+b2#5 [toolchain] ds_extracted/ds :: hand-edited code survives prettier and lint as written
+b2#6 [toolchain] ds_extracted/ds :: python3 is the Python on this Windows box
+b2#7 [toolchain] ds_extracted/ds :: a failed push means the network
+b3#0 [wrong-object] ft-qaoa :: golden-section search finds the global optimum of the ramp-T objective
+b3#1 [process] ft-qaoa :: single-level T-distillation (eps_T=1e-8) suffices for deep circuits
+b3#2 [toolchain] ft-qaoa :: exactOptionalPropertyTypes bites rarely
+b3#3 [toolchain] ft-qaoa :: -x ** 2 parses as -(x^2)
+b3#4 [statistics] ft-qaoa :: p=0 gives <C> exactly 0
+b4#0 [conjugation] nonstoq-anneal :: put the maximize-convention Ising objective straight into the Hamiltonian
+b4#1 [wrong-object] nonstoq-anneal :: imaginary-time projection from |+>^n reaches the ground state
+b4#2 [machine-overruled] nonstoq-anneal :: the annealer can always prepare |+>^n as the driver state
+b4#3 [toolchain] nonstoq-anneal :: a push retry loop (for do push && break || sleep; done) reports failure
+b4#4 [toolchain] nonstoq-anneal :: prettier format:check piped through tail propagates failure
+b5#0 [statistics] nonstoq-anneal :: SSE stationary weights need no slot combinatorics
+b5#1 [dimension-slot] nonstoq-anneal :: single-edge string flips move between N_xx sectors
+b5#2 [statistics] nonstoq-anneal :: accept 0/0 as infinity when the old weight vanishes
+b5#3 [dimension-slot] nonstoq-anneal :: rollback with the inverted ternary is harmless
+b5#4 [statistics] nonstoq-anneal :: square the matrix and take the trace for Trotter Z
+b5#5 [statistics] nonstoq-anneal :: a fixed block width gives honest MC error bars
+b6#0 [citation-drift] nonstoq-anneal :: reproduce a paper from memory of its equations
+b6#1 [wrong-object] nonstoq-anneal :: a fixed s-grid resolves the first-order avoided crossing
+b6#2 [wrong-object] nonstoq-anneal :: Lanczos lambda_1 is 'the first excited level'
+b6#3 [dimension-slot] nonstoq-anneal :: full-space Lanczos converges at k = dim - 1
+b6#4 [dimension-slot] nonstoq-anneal :: N*m_x^2 for the fully-connected XX term is normalization-free
+b6#5 [process] nonstoq-anneal :: a negative operational result is a failure to hide
+b7#0 [dimension-slot] nonstoq-anneal :: MPO key-completion terms live at station i
+b7#1 [dimension-slot] nonstoq-anneal :: absorb environments with =
+b7#2 [dimension-slot] nonstoq-anneal :: naive nested contraction with in/out spins as they come
+b7#3 [wrong-object] nonstoq-anneal :: Perron-Frobenius means 'all amplitudes non-negative'
+b7#4 [machine-overruled] nonstoq-anneal :: my de-signing analysis: X and XX are gauge-invariant, odd cycles are the obstruction
+b8#0 [wrong-object] ent-sched :: purify the raw BBPSSW output directly
+b8#1 [machine-overruled] ent-sched :: <H(x)H, Ry(pi/2)(x)Ry(pi/2)> should be a decent twirling group
+b8#2 [conjugation] ent-sched :: dedupe group elements by normalizing the first entry of a
+b8#3 [machine-overruled] ent-sched :: purification ladder economics is monotone in effort
+b8#4 [wrong-object] ent-sched :: greedy interval tiling in id order
+b8#5 [process] ent-sched :: sub-threshold full pairs are the engine's business
+b8#6 [wrong-object] ent-sched :: the key-rate collapse sits at n/p vs T2
+b9#0 [anchor-blindspot] quantum-mech :: Im(v v+) with the conjugate on the left factor
+b9#1 [conjugation] quantum-mech :: hand-track Jacobi rotation handedness through the accumulation
+b9#2 [statistics] quantum-mech :: inverse-iteration shift eps = gap/2 splits the clusters
+b9#3 [anchor-blindspot] quantum-mech :: partial-trace strides from the input space
+b9#4 [statistics] quantum-mech :: detection rate is detection rate
+b9#5 [process] quantum-mech :: search 20k random states for the 1/sqrt(2) double-mortgage ceiling
+b9#6 [process] quantum-mech :: any tight instance set demonstrates first-price underbidding
+b9#7 [wrong-object] quantum-mech :: Bell fidelity and concurrence tell one story at the optimum
+b10#0 [anchor-blindspot] qverify :: <+theta|Y|+theta> = 0
+b10#1 [anchor-blindspot] qverify :: k=1 anchors vet the Kraus expansion
+b10#2 [anchor-blindspot] qverify :: measure in the Y basis by applying U
+b10#3 [anchor-blindspot] qverify :: CZ rho CZ flips both quadrants touching 11
+b10#4 [conjugation] qverify :: (1,0) of -i(xX + yY + zZ) equals conj of (0,1)
+b10#5 [statistics] qverify :: projected gradient descent terminates on the sphere
+b10#6 [process] qverify :: grind the compass search until the symmetric double cloner is found
+b10#7 [conjugation] qverify :: Werner and isotropic states under I/4 mixing behave alike
+b10#8 [toolchain] qverify :: hand-written markdown templates through python heredocs
+b10#9 [process] qverify :: the diagnostic script is the trusted side
+b11#0 [conjugation] qram-sched :: Szegedy's search step is whatever unitary pairs the flip with the diffusion
+b11#1 [wrong-object] qram-sched :: the walk implementation is broken (when norms decay)
+b11#2 [machine-overruled] qram-sched :: lazy doubling: E2 doubles for every graph
+b11#3 [statistics] qram-sched :: first-passage time under a single threshold measures detection
+b11#4 [statistics] qram-sched :: report the mean over 20 seeds
+b11#5 [wrong-object] qram-sched :: adversarial regret is non-negative
+b11#6 [bogus-comparison] qram-sched :: RANKING dominates greedy-uniform instance-wise
+b11#7 [bogus-comparison] qram-sched :: compare the sum of per-seed ratios with a tolerance
+b11#8 [statistics] qram-sched :: the separation margin is physics
+b12#0 [toolchain] bqp-map :: write k*/sqrt(N) inside a block comment
+b12#1 [wrong-object] bqp-map :: the max off-diagonal of the ZZ Hamiltonian is the -Gamma entry
+b12#2 [dimension-slot] bqp-map :: one ascending comparator sorts Johnson's groups
+b12#3 [statistics] bqp-map :: BBHT costs ~35*sqrt(N), close enough
+b12#4 [process] bqp-map :: promise instances are plentiful — assert > 10
+b12#5 [wrong-object] bqp-map :: the advantage factor is a constant
+b12#6 [toolchain] bqp-map :: one resolve root fits all
+b12#7 [process] bqp-map :: round the measured slope to the theorem's 0.5
+b13#0 [conjugation] switch-sched :: bake 1/sqrt(2) into the switch isometry M
+b13#1 [dimension-slot] switch-sched :: assign environment slots by execution order
+b13#2 [dimension-slot] switch-sched :: I (x) U as mMul(identity, U)
+b13#3 [anchor-blindspot] switch-sched :: copy Weyl Kraus operators elementwise
+b13#4 [conjugation] switch-sched :: replacer Kraus operators carry amplitude v_j
+b13#5 [wrong-object] switch-sched :: one matched deception pair refutes all fixed-order simulators
+b13#6 [toolchain] switch-sched :: patch TS strings via JSON -> bash heredoc -> Python
+b13#7 [machine-overruled] switch-sched :: my hand-derived T = 1/4, chi = H2(1/4) anchors
+b14#0 [bogus-comparison] bqp-map :: compare the postselect ledger against Grover's best success probability
+b14#1 [bogus-comparison] bqp-map :: the brute-force control is the same formula evaluated again
+b14#2 [wrong-object] bqp-map :: apply sigma_a (x) I to measure along axis a
+b14#3 [statistics] bqp-map :: pin the tolerance at 1e-16
+b14#4 [toolchain] bqp-map :: debug with tsx -e in Git Bash
+b14#5 [process] bqp-map :: the equality row (n=4, t=7: ledger/E* = 1.00 with k=0 optimal) weakens the table
+b15#0 [dimension-slot] causal-ineq :: run Jacobi row and column rotations inside one k loop
+b15#1 [conjugation] causal-ineq :: hand-write complex Hermitian Jacobi
+b15#2 [conjugation] causal-ineq :: |Phi><Phi| = 11 + XX - YY + ZZ
+b15#3 [wrong-object] causal-ineq :: pin Alice's detection outcome to marginalize Bob's branch
+b15#4 [wrong-object] causal-ineq :: assert support signatures as Pauli index strings
+b15#5 [citation-drift] causal-ineq :: grab the nature.com file number from memory
+b16#0 [conjugation] k-switch :: the isometry certificate is M.M
+b16#1 [statistics] k-switch :: sample Pauli triples with rng.int(3) x 3
+b16#2 [statistics] k-switch :: a 1e-16 tolerance bounds the sqrt amplification
+b16#3 [machine-overruled] k-switch :: post-erasure fixed order should show maximal dilution D=1
+b17#0 [anchor-blindspot] vacuum-compiler :: compute Im(v v+) with the conj on the output side
+b17#1 [dimension-slot] vacuum-compiler :: dedup degenerate eigenvector clusters
+b17#2 [anchor-blindspot] vacuum-compiler :: half-fill sigma_y's imaginary part; it looks right
+b17#3 [dimension-slot] vacuum-compiler :: start the kron chain with out = eye unconditionally
+b17#4 [wrong-object] vacuum-compiler :: vals[1] is the spectral gap
+b17#5 [dimension-slot] vacuum-compiler :: comparison target kron(I, chain)
+b17#6 [machine-overruled] vacuum-compiler :: the clock marginal is diagonal; the fuel tilt dirties the cargo at O((eps/Delta)^2)
+b18#0 [wrong-object] dsic-noether :: a stepwise ~1e-15 residual certifies the variational integrator
+b18#1 [machine-overruled] dsic-noether :: fixed-order serial dictatorship is the negative control
+b18#2 [dimension-slot] dsic-noether :: exclude agent i and keep a square bijection
+b18#3 [dimension-slot] dsic-noether :: enumerate injections in ascending index order
+b18#4 [conjugation] dsic-noether :: let the Groves payment sign convention emerge from the code
+b18#5 [statistics] dsic-noether :: a 1e-15 guard is 'strictly better'
+b18#6 [toolchain] dsic-noether :: experiments reach the workspace root in three levels
+b19#0 [citation-drift] postselect-sched :: transcribe lambda(t) from the LSZ93 preprint PDF
+b19#1 [wrong-object] postselect-sched :: a trace-preserving channel equals the identity elementwise
+b19#2 [wrong-object] postselect-sched :: the average of conditionals is the conditional of the average
+b19#3 [statistics] postselect-sched :: MC conditional frequencies divide by the total sample count
+b19#4 [statistics] postselect-sched :: sample marked sets with possible repeats
+b19#5 [process] postselect-sched :: word the README by the expected limit
+b20#0 [conjugation] retro-cache :: build rho_03 = psi_0 * psi_3
+b20#1 [dimension-slot] retro-cache :: apply the B(x)env unitary on the 4-dim A(x)B space
+b20#2 [wrong-object] retro-cache :: no-signaling means I(B; A's outcome) = 0
+b20#3 [wrong-object] retro-cache :: the invariant is 'B's coin stays uniform'
+b20#4 [conjugation] retro-cache :: trust the |Phi_theta> tensor at a glance
+b21#0 [wrong-object] route-price :: normalize conditionalData by the joint element P(control=g, data=0)
+b21#1 [wrong-object] route-price :: the clone gap's numerical lower bound certifies no-cloning
+b21#2 [toolchain] route-price :: render.ts runs main() at import
+b21#3 [process] route-price :: hand-compute the dossier's price column, then round
+b22#0 [wrong-object] burial-record :: feed the category census witness error-shaped objects ({repo, category}[]) through a batch
+b22#1 [citation-drift] burial-record :: cite batch 19's source anchor from memory as memory/2026-09-06.md
+b22#2 [toolchain] burial-record :: place the diagnostic script outside the repo (system temp)
+b22#3 [process] burial-record :: number the laws B0-B4 then B6
+b23#0 [anchor-blindspot] readout-wall :: track only the REAL amplitudes in the k=3 branch builder
+b23#1 [dimension-slot] readout-wall :: leave the wrong-dims expression, the void-ed leftover and the invalid hex literal 0x5ead0u
+b23#2 [citation-drift] readout-wall :: import mulberry32 from the kernel by memory
+b23#3 [process] readout-wall :: reuse report.ts assuming the contract travels with the idiom
+b24#0 [dimension-slot] nosignal-tariff :: apply a 2x2 projector directly to the 4x4 two-qubit state
+b24#1 [dimension-slot] nosignal-tariff :: fill SINGLET/PHI_PLUS density matrices by writing amplitudes into wrong elements (the |01>
+b24#2 [wrong-object] nosignal-tariff :: read the joint elements re[0]/re[3] of the dephased output as the order-bit probabilities
+b24#3 [citation-drift] nosignal-tariff :: transcribe the binary-entropy Taylor series from memory with the prefactor 4x too large an
+b24#4 [wrong-object] nosignal-tariff :: check 'ensemble average is I/2' by comparing against identity(2)
+b24#5 [toolchain] nosignal-tariff :: call the gate green when npm test passes
+b24#6 [toolchain] nosignal-tariff :: feed a 2x2 zero matrix into the 4x4 local-map channel, and require() inside an ESM probe
+b24#7 [process] nosignal-tariff :: let the negative-control test wander into a positive assertion with a void-ed leftover var
+b25#0 [dimension-slot] choice-lang :: run a 20-step program without accounting the register: each choose adds a control qubit
+b25#1 [process] choice-lang :: let the language kernel reach the machine on the third draft (draft 1: dead code and a non
+b25#2 [bogus-comparison] choice-lang :: 'verify' the clone's order-2 phase by composing the expected rotation myself and checking 
+b25#3 [dimension-slot] choice-lang :: tensor the 2x2 control marginal against the 4x4 pair projector
+b25#4 [wrong-object] choice-lang :: assert the control marginal equals the prepared state after a choose
+b25#5 [statistics] choice-lang :: quote the rounding floor from the probe's seeds (211-family) for a witness using different
+b25#6 [toolchain] choice-lang :: write render.ts through a bash heredoc
+b26#0 [conjugation] binding-price :: hand-expand the pass probability's element arithmetic (a real-part sign slip in the A10*B0
+b26#1 [toolchain] binding-price :: write probe.ts through a bash heredoc again
+b27#0 [process] letter-audit :: start writing the Turing-machine encoding before finishing the design (two drafts collapse
+b27#1 [statistics] letter-audit :: write the universe count as 4 * (n + 1) ** (2 * n)
+b27#2 [dimension-slot] letter-audit :: encode the right-walker transition as K - 1 - (n + 1) instead of exactly 3 * (n + 1)
+b28#0 [dimension-slot] wukong-crossval :: allocate the statevector with dim entries but index it as the [real | imaginary] split lay
+b28#1 [dimension-slot] wukong-crossval :: read coupling coefficients from empty rows without a fallback
+b28#2 [conjugation] wukong-crossval :: apply the cost phase with the real part missing the -im*phIm term
+b28#3 [process] wukong-crossval :: build 21 instances then slice(0, 20), silently dropping the fifth linear one
+b29#0 [conjugation] survivor-census :: write the imaginary part of <A|B> as aIm*bRe - aRe*bIm
+b29#1 [statistics] survivor-census :: referee E[T] by a plain truncated loop at every P (P=2^-20 needs ~4e7 accumulated adds)
+b29#2 [wrong-object] survivor-census :: assert the degenerate full-funding case with assert.equal(pKeep, 1)
+b29#3 [toolchain] survivor-census :: resolve the workspace root in test/ with the three-level climb copied from src/experiments
+b29#4 [bogus-comparison] survivor-census :: print the kill register's fractions as mass*N over N
+b29#5 [process] survivor-census :: let draft residue reach the machine (a `| ""` leftover inside a ternary, an unused N in p0
+b30#0 [conjugation] ent-clearing :: write |Phi-> and |Psi-> as global negations of the plus states: vScale(vAdd(k00, k11), -in
+b30#1 [bogus-comparison] ent-clearing :: print probe fidelities at toExponential(6) and read 1.000000e+0 as clean
+b30#2 [wrong-object] ent-clearing :: verify pure-payload identity through the Uhlmann fidelity (the sqrtPSD route)
+b30#3 [statistics] ent-clearing :: normalize the Procrustean fail branch unguarded at l_min = 1/2
+b30#4 [process] ent-clearing :: let audit.ts draft residue stand: indirection chains (mMat/randomMixedLike), mid-file impo
+b30#5 [toolchain] ent-clearing :: copy the kernel core but skip measures.ts (it had only been read)
+b31#0 [dimension-slot] stable-world :: write the |1><0| Kraus element at flat index 1 (that is element (0,1) — the damping would 
+b31#1 [dimension-slot] stable-world :: scale a 4x4 matrix by multiplying it with a 1x1 'scalar' matrix through mMul
+b31#2 [wrong-object] stable-world :: build random unitaries as exp(iH) through the family eigHermitian on an INDEFINITE random 
+b31#3 [wrong-object] stable-world :: define the law's k->infinity limit as the diagonal blocks kept IN PLACE (the dephased twin
+b31#4 [dimension-slot] stable-world :: compare the converged state against inWorldState(outside) — embedding a 4x4 full state as 
+b31#5 [statistics] stable-world :: Monte-Carlo the event 'ever left the world within K steps' while the closed form gives 'ou
+b31#6 [citation-drift] stable-world :: import basisVec from states.js (it lives in cmat.js)
+b31#7 [citation-drift] stable-world :: consume mat and mAdd in the test file with neither in its import list
+b32#0 [machine-overruled] mutant-census :: ship P2 as a statehood battery (Hermitian, trace 1, PSD) while MU2's corruption is element
+b32#1 [bogus-comparison] mutant-census :: NC-P3's violator: dagger the outer product — a mirror-symmetric corruption set against the
+b32#2 [wrong-object] mutant-census :: build P10's entangled states with a random GLOBAL U(4) on |Phi+> and assert B's marginal i
+b32#3 [statistics] mutant-census :: require the CNOT negative control to move B's marginal by strictly MORE than 0.5 — the CNO
+b32#4 [statistics] mutant-census :: let P6's leakage loop advance one shared state through k MORE steps for each k in [1,3,7] 
+b32#5 [anchor-blindspot] mutant-census :: leave nonstoq-anneal and ft-qaoa out of the legacy guard register on the strength of a rec
+b32#6 [citation-drift] mutant-census :: capture provenance repos with /batch \d+ \(([^)]+)\)/ — MU1's 'batch 10 (qverify, expPauli
+b32#7 [process] mutant-census :: format kill margins with a >1000-means-sigma heuristic — MU5's exact trace ratio 3580 prin
+b32#8 [wrong-object] mutant-census :: construct P1's mismatched pair as mat(k, m === k ? m + 1 : m) against mat(m, n) — when m !
+b32#9 [process] mutant-census :: the MU6 edit left a duplicated assignment line (k0w.re[0] set twice) and MU7 zeroed the de
+b32#10 [process] mutant-census :: ship render.ts with a placeholder helper whose body throws 'unreachable' — the render woul
+b32#11 [process] mutant-census :: walk the tree in census.ts through existsSync + readdir try/catch pairs with two helper fu
+b32#12 [toolchain] mutant-census :: import block missing mMul/vec/vKron while importing unused depolarize/PAULI_X/Rng/CMat
+b33#0 [process] mutant-census :: drop the retrofit probe into /tmp — which resolves to D:\Data\Temp on this machine, outsid
+b33#1 [anchor-blindspot] mutant-census :: the retrofit script inserted the guard import after the LAST line matching /^import / — qv
+b33#2 [toolchain] mutant-census :: verify the retrofitted repos with `npx tsc --noEmit --project <other-repo-path>` from the 
+b33#3 [process] mutant-census :: scout the trailing invocations through a compound pipeline whose `grep -v ":: "` stage fil

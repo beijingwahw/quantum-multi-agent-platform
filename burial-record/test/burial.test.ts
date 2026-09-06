@@ -1,0 +1,158 @@
+import assert from "node:assert/strict";
+import { existsSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, it } from "node:test";
+import { checkBurial, runWitnesses } from "../src/kernel/audit.js";
+import {
+  BURIAL_RECORD,
+  DECLARED_TOTAL_BATCHES,
+  DECLARED_TOTAL_ERRORS,
+  type BurialBatch,
+} from "../src/kernel/registry.js";
+
+/** deep-clone helper for the smuggling trials — the contraband never touches the real registry */
+function smuggle(mutate: (b: BurialBatch[]) => void): BurialBatch[] {
+  const copy = JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
+  mutate(copy);
+  return copy;
+}
+
+/** stale (from an earlier repro) counts as absent — the import must not produce a fresh file */
+function freshReportExists(): boolean {
+  const p = resolve(process.cwd(), "out", "reports", "the-burial-record.md");
+  if (!existsSync(p)) return false;
+  return Date.now() - statSync(p).mtimeMs < 1000;
+}
+
+describe("T1 the record buries cleanly", () => {
+  it("the checker passes on the real registry", () => {
+    assert.deepEqual(checkBurial(), []);
+  });
+
+  it("all census witnesses pass", () => {
+    for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
+  });
+
+  it("declared totals equal the registry", () => {
+    assert.equal(BURIAL_RECORD.length, DECLARED_TOTAL_BATCHES);
+    assert.equal(BURIAL_RECORD.reduce((a, b) => a + b.errors.length, 0), DECLARED_TOTAL_ERRORS);
+  });
+});
+
+describe("T2 smuggling trials — the bookkeeping rejects contraband by name", () => {
+  it("B1: a batch anchored to a repo that does not exist is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      (b[0] as { repo: string }).repo = "ghost-repo";
+    });
+    const violations = checkBurial(contraband);
+    const hit = violations.find((v) => v.law === "B1");
+    assert.ok(hit, `expected a B1 violation, got: ${JSON.stringify(violations)}`);
+    assert.match(hit.detail, /ghost-repo/);
+    assert.equal(hit.batch, 1);
+  });
+
+  it("B2: an error smuggled in with only one column is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      const batch3 = b.find((x) => x.batch === 3) as unknown as { errors: Array<{ right: string }> };
+      batch3.errors[0]!.right = "";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B2");
+    assert.ok(hit, "expected a B2 violation");
+    assert.equal(hit.batch, 3);
+    assert.match(hit.detail, /two columns/);
+  });
+
+  it("B3: a gap in the numbering is named and rejected — the count may not drift", () => {
+    const contraband = smuggle((b) => {
+      const idx = b.findIndex((x) => x.batch === 7);
+      b.splice(idx, 1);
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B3");
+    assert.ok(hit, "expected a B3 violation");
+    assert.match(hit.detail, /missing \[7\]/);
+  });
+
+  it("B4: a source anchor citing a heading that is not on disk is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      const batch20 = b.find((x) => x.batch === 20) as unknown as { source: { heading: string } };
+      batch20.source.heading = "关键经验（不存在的标题";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B4");
+    assert.ok(hit, "expected a B4 violation");
+    assert.equal(hit.batch, 20);
+  });
+
+  it("B0: an error filed under a category outside the taxonomy is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      const batch21 = b.find((x) => x.batch === 21) as unknown as { errors: Array<{ category: string }> };
+      batch21.errors[0]!.category = "misc";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B0");
+    assert.ok(hit, "expected a B0 violation");
+    assert.match(hit.detail, /illegal category "misc"/);
+  });
+
+  it("B5: a batch whose date contradicts its anchor file is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      const batch19 = b.find((x) => x.batch === 19) as unknown as { date: string };
+      batch19.date = "2026-09-07";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B5");
+    assert.ok(hit, "expected a B5 violation");
+    assert.match(hit.detail, /does not match anchor file/);
+  });
+
+  it("B7: a context stating the wrong error count is named and rejected (the b45#9 law)", () => {
+    const contraband = smuggle((b) => {
+      const batch45 = b.find((x) => x.batch === 45) as unknown as { context: string };
+      batch45.context =
+        "the v0.5.0 armor dynamics delivery — nine delivery errors across five classes, born enrolled";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B7" && v.batch === 45);
+    assert.ok(hit, "expected a B7 violation on batch 45");
+    assert.match(hit.detail, /states 9 error/);
+    assert.match(hit.detail, /carries 10/);
+  });
+
+  it("B7: a context stating the wrong class count is named and rejected", () => {
+    const contraband = smuggle((b) => {
+      const batch45 = b.find((x) => x.batch === 45) as unknown as { context: string };
+      batch45.context =
+        "the v0.5.0 armor dynamics delivery — ten delivery errors across six classes, born enrolled";
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B7" && v.batch === 45);
+    assert.ok(hit, "expected a B7 class-count violation");
+    assert.match(hit.detail, /classes/);
+  });
+
+  it("B7 regression: hyphenated counts parse whole ('twenty-two' on 22 errors is NOT a violation)", () => {
+    const contraband = smuggle((b) => {
+      const batch36 = b.find((x) => x.batch === 36) as unknown as { context: string };
+      batch36.context =
+        "the #10 settlement repo: the beat clocking universal reversible computation with a legislated tariff table — twenty-two delivery errors, born enrolled (E1 self-application, third generation)";
+    });
+    assert.deepEqual(
+      checkBurial(contraband).filter((v) => v.law === "B7"),
+      [],
+      "twenty-two === 22 must not convict — the truncation trap",
+    );
+  });
+});
+
+describe("T3 the renderer refuses to print an illegal registry", () => {
+  it("the smuggled registry fails the checker the renderer gates on", () => {
+    const contraband = smuggle((b) => {
+      const batch3 = b.find((x) => x.batch === 3) as unknown as { errors: Array<{ wrong: string }> };
+      batch3.errors[0]!.wrong = "";
+    });
+    const violations = checkBurial(contraband);
+    assert.ok(violations.length > 0, "the smuggled registry must not pass the checker");
+    const reasons = violations.map((v) => `batch ${v.batch} [${v.law}]: ${v.detail}`);
+    assert.match(reasons.join("\n"), /\[B2\]/);
+  });
+
+  it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
+    await import("../src/experiments/render.js");
+    assert.equal(freshReportExists(), false, "importing render.ts must not write a fresh out/reports file");
+  });
+});

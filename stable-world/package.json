@@ -1,0 +1,31 @@
+{
+  "name": "stable-world",
+  "version": "0.1.0",
+  "description": "The physics half of ledger row #15, executed: the desired world as the STABLE SOLUTION of a fixed law. choice-lang compiled Choice into controlled branching and kept the marked world stable by construction (engineered programs, charge conserved — the language layer); what the ledger kept open was stability as physics. This repo is that law: a fixed dissipative channel (amplitude damping into the world bit, identity on the cargo) whose absorbing class is the marked world — quiet on what is already inside (deviation 0), globally attractive from anywhere (leakage (1-gamma)^k (1-p0) exact for every input), robust under law-error (asymptotic leakage <= eps/(1-(1-eps)(1-gamma)), exact bound + census), escape exactly impossible (the charge is monotone — the world is absorbing, not metastable). The membership charge becomes the law's LYAPUNOV function (increment gamma(1-V) exact; conserved exactly under engineered branch programs — one functional, two regimes, the discrete-Noether shape noted not claimed). The stability is PURCHASED: sector erasure pays h2(q) kT ln2 per run on the classical face (the settled #11 schedule, quoted from route-price), coherent face model-dependent and unpriced. The law selects the WORLD, never the CONTENTS (path-dependent). Boundaries honest: the law is authored (nature's instantiation not claimed), the thermal reading of escape not shipped. The checker enforces the board laws; the renderer refuses illegal boards.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "choice-primitive",
+    "dissipative-stabilization",
+    "lyapunov-certificate",
+    "attractor-robustness",
+    "landauer-tariff"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

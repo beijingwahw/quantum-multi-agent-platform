@@ -1,0 +1,32 @@
+{
+  "name": "causal-ineq",
+  "version": "0.1.0",
+  "description": "Roadmap #9: the causal inequality, executed — the machine-verified theorem layer of the Oreshkov-Costa-Brukner process matrix framework. What exists in the literature: the framework and the causal game (OCB12), SDP-based causal witnesses (ARA15), photonic causal-nonseparability experiments. What did NOT exist: exhaustive machine verification of the causal bound (all deterministic classical causal strategies swept, cap 3/4 exact), the process Born rule executed on exact complex algebra, the process validity constraints as executable certificates (the allowed-pattern rule derived from TPCP invariance, PSD and normalization checked), and the violation cos^2(pi/8) anchored on a machine-constructed valid process matrix with noise threshold 1/sqrt(2) — claims without certificates do not ship",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx experiments/run-all.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "indefinite-causal-order",
+    "process-matrix",
+    "causal-inequality",
+    "causal-nonseparability",
+    "quantum-foundations",
+    "machine-verification"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

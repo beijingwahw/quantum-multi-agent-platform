@@ -1,0 +1,31 @@
+{
+  "name": "choice-lang",
+  "version": "0.1.0",
+  "description": "The first executable model of choice as a language primitive — the #15 milestone body that does not need hardware. The ledger's OPEN row said 'no executable model exists'; this repo is one. A minimal language whose choose(w, U0, U1) nodes compile to controlled-unitary branching on (control, data); the desired world is a marked subspace W; ENGINEERED programs (branches preserving W) keep data-in-W with fidelity exactly 1 over arbitrary program lengths while random programs decay to the dimension ratio; certifying 'the world we want' reopens the epoch-3 ledger toll 1/P at the language layer; the choice register steers but never broadcasts — the no-cloning wall executed as a rephasing-covariance order separation (branch terms order 1, clone terms order 2); and the conservation law that guards stability is exhibited in-model: invariance implies the membership charge is conserved implies stability — the same implication shape as the discrete Noether layer. The checker enforces the model laws; the renderer refuses illegal models. The epoch-5 superstructure question (stability as physics, not compilation) stays OPEN and is not claimed.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "choice-primitive",
+    "executable-model",
+    "engineered-invariance",
+    "certification-toll",
+    "membership-charge"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

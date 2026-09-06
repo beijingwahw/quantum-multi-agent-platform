@@ -1,0 +1,42 @@
+{
+  "name": "quantum-mech",
+  "version": "0.1.0",
+  "description": "Quantum mechanism design prototype: which incentive properties (DSIC) survive quantizing the communication channel, what quantization actually buys (no-cloning bid privacy via Wiesner locking, entanglement collateral via monogamy), and where it provably breaks (bit-commitment no-go, approximate solvers inside VCG)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:dsic": "tsx src/experiments/exp1-dsic.ts",
+    "exp:privacy": "tsx src/experiments/exp2-privacy.ts",
+    "exp:escrow": "tsx src/experiments/exp3-escrow.ts",
+    "exp:nogo": "tsx src/experiments/exp4-nogo.ts",
+    "exp:vcg": "tsx src/experiments/exp5-vcg.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-mechanism-design",
+    "dsic",
+    "revelation-principle",
+    "vcg",
+    "quantum-auction",
+    "no-cloning",
+    "wiesner-locking",
+    "monogamy-of-entanglement",
+    "bit-commitment-nogo",
+    "density-matrix-simulation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

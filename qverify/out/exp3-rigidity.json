@@ -1,0 +1,68 @@
+{
+  "anchors": [
+    {
+      "name": "Bell |phi+⟩",
+      "formula": 2.8284271247,
+      "optimized": 2.82842712,
+      "err": 2.207e-13
+    },
+    {
+      "name": "Bell |psi-⟩",
+      "formula": 2.8284271247,
+      "optimized": 2.82842712,
+      "err": 3.77e-13
+    },
+    {
+      "name": "Werner F=1.000000",
+      "formula": 2.8284271247,
+      "optimized": 2.82842712,
+      "err": 2.207e-13
+    },
+    {
+      "name": "Werner F=0.900000",
+      "formula": 2.5455844123,
+      "optimized": 2.54558441,
+      "err": 1.985e-13
+    },
+    {
+      "name": "Werner F=0.750000",
+      "formula": 2.1213203436,
+      "optimized": 2.12132034,
+      "err": 1.652e-13
+    },
+    {
+      "name": "Werner F=0.707107",
+      "formula": 2,
+      "optimized": 2,
+      "err": 3.471e-13
+    },
+    {
+      "name": "Werner F=0.600000",
+      "formula": 1.6970562748,
+      "optimized": 1.69705627,
+      "err": 2.942e-13
+    },
+    {
+      "name": "Werner F=0.500000",
+      "formula": 1.4142135624,
+      "optimized": 1.41421356,
+      "err": 5.165e-13
+    }
+  ],
+  "worstWernerGap": 8.881784197001252e-16,
+  "thresholdS": 1.9999999999999996,
+  "worstSchmidtGap": 6.049879819336468e-9,
+  "worstRandomGap": 3.309974516696457e-11,
+  "tsirelsonMax": 2.464898512020231,
+  "game": {
+    "winRate": 0.85245,
+    "sFromAngles": 2.8284271247459687,
+    "wFromS": 0.8535533905932461,
+    "wClassical": 0.75
+  },
+  "boundary": {
+    "f": 0.65,
+    "pptMin": -0.2374999999999999,
+    "sMax": 1.8384776310850233
+  }
+}

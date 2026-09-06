@@ -1,0 +1,46 @@
+{
+  "name": "qverify",
+  "version": "0.1.0",
+  "description": "Machine verification of the theorem layer behind delegated-computation verification: exact UBQC blindness (zero leakage identity + one-time-pad on the angle group), the FK trap detection calculus (I/X/Y,Z three-tier exact algebra), CHSH rigidity (Horodecki formula vs direct optimization, Tsirelson, pure-state concurrence law), sampling-based certification (shadow unbiasedness, mirror-echo closed forms, XEB with a concrete circuit-cut spoof), and optimal-attack games (Helstrom, BB84 = CHSH constant, the 1/2 commit-then-reveal wall, Bužek-Hillery cloner at 5/6)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:blindness": "tsx src/experiments/exp1-blindness.ts",
+    "exp:traps": "tsx src/experiments/exp2-traps.ts",
+    "exp:rigidity": "tsx src/experiments/exp3-rigidity.ts",
+    "exp:sampling": "tsx src/experiments/exp4-sampling.ts",
+    "exp:attacks": "tsx src/experiments/exp5-attacks.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-verification",
+    "delegated-quantum-computation",
+    "ubqc",
+    "blind-quantum-computing",
+    "trap-qubits",
+    "chsh-rigidity",
+    "self-testing",
+    "classical-shadows",
+    "xeb",
+    "mirror-circuits",
+    "helstrom",
+    "quantum-cloning",
+    "mahadev",
+    "density-matrix-simulation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "k-switch",
+  "version": "0.1.0",
+  "description": "Roadmap #10: the k-switch, executed — order superposition over k! topological sorts (k=3, six orders), the machine-verified layer of the N-switch query separation. Known in theory (ARA14: O(n) vs O(n²) queries), never machine-verified. Delivered here: the 3-switch as an executable isometry with certificate; the commuting-vs-anticommuting promise read out deterministically via the exact parity-orthogonality law (control ends in the uniform state vs the permutation-parity state, inner product exactly 0 — dimension-free, weaker than ARA14's d>=N! full problem); structural blindness of plain fixed orders (every order's output is the input up to a global phase, trace distance exactly 0 across the whole promise class); and the three-stage scheduling contact surface (six-order switch vs six fixed orders on an alloc-alloc-exec chain)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx experiments/run-all.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-switch",
+    "indefinite-causal-order",
+    "query-complexity",
+    "coherent-dag",
+    "scheduling"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

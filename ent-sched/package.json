@@ -1,0 +1,39 @@
+{
+  "name": "ent-sched",
+  "version": "0.1.0",
+  "description": "Distributed entanglement scheduling prototype: the scheduler treats EPR pairs as a first-class schedulable resource (link attempt bandwidth, memory slots, swap timing, purification ladders) over a heralded-link quantum network model",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:physics": "tsx src/experiments/exp1-physics.ts",
+    "exp:chain": "tsx src/experiments/exp2-chain.ts",
+    "exp:network": "tsx src/experiments/exp3-network.ts",
+    "exp:purify": "tsx src/experiments/exp4-purify.ts",
+    "exp:scaling": "tsx src/experiments/exp5-scaling.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-networks",
+    "entanglement-distribution",
+    "quantum-repeaters",
+    "scheduling",
+    "routing",
+    "purification",
+    "discrete-event-simulation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "shadowBias": [
+    {
+      "n": 2,
+      "q": 0,
+      "bias": 3.735e-16
+    },
+    {
+      "n": 2,
+      "q": 0.3,
+      "bias": 3.112e-16
+    },
+    {
+      "n": 3,
+      "q": 0,
+      "bias": 6.424e-16
+    },
+    {
+      "n": 3,
+      "q": 0.3,
+      "bias": 5.019e-16
+    }
+  ],
+  "shadowMC": {
+    "mean": 0.7459892568294386,
+    "stdErr": 0.006495795786863466,
+    "closed": 0.7374999999999999,
+    "z": 1.3068848079563433
+  },
+  "mirror": {
+    "rows": [
+      {
+        "layers": 1,
+        "lambda": 0.05,
+        "simulated": 0.95625,
+        "closed": 0.95625
+      },
+      {
+        "layers": 1,
+        "lambda": 0.2,
+        "simulated": 0.825,
+        "closed": 0.825
+      },
+      {
+        "layers": 2,
+        "lambda": 0.05,
+        "simulated": 0.9146875,
+        "closed": 0.9146875
+      },
+      {
+        "layers": 2,
+        "lambda": 0.2,
+        "simulated": 0.685,
+        "closed": 0.685
+      },
+      {
+        "layers": 4,
+        "lambda": 0.05,
+        "simulated": 0.83769296875,
+        "closed": 0.83769296875
+      },
+      {
+        "layers": 4,
+        "lambda": 0.2,
+        "simulated": 0.4834,
+        "closed": 0.4834
+      },
+      {
+        "layers": 8,
+        "lambda": 0.05,
+        "simulated": 0.705492877378,
+        "closed": 0.705492877378
+      },
+      {
+        "layers": 8,
+        "lambda": 0.2,
+        "simulated": 0.27180064,
+        "closed": 0.27180064
+      },
+      {
+        "layers": 16,
+        "lambda": 0.05,
+        "simulated": 0.51011083507,
+        "closed": 0.51011083507
+      },
+      {
+        "layers": 16,
+        "lambda": 0.2,
+        "simulated": 0.149629060462,
+        "closed": 0.149629060462
+      }
+    ],
+    "worstMirrorGap": 9.992007221626409e-16
+  },
+  "localMirrorCurve": [
+    {
+      "layers": 1,
+      "fReturn": 0.8604384247394152
+    },
+    {
+      "layers": 2,
+      "fReturn": 0.7235657436661943
+    },
+    {
+      "layers": 4,
+      "fReturn": 0.5254533217390582
+    },
+    {
+      "layers": 8,
+      "fReturn": 0.2804641187218862
+    },
+    {
+      "layers": 12,
+      "fReturn": 0.18896459100569962
+    }
+  ],
+  "xeb": {
+    "n": 8,
+    "ptSelf": 1.141390859199639,
+    "uniformXeb": -6.661338147750939e-16,
+    "marginalSums": {
+      "pa": 0.999999999999999,
+      "pb": 0.9999999999999992
+    },
+    "spoofXeb": 0.4359584332090185,
+    "spoofTv": 0.29397956908750544,
+    "mcRows": [
+      {
+        "lambda": 0.5,
+        "mean": 0.563282,
+        "stdErr": 0.00324,
+        "closed": 0.570695
+      },
+      {
+        "lambda": 0.8,
+        "mean": 0.917681,
+        "stdErr": 0.003454,
+        "closed": 0.913113
+      },
+      {
+        "lambda": 1,
+        "mean": 1.137543,
+        "stdErr": 0.003479,
+        "closed": 1.141391
+      }
+    ]
+  },
+  "costs": [
+    {
+      "n": 8,
+      "layers": 8,
+      "ms": 3.805
+    },
+    {
+      "n": 10,
+      "layers": 10,
+      "ms": 8.1434
+    },
+    {
+      "n": 12,
+      "layers": 12,
+      "ms": 36.7538
+    },
+    {
+      "n": 14,
+      "layers": 14,
+      "ms": 175.4714
+    },
+    {
+      "n": 16,
+      "layers": 16,
+      "ms": 928.0111
+    }
+  ]
+}

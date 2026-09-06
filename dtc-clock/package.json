@@ -1,0 +1,32 @@
+{
+  "name": "dtc-clock",
+  "version": "0.5.0",
+  "description": "The ledger row #10 open core, executed at the model layer. The epoch-4 sentence 'time crystals as the clock wall — a zero-energy eternal beat' was split by route-price D1 into three truths: equilibrium no-beat (WO15's no-go), driven beat (real, metered, MI22 for hardware), and beat-clocking general computation (uncertified anywhere — this repo's cell). The beat: an exact driven-echo family with F+ Z_i F = -Z_i exactly, m(k) = (-1)^k on the orbit, and pi-paired quasi-energies as trace identities (eigenstate order, no eigensolver). The clock register: a one-hot token keyed on the beat's order sector advances exactly once per subharmonic period and fires a universal reversible gate set (NOT/CNOT/TOFFOLI demonstrated on a 2x2-bit multiplier, 16/16 inputs; FREDKIN's conservation machine-checked) — cargo fidelity exactly 1 at every tick, the vacuum-compiler T3 semantics beat-driven instead of spectral. The thermodynamic ledger: the ideal beat costs ZERO net work in-model (constant strobe energy, TPM work delta(W-0)), the detuned beat pays J(n-1)(cos^2 2d)^k sin^2 2d per period with the total exactly J(n-1) (the full binding energy), and the tariff table legislated before the numbers — per-run erasure units at equal error: DTC-Bennett 0 < DTC-as-built 5 < irreversible rival 9, FK spectral QUOTED (vacuum-compiler T4): the clock is overhead, not engine (D1-M4's pre-announcement, now with numbers). Back-action: keying on the order sector leaves the clock untouched EXACTLY on the orbit; off it (random superpositions, detuning, repeated reads) the frontier is censused. The WO15 tombstone: nondegenerate ground and thermal states stationary to the floor; the only beat a static Hamiltonian offers is a spent two-eigenstate battery at the Bohr frequency. Hardware instantiation NOT claimed; the beat is eternal in-model and metered at every use — the second law stays a price list (#11's verdict, now at the clock layer). v0.5.0 the armor dynamics: the clock register is the repetition code [n,1,n] with the keying as its majority decoder — radius r = floor((n-1)/2), HAM50's correction-radius law at the clock layer; under delocalized Pauli fire the token process is EXACTLY the classical popcount-walk shadow (DP === dense census at the rounding floor), the armor erodes and partially self-heals (inverted-sector dwell refunds its misses), and majority repair restores exactness at odd n forever at a metered syndrome-entropy tariff — while at even n the tie dead zone turns the decoder into a long-horizon liability, the numbers overruling the expectation (error correction priced, not free).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "time-crystal",
+    "dtc-clock",
+    "floquet",
+    "reversible-computing",
+    "landauer-tariff",
+    "fk-clock"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

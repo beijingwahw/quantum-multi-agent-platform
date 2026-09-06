@@ -1,0 +1,31 @@
+{
+  "name": "readout-wall",
+  "version": "0.1.0",
+  "description": "The measurement wall of indefinite causal order, executed as an exchange-rate ledger. The ledger's #06 cost column cites three walls; the first — 'readout collapses the order' — has been quoted in every repo since switch-sched but never executed as its own object. This repo is that execution: the collapse identity (dephasing the order register leaves exactly the classical mixture of the fixed-order channels — machine-checked to 1e-12 across random CPTP pairs and the showcase families), the ESC18 exchange (the 0.048795 bits of the two-depolarizing switch live entirely in the off-block coherences; a z-readout of the order kills exactly that and leaves 0, while the order bit it buys is input-blind — a fair coin about the branch, never about the payload), the complementarity face (the replacer pair parks its information ON the control at x-coherence; reading the order basis sees nothing), the partial-readout interpolation curve (data, no convexity theorem claimed), and the k=3 face where the wall scales to six orders. Every ledger row is an exchange: what you GET | what you PAY. The checker enforces the exchange laws — a one-sided trade, an EXACT tag without a passing witness, or a dead anchor all fail the build.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-switch",
+    "measurement-wall",
+    "readout-collapse",
+    "exchange-rate-ledger",
+    "order-complementarity"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "qram-sched",
+  "version": "0.1.0",
+  "description": "Machine verification of the theorem layer behind qRAM-accelerated online scheduling: bucket-brigade qRAM addressing exactness with O(log N) error exposure (vs O(N) fanout), Szegedy quantum-walk quadratic detection on scheduling search chains (exact walk simulation vs fundamental-matrix classical hitting vs closed forms), exact QPE amplitude estimation enforcing the 1/eps vs 1/eps^2 precision law, and the regret/query-ledger separation: stochastic replay streams move exploration from the regret ledger to the quantum-query ledger, adversarial streams keep the Omega(sqrt(kT)) wall (bit-identical decisions), and online-matching competitive ratios (1/2, 1-1/e) are information-theoretic caps quantum search cannot touch — only per-arrival query counts drop from O(n) to O(sqrt n)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:qram": "tsx src/experiments/exp1-qram.ts",
+    "exp:walk": "tsx src/experiments/exp2-walk.ts",
+    "exp:ae": "tsx src/experiments/exp3-ae.ts",
+    "exp:regret": "tsx src/experiments/exp4-regret.ts",
+    "exp:matching": "tsx src/experiments/exp5-matching.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "qram",
+    "bucket-brigade",
+    "quantum-walk",
+    "szegedy-walk",
+    "amplitude-estimation",
+    "quantum-bandits",
+    "online-scheduling",
+    "regret-bounds",
+    "online-bipartite-matching",
+    "ranking-algorithm",
+    "grover-search",
+    "quantum-query-complexity"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

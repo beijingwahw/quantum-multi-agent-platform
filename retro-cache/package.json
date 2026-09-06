@@ -1,0 +1,33 @@
+{
+  "name": "retro-cache",
+  "version": "0.1.0",
+  "description": "The retrocausal cache, audited into a tariff ledger. The countersigned verdict said: it is a correlator, not an oracle, and the no-signaling tax is not in the visitor's depreciation table and cannot be depreciated away. This repo prints that tax as a ledger: (W1) correlation inventory — Werner-singlet joint tables P(x,y|a,b) = (1 - xy p a.b)/4 on two arithmetic paths, CHSH = 2*sqrt(2)*p to machine precision, complex phase-family anchors Phi_theta with E = cos(theta)(ax bx - ay by) that catch conjugation bugs; (W2) the marginal tariff — B's outcome distribution is exactly (1/2,1/2) under any axis, any visibility, and any local map (random unitary, Stinespring CPTP, classical postprocessing), while the joint state visibly moves; mutual information with A's side is exactly 0 bits before the broadcast and exactly 1 bit after it — the before/after, in bits; (W3) the pre-arrival equivalence theorem at machine level — before the classical channel, the quantum cache is distributionally indistinguishable (TV = 0) from a pre-shared random seed, and the ENTIRE surplus lives in the joint column: all 256 deterministic classical shared-randomness strategies cap CHSH at exactly 2 (full enumeration), the singlet reaches 2*sqrt(2); (W4) the withdrawal ledger — aligned-axes extraction: QBER = (1-p)/2 two-path, sifting rate 1/2, reconciliation floor h2(QBER) (SHAN48), net = (1 - h2(q))/2 bits per pair, settings tariff 1 bit per raw pair on the classical channel, zero net at p = 0 — the exchange rate of cache withdrawal, exact and priced",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "no-signaling",
+    "chsh",
+    "tsirelson",
+    "singlet",
+    "quantum-key-distribution",
+    "reconciliation",
+    "mutual-information"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

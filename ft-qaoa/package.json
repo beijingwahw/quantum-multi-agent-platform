@@ -1,0 +1,36 @@
+{
+  "name": "ft-qaoa",
+  "version": "0.1.0",
+  "description": "Fault-tolerant deep QAOA route prototype: p>100 logical-layer simulation with provable depth-monotonicity, qLDPC resource estimation, and real-time decoder scheduling",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:monotonic": "tsx src/experiments/exp1-monotonic.ts",
+    "exp:resources": "tsx src/experiments/exp2-resources.ts",
+    "exp:decoder": "tsx src/experiments/exp3-decoder.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "qaoa",
+    "fault-tolerance",
+    "qldpc",
+    "quantum-scheduling",
+    "resource-estimation",
+    "real-time-decoding"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

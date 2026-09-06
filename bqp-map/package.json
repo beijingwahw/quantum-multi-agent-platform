@@ -1,0 +1,47 @@
+{
+  "name": "bqp-map",
+  "version": "0.1.0",
+  "description": "Machine verification of the BQP x NP complexity atlas for scheduling: executable many-one reductions carrying NP-hardness certificates (Partition->P2||Cmax weak, 3-Partition->P||Cmax strong, FPTAS dichotomy), exact Grover/Durr-Hoyer upper bounds with per-query certificates, finite exhaustive verification of the classical q/N search wall (all deterministic decision trees) and of the BBBV hybrid argument ((2q+1)^2/N quantum cap, exact state-vector distances), NP-witness vs QMA-witness verification asymmetry (Hoeffding sampling law), the stoquastic/StoqMA vs non-stoquastic/QMA dichotomy on annealing Hamiltonians, and a typed atlas registry where every verdict tag must carry a machine certificate or a verified citation — claims without certificates do not ship; plus the genealogy family — far-future claims enrolled under the same discipline: the postselection depreciation ledger (certainty in-branch, classical-random rates out-of-branch, counting-ratio readout per PostBQP=PP) and the no-signaling withdrawal clause (marginal invariance under arbitrary local unitary/CPTP maps, singlet correlation-without-signature anchors)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:reductions": "tsx src/experiments/exp1-reductions.ts",
+    "exp:upper": "tsx src/experiments/exp2-upper.ts",
+    "exp:lower": "tsx src/experiments/exp3-lower.ts",
+    "exp:witness": "tsx src/experiments/exp4-witness.ts",
+    "exp:atlas": "tsx src/experiments/exp5-atlas.ts",
+    "exp:genealogy": "tsx src/experiments/exp6-genealogy.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "bqp",
+    "np",
+    "qma",
+    "stoqma",
+    "complexity-theory",
+    "scheduling",
+    "grover-search",
+    "bbbv",
+    "quantum-query-complexity",
+    "reductions",
+    "3-partition",
+    "makespan",
+    "local-hamiltonian",
+    "stoquastic"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

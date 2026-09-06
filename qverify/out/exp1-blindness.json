@@ -1,0 +1,49 @@
+{
+  "identityChecks": [
+    {
+      "n": "1",
+      "dim": "2",
+      "traceDistanceToMixed": 0
+    },
+    {
+      "n": "2",
+      "dim": "4",
+      "traceDistanceToMixed": 0
+    },
+    {
+      "n": "3",
+      "dim": "8",
+      "traceDistanceToMixed": 0
+    },
+    {
+      "n": "4",
+      "dim": "16",
+      "traceDistanceToMixed": 0
+    }
+  ],
+  "worstCaseGaps": {
+    "n1": 2.0253964504621832e-16,
+    "n3": 2.3669848214003997e-16,
+    "n4": 2.4271638216983577e-16
+  },
+  "angleOtp": {
+    "standard": {
+      "mutualInfoBits": 1,
+      "condEntropyBits": 2
+    },
+    "fullGroup": {
+      "mutualInfoBits": 0,
+      "condEntropyBits": 3
+    }
+  },
+  "noPad": {
+    "n2": {
+      "maxTraceDistance": 1.0000000000000004,
+      "chiBits": 1.9999999999999993
+    },
+    "n3": {
+      "maxTraceDistance": 1.0000000000000022,
+      "chiBits": 2.999999999999999
+    }
+  }
+}

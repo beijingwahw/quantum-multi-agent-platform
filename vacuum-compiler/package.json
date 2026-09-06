@@ -1,0 +1,32 @@
+{
+  "name": "vacuum-compiler",
+  "version": "0.1.0",
+  "description": "Roadmap #11: the vacuum compiler, executed — circuits compiled into the ground state of a Feynman-Kitaev Hamiltonian, with the machine-certificate layer and the energy ledger the claim never came with. Known in theory (FEY85 clocks, KSV02 Ch. 14, KKR06 QMA-completeness; LLO96 simulation) — never machine-verified as a compiler with a readout cost audit. Delivered here: the compiler certificate (H|psi_hist> = 0 to machine precision for random circuits, ground-state degeneracy accounting, input/output penalty checks); exact conditional readout (measuring the clock at step t hands you U_t...U_1|psi_in> with fidelity exactly 1); the spectral gap law with the path-Laplacian closed form 1-cos(pi/(T+1)) as anchor; and the honest ledger — static storage costs zero work but every readout path pays (uniform clock marginal => (T+1)·log2(T+1) expected erasure bits; a fuel tilt buys success probability and dirties the conditional state at O((eps/gap)^2); the free clock walk never garbles the program but rarely delivers it). The wall, stated plainly: the vacuum stores and attests computation, it never beats running it",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx experiments/run-all.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "feynman-kitaev",
+    "history-state",
+    "clock-hamiltonian",
+    "ground-state-compilation",
+    "landauer",
+    "qma"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

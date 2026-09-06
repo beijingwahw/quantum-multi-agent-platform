@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# I3 硬化四件套：同分支旧跑自动取消（省配额，且旧结果无意义）
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# I3 硬化四件套：最小权限（默认 token 只读）
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ${{ matrix.os }}
+    # I3 硬化四件套：作业级超时（挂起的测试不应烧 6 小时配额）
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # I1：Node 20 已于 2026-04-30 EOL——支持矩阵不覆盖不收安全补丁的版本
+        os: [ubuntu-latest, windows-latest]
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: 构建产物冒烟（I6：绿色 CI ≠ 发布物可用）
+        run: node -e "import('./dist/index.js').then(m => { if (typeof m.QuantumMultiAgentPlatform !== 'function' || typeof m.QuantumScheduler !== 'function') { throw new Error('dist smoke failed'); } console.log('dist smoke OK'); })"
+      - run: npm test
+      - name: Coverage（含 92/82/92/92 防回归门槛）
+        run: npm run coverage
+      - name: 上传覆盖率报告（I11：失败可查明细）
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}-node${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 7
+      - name: 供应链扫描（I3 四件套之四：生产依赖审计）
+        run: npm audit --omit=dev --audit-level=high
+      - name: Knip（死代码/未用导出门禁）
+        run: npm run knip
+      - name: 示例冒烟（全链路 basic + advanced）
+        # 单元格跑一次即可：basic/advanced 覆盖平台启停/调度/控制台协议
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 22
+        run: |
+          npm run example:basic
+          npm run example:advanced
+        timeout-minutes: 5

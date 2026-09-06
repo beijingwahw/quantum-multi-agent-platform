@@ -1,0 +1,31 @@
+{
+  "name": "survivor-census",
+  "version": "0.1.0",
+  "description": "The survivor census: who the many-worlds sorter actually keeps. The visitor's sentence — 'postselection lets the optimal branch stay, complexity O(1); the cost is the depreciation of the other universes, and I booked it' — had its restart accounting (postselect-sched T2), its counting power (T3/T5) and its scheduling surface (T4), all on the UNIFORM prior. The survivor himself was never audited: this repo executes the semantics. The survivor is the posterior over optima weighted by the prior you brought (integer-ratio referee vs amplitude path, coherence phases kept, purity 1 with a mixed address reading); the kill register is itemized per universe and sums to 1-P exactly on two paths; the waiting price is the exact geometric schedule (1-P)^k <= delta with the minimality check, against the conservative exp bound; and the boundaries are executable — P=0 (no funded optimum) refuses to print, a marked branch with zero prior weight never comes back, P=1 sorts nothing. A closing table reconciles the letter's two epoch-3 rates as one wall: 'O(1)' and 'hit rate 100%' are both conditional-frame truths whose unconditional yields (P per trial; net(p)) are the price columns. The checker enforces the census laws — a single-face rate, an unwitnessed EXACT, a dead anchor, an illegal label, or a duplicate id all fail the build.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "postselection",
+    "survivor-posterior",
+    "kill-register",
+    "geometric-waiting-price",
+    "conditional-frame"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

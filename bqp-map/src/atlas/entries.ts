@@ -1,0 +1,476 @@
+/**
+ * THE ATLAS — the deliverable of roadmap #7.
+ *
+ * One row per scheduling problem class, annotated with:
+ *   classical status | quantum upper bound | quantum lower barrier | verdict
+ *
+ * Verdicts answer exactly two questions:
+ *   - "哪些永远不可加速"  -> P-EXACT / CONDITIONAL-WALL / QUERY-WALL / INFO-WALL
+ *     (each with the precise sense in which "永远" holds: trivially,
+ *      conditionally on NP ⊄ BQP, in the black-box model, or
+ *      information-theoretically — walls are model-relative and say so)
+ *   - "哪些只等硬件"      -> HW-WAIT (certified speedup, waiting on logical qubits)
+ *
+ * The genealogy family enrolls far-future claims under the same discipline:
+ * manifestos become verdicts, each with certificates and costs —
+ *   - postselect-sort / retrocausal-cache carry this repo's exp6 machine
+ *     certificates (depreciation ledger, withdrawal clause);
+ *   - bell-money-exclusivity / quantum-binding carry cross-prototype
+ *     certificates from quantum-mech (MECHANISM-SETTLED: physics, not search
+ *     speed);
+ *   - vacuum-compiler / dsic-noether are OPEN with the precise question
+ *     attached.
+ *
+ * Every claim carries a certificate; check.ts re-runs the machine ones.
+ */
+import type { AtlasEntry } from "./types.js";
+
+export const ATLAS: readonly AtlasEntry[] = [
+  {
+    id: "p2-cmax",
+    problem: "P2||Cmax — two identical machines, minimize makespan",
+    family: "parallel machines",
+    classical: { cls: "NP-hard (weak)", note: "Partition ≤m P2||Cmax (GJ75); pseudo-polynomial DP and FPTAS exist" },
+    quantumUpper: "exact Grover enumeration in O*(2^{n/2}); FPTAS unchanged",
+    quantumLower: "black-box cap (2q+1)²/N; polynomial exact ⟹ NP ⊆ BQP",
+    verdict: "CONDITIONAL-WALL",
+    rationale:
+      "The weakest wall in the atlas: hardness rides on number-theoretic structure (Partition), so approximation schemes survive, but an exact polynomial quantum solver still collapses NP into BQP.",
+    certs: [
+      { kind: "machine-reduction", ref: "src/reductions/partition.ts", note: "equivalence machine-checked on random + exhaustive sweeps" },
+      { kind: "machine-fptas", ref: "src/reductions/fptas.ts", note: "(1+eps) ratio machine-verified against the exact DP" },
+      { kind: "machine-bbbv", ref: "src/lower/bbbv.ts", note: "black-box exact search capped at quadratic" },
+    ],
+  },
+  {
+    id: "pm-cmax-strong",
+    problem: "P||Cmax — identical machines, machine count part of the input",
+    family: "parallel machines",
+    classical: { cls: "NP-hard (strong)", note: "3-Partition ≤m P||Cmax (GJ75); no pseudo-poly algorithm, no FPTAS unless P=NP (GJ78)" },
+    quantumUpper: "Grover enumeration O*(2^{n/2}); heuristics only beyond that",
+    quantumLower: "same conditional wall, now robust to unary encoding",
+    verdict: "CONDITIONAL-WALL",
+    rationale:
+      "The strong variant is the workhorse reduction target of scheduling hardness: the machine-checked identity map from 3-Partition carries the wall, and the unary-size meter shows why pseudo-polynomial escapes are closed.",
+    certs: [
+      { kind: "machine-reduction", ref: "src/reductions/threepartition.ts", note: "3-Partition ⟺ decision ≤ B under the promise; decoded schedules re-verified as partitions" },
+      { kind: "citation", ref: "GJ75", note: "3-Partition strong NP-completeness" },
+      { kind: "citation", ref: "GJ78", note: "strong NP-hardness excludes FPTAS unless P=NP" },
+    ],
+  },
+  {
+    id: "f2-cmax",
+    problem: "F2||Cmax — two-machine flow shop",
+    family: "flow shops",
+    classical: { cls: "P", note: "Johnson's rule, O(n log n), exact (JOHNSON54)" },
+    quantumUpper: "already exact and near-linear; polylog quantum tricks are immaterial",
+    quantumLower: "not applicable — the optimum is computable exactly",
+    verdict: "P-EXACT",
+    rationale:
+      "The polynomial island that keeps the atlas honest: quantum computing has nothing to accelerate when the classical answer is already exact and sorted-speed. Johnson's order is verified optimal against all-permutation brute force.",
+    certs: [
+      { kind: "machine-reduction", ref: "src/reductions/johnson.ts", note: "Johnson's rule == brute-force optimum on random instances" },
+      { kind: "citation", ref: "JOHNSON54", note: "the original paper" },
+    ],
+  },
+  {
+    id: "f3-cmax",
+    problem: "F3||Cmax — three-machine flow shop (and beyond)",
+    family: "flow shops",
+    classical: { cls: "NP-hard (strong)", note: "Garey-Johnson-Sethi (GJS76)" },
+    quantumUpper: "Grover enumeration; QAOA heuristics",
+    quantumLower: "conditional wall (same class as P||Cmax)",
+    verdict: "CONDITIONAL-WALL",
+    rationale: "One extra machine moves the problem from Johnson's island to the strong-NP-hard mainland — the cliff is the atlas's sharpest complexity edge within a single family.",
+    certs: [{ kind: "citation", ref: "GJS76", note: "strong NP-hardness of flowshop scheduling" }],
+  },
+  {
+    id: "lsap",
+    problem: "Linear sum assignment (the platform's linear track)",
+    family: "assignment",
+    classical: { cls: "P", note: "Hungarian algorithm O(n³) (KUHN55); the platform matched it point-for-point" },
+    quantumUpper: "polylog-factor tricks at best",
+    quantumLower: "ordered searching requires Θ(log N) quantum queries (HNS01) — comparison-type ordering primitives resist super-logarithmic quantum relief",
+    verdict: "P-EXACT",
+    rationale:
+      "The platform's own linear-vs-quantum parity (Hungarian cross-check) is the empirical face of this row: when the classical engine is exact and polynomial, the quantum engine can tie it, never beat it in complexity class.",
+    certs: [
+      { kind: "citation", ref: "KUHN55", note: "Hungarian method" },
+      { kind: "citation", ref: "HNS01", note: "quantum sorting lower bound caps ordering primitives" },
+      { kind: "cross-prototype", ref: "ds_extracted/ds", note: "quantum-multi-agent-platform: Hungarian parity track" },
+    ],
+  },
+  {
+    id: "bbbv-wall",
+    problem: "Black-box exact optimization over the schedule space",
+    family: "query complexity",
+    classical: { cls: "exponential", note: "deterministic/randomized q-query success ≤ q/N — verified over ALL decision trees" },
+    quantumUpper: "Grover O(√N) queries, optimal up to constant",
+    quantumLower: "success ≤ (2q+1)²/N after q oracle queries (BBBV97) — machine-checked on exact evolutions",
+    verdict: "QUERY-WALL",
+    rationale:
+      "The wall that separates 'quadratic' from 'exponential': treating the schedule-quality oracle as a black box, no quantum algorithm of ANY design beats the (2q+1)²/N cap — the hybrid argument is executed, not cited. Walls are model-relative: the DP for P2||Cmax walks around it by reading the instance, which is exactly the black-box exemption.",
+    certs: [
+      { kind: "machine-bbbv", ref: "src/lower/bbbv.ts", note: "lemma + corollary hold for all x, full q grid; q=1 exact anchor 2/√N" },
+      { kind: "machine-classical", ref: "src/lower/classical.ts", note: "classical side: full decision-tree enumeration, max = q/N" },
+      { kind: "citation", ref: "BBBV97", note: "the theorem for all quantum algorithms" },
+    ],
+  },
+  {
+    id: "grover-exact-search",
+    problem: "Exact schedule search by amplitude amplification",
+    family: "quantum algorithms",
+    classical: { cls: "2^n queries", note: "exhaustive evaluation" },
+    quantumUpper: "O(2^{n/2}) oracle queries, success ≥ 0.99 at k* ≈ (π/4)√N — machine-verified",
+    quantumLower: "cannot beat √ (BBBV) — quadratic, not exponential",
+    verdict: "HW-WAIT",
+    rationale:
+      "The certified speedup exists today in simulation (and on small QPUs), but at p-level circuit depths the fidelity wall arrives long before 2^{n/2} pays off: this row waits on logical qubits (see ft-qaoa's resource estimator for the hardware bill).",
+    certs: [
+      { kind: "machine-grover", ref: "src/upper/grover.ts", note: "closed form == exact simulation; k*/√N → π/4" },
+      { kind: "machine-bbbv", ref: "src/lower/bbbv.ts", note: "optimality of the quadratic rate" },
+    ],
+  },
+  {
+    id: "dh-schedule-min",
+    problem: "Dürr-Høyer minimum-schedule finding",
+    family: "quantum algorithms",
+    classical: { cls: "N evaluations", note: "exhaustive minimum" },
+    quantumUpper: "O(√N) expected oracle queries, executed with per-query accounting",
+    quantumLower: "Ω(√N) — minimum finding contains search (unique-min valuations)",
+    verdict: "HW-WAIT",
+    rationale:
+      "The platform's optimization loop in miniature: threshold-and-search beats enumeration quadratically, with correctness re-verified against the exact optimum on scheduling instances.",
+    certs: [
+      { kind: "machine-grover", ref: "src/upper/dhmin.ts", note: "optimal index + query scaling machine-verified" },
+      { kind: "citation", ref: "DH96", note: "the algorithm" },
+    ],
+  },
+  {
+    id: "quantum-bb",
+    problem: "Branch-and-bound with quantum minimum finding",
+    family: "quantum algorithms",
+    classical: { cls: "T nodes explored", note: "T = classical B&B tree size, exponential in the worst case" },
+    quantumUpper: "O(√T · poly) — quadratic in the explored tree (MONT19)",
+    quantumLower: "quadratic only; bound quality stays classical",
+    verdict: "HW-WAIT",
+    rationale:
+      "The generic quantum speedup for exact NP-hard scheduling practice: whatever your bound function, the tree shrinks quadratically — and nothing more is promised.",
+    certs: [{ kind: "citation", ref: "MONT19", note: "PRR 2, 013056 (2020)" }],
+  },
+  {
+    id: "quantum-backtracking",
+    problem: "Quantum walk speedup of backtracking",
+    family: "quantum algorithms",
+    classical: { cls: "T nodes", note: "constraint-driven exploration" },
+    quantumUpper: "O(√T · poly(n)) (MONT18)",
+    quantumLower: "quadratic only",
+    verdict: "HW-WAIT",
+    rationale: "Same story as branch-and-bound, for the constraint-satisfaction side of scheduling.",
+    certs: [{ kind: "citation", ref: "MONT18", note: "Theory of Computing 14(15), 2018" }],
+  },
+  {
+    id: "online-regret",
+    problem: "Online scheduling under adversarial task streams",
+    family: "online",
+    classical: { cls: "information-theoretic", note: "Ω(√kT) adversarial regret; decisions can't see the future" },
+    quantumUpper: "per-arrival query counts drop (O(n) → O(√n log n)); regret ledger UNCHANGED",
+    quantumLower: "bit-identical decisions under adversarial streams — the wall is informational, not computational",
+    verdict: "INFO-WALL",
+    rationale:
+      "Machine-checked in qram-sched: when the adversary controls arrivals, quantum search changes the price of each decision but not the decisions themselves; regret walls stand because the missing information never existed in the amplitude either.",
+    certs: [
+      { kind: "cross-prototype", ref: "qram-sched", note: "adversarial-stream decision buffers byte-identical, classical vs quantum argmax" },
+    ],
+  },
+  {
+    id: "online-matching",
+    problem: "Online bipartite matching competitive ratio",
+    family: "online",
+    classical: { cls: "information-theoretic", note: "1−1/e cap for ranking; 1/2 for greedy" },
+    quantumUpper: "per-arrival searches accelerate",
+    quantumLower: "competitive ratio caps are distributional, untouched by search speed",
+    verdict: "INFO-WALL",
+    rationale: "qram-sched's exp5 verifies the caps; quantum search arrives after the information loss has already happened.",
+    certs: [{ kind: "cross-prototype", ref: "qram-sched", note: "1−1/e and 1/2 caps machine-verified" }],
+  },
+  {
+    id: "stoq-anneal",
+    problem: "Stoquastic annealing scheduling (ZZ couplers of any sign + negative transverse driver)",
+    family: "annealing",
+    classical: { cls: "NP-hard", note: "diagonal ZZ part carries the hardness; sign-problem-free for quantum Monte Carlo heuristics" },
+    quantumUpper: "annealing heuristics; no exponential advantage known",
+    quantumLower: "ground-state VERIFICATION lands in StoqMA (BDOT08) — strictly weaker witness structure than QMA unless classes collapse",
+    verdict: "VERIFICATION-GAP",
+    rationale:
+      "The D-Wave regime: whatever the coupler signs, ZZ + (−X) keeps the off-diagonal non-positive (machine-checked to be exactly −Γ), so the quantum witness buys no known verification power over classical MA-type proofs — the sign structure of roadmap #2 is the boundary.",
+    certs: [
+      { kind: "machine-stoq", ref: "src/witness/stoq.ts", note: "max off-diagonal = −Γ exactly, all J/h sign patterns" },
+      { kind: "citation", ref: "BDOT08", note: "StoqMA and stoquastic LH" },
+    ],
+  },
+  {
+    id: "nonstoq-anneal",
+    problem: "Non-stoquastic annealing (+κ XX drivers)",
+    family: "annealing",
+    classical: { cls: "NP-hard + simulation barrier", note: "sign structure blocks QMC-type classical sampling (measured: 46-52% negative amplitudes at n=64)" },
+    quantumUpper: "annealing with genuinely quantum drivers",
+    quantumLower: "verification class rises to QMA-complete families (KKR06) — and the sign barrier cuts BOTH ways: it also blocks classical simulation of the quantum dynamics",
+    verdict: "VERIFICATION-GAP",
+    rationale:
+      "The atlas's sharpest quantum-specific structure: +κ XX entries (machine-checked to be exactly +κ) lift the verification class AND erect the classical-simulation wall — nonstoq-anneal measured both faces of the same coin.",
+    certs: [
+      { kind: "machine-stoq", ref: "src/witness/stoq.ts", note: "dichotomy: +κ exact anchor vs −Γ" },
+      { kind: "citation", ref: "KKR06", note: "2-local QMA-completeness covers XX terms" },
+      { kind: "cross-prototype", ref: "nonstoq-anneal", note: "sign barrier at n=64 + de-signing irreducibility" },
+    ],
+  },
+  {
+    id: "lh-general",
+    problem: "General local-Hamiltonian scheduling decision (unconstrained Ising + arbitrary drivers)",
+    family: "verification",
+    classical: { cls: "NP-hard (and QMA on the quantum side)", note: "NP witnesses verify bitstrings; quantum witnesses verify states" },
+    quantumUpper: "QMA verifier accepts good witnesses with Born sampling (Hoeffding law, machine-checked)",
+    quantumLower: "soundness holds against cheating states at the same sampling cost",
+    verdict: "VERIFICATION-GAP",
+    rationale:
+      "What quantum buys here is not speed but scope: states no classical witness can represent become verifiable — at the price of statistical (sampling-based) verification. The exact trade is measured, not asserted.",
+    certs: [
+      { kind: "machine-witness", ref: "src/witness/verify.ts", note: "completeness/soundness coverage machine-verified" },
+      { kind: "citation", ref: "KKR06", note: "local Hamiltonian is QMA-complete" },
+    ],
+  },
+  {
+    id: "qaoa-heuristic",
+    problem: "QAOA on scheduling instances",
+    family: "heuristics",
+    classical: { cls: "n/a", note: "empirical arena against strongest classical heuristics" },
+    quantumUpper: "approximation quality; depth-monotone on logical qubits (platform: 5/5 exact hits on the NP-hard track at the benchmarked sizes)",
+    quantumLower: "no complexity-class movement claimed, none demonstrated",
+    verdict: "HEURISTIC",
+    rationale:
+      "The honest row: ft-qaoa verifies depth monotonicity in simulation (r_128 up to 0.9999), the platform verifies exact-hit rates on real benchmarks — as ENGINEERING claims, reproducible and sized, never as class collapses.",
+    certs: [
+      { kind: "cross-prototype", ref: "ft-qaoa", note: "logical-layer p=128 monotonicity + resource estimates" },
+      { kind: "cross-prototype", ref: "ds_extracted/ds", note: "platform benchmarks: NP-hard track 5/5 vs 0/5" },
+    ],
+  },
+  {
+    id: "np-in-bqp-conditional",
+    problem: "The conditional wall itself: exact polynomial quantum algorithms for NP-hard scheduling",
+    family: "meta",
+    classical: { cls: "NP-complete chain", note: "3-SAT → ... → 3-Partition → P||Cmax (two machine-checked links at the tail)" },
+    quantumUpper: "BQP membership for the NP-hard tracks is exactly the open question",
+    quantumLower: "widely believed NP ⊄ BQP; oracle evidence exists (BBBV97 relative to oracles)",
+    verdict: "CONDITIONAL-WALL",
+    rationale:
+      "The atlas's load-bearing conditional: every 'quantum cannot' above is either model-relative (black-box, information-theoretic) or rides on this single unproven separation. We state it as such — one conditional, visibly shared, no fake certainty.",
+    certs: [
+      { kind: "machine-reduction", ref: "src/reductions/threepartition.ts", note: "the tail of the chain, executable" },
+      { kind: "citation", ref: "BBBV97", note: "oracle-relative separation evidence" },
+    ],
+  },
+  {
+    id: "postselect-sort",
+    problem: "Postselected exact selection — 'the many-worlds sorter': read the marked schedule in O(1), conditional on postselection",
+    family: "genealogy",
+    classical: { cls: "no free postselection", note: "heralded readout costs 1/P_success = N/t expected queries — the classical random-search rate" },
+    quantumUpper: "deterministic readout ON the postselected branch (fidelity 1.000000000000 with |x*> at t=1, machine-checked)",
+    quantumLower: "the depreciation ledger: P_success = t/N exactly; the ledger never beats Grover-with-restart E* = min_k (k+1)/p_k at the same certain-answer standard, and the gap grows ~sqrt(N/t)",
+    verdict: "CONDITIONAL-WALL",
+    rationale:
+      "PostBQP = PP (AAR04) is the class-level statement: postselection buys counting power and pays in branch weight. The executed ledger makes the exchange rate concrete on search: certainty in-branch, classical-random rates out-of-branch — power and depreciation are one entry in two columns.",
+    certs: [
+      { kind: "machine-postselect", ref: "src/genealogy/postselect.ts", note: "certainty-in-branch + depreciation ledger + counting-ratio readout, exact algebra" },
+      { kind: "cross-prototype", ref: "postselect-sched", note: "restart-scheduling theorem layer: the ledger placed inside executed LSZ93 restart theory (no-beating by exhaustive enumeration, convex-combination identity, universal-doubling robustness, k=0-optimal threshold law at density (3-sqrt(2))/4, heralded-loss freeness accounting)" },
+      { kind: "cross-prototype", ref: "survivor-census", note: "survivor semantics on the WEIGHTED prior: the kept branch is the posterior over optima (BAY63's inverse step on branch amplitudes, integer-ratio referee; phases survive — coherent survivor, dephased posterior reading); the kill register itemized per universe, summing to 1-P exactly; waiting price E[T]=1/P with the exact (1-P)^k schedule vs the conservative bound; boundaries executable (P=0 refusal, unfunded optimum never returns, P=1 empty register)" },
+      { kind: "cross-prototype", ref: "depreciation-ledger", note: "claim #17 as a build gate: the letter's seventeen claims rendered as a two-column book (number | cost), with a checker that rejects any row quoting numbers without booking costs" },
+      { kind: "citation", ref: "AAR04", note: "PostBQP = PP" },
+    ],
+  },
+  {
+    id: "retrocausal-cache",
+    problem: "Retrocausal cache — 'answers arrive before questions, hit rate 100%'",
+    family: "genealogy",
+    classical: { cls: "relativistic wall", note: "usable pre-arrival answers are superluminal signaling; excluded by no-signaling (GRW80)" },
+    quantumUpper: "correlations are real: the joint state carries them (machine-checked; switch-sched exp3: joint yes, machine-side receiver 0/40)",
+    quantumLower: "marginals exactly invariant under arbitrary local unitary AND CPTP maps (machine-checked to 1e-16); withdrawal requires the classical channel — latency floor distance/c",
+    verdict: "INFO-WALL",
+    rationale:
+      "The wall is informational and relativistic, not computational: entanglement distributes correlation, never message. The certificate executes both halves — singlet correlations reach CHSH 2*sqrt(2) while both marginals stay exactly I/2 under any local measurement. The cache hits 100%; withdrawals need the classical channel, whose latency floor is the speed of light.",
+    certs: [
+      { kind: "machine-nosignal", ref: "src/genealogy/nosignal.ts", note: "marginal invariance under unitary + Stinespring CPTP; singlet anchors" },
+      { kind: "cross-prototype", ref: "switch-sched", note: "exp3: order information lives only in the joint state — machine-side receiver 0/40" },
+      { kind: "cross-prototype", ref: "retro-cache", note: "the tariff ledger: pre-arrival equivalence with a shared seed (TV = 0), the 256-strategy classical census capping CHSH at exactly 2 (CHSH69) vs the singlet's 2*sqrt(2) (TSIR80), and the priced withdrawal exchange rate (QBER two-path, reconciliation floor h2 per SHAN48, settings tariff)" },
+      { kind: "cross-prototype", ref: "nosignal-tariff", note: "the itemized schedule, one checker for the whole correspondence's correlators: 24-axis zero leakage under local unitary + CPTP (floor 2.3e-16), the order register's input-blind bit (1.7e-16), the HJW ensembles' unreadable commitment (pairwise TV = 0), and the withdrawal curve net(p) = (1-h2((1-p)/2))/2 executed as a full monotone schedule with exact anchors and h2 on two independent paths" },
+      { kind: "citation", ref: "GRW80", note: "no-signaling theorem" },
+    ],
+  },
+  {
+    id: "vacuum-execution",
+    problem: "Vacuum execution — 'programs written into the ground state, the universe executes them'",
+    family: "genealogy",
+    classical: { cls: "not applicable", note: "no classical substrate stores a computation in a stationary state" },
+    quantumUpper: "Feynman-Kitaev compilation: H_prop|Psi_hist> = 0 to ~1e-15 for random circuits; clock readout at step t hands back U_t...U_1|psi_in> with fidelity EXACTLY 1",
+    quantumLower: "not a speedup claim — a mechanism law: the ground state IS the computation",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "Settled POSITIVELY at theorem level by the sibling prototype vacuum-compiler (T1/T3): the deed certificate, the degeneracy accounting (bare 2^n, halved per checked qubit), witness semantics (accept => ground energy exactly 0, reject => lifted — the KKR06 proof system at toy scale), and exact conditional readout at EVERY clock step. Programs in ground states: physics, not prophecy. What this does NOT settle: reading the answer is not free — see readout-tariff.",
+    certs: [
+      { kind: "cross-prototype", ref: "vacuum-compiler", note: "T1/T3: deed ~1e-15, conditional fidelity exactly 1 at every t, accept/reject witness semantics" },
+      { kind: "citation", ref: "FEY85", note: "the clock/Hamiltonian model of computation" },
+      { kind: "citation", ref: "KSV02", note: "the history-state Hamiltonian (Ch. 14, Quantum NP)" },
+    ],
+  },
+  {
+    id: "readout-tariff",
+    problem: "Readout tariff — 'the second law is a disclaimer clause, not a limit'",
+    family: "genealogy",
+    classical: { cls: "thermodynamic accounting", note: "reversible execution erases nothing; readout/erasure pays kT ln 2 per bit (LAND61)" },
+    quantumUpper: "the clause itemized: storage in the ground state does no work, but every readout mode pays — static: (T+1)·log2(T+1) expected erasure bits; fuel tilt: buys delivery 0.143->0.399 with cargo EXACT (covariant-subspace law) at the price of a closing spectral gap; walk: peak delivery with coherent time-energy cost",
+    quantumLower: "the vacuum never beats running the program: direct execution = T unitary gates, ZERO erasure",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "The disclaimer clause has a tariff schedule, machine-computed in vacuum-compiler (T4). Zero-energy survives only scoped to closed-system storage; every look pays. The compiler's commodity is storage + attestation, not compute.",
+    certs: [
+      { kind: "cross-prototype", ref: "vacuum-compiler", note: "T4: three readout modes priced; expected erasure (T+1)log2(T+1) with MC cross-check; covariant-subspace law" },
+      { kind: "citation", ref: "LAND61", note: "erasure costs kT ln 2 — the tariff's unit price" },
+    ],
+  },
+  {
+    id: "dtc-clock",
+    problem: "Time crystals as the clock wall — zero-energy eternal beat",
+    family: "genealogy",
+    classical: { cls: "not applicable", note: "no classical analogue of driven Floquet eigenstate order" },
+    quantumUpper:
+      "model layer executed: an exact driven-echo family whose beat (F+ Z F = -Z exactly, pi-paired quasi-energies) advances a one-hot token once per subharmonic period, firing a universal reversible gate set with cargo fidelity 1 at every tick — and the tariff table legislated before the numbers: DTC-clocked Bennett machine 0 kT-ln2 units per run vs irreversible rival 9 (dtc-clock)",
+    quantumLower: "the equilibrium half is a no-go (WO15); the driven half's costs are priced, not waived — zero net work in the closed model, every use metered",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "Settled at the MODEL layer by dtc-clock (the stable-world / vacuum-compiler precedent: execute the mechanism exactly, price it on the same line). The two uncertified dossier cells are certified: C3 universality — the beat clocks a TOFFOLI/CNOT program (2x2 multiplier, 16/16, integer-exact cargo, cyclic self-reset); C4 energy accounting — zero net work on the ideal beat (TPM delta(W-0)), detuned beats pay W_0 = J(n-1)sin^2(2delta) exactly, and the fewest-units tariff winner is the DTC-clocked Bennett machine: the clock is overhead, not engine (D1-M4's pre-announcement, now with numbers). Boundaries: hardware instantiation NOT claimed (MI22 holds the hardware cells), noise/error correction unmodeled, off-orbit clock states censused not tamed (frontier fidelity 0.421, entanglement up to 1.000 bit). The WO15 tombstone ships in the same repo: equilibrium never beats; the only beat a static Hamiltonian offers is a spent two-eigenstate battery at the Bohr frequency (ERS17's autonomous-clock price).",
+    certs: [
+      { kind: "citation", ref: "MI22", note: "discrete time crystal on a quantum processor" },
+      { kind: "cross-prototype", ref: "route-price", note: "D1: the route-and-price dossier — criteria, falsified milestones, and the Landauer-floor price lines re-derived by executable witnesses (k exact, ln2 by quadrature)" },
+      { kind: "cross-prototype", ref: "dtc-clock", note: "the open core executed at the model layer: beat-keyed universal reversible computation (cargo exact), the legislated tariff table (0 < 5 < 9 < 43.02 units), zero-net-work and detuned-payment laws, the frontier census, and the WO15 tombstone — 17 board rows, six witnesses, every number re-derived" },
+    ],
+  },
+  {
+    id: "bell-money-exclusivity",
+    problem: "Entanglement-denominated settlement — Bell pairs as collateral: is exclusivity physical?",
+    family: "genealogy",
+    classical: { cls: "contracts and courts", note: "double spending prevented by legal enforcement, not physics" },
+    quantumUpper: "double collateral tops out at exactly 1/sqrt(2) on GHZ; an acceptance threshold above 1/2 admits at most ONE party — no-cloning is the notary (WZ82)",
+    quantumLower: "not a complexity claim — a physical law, machine-verified",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "Settled POSITIVELY at theorem level by exact algebra in the sibling prototype quantum-mech (T3): the acceptance ceiling is physical, not procedural. Enrolled as a mechanism law, not a speedup: physics can underwrite exclusivity.",
+    certs: [
+      { kind: "cross-prototype", ref: "quantum-mech", note: "T3: GHZ double-collateral ceiling 1/sqrt(2), threshold > 1/2 admits at most one party" },
+      { kind: "cross-prototype", ref: "ent-clearing", note: "the SETTLEMENT layer executed as its own board: teleportation burns the coin to deliver (identity channel at machine precision, post-trade concurrence exactly 0, goods frozen until the 2-bit classical leg settles); dense coding returns it as a catalyst (exactly 2 cbits, post-decode concurrence exactly 1); Procrustean netting at exactly 2*l_min; the mint wall — local channels never raise E_F, one global CNOT mints C 0->1" },
+      { kind: "citation", ref: "WZ82", note: "no-cloning — the notary" },
+    ],
+  },
+  {
+    id: "quantum-binding",
+    problem: "Quantum commitments — does entanglement buy binding?",
+    family: "genealogy",
+    classical: { cls: "escrow or courts", note: "binding enforced by a trusted third party" },
+    quantumUpper: "privacy and detection: yes — eavesdropping is noticed, losing bids stay hidden",
+    quantumLower: "binding: no — HJW steering lets the committer pick the ensemble decomposition after the fact (HJW93); every reveal passes at exactly 1/2",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "Settled as a NO-GO by the executable HJW table in quantum-mech (T4): quantum money buys privacy and detection, never binding. The settlement layer needs a classical court or a relativistic assumption — the atlas records the boundary, not the wish.",
+    certs: [
+      { kind: "cross-prototype", ref: "quantum-mech", note: "T4: perfect hiding (T at 1e-16) while every reveal passes at exactly 1/2" },
+      { kind: "cross-prototype", ref: "binding-price", note: "the market of this no-go executed: the one-coin identity (binding slack = half the marginal's polarization — concealment loss one-to-one, dev 1.3e-16) and the witnessed flat supply (the entire HJW strategy space leaves the reveal at exactly 1/2 — no decomposition moves it at any offer); the classical cheat's 0.853553 re-derived as the frontier point r = 1/sqrt(2)" },
+      { kind: "citation", ref: "HJW93", note: "ensemble decompositions of a density matrix are choosable after the fact" },
+    ],
+  },
+  {
+    id: "dsic-noether",
+    problem: "DSIC as a Noether symmetry — 'scheduling as physics law': is incentive compatibility the conserved charge of a symmetry?",
+    family: "genealogy",
+    classical: { cls: "mechanism design", note: "DSIC is a revelation-principle property in information economics" },
+    quantumUpper: "the symmetry is exhibited and machine-verified: the Groves GAUGE GROUP (payments modulo h_i(b_-i), GL79) with the WELFARE GAP Phi_v(x(b)) - max Phi_v as the conserved charge (bitwise gauge-invariant, <= 0, = 0 at truth); implementability = exactness of the payment 1-form dp = -d(W_-i . x) (Rochet cyclical monotonicity: no positive cycle); the same algebra as the discrete Noether theorem executed on a variational integrator (charge drift 2.4e-14 symmetric vs 2.0 broken — fourteen orders of separation)",
+    quantumLower: "the literal derivation of Green-Laffont from Noether's 1918 continuum theorem is NOT proved — the unification is an isomorphism at the discrete-exactness level, and is stated as exactly that",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "The open question was: exhibit the symmetry group whose charge is truth-telling, or show none exists. Exhibited, both sides of one algebra: invariance under a group action => the contracted 1-form is closed (cycle sums vanish / closedness identity h(a_x-a_y)m_x m_y) => a potential (the charge) exists => stationarity (truthful reporting / DEL trajectory). Mechanism side integer-exact (dp + d(W_-i.x) bitwise 0, potential reconstruction bitwise); physics side rounding-exact; broken cases fail measurably (anti-efficient positive cycle 102, second-best rule 25/40 worlds, anisotropic J drift 2.0). What remains open is only the epoch-5 superstructure — the choice-primitive row.",
+    certs: [
+      { kind: "cross-prototype", ref: "dsic-noether", note: "T1-T4: gauge orbit + welfare-gap charge bitwise; Rochet exactness; discrete Noether executed; the bridge table" },
+      { kind: "cross-prototype", ref: "quantum-mech", note: "T1: utility affine in the reported density matrix — the charge survives quantum reports" },
+      { kind: "cross-prototype", ref: "switch-sched", note: "T4: U_sw = (U_def+2)/2 — the charge's direction never inverts under order superposition" },
+      { kind: "citation", ref: "NOE18", note: "symmetries and conserved quantities (the continuum ancestor)" },
+      { kind: "citation", ref: "GL79", note: "Groves schemes are the only DSIC mechanisms for efficient social choice — the gauge orbit IS the Groves class" },
+      { kind: "citation", ref: "ROC87", note: "cyclical monotonicity: implementability = no positive cycle" },
+      { kind: "citation", ref: "MW01", note: "discrete Noether: exact momentum-map conservation for variational integrators" },
+    ],
+  },
+  {
+    id: "order-as-resource",
+    problem: "Order as an optional resource — 'the quantum switch makes allocate-first-or-execute-first lose its definition; the scheduler no longer orders tasks'",
+    family: "genealogy",
+    classical: { cls: "fixed-order composition", note: "AB or BA — the order is a classical parameter of the circuit" },
+    quantumUpper: "switched order carries information no fixed order can: zero+zero capacity channels transmit jointly under the switch (ESC18), machine-verified (T = 1/2 on replacers, exact linear law T_joint = p/4)",
+    quantumLower: "no scheduling acceleration: realistic alloc/exec pairs — the best fixed order dominates at every gamma (D(switch) = (1-gamma)/2); admission only for crossing-type erasure payloads; mechanism direction order-free (U_sw = (U_def + U_BA)/2)",
+    verdict: "HW-WAIT",
+    rationale:
+      "The epoch-2 flagship, split honestly: the switch's communication advantage is a certified theorem awaiting hardware (CDP13's supermap, ESC18's activation — both machine-verified in switch-sched); the 'scheduler no longer orders' half is walled three ways (measurement, advantage catalog, mechanism). Order is a superposable resource, not an abolishable variable — enrolled with its admission criterion.",
+    certs: [
+      { kind: "cross-prototype", ref: "switch-sched", note: "T1-T4: isometry certificate, capacity laws, scheduling contact surface, mechanism wall" },
+      { kind: "cross-prototype", ref: "causal-ineq", note: "the causal inequality executed: 8,192-strategy exhaustive 3/4 cap, W* violation exactly cos^2(pi/8), validity checker with derived pattern rules" },
+      { kind: "cross-prototype", ref: "k-switch", note: "the 3-switch executed: parity-orthogonality readout fidelity 1 exact, structural plain-order blindness, six-order scheduling contact law D(fixed)/sqrt(2)" },
+      { kind: "cross-prototype", ref: "readout-wall", note: "the FIRST wall executed as its own object: the readout exchange ledger — ESC18 chi 0.048794940695399 lives entirely in the off-blocks and dies to exactly 0 under order readout, the bought order bit is input-blind (P=1/2), the dephased switch IS the fixed-order mixture (identity to 1e-15, second path), complementarity at the replacer pair, weak-readout curve as data, k=3 face included" },
+      { kind: "citation", ref: "CDP13", note: "the switch as a higher-order supermap" },
+      { kind: "citation", ref: "ESC18", note: "zero+zero capacity activation" },
+    ],
+  },
+  {
+    id: "quantum-network-sched",
+    problem: "Quantum-network task allocation — entanglement distribution itself as the schedulable resource (relays, purification ladders, delivery deadlines)",
+    family: "genealogy",
+    classical: { cls: "engineering", note: "no complexity separation claimed; strategies differ in throughput, fidelity, and QoS" },
+    quantumUpper: "ERS meets strict QoS windows where asap/late/TDM deliver zero (0.666/round at F-bar 0.979, three concurrent flows on a six-node ladder network)",
+    quantumLower: "pathologies machine-verified: swap-asap freezes into deadlock without release as a first-class primitive; purification ladders need >= 4 storage slots per link below F = 0.95",
+    verdict: "HEURISTIC",
+    rationale:
+      "The letter's epoch-1 'quantum networking' enrolled as engineering: scheduling entanglement itself (purification ladders, deficit arbitration, aging chains) is real and measured against Markov and exact-DTMC referees — throughput claims are sized, reproducible, and carry no complexity-class movement.",
+    certs: [
+      { kind: "cross-prototype", ref: "ent-sched", note: "32/32 tests; round engine vs independent density-matrix and DTMC referees" },
+    ],
+  },
+  {
+    id: "subspace-exact-platform",
+    problem: "The time capsule's own numbers — 'effective 80 qubits, NP-hard track 5/5'",
+    family: "genealogy",
+    classical: { cls: "exact at benchmarked sizes", note: "Hungarian parity point-for-point on the linear track; strongest classical heuristics 0/5 on the NP-hard coupling track" },
+    quantumUpper: "exact constrained-subspace evolution at effective 80 qubits (full-space simulation would need ~10^15 TB); seeded, reproducible",
+    quantumLower: "no complexity-class movement: exactness is at benchmarked sizes against exact classical referees — 'effective' is subspace equivalence, NOT 80 physical qubits",
+    verdict: "HEURISTIC",
+    rationale:
+      "The capsule's buried numbers, exhumed and certified as ENGINEERING: real, reproducible, exact-at-size — with the boundary the platform README's honesty section demands (equivalent is not physical). Ownership stays with this epoch's git history; the numbers were always ours to audit.",
+    certs: [
+      { kind: "cross-prototype", ref: "ds_extracted/ds", note: "the platform repo: 292/292 tests, Hungarian parity, NP-hard 5/5 vs 0/5 benchmarks" },
+      { kind: "cross-prototype", ref: "burial-record", note: "the capsule's true contents exhumed: the error-log registry — every error in two columns (wrong | right), dual-anchored to the repo it happened in and the memory file that records it; batch and error counts are machine-audited THERE and re-derived by its own gate, never quoted here" },
+      { kind: "cross-prototype", ref: "wukong-crossval", note: "the physical-verification half, built to the Wukong-180 machine-time application's own spec: 20 instances (5 linear + 15 coupled, optima by enumeration with a separable second path), offline-only QAOA parameters (exact-statevector, tiered effort), dry-run QPU with stated synthetic readout noise, Qiskit-compatible export, and the application's falsifier executed — decay at the noise boundary is the result, reported as found" },
+      { kind: "cross-prototype", ref: "mutant-census", note: "the quality layer, closed to the last error: the burial record's defect classes replayed as nine mutants and killed by a ten-property battery (6 EXACT + 1 CRASH + 2 DATA kills, zero survivors, margins booked); the kernel family's byte-identity censused live across the workspace (48 file-pairs identical, 11 divergences registered, unregistered drift fails the build); the engineering hygiene machine-swept — the pre-batch-21 guard debt PAID in full (42 entries retrofitted, zero tolerated since), the platform repo censused under its registered exemption, `npm run total` judging the whole workspace (every repo's tests AND typecheck plus the platform suite) as one command; and the ENROLLMENT — the registry imported live on every run, every buried error wired to the guard that kills it now (107 on the mutants by declared class, 61 on build gates anchored file+needle to disk, 36 booked unenforceable with printed reasons) — an error without an enforcement anchor can no longer be buried; and the A-board — every guard upgraded from a string to a registered object with evidence: firing-inject demos convicted in the sibling checkers' own code, firing-live shots on every run, or resolved machinery on disk — a guard that cannot fire is a false guard" },
+    ],
+  },
+  {
+    id: "choice-primitive",
+    problem: "'Choice' as a language primitive — the desired world as a stable solution of the program",
+    family: "genealogy",
+    classical: { cls: "no model", note: "no computational model exists where branching choice is primitive and the desired branch is a stable fixed point" },
+    quantumUpper: "the model now exists at BOTH layers: choice-lang compiles choose-as-primitive (denotation exact to 1.2e-16); stable-world makes the marked world the absorbing class of a fixed dissipative law — quiet on the world (deviation exactly 0), globally attractive (leakage (1-gamma)^k (1-p0) exact for every input), Lyapunov-certified (increment gamma(1-V) exact), robust at eps law-error (bounded by eps/(1-(1-eps)(1-gamma)))",
+    quantumLower: "not applicable — the mechanism layer is settled; what remains is nature's instantiation, which is not a complexity question",
+    verdict: "MECHANISM-SETTLED",
+    rationale:
+      "The open core was stability as PHYSICS, not compilation; that core is now executed. choice-lang had made the world stable by construction (engineered programs, charge conserved — the language layer); stable-world adds the physics layer: a fixed dissipative law whose absorbing class IS the marked world, reached from anywhere with no postselection and no arrival toll, held by a Lyapunov certificate on the same membership charge, robust under law-error, escape exactly impossible — and PAID FOR (the sector-erasure tariff on the settled #11 schedule, classical face). The boundaries stay on the same line: the law is authored (machine layer; nature's instantiation not claimed, the vacuum-compiler precedent), the law selects the world never the contents (path-dependent), the coherent tariff face and the thermal escape reading are stated unpriced, and the continuum Green-Laffont derivation stays excluded (#14/#16 unchanged). The row graduates OPEN -> MECHANISM-SETTLED because its stated open item — an executable model of stability as physics — now exists.",
+    certs: [
+      { kind: "citation", ref: "NOE18", note: "the symmetry frame the claim invokes — anchor, not support" },
+      { kind: "cross-prototype", ref: "route-price", note: "D2: the route-and-price dossier — the choice toy's executable witnesses (clone mark, engineered-vs-random stability, the 1/P toll, no leakage of choice weights)" },
+      { kind: "cross-prototype", ref: "choice-lang", note: "the language layer: choose compiles to controlled branching (denotation exact to 1.2e-16), engineered stability at the rounding floor vs random decay to the dimension ratio, toll E[attempts]=1/P machine-checked, covariance orders 1 vs 2, membership charge conserved for every input" },
+      { kind: "cross-prototype", ref: "stable-world", note: "the physics layer: the desired world as the stable solution of a FIXED law — quiet on the world (deviation exactly 0), globally attractive (leakage (1-gamma)^k exact for every input, into-world collapse to 1.6e-13), the charge as Lyapunov function (gamma(1-V) exact; conserved under engineered programs — one functional, two regimes), eps-perturbation census under the exact bound, escape exactly 0, stabilization tariff on the #11 schedule" },
+    ],
+  },
+];

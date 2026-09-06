@@ -1,0 +1,37 @@
+# Personal context files (kept local, not published)
+AGENTS.md
+BOOTSTRAP.md
+MEMORY.md
+memory/
+USER.md
+SOUL.md
+IDENTITY.md
+TOOLS.md
+HEARTBEAT.md
+
+# Local tool state & backups
+.backup/
+.openclaw/
+.opencode/
+.trae-html-share-packages/
+
+# Dependencies & build artifacts
+node_modules/
+__pycache__/
+*.pyc
+*.log
+
+# Environment & OS
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# Temporarily excluded: locked by another process (close it and remove this line to include)
+DELIVERY/code-quality-audit-report.docx
+
+# Nested repo history backup (renamed from ds_extracted/ds/.git)
+.git_nested_backup/
+
+# Personal form-filling working files (contains signature image & personal docs)
+.formwork/work/

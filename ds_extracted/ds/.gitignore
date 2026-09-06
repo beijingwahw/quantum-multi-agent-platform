@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+dist/
+*.tsbuildinfo
+.env
+*.log
+__pycache__/
+*.pyc
+qaoa_schedule.py
+.DS_Store
+.nyc_output/
+*.tgz

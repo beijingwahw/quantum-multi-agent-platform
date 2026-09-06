@@ -1,0 +1,40 @@
+{
+  "name": "switch-sched",
+  "version": "0.1.0",
+  "description": "Machine verification of the theorem layer behind indefinite causal order (Epoch 2): the quantum switch as an executable supermap certificate (isometry, dilation independence, fixed-order irreducibility for the involution/commutation task), the zero+zero→positive capacity theorem of switched channel pairs in exact arithmetic (Ebler-Salek-Chiribella flagship, replacer and completely depolarizing dilations), an admission table for 'order as a resource' on scheduling-shaped channel pairs (allocate/execute as CPTP maps, switch vs best fixed order), and a first toy of incentive constraints when report/allocation order is switched",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/run-all.ts",
+    "exp:switch": "tsx src/experiments/exp1-switch-algebra.ts",
+    "exp:capacity": "tsx src/experiments/exp2-capacity.ts",
+    "exp:sched": "tsx src/experiments/exp3-sched-contact.ts",
+    "exp:mech": "tsx src/experiments/exp4-mechanism.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "quantum-switch",
+    "indefinite-causal-order",
+    "supermap",
+    "process-matrix",
+    "channel-capacity",
+    "causal-nonseparability",
+    "quantum-scheduling",
+    "mechanism-design",
+    "density-matrix-simulation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

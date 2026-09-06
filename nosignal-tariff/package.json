@@ -1,0 +1,31 @@
+{
+  "name": "nosignal-tariff",
+  "version": "0.1.0",
+  "description": "The no-signaling tariff, itemized on one page. The letter's last clause — 'the no-signaling tariff, recorded item by item' — priced the tax only at three operating points inside retro-cache. This repo completes the itemization: three correlator resources pay the same tax through one checker (the cache's marginal across 24 axes under local unitaries and Stinespring CPTP; the order register's input-blind bit; the HJW ensembles' unreadable commitment — each zero verified at the rounding floor), and the cache's withdrawal ships as a full machine-executed schedule: net(p) = (1 - h2((1-p)/2))/2 with exact anchors (0 at the seed floor, 0.094360938, 0.5), a strictly monotone grid, and the binary entropy re-derived by closed form AND Taylor series on two independent paths. The checker enforces the customs laws — an item without a price, an unwitnessed zero ('marketing'), or a dead anchor all fail the build.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "no-signaling",
+    "tariff-schedule",
+    "correlator-not-oracle",
+    "zero-leakage-witnessed",
+    "h2-two-path"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

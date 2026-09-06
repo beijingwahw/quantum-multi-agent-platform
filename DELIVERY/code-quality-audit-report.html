@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>quantum-multi-agent-platform v1.10.0 · 全量代码质量审计与前沿升级方案</title>
+<style>
+:root {
+  --bg: #fafafa;
+  --ink: #1a1d21;
+  --ink-soft: #4a5058;
+  --ink-mute: #8a9199;
+  --rule: #d8dce0;
+  --rule-soft: #e7eaee;
+  --accent: #0f5c4f;
+  --accent-ink: #0d4a40;
+  --paper: #ffffff;
+  --code-bg: #f2f3f5;
+  --sev-p0: #8c2f24;
+  --sev-p1: #a04a20;
+  --sev-p2: #7a6420;
+  --sev-p3: #5f6a75;
+  --ok: #2d6a4f;
+  --nav-width: clamp(200px, 18vw, 260px);
+  --canvas: clamp(960px, 92vw, 1180px);
+  --measure: 68ch;
+  --gutter: clamp(16px, 4vw, 48px);
+  --serif: Georgia, "Times New Roman", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+  --sans: "Helvetica Neue", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+/* ============ 布局：Branching（章节≥4 → sticky TOC）============ */
+.layout {
+  display: grid;
+  grid-template-columns: var(--nav-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--rule-soft);
+  padding: 40px 24px;
+  background: #f5f6f7;
+}
+.sidebar .doc-mark {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.sidebar .doc-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 28px;
+  color: var(--ink);
+}
+.sidebar nav a {
+  display: block;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 7px 0 7px 12px;
+  border-left: 2px solid transparent;
+}
+.sidebar nav a:hover { color: var(--accent-ink); border-left-color: var(--rule); }
+.sidebar nav a.nav-h2 {
+  font-size: 12px;
+  color: var(--ink-mute);
+  padding-left: 26px;
+}
+.sidebar .colophon {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 11px;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+main { padding: 0 var(--gutter) 96px; }
+.page {
+  max-width: var(--canvas);
+  margin: 0 auto;
+}
+/* ============ 封面区 ============ */
+.cover {
+  padding: 72px 0 48px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 56px;
+}
+.cover .kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+.cover h1 {
+  font-family: var(--serif);
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  max-width: 22ch;
+  margin-bottom: 20px;
+}
+.cover .lede {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 58ch;
+  margin-bottom: 32px;
+}
+.cover .meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  font-size: 12.5px;
+  color: var(--ink-mute);
+}
+.cover .meta-row b {
+  display: block;
+  font-weight: 510;
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  font-family: var(--mono);
+}
+/* ============ 章节 ============ */
+section.chapter { margin-bottom: 72px; }
+.ch-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 12px;
+  margin-bottom: 28px;
+}
+.ch-header .ch-no {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.ch-header h2 {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+section.chapter h3 {
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 590;
+  margin: 36px 0 14px;
+}
+section.chapter h4 {
+  font-size: 14.5px;
+  font-weight: 590;
+  margin: 26px 0 10px;
+  color: var(--ink);
+}
+/* 段落锁 measure */
+.prose-block { max-width: var(--measure); }
+.prose-block p { margin-bottom: 1em; }
+section.chapter > p {
+  max-width: var(--measure);
+  margin-bottom: 1em;
+}
+section.chapter ul, section.chapter ol {
+  max-width: var(--measure);
+  margin: 0 0 1em 1.4em;
+}
+section.chapter li { margin-bottom: 0.4em; }
+/* ============ 表格（bleed 突破 measure）============ */
+.tbl-wrap {
+  max-width: none;
+  margin: 20px 0 28px;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+}
+th {
+  text-align: left;
+  font-weight: 590;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: #f5f6f7;
+  white-space: nowrap;
+}
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ============ 语义元件 ============ */
+.sev {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 590;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.sev-p0 { color: var(--sev-p0); }
+.sev-p1 { color: var(--sev-p1); }
+.sev-p2 { color: var(--sev-p2); }
+.sev-p3 { color: var(--sev-p3); }
+.ver {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ok);
+  white-space: nowrap;
+}
+.ver-q { color: var(--ink-mute); }
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+.grade {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 15px;
+}
+blockquote {
+  max-width: var(--measure);
+  border-left: 2px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  margin: 18px 0;
+  color: var(--ink-soft);
+  font-size: 15.5px;
+}
+hr.thin {
+  border: none;
+  border-top: 1px solid var(--rule-soft);
+  max-width: var(--measure);
+  margin: 28px 0;
+}
+/* ============ 记分卡 ============ */
+.scorecard td:first-child { font-weight: 510; }
+/* ============ 文末 ============ */
+.colophon-end {
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--ink-mute);
+  max-width: var(--measure);
+  line-height: 1.6;
+}
+/* 窄屏塌成单列 */
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+@media print {
+  .sidebar { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  body { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="doc-mark">AUDIT REPORT</div>
+  <div class="doc-title">quantum-multi-agent-platform<br>v1.10.0 代码质量审计</div>
+  <nav>
+    <a href="#ch1">1 · 总览与结论</a>
+    <a href="#ch2">2 · 前沿对标：2026-09 基线</a>
+    <a href="#ch3">3 · P0/P1 发现详解</a>
+    <a href="#ch4">4 · P2/P3 模式归纳</a>
+    <a href="#ch5">5 · 升级路线图</a>
+    <a href="#ch6">6 · 值得保留的优点</a>
+    <a href="#ch7">7 · 已知边界与后续</a>
+  </nav>
+  <div class="colophon">
+    审计执行：9 路并行深审 + 交叉复核<br>
+    报告日期：2026-09-05<br>
+    发现总数：约 190 条
+  </div>
+</aside>
+<main>
+<div class="page">
+
+<header class="cover">
+  <div class="kicker">CODE QUALITY AUDIT · UPGRADE ROADMAP</div>
+  <h1>全量代码遍历与前沿升级方案</h1>
+  <p class="lede">对 quantum-multi-agent-platform v1.10.0（约 21,000 行 TypeScript）执行的全量代码审计：9 路并行深审覆盖调度内核、量子优化器、主动智能、通信边界、测试与工程基建，交叉复核后给出 P0–P3 分级发现与四波次升级路线图。</p>
+  <div class="meta-row">
+    <div><b>Audit Date</b>2026-09-05</div>
+    <div><b>Codebase</b>src 40 文件 · 11,828 LOC</div>
+    <div><b>Findings</b>约 190 条（P0×1 · P1×15）</div>
+    <div><b>Method</b>9 路深审 + 回读复核</div>
+  </div>
+</header>
+
+<section class="chapter" id="ch1">
+<div class="ch-header"><span class="ch-no">CHAPTER 1</span><h2>总览与结论</h2></div>
+<h3>1.1 仓库画像：被审计的是什么</h3>
+<p><strong>quantum-multi-agent-platform v1.10.0</strong> 是一个量子启发（quantum-inspired）的多 Agent 调度平台，核心由六块组成：QAOA 调度内核、子空间退火优化器、VCG 机制市场（资源定价与分配）、主动智能模块（事件驱动自适应）、WebSocket 通信总线、三后端 QPU 抽象层。</p>
+<p>代码规模（TypeScript 口径，主线统计）：</p>
+<div class="tbl-wrap"><table><thead><tr><th>分区</th><th>文件数</th><th>LOC</th></tr></thead><tbody><tr><td>src</td><td>40</td><td>11,828</td></tr><tr><td>tests</td><td>28</td><td>5,822</td></tr><tr><td>examples</td><td>8</td><td>1,796</td></tr><tr><td>experiments</td><td>4</td><td>1,412</td></tr><tr><td>scripts</td><td>2</td><td>534</td></tr><tr><td><strong>合计</strong></td><td><strong>82</strong></td><td><strong>约 21,000</strong></td></tr></tbody></table></div><p>工程基线在开源 TS 仓里显著高于平均：</p>
+<ul><li><strong>tsconfig 严格度第一梯队</strong>：strict、noUncheckedIndexedAccess、exactOptionalPropertyTypes、verbatimModuleSyntax、noUncheckedSideEffectImports 全开（subagent_07 配置面优点）</li><li><strong>CI 广度</strong>：ubuntu × windows 双 OS × Node 20/22/24 三版本，共 6 单元格矩阵</li><li><strong>双硬门禁</strong>：c8 覆盖率阈值 92/82/92/92 + knip 死代码检查，均带门禁跑在双 OS 上</li><li>prettier 格式检查、示例冒烟（带超时保护）全部入 CI</li></ul>
+<h3>1.2 一句话总评</h3>
+<blockquote><strong>这是一个「内核严谨、外围欠账」的仓库。</strong>算法内核的确定性工程（固定种子、位级一致）与机制设计（VCG 定理级注释）达到研究级水准；但状态机完整性、异步并发纪律、EOL 工具链、测试时序确定性四处欠账，把综合水位从「优秀」拉到「中上」——欠账全部可修，修复成本远低于重写。</blockquote>
+<h3>1.3 审计方式与发现分布</h3>
+<p>审计于 2026-09-05 执行：<strong>9 路并行深审</strong>（7 路外派 Agent 分域 + 2 路主线亲审），完成后主线交叉复核、抽查回读源码。</p>
+<div class="tbl-wrap"><table><thead><tr><th>严重度</th><th>数量（约）</th><th>定义</th></tr></thead><tbody><tr><td><span class="sev sev-P0">P0</span></td><td>1</td><td>事件风暴下吞吐塌陷 / 安全边界失效</td></tr><tr><td><span class="sev sev-P1">P1</span></td><td>15</td><td>静默数据损坏 / 状态机死锁 / 精确最优解可疑</td></tr><tr><td><span class="sev sev-P2">P2</span></td><td>60</td><td>边界条件与韧性缺陷</td></tr><tr><td><span class="sev sev-P3">P3</span></td><td>110</td><td>可维护性 / 一致性 / 性能微瑕</td></tr><tr><td><strong>合计</strong></td><td><strong>190</strong></td><td>去重后口径</td></tr></tbody></table></div><p>其中三条 P0/P1 经复核<strong>回读源码验证</strong>：</p>
+<div class="tbl-wrap"><table><thead><tr><th>发现</th><th>位置</th><th>验证结论</th></tr></thead><tbody><tr><td>plugin 动作串行执行（<span class="sev sev-P0">P0</span>）</td><td>plugin.ts:140-186</td><td>双层 for 循环逐 action 串行 await，属实</td></tr><tr><td>scheduleTask 无状态守卫（<span class="sev sev-P1">P1</span>）</td><td>quantum-scheduler.ts:460 起</td><td>只查存在性 + 依赖，无 <code>status === 'pending'</code> 检查</td></tr><tr><td>overloaded 吸收态（<span class="sev sev-P1">P1</span>）</td><td>quantum-scheduler.ts:402-406</td><td>释放分支排除 overloaded，负载归零不恢复 idle——本仓最典型的状态机死锁</td></tr></tbody></table></div><h3>1.4 八维质量记分卡</h3>
+<div class="tbl-wrap"><table><thead><tr><th>维度</th><th>评级</th><th>一句话依据</th></tr></thead><tbody><tr><td>类型安全</td><td>A-</td><td>五项严格开关全开、头部水平；扣分：「类型谎言」簇残留（Date 序列化 / object 返回 / unknown 条件值）与 moduleResolution 停在 node10</td></tr><tr><td>算法正确性</td><td>B+</td><td>确定性工程与三道 QPU 校验闸门达研究级；扣分：双实现漂移簇（亲和度双求和序、能量还原三处三写）与 bruteForceOptimum 耦合键疑点（疑似，建议验证）</td></tr><tr><td>并发纪律</td><td>C</td><td>全仓最弱项：<span class="sev sev-P0">P0</span> 串行动作、overloaded 吸收态、scheduleTask 无守卫——三条<span class="ver">已验证</span>问题全部落在此维</td></tr><tr><td>错误处理</td><td>C+</td><td>validate-then-mutate 违例簇（settle 半更新、settleBatch 先变更后抛错）+ 指标口径混淆（cancelled 计入 failed、rejected 计入 history）</td></tr><tr><td>测试质量</td><td>B-</td><td>门禁成熟（92/82/92/92 双 OS）、测试代码 5,822 LOC；但 31 条测试发现含 5 条 <span class="sev sev-P1">P1</span>，时序确定性欠账</td></tr><tr><td>工程基建</td><td>B</td><td>门禁文化与矩阵广度好；扣分：Node 20 / ESLint 9 双 EOL 踩线、CI 硬化四件套缺失（timeout / concurrency / permissions / 供应链扫描）</td></tr><tr><td>文档一致性</td><td>B-</td><td>实验 / 示例 / 文档漂移 27 条（subagent_06），示例与 API 行为存在时滞</td></tr><tr><td>安全边界</td><td>B</td><td>timingSafeEqual、多层背压上界是亮点；扣分：总线 cardinality 攻击面（中置信）、工具层（fs/system/web tools）仅边界扫描未深审</td></tr></tbody></table></div><p>评级分布（A-×1、B+×1、B×2、B-×2、C+×1、C×1）：无 D 档，但两席 C 档集中在并发与错误处理——<strong>分布本身印证了「内核严谨、外围欠账」的总评</strong>。</p>
+<h3>1.5 Top 10 必修清单</h3>
+<p>按「影响面 × 修复成本」排序（严重度优先）：</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>严重度</th><th>位置</th><th>问题一句话</th><th>成本估计</th><th>验证状态</th></tr></thead><tbody><tr><td>1</td><td><span class="sev sev-P0">P0</span></td><td>plugin.ts:140-186</td><td>plugin 动作双层 for 循环串行 await，事件风暴下动作堆积无界、吞吐塌陷</td><td>中（约 1 天，并发池化 + 回归）</td><td><span class="ver">已验证</span></td></tr><tr><td>2</td><td><span class="sev sev-P1">P1</span></td><td>quantum-scheduler.ts:460 起</td><td>scheduleTask 无 pending 状态守卫，终态任务可被重调度</td><td>小（小时级）</td><td><span class="ver">已验证</span></td></tr><tr><td>3</td><td><span class="sev sev-P1">P1</span></td><td>quantum-scheduler.ts:402-406</td><td>overloaded 为吸收态：负载归零不恢复 idle，Agent 永久退出可用池</td><td>中（0.5-1 天）</td><td><span class="ver">已验证</span></td></tr><tr><td>4</td><td><span class="sev sev-P1">P1</span></td><td>package.json engines.node</td><td>Node 20 已于 2026-04-30 EOL，支持下限踩在不收安全补丁的版本上</td><td>小（小时级，含 CI 矩阵同步）</td><td>主线亲审</td></tr><tr><td>5</td><td><span class="sev sev-P1">P1</span></td><td>package.json devDeps</td><td>ESLint 9 已于 2026-08-06 EOL；tseslint 8.69 已支持 ESLint 10，升级无生态阻塞</td><td>小（小时级，规则移名清理）</td><td>主线亲审</td></tr><tr><td>6</td><td><span class="sev sev-P1">P1</span></td><td>.github/workflows/ci.yml</td><td>CI 缺四类 2026 基线动作：timeout / concurrency / permissions 最小化 / 供应链扫描</td><td>小（半天）</td><td>主线亲审</td></tr><tr><td>7</td><td><span class="sev sev-P1">P1</span></td><td>core 优化器（子空间回退路径）</td><td>回退路径 chosen=0，疑似静默数据损坏</td><td>中（先验证后修）</td><td>中置信</td></tr><tr><td>8</td><td><span class="sev sev-P1">P1</span></td><td>core 优化器（worker 通道）</td><td>worker 序列化脆弱性</td><td>中</td><td>中置信</td></tr><tr><td>9</td><td><span class="sev sev-P1">P1</span></td><td>core 优化器（主线程路径）</td><td>同步计算阻塞主线程</td><td>中</td><td>中置信</td></tr><tr><td>10</td><td><span class="sev sev-P1">P1</span></td><td>通信总线</td><td>总线 cardinality 攻击面</td><td>小-中（入口校验）</td><td>中置信</td></tr></tbody></table></div><p>注：测试有效性类 P1×5（subagent_05）与状态机 / 边界类其余 P1 详见第 3 章全量展开；#7-#9 为单源 + 行号自洽发现，建议按第 3 章验证清单先行复核再修。</p>
+<h3>1.6 阅读指引</h3>
+<ul><li><strong>第 2 章</strong>：前沿对标——本仓技术栈在 2026-09 世界基线上的位置</li><li><strong>第 3 章</strong>：P0/P1 全量详解（问题 / 证据 file:line / 影响 / 修复建议 / 验证状态）</li><li><strong>第 4 章</strong>：P2/P3 反模式聚类（validate-then-mutate、双实现漂移、配置探测散在热路径、类型谎言、指标口径混淆五大簇）</li><li><strong>第 5 章</strong>：四波次升级路线图（止损 → 补状态机 → 一致性还账 → 面向 2027）</li><li><strong>第 6 章</strong>：值得保留的世界级优点——升级不是重写</li><li><strong>第 7 章</strong>：已知边界与后续</li></ul>
+</section>
+
+<section class="chapter" id="ch2">
+<div class="ch-header"><span class="ch-no">CHAPTER 2</span><h2>前沿对标：2026-09 的世界基线</h2></div>
+<p>本章回答一个问题：<strong>把本仓放进 2026 年 9 月的世界工程实践坐标系，各维度站在什么位置？</strong>基准素材来自 subagent_04 的 8 主题调研（多轮 web_search + 交叉验证，优先官方文档），本章只收录与本仓直接相关的结论。</p>
+<h3>2.1 三条时间线警报——本仓三处踩线</h3>
+<div class="tbl-wrap"><table><thead><tr><th>警报</th><th>生效时间</th><th>本仓现状</th><th>素材依据</th></tr></thead><tbody><tr><td>Node 20 EOL</td><td><strong>2026-04-30（已过 4 个月）</strong></td><td>engines.node "&gt;=20"——允许的最低版本不再收安全补丁；CI 矩阵仍在测 Node 20</td><td>subagent_07 I1；subagent_04 主题 4</td></tr><tr><td>ESLint 9 EOL</td><td><strong>2026-08-06（已过 1 个月）</strong></td><td>devDeps eslint ^9.39.5 / @eslint/js ^9.39.5——9 系不再收任何修复</td><td>subagent_07 I2；subagent_04 主题 2</td></tr><tr><td>TS 7.0（Go 原生）发布</td><td><strong>2026-08</strong></td><td>typescript 下限 ^5.1.6：低于 5.8 基线（erasableSyntaxOnly / build 模式 --noCheck），且是「假下限」——tsconfig 已用 noUncheckedSideEffectImports（TS 5.6+ 才有），真装 5.1 会直接配置报错</td><td>subagent_07 I10；subagent_04 主题 1</td></tr></tbody></table></div><p>三点澄清：</p>
+<ol><li><strong>前两条是「已经过期」，不是「将要过期」。</strong>「支持 EOL 运行时」本身就是质量负债（I1 原话）。</li><li><strong>第三条性质不同</strong>：TS 5.x 未 EOL，TS 7 只是已发布而非强制；但它改变了一个工程前提——Go 原生编译器把类型检查提速 8-12x，「tsc 慢」从此不再构成跳过全量类型检查的理由。本仓并未跳过类型检查，故此条不紧急，列入 Wave 4 迁移评估即可。</li><li>三处的共同点：<strong>都是小时级工作量的机械修复</strong>（engines 改一行、ESLint 升级 + 规则移名清理、typescript 下限改 ^5.6.0），却决定了仓库「一开门」的第一印象——归入第 5 章 Wave 1「止损」。</li></ol>
+<h3>2.2 八主题基线表</h3>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>主题</th><th>2026-09 结论</th><th>对标基准</th><th>代表来源</th><th>置信度</th></tr></thead><tbody><tr><td>1</td><td>TS 严格模式与 5.x→7.0</td><td>strict 已是绝对基线且 TS 6.0（2026-03）起官方默认；noUncheckedIndexedAccess 为前沿主流推荐位（官方未纳默认）；exactOptionalPropertyTypes 仍属少数派加分项；TS 7.0（2026-08，Go 原生）已发布</td><td>strict:true + noUncheckedIndexedAccess（最低要求）；TS ≥5.8</td><td>https://devblogs.microsoft.com/typescript/announcing-typescript-6-0</td><td>高</td></tr><tr><td>2</td><td>Lint 生态</td><td>ESLint 9 已 EOL、10.x 为当前线（npm 已至 10.10.0）；typescript-eslint 官方推荐起点是 recommended-type-checked，strict-type-checked 属自愿加码；oxlint 1.0 已稳定（宣称快 50-100x），「oxlint 跑量 + typed lint 跑质」分层策略快速主流化</td><td>ESLint 10 + tseslint 8.69+；CI 分层 lint</td><td>https://eslint.org/blog/2026/02/eslint-v10.0.0-released</td><td>高</td></tr><tr><td>3</td><td>测试栈</td><td>Vitest 4 是事实赢家（State of JS 2025 增幅 +14pp 第一梯队，Jest 下滑）；node:test 在轻量 Node 库场景合理且稳步主流化；fast-check PBT 处上升期、尚非默认</td><td>轻量库 node:test；中大型 / 需 mock/browser 选 Vitest 4</td><td>https://2025.stateofjs.com/en-US/libraries/testing</td><td>高</td></tr><tr><td>4</td><td>Node LTS 与 type stripping</td><td>Node 20 已 EOL、22 为 Maintenance LTS（EOL 2027-04-30）、24 为 Active LTS（EOL 2028-04-30）；type stripping 于 24.12.0 正式 stable；tsx 在 watch/.tsx 场景仍不可替代</td><td>engines &gt;=22（理想 &gt;=24；strip 稳定形态 24.12+）</td><td>https://nodejs.org/en/about/previous-releases</td><td>高</td></tr><tr><td>5</td><td>供应链安全</td><td>npm provenance + trusted publishing（OIDC）已成标配位——classic token 已于 2025-12-09 宣布废弃（90 天迁移期）；OSV-Scanner 进 CI 成开源默认补充；pnpm 10 默认不信任 lifecycle scripts，生态防线下沉</td><td>GitHub Actions + OIDC + --provenance；osv-scanner-action 定时扫描</td><td>https://docs.npmjs.com/trusted-publishers</td><td>高</td></tr><tr><td>6</td><td>AI code review 与门禁</td><td>AI 首轮 review 已平台级标配（Copilot code review 2025-04 GA）；成熟做法 = 确定性门禁 → AI 过滤（advisory 不阻塞合并）→ 人工终审；AI 代码常配「变更行覆盖 ≥80%」类确定性闸门</td><td>claude-code-action / Copilot review（advisory 模式）</td><td>https://github.blog/changelog/2025-04-04-copilot-code-review-now-generally-available</td><td>高（误报率数据低置信）</td></tr><tr><td>7</td><td>覆盖率实践</td><td>行覆盖仍是第一 KPI（Test Coverage 以 56.4% 位居团队 KPI 第一）但正被削弱；分支覆盖 + PR 变更行覆盖上升（AI 代码门禁驱动）；共识：「覆盖率是卫生指标而非质量证明」</td><td>lines + branches 双阈值；可选 patch coverage ≥80%</td><td>https://about.codecov.io/blog/line-or-branch-coverage-which-type-is-right-for-you</td><td>中-高</td></tr><tr><td>8</td><td>Dead code 与构建链</td><td>Knip 是该赛道事实标准（官网自述 40M 下载/月、150+ 插件）；ts-blank-space / Node 原生 strip 属「纯擦除」上升期；swc 主导需转换场景；monorepo 工具对本仓单包形态<strong>不适用</strong></td><td>knip 6.x 入 CI；可擦除子集 + erasableSyntaxOnly</td><td>https://knip.dev/</td><td>高</td></tr></tbody></table></div><p>诚实标注（源自 subagent_04「缺口」段）：fast-check 采纳率、AI review 误报率（5-15% 出自非权威来源）、c8 最新版本号、patch coverage 普及率四项<strong>缺权威统计，均不作硬基准引用</strong>。</p>
+<h3>2.3 纠偏：strictTypeChecked 不是官方推荐位</h3>
+<p>一处常见误读需要纠正：<strong>「全量 strict-type-checked 才算 2026 前沿」不成立。</strong></p>
+<ul><li>typescript-eslint 官方文档的原文建议：启用 typed linting 的项目<strong>从 <code>recommended-type-checked</code> + <code>stylistic-type-checked</code> 起步</strong>；<code>strict-type-checked</code> 定位为更激进的自愿档位。且类型感知规则是 lint 性能瓶颈主因（官方 performance 文档承认），大仓库通行「oxlint 跑量 + ESLint typed 跑质」分层。</li><li><strong>本仓现状恰好站在正确位置</strong>：eslint.config.mjs 采用 tseslint 8 recommendedTypeChecked + 15 条逐条加严（subagent_07 配置矩阵）——这不是「不够激进」，而是比全量 strictTypeChecked 更健康的姿势：按本仓实际痛点手动选规则，每条豁免 / 加严都有注释理由。</li><li>因此升级 ESLint 10 时<strong>无需</strong>顺带切 strictTypeChecked；若要加码，正确路径是逐条引入 strict 区规则并配合 oxlint 分层（见第 5 章 Wave 4）。</li><li>来源：https://typescript-eslint.io/users/configs 、https://typescript-eslint.io/troubleshooting/typed-linting/performance</li></ul>
+<h3>2.4 本仓已达标项：点名表扬</h3>
+<p>对标不是只找差距——以下各项本仓<strong>已经在 2026-09 基准线上，甚至在线上</strong>：</p>
+<div class="tbl-wrap"><table><thead><tr><th>已达标项</th><th>本仓现状</th><th>对标位置</th></tr></thead><tbody><tr><td>noUncheckedIndexedAccess + exactOptionalPropertyTypes + verbatimModuleSyntax + noUncheckedSideEffectImports</td><td>tsconfig 全开（subagent_07）</td><td>前沿主流推荐位 + 少数派加分项<strong>双双拿下</strong>，超过绝大多数开源 TS 仓</td></tr><tr><td>node:test 原生测试栈</td><td>node:test + tsx + c8，覆盖率双 OS 硬门禁</td><td>轻量 Node 库场景的正确主流选型（主题 3）；c8 正是 node:test 生态默认覆盖方案（主题 7）</td></tr><tr><td>knip 死代码门禁</td><td>knip 入 CI 硬门禁</td><td>该赛道事实标准（40M 下载/月）——选型眼光超前（待改进细节见 I9：entry 未锚定 src/index.ts）</td></tr><tr><td>ESLint flat config</td><td>已用 flat + tseslint 8 recommendedTypeChecked</td><td>9→10 升级时配置语法基本平移，无结构性障碍（主题 2）</td></tr><tr><td>lockfile 入库 + npm ci</td><td>已具备</td><td>供应链基础卫生的「已完成一半」——补 OSV-Scanner / audit 门禁即达主流（主题 5）</td></tr></tbody></table></div><p><strong>小结</strong>：本仓的工具链眼光是超前的——noUncheckedIndexedAccess、knip、node:test 这套组合在 2024-2025 年属于早鸟选型，如今全部站上主流位。欠的不是眼光，而是<strong>踩住时间线的脚</strong>：三处 EOL 踩线让一套本可标榜前沿的栈在 2026-09 的快照里显出过期相。完成 Wave 1 的三件小时级清理（engines ≥22、ESLint 10、typescript 下限 ^5.6.0）后，本仓基建即回到前沿位。</p>
+</section>
+
+<section class="chapter" id="ch3">
+<div class="ch-header"><span class="ch-no">CHAPTER 3</span><h2>P0/P1 发现详解</h2></div>
+<p>P0/P1 是本仓必修清单的主体：P0 = 事件风暴下吞吐塌陷/安全边界失效，P1 = 静默数据损坏/状态机死锁/精确最优解可疑。本章按四组代码缺陷主题详解——状态机完整性 4 条、并发与异步纪律 5 条、边界安全 3 条、算法正确性 3 条——另收测试有效性 P1 4 条；工具链与文档维度 P1 以 3.6 归位表收尾，保证 P0/P1 全量在册。验证状态口径依 review.md：<strong><span class="ver">已验证</span></strong> = 复核回读源码确认（行号以复核为准）；<strong>疑点</strong> = 原始表述自相矛盾、降级待验证；其余为中置信（单源 + 行号自洽）。证据行号 ±10，路径省略 <code>src/</code> 前缀。</p>
+<h3>3.1 状态机完整性（4 条）</h3>
+<h4>3.1.1 <span class="ver"><span class="sev sev-P1">P1</span> · 已验证</span>调度入口无状态守卫：完成任务可被静默改判为失败</h4>
+<ul><li><strong>证据</strong>：<code>core/quantum-scheduler.ts:460</code> 起 <code>scheduleTask</code>（复核确认；原报 ~468）。</li><li><strong>问题</strong>：<code>scheduleTask(taskId)</code> 只校验任务存在与依赖满足，不校验 <code>task.status === 'pending'</code>；下游 <code>assignTaskToAgent</code> 同样无守卫。</li><li><strong>影响</strong>：对已 <code>assigned</code>/<code>running</code> 的任务重调（外部重试是最自然的调用场景）：<code>assignedAgentId</code> 被覆盖、旧 agent 的 <code>load</code> 不回减、<code>activeAssignments</code> 重复递增；对已 <code>completed</code> 的任务调用则被改回 <code>assigned</code>，随后 <code>completeTask</code> 幂等守卫按非终态处理，最终经超时巡检标成 <code>failed</code>——<strong>已完成的任务被静默改判为失败</strong>，属典型静默数据损坏。</li><li><strong>修复</strong>：<code>scheduleTask</code> 与 <code>assignTaskToAgent</code> 开头加 <code>if (task.status !== 'pending') return</code> 守卫，与 <code>reschedulePendingTasks</code> 内部已有的惰性状态检查对齐。公开状态转移 API 必须自带前置条件守卫，不能依赖调用方自律。</li></ul>
+<h4>3.1.2 <span class="ver"><span class="sev sev-P1">P1</span> · 已验证</span>overloaded 吸收态：agent 永久退出候选池</h4>
+<ul><li><strong>证据</strong>：<code>core/quantum-scheduler.ts:402-406</code>（<code>completeTask</code> 释放分支，复核确认）+ <code>~1452</code>（<code>assignTaskToAgent</code> 置态处）。</li><li><strong>问题</strong>：<code>assignTaskToAgent</code> 在 <code>load &gt; AGENT_OVERLOAD_THRESHOLD</code> 时置 <code>state = 'overloaded'</code>；但释放分支只处理 <code>state === 'working'</code>——overloaded 没有任何出边。</li><li><strong>影响</strong>：任务全部完成、<code>load</code> 归零后状态仍是 <code>overloaded</code>，而 <code>resolveCandidates</code>/空闲池筛选只收 <code>idle</code>——该 agent <strong>永久退出调度</strong>（文件内无重置路径）。连带 <code>getSystemMetrics().systemLoad</code> 只统计 <code>working</code>，全员 overloaded 时系统显示零负载。复核评价：本仓最典型的状态机死锁。</li><li><strong>修复</strong>：释放分支改为 <code>if (agent.state === 'working' || agent.state === 'overloaded')</code>，按 <code>load</code> 与阈值重判 idle/overloaded；若 agent-manager 侧存在外部恢复逻辑，应以注释显式声明该依赖，避免双头维护。</li></ul>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>证据</th><th>问题与影响</th><th>修复方向</th></tr></thead><tbody><tr><td>02#16</td><td><span class="sev sev-P1">P1</span></td><td>proactive-intelligence/executor.ts:100-119</td><td>预检拒绝（disabled/blocked/并发超限）与真实失败共用「入史 + emit + throw」路径：被拒动作计入执行历史统计；safeMode 跳过标 <code>completed</code> 与真实成功混同——被拒绝≠失败≠跳过三态不可区分</td><td>types.ts 状态机扩展 <code>rejected</code>/<code>skipped</code> 独立状态与计数；预检失败不 throw 或换独立事件名</td></tr><tr><td>08#47</td><td><span class="sev sev-P1">P1</span></td><td>index.ts（stop）</td><td>stop() 清理定时器/总线/管理器，但 setupEventHandlers 注册的约 8 个跨组件监听器不解除：组件引用滞留、平台不支持重启复用；Platform 自身无 dispose/shutdown 契约</td><td>提供 dispose()（removeAllListeners + 各组件 dispose），或监听器统一由 AbortController signal 管理</td></tr></tbody></table></div><h3>3.2 并发与异步纪律（5 条）</h3>
+<h4>3.2.1 <span class="ver"><span class="sev sev-P0">P0</span> · 已验证</span>plugin 动作串行执行：事件风暴下吞吐塌陷</h4>
+<ul><li><strong>证据</strong>：<code>proactive-intelligence/plugin.ts:140-186</code> <code>processEventBatch</code>（复核确认 <code>for [ruleId] → for action → await executeAction</code> 双层串行循环属实；原报 200-233，偏差在 subagent 自注 ±10 内）。</li><li><strong>问题</strong>：动作执行循环 <code>for...await</code> 串行——上一动作完成（含 30s 超时 + 重试退避）才执行下一个；配置的 <code>maxConcurrentActions=10</code> 并发上限形同虚设，<strong>实际并发恒为 1</strong>。</li><li><strong>影响</strong>：多动作规则与高优先级规则链在事件风暴下排队无界堆积。全仓唯一 P0；复核按「影响面 × 修复成本」重审后保留 P0 定级（事件风暴下堆积无界）。</li><li><strong>修复</strong>：动作展开后改有限并发池执行（p-limit 语义），保留规则间优先级顺序语义。</li></ul>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>证据</th><th>问题与影响</th><th>修复方向</th></tr></thead><tbody><tr><td>08#34</td><td><span class="sev sev-P1">P1</span></td><td>core/subspace-parallel.ts（parallelAnnealEvolve dispatch）</td><td>主线程同步 Atomics.wait 自旋等待（50ms 超时轮询）：steps=150 时每步 m+1 次 dispatch、单 dispatch 最坏 20s（steps&lt;15 时 stepBudget 上限）、总阻塞可达分钟级——演化期间 HTTP/WS 心跳、GC、immediate 队列全部停摆；被 ws 平台主循环调用时即全平台假死</td><td>主控循环移入 worker（主线程只 await Promise），或每 dispatch 间 <code>await setImmediate</code> 分片让出</td></tr><tr><td>08#33</td><td><span class="sev sev-P1">P1</span></td><td>core/subspace-parallel.ts（workerSource/buildWorkerSource）</td><td>Function.toString 序列化注入 Worker 是脆弱的自制打包器：esbuild <code>__name</code> 兼容补丁已证明对打包器改写敏感；kernel 自包含纯靠约定、无机制保证，未来打包器再破坏只能以 10s 握手超时 + 回退串行显现</td><td>fiber-kernel 提为独立 worker 入口文件，<code>new Worker(new URL(...))</code> 原生引用，打包器支持且类型可检查</td></tr><tr><td>02#17</td><td><span class="sev sev-P1">P1</span></td><td>executor.ts:158-167（performAction 重试）</td><td>重试不区分错误类型：ToolError 策略拒绝、参数校验等确定性失败也按 backoff 重试 maxRetries 次——确定性失败重试纯属浪费且放大副作用</td><td>引入 <code>isRetryable(error)</code>：仅瞬态错误（网络/5xx/资源忙）重试，策略/参数错误立即失败</td></tr><tr><td>02#3</td><td><span class="sev sev-P1">P1</span></td><td>decision-engine.ts:56-60（addRule）</td><td>规则对象按引用入库，<code>toggleRule</code>/<code>makeDecision</code> 直接改写 <code>rule.enabled</code>/<code>rule.lastExecuted</code>——调用方对象被引擎内部状态机污染，外部也能改 conditions 绕过冷却；EventEmitter 再把同一引用 emit 出去放大别名风险</td><td>入库深拷贝/冻结 + <code>lastExecuted</code> 旁路 Map；事件负载只发只读快照</td></tr></tbody></table></div><h3>3.3 边界安全（3 条）</h3>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>证据</th><th>问题与影响</th><th>修复方向</th></tr></thead><tbody><tr><td>F01</td><td><span class="sev sev-P1">P1</span></td><td>communication/quantum-bus.ts:169-187（subscribe 分支）</td><td><code>message.channel</code> 零运行时校验：任意 JSON 值可入 <code>subscriptions</code>；近 1MB 字符串 × 64 次订阅可占内存；后续 <code>subscriptions.includes</code> 比较语义被破坏</td><td>边界加 <code>typeof === 'string' &amp;&amp; length ≤ 128</code> 守卫，不合法忽略或断连</td></tr><tr><td>F02</td><td><span class="sev sev-P1">P1</span></td><td>quantum-bus.ts:437-455（queueMessageForAgent/sendToAgent）</td><td>离线队列每桶封顶 1000 但 Map key 数量无上界：已认证对端向海量伪造 targetAgentId 发消息即可无限建桶直至 OOM——per-agent 上限挡不住 cardinality 攻击</td><td>加 maxQueuedAgents 或全局 maxTotalQueuedMessages；超限丢弃新桶并计入 droppedMessages</td></tr><tr><td>02#22</td><td><span class="sev sev-P1">P1</span></td><td>plugin.ts:90-93（config.brain 探测）</td><td>鸭子类型探测 <code>typeof (config.brain).submitTask === 'function'</code>：配置对象恰有该键即被误判为 Brain 实例；缺 submitTask 的部分实现静默退化为新建默认市场</td><td><code>instanceof</code> 判别，或配置改 <code>{ brain: { instance } / { config } }</code> 显式判别字段</td></tr></tbody></table></div><h3>3.4 算法正确性（3 条）</h3>
+<h4>3.4.1 <span class="ver"><span class="sev sev-P1">P1</span> · 疑点，建议验证</span>bruteForceOptimum 耦合键语义：精确参照的可信度存疑</h4>
+<ul><li><strong>证据</strong>：<code>core/quantum-optimizer.ts</code>（bruteForceOptimum dfs 与 toIsing addQ；subagent_08 #13）。</li><li><strong>疑点陈述</strong>：原始发现自相矛盾——先确认 dfs 的 lo/hi 编码（<code>t*n+a</code> 与 <code>t2*n+a2</code> 取 min/max）与建键方一致；随即指出真正分歧在对角耦合：当 <code>n=1</code>（单 agent）时 lo=hi=同一 qubit，<code>toIsing</code> 经 <code>addQ</code> 把它并入线性项 <code>c[q]</code> 保留，而 dfs 查询与 computeEnergies/welfareOf 的 <code>q1&lt;q2</code> 过滤都排除 <code>q1==q2</code>——<strong>同一输入在 bruteForce / 内置能量 / Ising 导出三条路径给出不同能量语义</strong>。若成立，「精确最优对照」这一机制设计根基（optimality 字段、穷举达成率认证）可信度受损。</li><li><strong>复核处理</strong>：review.md 将其降级为「疑似」，列入建议验证清单而非结论。</li><li><strong>建议验证</strong>：构造含对角耦合键（或 n=1）的 AssignmentProblem，分别运行 bruteForceOptimum、computeEnergies、toIsing + 外部求解，比对福利/能量是否一致。<strong>若确认</strong>：在 AssignmentProblem 构造处禁止 <code>q1==q2</code> 键，或三条路径统一把对角耦合并入线性福利。</li></ul>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>证据</th><th>问题与影响</th><th>修复方向</th></tr></thead><tbody><tr><td>08#23</td><td><span class="sev sev-P1">P1</span></td><td>core/subspace-optimizer.ts（collapseSubspace shots-best）</td><td>shots 全部采到 0 概率态时 <code>if (chosen &lt; 0) chosen = 0</code>——回退第 0 号基态（DFS 字典序最小解，无任何最优语义）；全空间引擎同场景回退是 argmax-valid，两引擎同语义场景不同回退策略且子空间质量明显更差</td><td><code>chosen &lt; 0</code> 时改走与全空间引擎一致的 argmax-valid 扫描</td></tr><tr><td>08#24</td><td><span class="sev sev-P1">P1</span></td><td>subspace-optimizer.ts（annealSolveSubspace rawExpectation）</td><td>归一化能量还原三处三写：anneal 子空间 <code>(E/(2·spectralWidth))·span+min</code>、QAOA 子空间 <code>E·span+min</code>、全空间另有写法——退火路径的除法目前「碰巧对」但无共享函数，改动极易引入不一致（与 4.2 双实现簇同源）</td><td>抽 <code>denormalizeExpectation()</code> 单一实现，全空间×2 + 子空间×2 四处统一调用</td></tr></tbody></table></div><h3>3.5 测试有效性（4 条 P1）</h3>
+<p>测试侧 P1 高度同源：<strong>时序非确定性</strong>——用真实时钟、真实网络往返、固定轮次 setImmediate 等待异步完成。这是覆盖率门禁 92% 之下 CI 间歇红与回归掩盖的主通道；修法共同指向「被测系统暴露确定性 flush 原语 + 可注入 transport/clock」。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>证据</th><th>问题</th><th>修复方向</th></tr></thead><tbody><tr><td>05#1</td><td>tests/proactive-intelligence.test.ts:20-27</td><td>tick() 用 4 次 setImmediate 经验魔法数等待批处理，CI 慢机少等一轮即间歇失败</td><td>plugin 暴露 flush()/whenIdle() 原语，断言改事件驱动等待</td></tr><tr><td>05#2</td><td>tests/quality-regressions.test.ts:592-640</td><td>总线鉴权组 tick(6) 依赖真实 WebSocket 往返 + 事件循环轮次</td><td>ws mock server 或总线事件 Promise 化，去真实网络往返</td></tr><tr><td>05#15</td><td>tests/security-hardening.test.ts:126-134</td><td>超时终止用例真实等 1.5s 死循环脚本；杀进程失败（Windows 任务树语义）即泄漏到 CI</td><td>timeoutMs 降 200ms 量级或注入时钟；finally 兜底 taskkill</td></tr><tr><td>05#17</td><td>tests/qpu-backend.test.ts:40-100</td><td>D-Wave 用例走真实 HTTP（127.0.0.1 stub server）：端口分配、TCP 握手、close 挂起在受限网络 CI 下 flaky</td><td>后端支持注入 fetch/transport，测试传 mock；close 包 Promise + 超时兜底</td></tr></tbody></table></div><h3>3.6 其余 P1 归位（全量口径）</h3>
+<p>以下 P1 不属上述四组主题，为口径完整在此归位、不在本章展开：</p>
+<ul><li><strong>类型契约类</strong>（→ 4.4 簇四）：02#11 <code>Condition.value: unknown</code>（types.ts:44-46）；02#24 <code>CurrentSystemState.brain: object</code>（plugin.ts:243）。</li><li><strong>热路径性能类</strong>（→ 4.3 簇三）：02#23 getCurrentState 每 batch 全量重建状态快照、万级事件缓冲下 O(n) 起（plugin.ts:237-261）；08#14 computeEnergies O(2^nq·m·n) 能量预计算每次求解全量重算、无 memo（quantum-optimizer.ts）。</li><li><strong>工具链类</strong>（→ 第 2 章对标、第 5 章 Wave 1）：I1 engines.node "&gt;=20" 踩 Node 20 EOL（2026-04-30）；I2 ESLint 9 已 EOL（2026-08-06）未升 10；I3 CI 缺 timeout-minutes/concurrency/permissions/供应链扫描四类基线。</li><li><strong>文档漂移类</strong>（→ 第 7 章边界）：06#1 README badge 1.7.0 ≠ v1.10.0；06#2「281 用例全通过」数字过期；06#11 实验口径 n=2112 与代码注释 1056 不一致；06#17 快速开始缺 example:basic/advanced 入口；06#20 postinstall 声明与 package.json 事实不符。</li></ul>
+</section>
+
+<section class="chapter" id="ch4">
+<div class="ch-header"><span class="ch-no">CHAPTER 4</span><h2>P2/P3 精选与模式归纳</h2></div>
+<p>P2/P3 合计约 170 条，占全部发现的近九成。逐条罗列无助于行动，本章先按五簇反模式聚类——每簇给模式说明、代表条目表格、一句修复方向——再以附表 4.A 给出 P2/P3 全量清单（同模式条目合并行，已归入五簇的条目在附表中标注簇号）。聚类揭示了贯穿全仓的一个事实：<strong>五簇反模式里有四簇都能在仓库自己的「优点段落」找到镜像</strong>——solver-common 头部位级一致契约、numeric.ts 集中舍入、EdgeMemo 生命周期声明、纤维闭式解——纪律是有的，但没有覆盖到全部代码面。P2/P3 多数不是能力问题，是纪律覆盖面的欠账。证据行号 ±10，路径省略 <code>src/</code> 前缀。</p>
+<h3>4.1 簇一：validate-then-mutate 违例</h3>
+<p><strong>模式</strong>：带副作用的接口先变更状态、后校验（或校验后仍留下半提交残局），异常路径上调用方无法推断正确的恢复姿势——补齐重调报错、原样重试丢数据。修复方向一句话：<strong>先全景校验、后统一变更；emit 与初始化链条要么挪到安全点、要么带回滚栈，异常时状态零残留</strong>。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>形态</th></tr></thead><tbody><tr><td>08#2</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain.ts:~880（settle）</td><td><code>pending.delete(taskId)</code> 先于 agent/caps 有效性校验：校验失败时条目已删、结算既未入账也无法重试（再调 settle 恒 false），静默丢结算</td></tr><tr><td>01#13</td><td><span class="sev sev-P3">P3</span></td><td>batch-vcg-scheduler.ts:~640（settleBatch）</td><td>先逐条 recordSettlement / 更新声誉，循环后才查完整性并 throw：抛出时履历半更新；补齐缺失任务重调可成功，带上已结算任务则触发 settled-twice——恢复语义不对称</td></tr><tr><td>08#1</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain.ts:~660（allocateBatch）</td><td>emit 紧随 pending 台账写入：监听器异常同步上抛，调用方拿不到 assignments/taskId，但台账已登记——任务永不可 settle，学习状态被歪曲（正是 backlog 注释自己警告的病根）</td></tr><tr><td>08#48</td><td><span class="sev sev-P2">P2</span></td><td>index.ts（start）</td><td>初始化链无逆序回滚栈：dshIntegration/registerSystemAgents 中途抛错只回滚 bus，DSH 半初始化、系统 agents 残留</td></tr></tbody></table></div><h3>4.2 簇二：双实现漂移</h3>
+<p><strong>模式</strong>：同一语义在仓内存在两份以上手写实现或两套口径，写法各异、无共享函数、无等价性测试锚定。仓库在物理内核上以「位级一致」为硬契约（fiber-kernel 为此放弃增量评估、localSearch 为此放弃增量计分），但外围至少七处双实现正在各自漂移。修复方向一句话：<strong>抽共享函数（denormalizeExpectation / affinityScore / topKByProbability / mulberry32）+ 等价性或黄金值快照测试锁定</strong>。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>漂移对</th></tr></thead><tbody><tr><td>01#10</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~725 vs ~805</td><td>亲和度两套求和序（distance-first vs capability-first），浮点加法不满足结合律 → ~1e-17 ULP 分歧，近平局可选出不同 agent，未声明的口径分歧</td></tr><tr><td>08#15 + 08#24</td><td><span class="sev sev-P2">P2</span>/<span class="sev sev-P1">P1</span></td><td>quantum-optimizer / subspace-optimizer</td><td>归一化能量还原三处三写、退火路径「碰巧对」（修复为四处统一调用）；<span class="sev sev-P1">P1</span> 侧已见 3.4，<code>denormalizeExpectation()</code> 缺席是共同根因</td></tr><tr><td>08#30</td><td><span class="sev sev-P3">P3</span></td><td>subspace-optimizer（top-K）</td><td>手写 splice 插入 vs 全空间 sort-slice，候选择取双实现，等价性只有注释承诺、无测试锚定</td></tr><tr><td>05#22 + 06#8</td><td><span class="sev sev-P3">P3</span>/<span class="sev sev-P2">P2</span></td><td>tests ×3 + examples ×1</td><td>mulberry32 四份拷贝（qpu-backend / batch-vcg / compound-brain / benchmark 示例），且示例版种子处理不同（&gt;&gt;&gt; 0）</td></tr><tr><td>Q5</td><td><span class="sev sev-P3">P3</span></td><td>core/qpu/qiskit-export.ts:76-97</td><td>生成的 Python <code>decode()</code> 与 solve.ts 的 TS 解码是手工同步的跨语言双实现，无交叉引用注释、无 CI 自检向量</td></tr><tr><td>08#40</td><td><span class="sev sev-P3">P3</span></td><td>subspace-parallel.ts</td><td>构建路径 W（max(2,min(cpus-1,…))）与演化路径 W（读 env、受 dim 约束）两套 Worker 数决策逻辑</td></tr><tr><td>Q2</td><td><span class="sev sev-P2">P2</span></td><td>core/qpu/solve.ts:151</td><td>浮点容差 1e-12 硬编码，与 utils/numeric.ts 的集中口径哲学自相矛盾（同仓两套精度治理）</td></tr></tbody></table></div><h3>4.3 簇三：配置探测散在热路径</h3>
+<p><strong>模式</strong>：环境探测与全量重算嵌进高频路径——env 每次调用重读、状态快照每 batch 全量重建、能量矩阵每次求解全量重算。单看每处都是「小开销」，合起来是吞吐天花板与测试不可注入的双重债；全局副作用开关（QUANTUM_NO_SAB）还会污染并行测试。修复方向一句话：<strong>模块级一次解析 + 构造注入（可测试性）；memo/增量/脏标记替代全量重算</strong>。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>形态</th></tr></thead><tbody><tr><td>08#26</td><td><span class="sev sev-P2">P2</span></td><td>subspace-optimizer（allocI32/allocBytes/allocF64）</td><td>SAB 可用性探测每次分配重读 <code>process.env.QUANTUM_NO_SAB</code>：热路径 env 查询开销 + 探测结果不可注入，测试无法模拟无 SAB 环境</td></tr><tr><td>08#36</td><td><span class="sev sev-P2">P2</span></td><td>subspace-parallel（workerCount）</td><td>每次求解重读 <code>QUANTUM_WORKERS</code>：运行中改 env 可让同进程前后调用用不同 W</td></tr><tr><td>02#23</td><td><span class="sev sev-P1">P1</span></td><td>proactive-intelligence/plugin.ts:237-261</td><td>每 batch 全量重建状态快照：getEvents 拷贝 + getStatistics 双 reduce + getDecisionHistory，万级缓冲下 O(n) 起（已见 3.6 归位，簇三同源：快照应缓存/增量维护）</td></tr><tr><td>08#14</td><td><span class="sev sev-P1">P1</span></td><td>quantum-optimizer（computeEnergies）</td><td>O(2^nq·m·n) 能量预计算每次求解全量重算无 memo，同一 problem 重复求解照付全价（已见 3.6 归位）</td></tr><tr><td>08#3</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain（fitGrid + calibrate）</td><td>每次 settle 触发全网格重拟合：51×41 × 2000 观测 ≈ 4.18M 次对数求值/次结算，10k tasks/s 架构目标下数量级级 CPU 税，代码注释自认「经常性 CPU 税」但无增量拟合/退避</td></tr></tbody></table></div><h3>4.4 簇四：类型谎言</h3>
+<p><strong>模式</strong>：类型声明与运行时事实不符——Date 在 JSON 边界退化为 string、公开接口返回 <code>object</code>/<code>unknown</code> 放弃契约、<code>as any</code> 绕过检查。本仓 tsconfig 严格度是第一梯队，但公开契约面四处漏风：编译器挡不住的地方，运行时也无人挡。修复方向一句话：<strong>边界 DTO 用 ISO string + 入站 revive；多态载荷用判别联合；<code>object</code>/<code>unknown</code> 逐出公开签名；测试用类型化工厂替代 as any</strong>。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>谎言</th></tr></thead><tbody><tr><td>Q4</td><td><span class="sev sev-P2">P2</span></td><td>types/quantum-types.ts:9,19</td><td><code>lastHeartbeat/createdAt: Date</code> 经 WS/JSON 序列化后退化为 string，反序列化后 <code>instanceof Date</code> 永假</td></tr><tr><td>02#1 + 02#24</td><td><span class="sev sev-P2">P2</span>/<span class="sev sev-P1">P1</span></td><td>brain.ts:52 / plugin.ts:243</td><td><code>getState(): object</code>、<code>CurrentSystemState.brain: object</code>——装配层明明知道具体形状却用 object 把信息丢弃（02#11 <code>Condition.value: unknown</code> 已见 3.6 归位本簇）</td></tr><tr><td>02#2 + 02#12</td><td><span class="sev sev-P2">P2</span></td><td>brain.ts:54 / types.ts:16-24</td><td><code>registerAgent?(spec: unknown): unknown</code> 无信息量签名；<code>currentState: unknown</code> + 规则按 <code>'a.b'</code> 动态路径取值，字段名写错编译期无感、运行时静默 null</td></tr><tr><td>05#19 + 05#29</td><td><span class="sev sev-P2">P2</span></td><td>tests/qpu-backend.ts:213 / subspace-optimizer.test.ts:209</td><td>两处 <code>submitTask({...} as any)</code> 绕类型（类型漂移在重构时静默通过）；makeAgent 工厂四文件重复、字段各异</td></tr><tr><td>08#51</td><td><span class="sev sev-P3">P3</span></td><td>index.ts（deepMerge）</td><td>双 <code>as</code> 断言 + DeepPartial 对数组元素类型不生效 + 递归合并无深度上限</td></tr><tr><td>08#32</td><td><span class="sev sev-P3">P3</span></td><td>SubspaceSolution / QuantumSolution</td><td>两套解类型字段大量重叠，无共同基接口或判别联合，门面层被迫双分支处理</td></tr><tr><td>06#7</td><td><span class="sev sev-P2">P2</span></td><td>examples/basic-usage.js:24</td><td><code>find(...).id</code> 无 undefined 防护——.js 示例零类型检查的直接代价（与 I5 的 checkJS 缺口同源）</td></tr></tbody></table></div><h3>4.5 簇五：指标口径混淆</h3>
+<p><strong>模式</strong>：指标字段的语义与载荷不符——取消计入失败、字段挪用、缺省值伪造事实。这类问题不炸不崩，但系统性毒化监控与实验结论：所有下游统计（成功率、SLA、quantumProbabilitySum、穷举达成率）都在失真数据上展开，且失真是静默的。修复方向一句话：<strong>一字段一语义；无数据返回 null 而非编造；新增状态/字段而非复用旧壳</strong>。</p>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>混淆</th></tr></thead><tbody><tr><td>01#15</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~283</td><td>cancelled 走 <code>completeTask(taskId, false)</code>：failedCount++ 取消与失败在 <code>failedTasks</code> 里不可区分</td></tr><tr><td>02#16</td><td><span class="sev sev-P1">P1</span></td><td>executor.ts:100-119</td><td>预检拒绝计入执行历史、safeMode 跳过标 completed——被拒≠失败≠跳过三态混同（已见 3.1 表，归本簇展开为状态机扩展）</td></tr><tr><td>01#20</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~1360</td><td>QPU 路径 <code>solutions[0].layers = result.totalReads</code>、<code>evaluations: 1</code>：layers 文档语义（QAOA 层数 p）与实际载荷（读取次数）不符</td></tr><tr><td>02#9</td><td><span class="sev sev-P3">P3</span></td><td>brain.ts:92-96</td><td>settled=0 时 successRate 缺省 1（100%）：「无数据」被报告为「全成功」，冷启动期 <code>&lt; 0.5</code> 类规则永不触发</td></tr><tr><td>02#14</td><td><span class="sev sev-P2">P2</span></td><td>monitor.ts:47-64</td><td><code>getStatistics().total</code> 实为「未过期事件数」而非累计总数，字段名误导（且每次全量 reduce ×4）</td></tr><tr><td>01#16</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~345</td><td>actualDuration 从 createdAt 起算含排队等待，SLA/超时归因系统性偏大</td></tr><tr><td>01#23</td><td><span class="sev sev-P3">P3</span></td><td>growth-market-scheduler.ts:~250,~270</td><td><code>submitTask</code> 即 <code>wins++</code>：未结算任务永久虚增战绩（rrCursor 漂移同条）</td></tr><tr><td>01#8</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~856</td><td>求解失败静默回退 <code>agents[0]</code> 仍照报 Born 概率/validMass 置信度——上报指标与实际决策脱钩，quantumProbabilitySum 被污染</td></tr><tr><td>08#54</td><td><span class="sev sev-P3">P3</span></td><td>index.ts（getSystemMetrics）</td><td>五组件同一 tick 顺序拉取无事务性快照，高并发下同一报告内数字可互相矛盾</td></tr></tbody></table></div><p>五簇之外的大量 P2/P3（边界安全细节、测试断言强度、工程基建、文档漂移）不构成跨模块模式，全量收录于附表。</p>
+<h3>4.6 附表 4.A：P2/P3 完整清单</h3>
+<p>以下为九路审计的全部 P2/P3 条目（约 150 行，同模式条目合并行；编号含〔簇N〕者为 4.1–4.5 五簇代表条目，此处保留以便对账；P1 条目除五簇引用外不重复收录，见第 3 章）。</p>
+<h4>A1 core 调度（subagent_01）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>01#3</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~940</td><td>qubitCap 不变量对「单任务×大空闲池」失效，首任务永不分块，超限配置引擎中段抛错</td></tr><tr><td>01#4</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~1330</td><td>QPU 路径 await 后不复查并发额度，maxConcurrent 可被突破（快照式背压）</td></tr><tr><td>01#5</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~648</td><td>pending 无 TTL 且巡检定时器首分配后才启动，不可满足任务永久驻留</td></tr><tr><td>01#6</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~290</td><td>依赖不检测环，A↔B 双永久 pending，叠加 #5 成永久泄漏</td></tr><tr><td>01#7</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~1490</td><td>resource/location/quantum 需求被静默忽略（四类契约只实现一类）</td></tr><tr><td>01#8</td><td><span class="sev sev-P2">P2</span></td><td>quantum-scheduler.ts:~856</td><td>求解失败静默回退 agents[0] 仍照报 Born 概率，污染概率指标〔簇五〕</td></tr><tr><td>01#9</td><td><span class="sev sev-P2">P2</span></td><td>solver-common.ts:~150</td><td>校验入口漏验 restarts/topK，restarts=0 产出空角度 + Infinity「最优」</td></tr><tr><td>01#10</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~725/805</td><td>亲和度两套求和序 ULP 级分歧，违「位级一致」契约〔簇二〕</td></tr><tr><td>01#11</td><td><span class="sev sev-P3">P3</span></td><td>solver-common.ts:~300</td><td><code>r &lt;= cum</code> 边界可采到零概率态（r=0 且 probs[0]=0）</td></tr><tr><td>01#12</td><td><span class="sev sev-P3">P3</span></td><td>market-estimation.ts:~170</td><td>满员后每次 splice(0,1) O(cap) 搬移，同仓 min-cost-flow 注释批评过同型</td></tr><tr><td>01#13</td><td><span class="sev sev-P3">P3</span></td><td>batch-vcg-scheduler.ts:~640</td><td>settleBatch 先变更后抛错，状态半更新、恢复姿势不对称〔簇一〕</td></tr><tr><td>01#14</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts:~218</td><td>重复注册静默覆盖（另两调度器 throw）+ 悬空纠缠引用不清理</td></tr><tr><td>01#15/16/20/23</td><td><span class="sev sev-P3">P3</span></td><td>scheduler 两文件</td><td>指标口径四连：cancelled 计入 failed、actualDuration 含排队、layers 字段挪用、wins 未结算虚增〔簇五〕</td></tr><tr><td>01#17</td><td><span class="sev sev-P3">P3</span></td><td>batch-vcg-scheduler.ts:~600</td><td>myopic payments 逐项未 round9，与 VCG 路径舍入口径不一</td></tr><tr><td>01#18</td><td><span class="sev sev-P3">P3</span></td><td>solver-common.ts 多处</td><td>热路径分配噪音：每评估新建 Float64Array、数组字面量、for..of 遍历 TypedArray</td></tr><tr><td>01#19</td><td><span class="sev sev-P3">P3</span></td><td>solver-common.ts:~105</td><td>cvarOrder 确定性隐式依赖 sort 稳定性，无索引决胜</td></tr><tr><td>01#21</td><td><span class="sev sev-P3">P3</span></td><td>min-cost-flow.ts:~85</td><td>松弛 ε=1e-9 与终止 ε=-1e-12 差三个数量级，量纲耦合未文档化</td></tr><tr><td>01#22</td><td><span class="sev sev-P3">P3</span></td><td>classical-baselines.ts:~18</td><td>BIG=1e9 与权重尺度隐式耦合，大尺度权重下不可行实例静默伪最优</td></tr><tr><td>01#24</td><td><span class="sev sev-P3">P3</span></td><td>quantum-scheduler.ts 全文</td><td>1540 行上帝类四职责混合，<span class="sev sev-P1">P1</span> 状态机缺陷的温床</td></tr><tr><td>01#25</td><td><span class="sev sev-P3">P3</span></td><td>batch-vcg-scheduler.ts:~715</td><td>实验侵入未还原 taskSeq，对照实验后生产 ID 漂移</td></tr></tbody></table></div><h4>A2 core 优化器与平台（subagent_08）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>08#1</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain.ts:~660</td><td>emit 在台账写入后执行，监听器异常致「state committed, result lost」〔簇一〕</td></tr><tr><td>08#2</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain.ts:~880</td><td>settle 先 delete 后校验，校验失败静默丢结算且不可重试〔簇一〕</td></tr><tr><td>08#3</td><td><span class="sev sev-P2">P2</span></td><td>compound-brain.ts</td><td>每次 settle 全网格重拟合 ≈4.18M 对数求值，10k/s 目标下数量级 CPU 税〔簇三〕</td></tr><tr><td>08#4</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts:~530</td><td><code>agentIdx.get(...) ?? 0</code> 静默回退，不变量违例记错账无报错</td></tr><tr><td>08#5</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>Date.now 硬编码不可注入，时序行为无法确定性测试</td></tr><tr><td>08#6/7/8</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>配置面三连：EWMA 系数硬编码、OBS_CAP 不可配、魔法阈值两处重复</td></tr><tr><td>08#9</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>geometricSum 未用 expm1，β 极小时灾难性消去</td></tr><tr><td>08#10</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>EventEmitter 无 dispose，监听器引用链阻止 GC</td></tr><tr><td>08#11</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>实验 API（misreport/simulateBatch）与生产机制同类混居</td></tr><tr><td>08#12</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain.ts</td><td>getState 公开弱类型，插件方拿无类型对象〔簇四〕</td></tr><tr><td>08#15</td><td><span class="sev sev-P2">P2</span></td><td>quantum-optimizer.ts</td><td>期望计算手写循环 + scale 还原分散，等价性靠注释维持〔簇二〕</td></tr><tr><td>08#16</td><td><span class="sev sev-P2">P2</span></td><td>quantum-optimizer.ts</td><td>toIsing 罚 2λ 与内置能量不加罚，跨后端能量语义不一致</td></tr><tr><td>08#17</td><td><span class="sev sev-P2">P2</span></td><td>quantum-optimizer.ts</td><td>一阶 Trotter 固定步长无收敛判据/误差预算</td></tr><tr><td>08#18</td><td><span class="sev sev-P2">P2</span></td><td>quantum-optimizer.ts</td><td>born 模式无 shots 下限与 validMass 护栏</td></tr><tr><td>08#19</td><td><span class="sev sev-P3">P3</span></td><td>quantum-optimizer.ts</td><td>同步阻塞不可取消，无 AbortSignal</td></tr><tr><td>08#20</td><td><span class="sev sev-P3">P3</span></td><td>quantum-optimizer.ts</td><td>随机重启无 warm-start，浪费已找到的好角度</td></tr><tr><td>08#21</td><td><span class="sev sev-P3">P3</span></td><td>quantum-optimizer.ts</td><td>位运算 nqubits=30 零余量，constants 放宽到 31 即静默错</td></tr><tr><td>08#22</td><td><span class="sev sev-P3">P3</span></td><td>quantum-optimizer.ts</td><td>容量恒 1 与 MinCostFlow capacity&gt;1 契约不对齐</td></tr><tr><td>08#25</td><td><span class="sev sev-P2">P2</span></td><td>subspace-optimizer.ts</td><td>构建内存无预算（dimensionCap 不控内存），峰值数百 MB 且不可取消</td></tr><tr><td>08#26</td><td><span class="sev sev-P2">P2</span></td><td>subspace-optimizer.ts</td><td>SAB 探测每次分配重读 env，不可注入〔簇三〕</td></tr><tr><td>08#27</td><td><span class="sev sev-P2">P2</span></td><td>subspace-optimizer.ts</td><td>子空间 born 模式无质量护栏，validMass 未暴露</td></tr><tr><td>08#28</td><td><span class="sev sev-P2">P2</span></td><td>subspace-optimizer.ts</td><td>谱宽用上界估计而非实际 fiber 结构，退火不充分</td></tr><tr><td>08#29</td><td><span class="sev sev-P3">P3</span></td><td>subspace-optimizer.ts</td><td>三处 console.error 绕过统一 logger</td></tr><tr><td>08#30</td><td><span class="sev sev-P3">P3</span></td><td>subspace-optimizer.ts</td><td>top-K 手写插入 vs sort-slice 双实现，无等价性测试〔簇二〕</td></tr><tr><td>08#31</td><td><span class="sev sev-P3">P3</span></td><td>subspace-optimizer.ts</td><td>DFS cap 叶子触发 + 全量预分配，可读性备注（无需修复）</td></tr><tr><td>08#32</td><td><span class="sev sev-P3">P3</span></td><td>两解类型</td><td>SubspaceSolution/QuantumSolution 无共同基接口〔簇四〕</td></tr><tr><td>08#35</td><td><span class="sev sev-P2">P2</span></td><td>subspace-parallel.ts</td><td>Worker 泄漏窗口：unref 定时器竞争 + terminate Promise 被吞</td></tr><tr><td>08#36</td><td><span class="sev sev-P2">P2</span></td><td>subspace-parallel.ts</td><td>workerCount 每次求解重读 env〔簇三〕</td></tr><tr><td>08#37</td><td><span class="sev sev-P2">P2</span></td><td>subspace-parallel.ts</td><td>dispatch 超时后共享内存所有权未隔离，靠「每次新建」隐式约定</td></tr><tr><td>08#38</td><td><span class="sev sev-P3">P3</span></td><td>subspace-parallel.ts</td><td>header 布局魔法数无命名常量/偏移断言</td></tr><tr><td>08#39</td><td><span class="sev sev-P3">P3</span></td><td>subspace-parallel.ts</td><td>poisoned 跨闭包标志靠 eslint-disable 压制而非类型化</td></tr><tr><td>08#40</td><td><span class="sev sev-P3">P3</span></td><td>subspace-parallel.ts</td><td>构建与演化两套 W 决策逻辑〔簇二〕</td></tr><tr><td>08#41</td><td><span class="sev sev-P2">P2</span></td><td>agent-manager.ts</td><td>createEntanglement 静默 false 无警告 + index 监听器无异常隔离</td></tr><tr><td>08#42</td><td><span class="sev sev-P2">P2</span></td><td>agent-manager.ts</td><td>负载/状态不变量五处入口各自维护，updateAgent 绕过全部不变量</td></tr><tr><td>08#43</td><td><span class="sev sev-P2">P2</span></td><td>agent-manager.ts</td><td>heartbeat 恢复 offline 不 emit，远端无法感知复活</td></tr><tr><td>08#44</td><td><span class="sev sev-P3">P3</span></td><td>agent-manager.ts</td><td>重名 agent 不查重，日志/快照不可区分</td></tr><tr><td>08#45</td><td><span class="sev sev-P3">P3</span></td><td>agent-manager.ts</td><td>健康检查依赖被监控线程自身时钟，阻塞时误判 offline</td></tr><tr><td>08#46</td><td><span class="sev sev-P3">P3</span></td><td>agent-manager.ts</td><td>removeEntanglements 双分支重复，N-way 纠缠会踩坑</td></tr><tr><td>08#48</td><td><span class="sev sev-P2">P2</span></td><td>index.ts</td><td>start() 初始化链无逆序回滚栈，半初始化残留〔簇一〕</td></tr><tr><td>08#49</td><td><span class="sev sev-P2">P2</span></td><td>index.ts</td><td>submit_task 硬编码 type:'console'，命令协议与 SDK 能力不对齐</td></tr><tr><td>08#50</td><td><span class="sev sev-P2">P2</span></td><td>index.ts</td><td>SIGINT 不捕获异常、start 失败不显式退出，进程可能挂住</td></tr><tr><td>08#51</td><td><span class="sev sev-P3">P3</span></td><td>index.ts</td><td>deepMerge 双 as 断言 + DeepPartial 数组不生效 + 递归无深度上限〔簇四〕</td></tr><tr><td>08#52</td><td><span class="sev sev-P3">P3</span></td><td>index.ts</td><td>60+ 符号纯重导出聚合，无子路径分桶</td></tr><tr><td>08#53</td><td><span class="sev sev-P3">P3</span></td><td>index.ts</td><td>CLI 副作用块内嵌库入口文件</td></tr><tr><td>08#54</td><td><span class="sev sev-P3">P3</span></td><td>index.ts</td><td>getSystemMetrics 五组件无事务性快照，同报告数字可矛盾〔簇五〕</td></tr></tbody></table></div><h4>A3 主动智能（subagent_02）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>02#1</td><td><span class="sev sev-P2">P2</span></td><td>brain.ts:52</td><td><code>getState(): object</code> 放弃类型契约〔簇四〕</td></tr><tr><td>02#2</td><td><span class="sev sev-P2">P2</span></td><td>brain.ts:54</td><td>unknown 进/unknown 出的鸭子类型签名〔簇四〕</td></tr><tr><td>02#4</td><td><span class="sev sev-P2">P2</span></td><td>decision-engine.ts:315</td><td>getMetrics 浅拷贝泄漏 rulesTriggered 内部引用</td></tr><tr><td>02#5</td><td><span class="sev sev-P2">P2</span></td><td>decision-engine.ts:169</td><td>缺失值 Number(null)=0 可使比较条件误命中</td></tr><tr><td>02#6</td><td><span class="sev sev-P2">P2</span></td><td>decision-engine.ts:180</td><td>contains 用 String() 万能转换，"undefined" 子串误命中</td></tr><tr><td>02#7</td><td><span class="sev sev-P3">P3</span></td><td>decision-engine.ts:47</td><td>_config 参数未使用，承诺了不存在的可配置性</td></tr><tr><td>02#8</td><td><span class="sev sev-P3">P3</span></td><td>decision-engine.ts:100</td><td>全同步逻辑包 Promise.resolve，半异步 API</td></tr><tr><td>02#9</td><td><span class="sev sev-P3">P3</span></td><td>brain.ts:92</td><td>settled=0 时 successRate 缺省 1，「无数据=全成功」〔簇五〕</td></tr><tr><td>02#10</td><td><span class="sev sev-P3">P3</span></td><td>brain.ts:63</td><td>openTasks 无上限无过期，漏 settle 即永久虚高</td></tr><tr><td>02#12</td><td><span class="sev sev-P2">P2</span></td><td>types.ts:16</td><td>currentState: unknown + 动态路径取值，字段名错静默 null〔簇四〕</td></tr><tr><td>02#13</td><td><span class="sev sev-P2">P2</span></td><td>monitor.ts:33</td><td>maxBufferSize=0 被 falsy 判断静默反转语义</td></tr><tr><td>02#14</td><td><span class="sev sev-P2">P2</span></td><td>monitor.ts:47</td><td>total 实为「未过期数」且每调用全量 reduce ×4〔簇五〕</td></tr><tr><td>02#15</td><td><span class="sev sev-P3">P3</span></td><td>monitor.ts:106</td><td>容量淘汰与过期淘汰混用同一游标，expiredPrefix 名不副实</td></tr><tr><td>02#18</td><td><span class="sev sev-P2">P2</span></td><td>executor.ts:152</td><td>Promise.race 超时不取消底层操作，子进程/句柄泄漏</td></tr><tr><td>02#19</td><td><span class="sev sev-P2">P2</span></td><td>executor.ts:282</td><td>custom handler 返回 Promise 未 await，thenable 当 result 存储</td></tr><tr><td>02#20</td><td><span class="sev sev-P3">P3</span></td><td>executor.ts:52</td><td>并发预检依赖单线程时序假设，无注释固化</td></tr><tr><td>02#25</td><td><span class="sev sev-P2">P2</span></td><td>plugin.ts:113</td><td>13 个转发监听器无 destroy()，已达 MaxListeners 阈值</td></tr></tbody></table></div><h4>A4 通信与工具边界（subagent_09）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>F03</td><td><span class="sev sev-P2">P2</span></td><td>quantum-bus.ts:404</td><td>sent 无条件置位不查返回值，慢消费者场景静默丢消息</td></tr><tr><td>F04</td><td><span class="sev sev-P2">P2</span></td><td>quantum-bus.ts:292</td><td>可反复 authenticate 冒领任意 agentId，共享 token 不构成身份</td></tr><tr><td>F05</td><td><span class="sev sev-P2">P2</span></td><td>quantum-bus.ts:305</td><td>validateMessage 仅查 3 个 truthy 字段，类型混淆透传下游</td></tr><tr><td>F06</td><td><span class="sev sev-P2">P2</span></td><td>quantum-bus.ts:449</td><td>无 per-connection 速率限制，广播 O(连接数) 发送放大</td></tr><tr><td>F07</td><td><span class="sev sev-P3">P3</span></td><td>quantum-bus.ts:137</td><td>畸形 JSON 无熔断计数，可持续日志洪泛</td></tr><tr><td>F08</td><td><span class="sev sev-P3">P3</span></td><td>quantum-bus.ts:376</td><td>心跳定时器无集中 registry，shutdown 无法确定性回收</td></tr><tr><td>F09</td><td><span class="sev sev-P3">P3</span></td><td>quantum-bus.ts 协议</td><td>无协议版本协商字段，不兼容变更只能 magic 试错</td></tr><tr><td>F10</td><td><span class="sev sev-P3">P3</span></td><td>quantum-bus.ts 日志</td><td>对端可控字符串未消毒入日志，可伪造日志行</td></tr></tbody></table></div><h4>A5 测试质量（subagent_05）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>05#3</td><td><span class="sev sev-P2">P2</span></td><td>security-hardening:106</td><td>Windows symlink 用例静默跳过，CI 覆盖假象</td></tr><tr><td>05#4/12</td><td><span class="sev sev-P2">P2</span>/<span class="sev sev-P3">P3</span></td><td>security/quality</td><td>错误消息正则断言与文案强耦合，应断言结构化错误码</td></tr><tr><td>05#5</td><td><span class="sev sev-P2">P2</span></td><td>quality-regressions:556</td><td>retentionMs + 真实时钟等待，应注入时钟</td></tr><tr><td>05#6</td><td><span class="sev sev-P2">P2</span></td><td>proactive-intelligence:57</td><td>回调内断言，回调不触发即假阴性</td></tr><tr><td>05#7</td><td><span class="sev sev-P2">P2</span></td><td>batch-vcg:40</td><td>手工魔数断言无双错抵消防护，应补不变量分解</td></tr><tr><td>05#8/27</td><td><span class="sev sev-P3">P3</span></td><td>两文件</td><td>stringify 键序比对/整对象 deepEqual 脆弱</td></tr><tr><td>05#9</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain:106</td><td>增长行为组 4 用例 4 份骨架复制</td></tr><tr><td>05#10</td><td><span class="sev sev-P3">P3</span></td><td>proactive-intelligence:180</td><td>单元断言拖完整插件生命周期</td></tr><tr><td>05#11</td><td><span class="sev sev-P2">P2</span></td><td>batch-vcg:279</td><td>BudgetPacer 收敛容差 30% 无理论来源</td></tr><tr><td>05#13</td><td><span class="sev sev-P3">P3</span></td><td>train-vs-hire:29</td><td>12-seed 统计功效未声明，相位边界假红风险</td></tr><tr><td>05#14</td><td><span class="sev sev-P3">P3</span></td><td>compound-brain:368</td><td>注释宣称 δ 单调但断言只查类型存在性</td></tr><tr><td>05#16</td><td><span class="sev sev-P3">P3</span></td><td>proactive-intelligence:205</td><td>capacity 并发边界未覆盖</td></tr><tr><td>05#18</td><td><span class="sev sev-P2">P2</span></td><td>qpu-backend:233</td><td>stub 返回硬编码 spins 与提交问题无关联，oracle 失效</td></tr><tr><td>05#19/29</td><td><span class="sev sev-P2">P2</span></td><td>两测试文件</td><td>as any 绕类型 + makeAgent 工厂四文件重复各异〔簇四〕</td></tr><tr><td>05#20</td><td><span class="sev sev-P2">P2</span></td><td>qpu-backend:264</td><td>全局注册表写入无清理，跨文件脏状态</td></tr><tr><td>05#21</td><td><span class="sev sev-P3">P3</span></td><td>quantum-optimizer:103</td><td>「至少一次命中」概率断言缺失效概率声明（≈1/26 假红）</td></tr><tr><td>05#22+06#8</td><td><span class="sev sev-P3">P3</span>/<span class="sev sev-P2">P2</span></td><td>tests×3 + 示例</td><td>mulberry32 四份拷贝，示例版种子处理还不同〔簇二〕</td></tr><tr><td>05#23</td><td><span class="sev sev-P3">P3</span></td><td>agent-manager:56</td><td>布尔断言风格混用</td></tr><tr><td>05#24</td><td><span class="sev sev-P2">P2</span></td><td>agent-manager:66</td><td>81 次循环硬编码耦合阈值 80，应显式注入</td></tr><tr><td>05#25</td><td><span class="sev sev-P3">P3</span></td><td>qpu-backend:135</td><td>环境敏感分支（有凭据开发机 ≠ CI）不可复现</td></tr><tr><td>05#26</td><td><span class="sev sev-P2">P2</span></td><td>ma-qaoa:158</td><td>40-seed 经验阈值断言无可诊断性（失败丢 seed 信息）</td></tr><tr><td>05#28</td><td><span class="sev sev-P3">P3</span></td><td>ma-qaoa:17</td><td>负权重生成意图未注释</td></tr><tr><td>05#30</td><td><span class="sev sev-P3">P3</span></td><td>subspace-optimizer:104</td><td>物理断言正面样板，仅 maxDev 微瑕</td></tr><tr><td>05#31</td><td><span class="sev sev-P3">P3</span></td><td>ma-qaoa:60</td><td>25 实例循环断言只报首个失败</td></tr></tbody></table></div><h4>A6 实验/示例/文档（subagent_06）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>06#3+I4</td><td><span class="sev sev-P2">P2</span></td><td>package.json</td><td>description 乱码（中文按 GBK 解码样貌），npm 元数据卫生</td></tr><tr><td>06#4</td><td><span class="sev sev-P2">P2</span></td><td>package.json</td><td>keywords 名不副实（deepseek-harness），缺 quantum 等高频词</td></tr><tr><td>06#5+I8</td><td><span class="sev sev-P2">P2</span>/<span class="sev sev-P3">P3</span></td><td>package.json</td><td>无 files 白名单/exports/sideEffects，publish 会带上实验结果</td></tr><tr><td>06#6</td><td><span class="sev sev-P2">P2</span></td><td>examples</td><td>示例端口 8081/8083 与 README 架构图 8080 不一致</td></tr><tr><td>06#7</td><td><span class="sev sev-P2">P2</span></td><td>basic-usage.js:24</td><td>find().id 无 undefined 防护（.js 零类型检查代价）〔簇四〕</td></tr><tr><td>06#9</td><td><span class="sev sev-P2">P2</span></td><td>qpu-real-hardware:149</td><td>writeFileSync 写 CWD，从根目录运行污染仓库</td></tr><tr><td>06#10</td><td><span class="sev sev-P2">P2</span></td><td>examples 两文件</td><td>.js 示例无类型检查（与 I5 的 checkJs 缺口同源）</td></tr><tr><td>06#12</td><td><span class="sev sev-P2">P2</span></td><td>train-vs-hire/run.ts:215</td><td>endsWith 入口判定 + 双重 import 触发网格扫描副作用隐患</td></tr><tr><td>06#13</td><td><span class="sev sev-P3">P3</span></td><td>llm/run.ts:76</td><td>Semaphore 恢复窗口并发浮动 1，与「严格上限」声明不符</td></tr><tr><td>06#14</td><td><span class="sev sev-P2">P2</span></td><td>llm/run.ts:281</td><td>JSONL 每次覆盖，无法累积样本、crash 丢历史</td></tr><tr><td>06#15</td><td><span class="sev sev-P2">P2</span></td><td>llm/run.ts:31</td><td>RUNS/CONCURRENCY 无上限校验，可打爆 API 配额</td></tr><tr><td>06#16</td><td><span class="sev sev-P2">P2</span></td><td>train-vs-hire/run.ts:24</td><td>参数-结果-代码无版本链路（无 git rev 快照）</td></tr><tr><td>06#18</td><td><span class="sev sev-P2">P2</span></td><td>install 脚本:9</td><td>开发者个人绝对路径（C:\Users\molly\…）入库</td></tr><tr><td>06#19</td><td><span class="sev sev-P2">P2</span></td><td>install 脚本:365</td><td>endsWith 入口判定，改名即静默失效</td></tr><tr><td>06#21</td><td><span class="sev sev-P2">P2</span></td><td>install 脚本:206</td><td>pnpm file:D:/ 盘符歧义跨版本不稳</td></tr><tr><td>06#22</td><td><span class="sev sev-P3">P3</span></td><td>install 脚本:14</td><td>DEFAULT_PROFILES 硬编码，无匹配空转</td></tr><tr><td>06#23</td><td><span class="sev sev-P2">P2</span></td><td>web-console:475</td><td>class 属性拼接未防注入（escapeHtml 不转义空格）</td></tr><tr><td>06#24</td><td><span class="sev sev-P2">P2</span></td><td>web-console:460</td><td>鉴权失败 4001 被当普通断线 5s 重连死循环</td></tr><tr><td>06#25</td><td><span class="sev sev-P3">P3</span></td><td>web-console</td><td>700 行单文件无 CSP，canvas 固定尺寸</td></tr><tr><td>06#26+I12</td><td><span class="sev sev-P3">P3</span></td><td>.gitignore</td><td>缺 .DS_Store/.nyc_output/*.tgz 等噪声项</td></tr><tr><td>06#27</td><td><span class="sev sev-P3">P3</span></td><td>performance-test.mjs</td><td>.mjs 后缀误导（实际必须 tsx 运行）</td></tr></tbody></table></div><h4>A7 QPU/utils/类型（主线亲审 subagent_03）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>Q1</td><td><span class="sev sev-P2">P2</span></td><td>utils/rng.ts:3</td><td>DEFAULT_SEED=42 全局共享，跨子系统随机流同序</td></tr><tr><td>Q2</td><td><span class="sev sev-P2">P2</span></td><td>qpu/solve.ts:151</td><td>容差 1e-12 硬编码，与 numeric.ts 集中口径矛盾〔簇二〕</td></tr><tr><td>Q3</td><td><span class="sev sev-P2">P2</span></td><td>dwave-backend.ts:186</td><td>轮询固定 500ms×1 次不识别 429/Retry-After</td></tr><tr><td>Q4</td><td><span class="sev sev-P2">P2</span></td><td>quantum-types.ts:9</td><td>Date 字段经 JSON 边界退化 string，instanceof 永假〔簇四〕</td></tr><tr><td>Q5</td><td><span class="sev sev-P3">P3</span></td><td>qiskit-export.ts:76</td><td>Python decode() 与 TS 手工同步双实现，无自检向量〔簇二〕</td></tr><tr><td>Q6</td><td><span class="sev sev-P3">P3</span></td><td>quantum-backend.ts:159</td><td>顶层注册副作用与自家「导入零副作用」原则不一致</td></tr><tr><td>Q7</td><td><span class="sev sev-P3">P3</span></td><td>utils/logger.ts</td><td>无时间戳/级别/结构化输出，生产可观测性弱</td></tr><tr><td>Q8</td><td><span class="sev sev-P3">P3</span></td><td>qpu/solve.ts:57</td><td>numReads 本地 128 vs 硬件 100 缺省分叉</td></tr><tr><td>Q9</td><td><span class="sev sev-P3">P3</span></td><td>dwave-backend.ts:151</td><td>qp 解码缺 num_solutions 时全长解码，padding 非零出幻影样本</td></tr><tr><td>Q10</td><td><span class="sev sev-P3">P3</span></td><td>qpu/solve.ts:155</td><td>optimality 仅 optimal&gt;0 提供，全零福利丢对照信息</td></tr></tbody></table></div><h4>A8 工程基建（主线亲审 subagent_07）</h4>
+<div class="tbl-wrap"><table><thead><tr><th>编号</th><th>严重度</th><th>位置</th><th>一句话</th></tr></thead><tbody><tr><td>I5</td><td><span class="sev sev-P2">P2</span></td><td>tsconfig.json</td><td>moduleResolution node10 过时/无 isolatedDeclarations/allowJs 无 checkJs</td></tr><tr><td>I6</td><td><span class="sev sev-P2">P2</span></td><td>ci.yml</td><td>dist 构建后无冒烟验证，绿色 CI ≠ 发布物可用</td></tr><tr><td>I7</td><td><span class="sev sev-P2">P2</span></td><td>.github/</td><td>无 dependabot/renovate，依赖更新全手工</td></tr><tr><td>I9</td><td><span class="sev sev-P3">P3</span></td><td>knip.json</td><td>entry 未列 src/index.ts，公共 API 面未显式锚定</td></tr><tr><td>I10</td><td><span class="sev sev-P3">P3</span></td><td>package.json</td><td>typescript 下限 ^5.1 与 5.6+ 特性配置矛盾（下限是假的）</td></tr><tr><td>I11</td><td><span class="sev sev-P3">P3</span></td><td>ci.yml</td><td>覆盖率无 artifact 上传、无变更行覆盖</td></tr></tbody></table></div><h4>A9 收口说明</h4>
+<ul><li>附表覆盖素材文件中全部 P2/P3 条目；重复计数（素材自注的 05#4、05#9 双行）已去重。</li><li>与 06（实验/文档）P1 相关的条目（README badge/测试数/口径 n=2112/快速开始缺入口/postinstall 声明）已在 3.6 归位，此处不重复。</li><li>工具链 EOL 类（I1/I2/I3）为 P1，已归 3.6，详见第 2 章对标与第 5 章 Wave 1。</li></ul>
+</section>
+
+<section class="chapter" id="ch5">
+<div class="ch-header"><span class="ch-no">CHAPTER 5</span><h2>升级路线图</h2></div>
+<p>前四章给出的是「哪里有问题」；本章回答「按什么顺序修」。路线图分四个波次，遵循两条原则：<strong>先止损、再还账、后升级</strong>（风险递减排序），以及<strong>每个波次独立可验收</strong>（不合入未达验收标准的下一波）。波次周期为估计值（人日口径），对应发现编号见各素材附录。</p>
+<h3>5.1 总览</h3>
+<div class="tbl-wrap"><table><thead><tr><th>波次</th><th>主题</th><th>周期</th><th>核心目标</th><th>主要输入</th></tr></thead><tbody><tr><td>Wave 1</td><td>止损</td><td>1-2 天</td><td>三条<span class="ver">已验证</span> <span class="sev sev-P0">P0</span>/<span class="sev sev-P1">P1</span> 最小补丁 + EOL 栈清理 + CI 硬化</td><td>subagent_01/02、subagent_07、review.md</td></tr><tr><td>Wave 2</td><td>补状态机</td><td>1 周</td><td>状态机集中化单写点、生命周期漏洞结构化修复、plugin 并发池化</td><td>subagent_01/02/08</td></tr><tr><td>Wave 3</td><td>一致性还账</td><td>2-4 周</td><td>数值口径统一固化、共享函数抽取、测试确定性改造、覆盖缺口补审</td><td>subagent_01/05/08/09、review.md</td></tr><tr><td>Wave 4</td><td>面向 2027</td><td>1-2 月</td><td>工具链现代化（TS 7 评估、exports、worker 文件化、结构化日志）</td><td>subagent_03/04/07/08</td></tr></tbody></table></div><h3>5.2 Wave 1「止损」（1-2 天）</h3>
+<p><strong>目标</strong>：消除<span class="ver">已验证</span>的吞吐塌陷与状态机静默损坏风险，清掉三处踩线 EOL 的过期栈，把 CI 从「跑得全」升级到「跑得安全」。全部改动为最小补丁，可随下个 patch 版本发布。</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>条目</th><th>证据</th><th>内容</th><th>成本</th></tr></thead><tbody><tr><td>1.1</td><td>plugin 动作串行执行（<span class="sev sev-P0">P0</span>，<span class="ver">已验证</span>）</td><td>plugin.ts:140-186</td><td>batch 内动作由双层 <code>for...await</code> 串行改为并行执行（<code>Promise.allSettled</code> + 简单信号量），先保证并发上限真实生效</td><td>0.5 天</td></tr><tr><td>1.2</td><td>scheduleTask 无状态守卫（<span class="sev sev-P1">P1</span>，<span class="ver">已验证</span>）</td><td>quantum-scheduler.ts:~460</td><td>入口加 <code>status === 'pending'</code> 前置检查，非 pending 拒绝</td><td>0.5 天</td></tr><tr><td>1.3</td><td>overloaded 吸收态（<span class="sev sev-P1">P1</span>，<span class="ver">已验证</span>）</td><td>quantum-scheduler.ts:402-406</td><td>释放分支最小补丁：`working</td><td></td><td>overloaded` 均按当前 load 重判状态</td><td>0.5 天</td></tr><tr><td>1.4</td><td>Node 20 EOL 清理</td><td>package.json engines</td><td>engines <code>&gt;=20</code> → <code>&gt;=22.11</code>（或 <code>&gt;=24</code>），CI 矩阵去掉 20</td><td>0.5 天</td></tr><tr><td>1.5</td><td>ESLint 9 → 10</td><td>package.json devDeps</td><td>ESLint 9 已于 2026-08-06 EOL；tseslint 8.69+ 已支持 ^10，flat config 平移，主要是规则移名清理</td><td>0.5 天</td></tr><tr><td>1.6</td><td>CI 硬化</td><td>ci.yml 全文</td><td>加 <code>timeout-minutes</code>（如 15）、<code>concurrency</code> 取消同分支旧跑、<code>permissions: contents: read</code>、供应链扫描一步（osv-scanner 或 <code>npm audit --omit=dev</code>）</td><td>0.5 天</td></tr></tbody></table></div><p><strong>验收标准</strong>：① 三条修复各带新增回归测试（重复调度已终态任务、overloaded agent 负载归零后回到候选池、多动作规则的真实并发 ≥2）；② CI 在 2 OS × Node {22,24} 矩阵全绿，现有 c8 门禁 92/82/92/92 与 knip 门禁不回退；③ ESLint 10 下 lint 零 error；④ CI 配置含 timeout/concurrency/permissions 三项。</p>
+<p><strong>风险</strong>：动作并行化改变执行顺序，可能触碰依赖顺序语义的现有断言（保留规则间优先级顺序可缓解）；Node 下限提升对仍用 Node 20 的下游是破坏性变更，需在 CHANGELOG 标注 major 语义；ESLint 10 规则移名可能产生批量 lint 改动，应与功能改动分 PR。</p>
+<h3>5.3 Wave 2「补状态机」（1 周）</h3>
+<p><strong>目标</strong>：把 Wave 1 的补丁升级为结构性修复——状态转移收敛到单写点，生命周期漏洞（无界、不检测环、指标口径混淆）一并收口。这是全仓唯一的系统性风险面。</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>条目</th><th>证据</th><th>内容</th></tr></thead><tbody><tr><td>2.1</td><td>TaskLifecycleManager 集中化</td><td>quantum-scheduler.ts（src 内最大单文件，四类职责混合）</td><td>拆出状态机+计数器单元，status 写入收拢为唯一写点；调试模式不变量断言（`activeAssignments ===</td><td>assigned∪running</td><td><code>、</code>pendingCount === pendingTracked.size<code>、</code>agent.load` 与在途任务一致）</td></tr><tr><td>2.2</td><td>overloaded 恢复纳入统一转移</td><td>quantum-scheduler.ts:402-406 + agent-manager.ts 状态机</td><td>修复 scheduler 侧吸收态后，将 agent-manager 的 increase/decrease/setAgentState/updateAgent 多入口不变量收敛为内部单点 <code>setState</code>，updateAgent 拒绝绕过校验直写 state/load</td></tr><tr><td>2.3</td><td>pending TTL</td><td>quantum-scheduler.ts:~648（sweep）</td><td>sweep 增加 pending 超时（按 createdAt 起算，超时标 <code>failed: {reason: 'pending_timeout'}</code>）；巡检定时器移到构造函数或 submitTask（当前首次分配成功才启动）</td></tr><tr><td>2.4</td><td>依赖环检测</td><td>quantum-scheduler.ts:~290（submitTask）</td><td>提交期沿 dependencies 做受限 DFS，检环即抛 <code>SchedulingError</code></td></tr><tr><td>2.5</td><td>plugin 并发池化（结构化版）</td><td>plugin.ts + executor.ts:100-119</td><td>有限并发池（p-limit 语义）+ 保留规则间优先级；配套 executor 预检失败状态区分（rejected/skipped 与 failed 分列，消除「拒绝计入失败、safeMode 跳过计入成功」的口径混淆）</td></tr></tbody></table></div><p><strong>验收标准</strong>：① 不变量断言在调试模式下全量通过（可用现有 28 文件测试套件叠加新断言跑一轮）；② 构造 overloaded → 全部任务完成 → 断言 agent 回到 idle 且重新入候选池的集成用例通过；③ 环依赖任务提交被拒且带结构化错误；④ pending 队列在超时后被回收、<code>pendingCount</code> 归零；⑤ plugin 并发压测下事件风暴不再无界堆积。</p>
+<p><strong>风险</strong>：状态机重构触及 scheduler 核心，是本路线图回归风险最高的一步——必须以 Wave 1 的回归测试 + 现有 92% 行覆盖门禁做安全网；不变量断言只在调试模式开启，避免生产热路径开销；拆分动作建议分多个 PR（先抽状态机、再拆引擎编排），避免一次大爆炸重构。</p>
+<h3>5.4 Wave 3「一致性还账」（2-4 周）</h3>
+<p><strong>目标</strong>：把散落各处的数值口径与双实现收敛为单一事实源，并把「可复现」从注释承诺升级为 CI 强制；同时补齐本次审计的覆盖缺口。</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>条目</th><th>证据</th><th>内容</th></tr></thead><tbody><tr><td>3.1</td><td>数值口径清单 + 快照测试</td><td>亲和度双求和序（quantum-scheduler.ts:~725 vs ~805）、myopic 舍入（batch-vcg-scheduler.ts:~600）、sort 稳定性隐式依赖（solver-common.ts:~105）、MCF 双 ε（min-cost-flow.ts:~85-100）</td><td>建立求和序/舍入点/容差/比较器决胜规则的口径清单，为每项固化黄金值快照测试</td></tr><tr><td>3.2</td><td>共享函数抽取</td><td>denormalizeExpectation 三处三写（全空间×2 + 子空间×2，subagent_08 #15/#24）；top-K 双实现；affinityScore 双序</td><td>抽取 <code>denormalizeExpectation()</code>、<code>topKByProbability()</code>、<code>affinityScore()</code> 单一实现，双路径调用点统一</td></tr><tr><td>3.3</td><td>测试确定性改造</td><td>proactive-intelligence.test.ts:20-27 等 8+ 用例 setImmediate 魔法数；security-hardening.test.ts:116-122 消息正则断言</td><td>被测系统暴露 <code>flush()</code> 原语，测试改事件驱动等待；src 侧引入结构化错误码（如 <code>SecurityViolationError.code</code>），安全断言从文案正则改为 code 断言</td></tr><tr><td>3.4</td><td>dsh/tools 深审补课</td><td>dsh-integration.ts（15.4KB）、tools/fs-tools.ts、system-tools.ts、web-tools.ts、performance/benchmark.ts</td><td>按 subagent_09 的 F 系列标准（边界校验/背压/错误分类）补完深审，发现并入附录</td></tr></tbody></table></div><p><strong>验收标准</strong>：① 快照测试进入 CI 且锁定当前黄金值；② 双实现统一后现有机制测试（VCG 闭式值断言、DSIC 实证组）全绿；③ CI 慢机压力下（如限时降频）测试套件无间歇红；④ 补审覆盖声明更新——「工具层仅边界扫描」的标注可以移除。</p>
+<p><strong>风险</strong>：统一数值口径可能改变既有输出（如近平局时选出不同 agent）——凡是行为改变的口径项，须在 PR 描述中显式列出并附新旧值对比；快照测试对浮点跨平台差异敏感，容差与确定性（种子化）需先行确认。</p>
+<h3>5.5 Wave 4「面向 2027」（1-2 月）</h3>
+<p><strong>目标</strong>：工具链与包结构对齐 2026-09 前沿基线（依据见第 2 章），为 TS 7 时代做铺垫。本波以评估与增量改造为主，不阻塞前三波。</p>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>条目</th><th>证据</th><th>内容</th></tr></thead><tbody><tr><td>4.1</td><td>TS 7 原生编译器迁移评估</td><td>TS 7.0（2026-08，Go 原生）已发布，构建提速 8-12x</td><td>评估 CI 类型检查切换 tsgo 的可行性；「tsc 慢」消失后可考虑把全量 typed lint 提频</td></tr><tr><td>4.2</td><td>exports 子路径拆分</td><td>index.ts 单文件重导出 60+ 符号</td><td>package.json 增加 <code>./mechanism</code>、<code>./qpu</code> 等子路径，index 只留平台主类；补 files/sideEffects 白名单</td></tr><tr><td>4.3</td><td>worker 独立文件化</td><td>subspace-parallel.ts Function.toString 自制打包器</td><td>fiber 内核提为独立 worker 入口文件（<code>new Worker(new URL(...))</code>），消除对打包器改写的脆弱依赖</td></tr><tr><td>4.4</td><td>isolatedDeclarations 评估</td><td>tsconfig 现无此项（I5）</td><td>库发 declaration 场景评估迁移成本，配合并行声明发射</td></tr><tr><td>4.5</td><td>结构化日志</td><td>utils/logger.ts:23-58（无时间戳/级别/结构化）</td><td>加 ISO 时间戳与级别前缀，预留 <code>QUANTUM_LOG_JSON</code> 开关，对齐 pino 式可观测性</td></tr><tr><td>4.6</td><td>覆盖率 artifact + 变更行覆盖</td><td>ci.yml Coverage 步骤（I11）</td><td>覆盖率报告上传 artifact（失败可查明细）；增量加 PR 变更行覆盖 ≥80% 门禁</td></tr></tbody></table></div><p><strong>验收标准</strong>：① TS 7 评估产出结论文档（可迁/不可迁 + 阻塞项清单）；② exports 拆分后消费方可按子路径导入且 tree-shaking 生效；③ worker 文件化后并行/串行位级一致测试仍通过；④ 覆盖率 artifact 在 CI 失败时可下载。</p>
+<p><strong>风险</strong>：TS 7 与 typescript-eslint/Oxc 工具链的兼容成熟度需跟踪（发布仅一个月）；exports 拆分对下游导入路径是 breaking change，建议 major 版本承载；变更行覆盖门禁初期限 advisory（不阻塞），观察误报率后再转硬门禁。</p>
+<blockquote>可选加菜（非本路线图承诺）：oxlint 分层 lint、fast-check PBT、发包流 trusted publishing——均见第 2 章对标清单，团队按需排期。</blockquote>
+<h3>5.6 执行纪律</h3>
+<ul><li><strong>顺序不可倒置</strong>：Wave 2 依赖 Wave 1 的回归测试安全网；Wave 3 的快照测试依赖 Wave 2 收敛后的稳定行为；Wave 4 独立可并行启动评估类条目。</li><li><strong>每波一个验收 PR</strong>：附前后对比数据（吞吐、测试稳定性、lint/覆盖率数字），不合入无验收证据的改动。</li><li><strong>口径以 brief 为准</strong>：涉及规模与发现总数的外部表述（约 190 条：P0×1、P1×约15、P2×约60、P3×约110）统一引用，避免与素材估算混淆。</li></ul>
+</section>
+
+<section class="chapter" id="ch6">
+<div class="ch-header"><span class="ch-no">CHAPTER 6</span><h2>值得保留的世界级优点</h2></div>
+<p>前四章用了大量篇幅谈问题；本章必须把另一半事实讲清楚：<strong>这个仓库的底子显著高于平均水位，多处实践达到研究级或教科书级</strong>。升级路线图的隐含前提是「升级而非重写」——本章列出的资产正是理由：它们是护城河，任何重构都应原样保留并继续投资。</p>
+<h3>6.1 算法与机制设计层</h3>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>优点</th><th>证据</th><th>出处</th></tr></thead><tbody><tr><td>1</td><td><strong>机制设计注释达到定理级</strong>：WDP 精确求解、bundle 级 Clarke pivot 与「短视 VCG」替代效应反例、Green-Laffmont 不可能性边界、μ-VCG 的 DSIC 定理证明梗概、BudgetPacer 与广告预算 pacing 的同构映射——每条机制声明都附可检验的经济学依据</td><td>batch-vcg-scheduler.ts 头部及各机制段</td><td>subagent_01</td></tr><tr><td>2</td><td><strong>诚实的自我审计文化</strong>：<code>optimality</code> 字段对照穷举最优报告达成率；λ-二分处显式声明「Σp(λ) 的单调性未被证明」并做终局复核兜底；「突破声明必须面对最强经典对手」——匈牙利算法与子空间引擎独立互验对照认证</td><td>classical-baselines、batch-vcg-scheduler、调度器编排层</td><td>subagent_01</td></tr><tr><td>3</td><td><strong>纤维混合闭式解（真正的数学功底）</strong>：K_k = J−I 的指数闭式，无 Trotter 误差、O(dim) 精确施加混合器，比全空间逐位旋转更优雅</td><td>fiber-kernel.ts / subspace-optimizer.ts</td><td>subagent_08</td></tr><tr><td>4</td><td><strong>三道 QPU 校验闸门</strong>：QPU 采样进调度器前过合法性检查、能量核对、本地最优对照——对噪声硬件的零信任姿态是教科书级</td><td>core/qpu/solve.ts 头注</td><td>subagent_03</td></tr></tbody></table></div><h3>6.2 确定性与数值工程</h3>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>优点</th><th>证据</th><th>出处</th></tr></thead><tbody><tr><td>5</td><td><strong>确定性工程全链路贯彻</strong>：Mulberry32 种子化贯穿调度器量子态、模拟结算、角度优化重启，注释明确「给定 seed 的调度行为完全可复现」；fiber-kernel 为 Worker 并行专门设计零闭包纯函数，保证串行/并行<strong>位级一致</strong>——多数并行实现只保证统计一致</td><td>fiber-kernel.ts、solver-common.ts、各调度器</td><td>subagent_01/08</td></tr><tr><td>6</td><td><strong>性能索引有复杂度注释且经论证</strong>：capabilityIndex 求交、pendingBuckets 免排序、dependents 反向索引（论证 Set 插入序 == 全表扫描序、位级行为一致）、pullsCache 脏标记缓存（附原 O(迭代×重解×A²·T) 推导）、SPFA 队列 head 前移替代 shift、纤维旋转系数按 k 查表（附 29 亿次三角函数的热点归因）</td><td>quantum-scheduler.ts、min-cost-flow.ts 等</td><td>subagent_01</td></tr><tr><td>7</td><td><strong>深位数值素养的坑位注释</strong>：<code>1 &lt;&lt; q</code> 在 q≥32 回绕的坑位注释 + QPU 路径不经中间整数态直接解码；FULLSPACE_QUBIT_LIMIT=30 恰卡安全边界且注释带警告</td><td>core/qpu/solve.ts:85、constants.ts</td><td>subagent_03</td></tr><tr><td>8</td><td><strong>集中舍入纪律</strong>：round9/round2/round3 收敛于 utils/numeric.ts 单点，禁止业务代码散写；错误层级统一（<code>new.target.name</code> 修正 + 9 个域分类 + 英文消息/中文注释约定）</td><td>utils/numeric.ts、utils/errors.ts</td><td>subagent_03</td></tr></tbody></table></div><h3>6.3 安全与边界防御</h3>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>优点</th><th>证据</th><th>出处</th></tr></thead><tbody><tr><td>9</td><td><strong>secure by default</strong>：总线默认绑定 127.0.0.1——无鉴权模式绝不暴露网络接口；maxPayload 交由 ws 层帧级拒绝超大消息</td><td>quantum-bus.ts 构造缺省</td><td>subagent_09</td></tr><tr><td>10</td><td><strong>多层背压上界意识</strong>：连接数封顶（256）、单连接订阅数封顶（64）、每 agent 离线队列封顶（1000，丢最旧并计数）；慢消费者防护（bufferedAmount &gt; 4MB 断连）正确处理了 ws「对端停读但保持连接」的无界缓冲问题——这是很多实现遗漏的点</td><td>quantum-bus.ts 多处</td><td>subagent_09</td></tr><tr><td>11</td><td><strong>timingSafeEqual 防时序侧信道</strong>：token 先 SHA-256 再常数时间比较，做法标准；鉴权开启后五条路径全部闭环，sourceAgentId 与连接身份一致性校验</td><td>quantum-bus.ts 鉴权分支</td><td>subagent_09</td></tr><tr><td>12</td><td><strong>投递语义诚实</strong>：processQueuedMessages 用连接快照 + 真实送达结果保序，杜绝「计为已投递但实际丢失」，注释把语义讲透；shutdown 处理了「start 已发起但未 listening」的罕见窗口；单次序列化复用避免同消息对多连接重复 JSON.stringify</td><td>quantum-bus.ts</td><td>subagent_09</td></tr><tr><td>13</td><td><strong>云 API 边界的成本与注入意识</strong>：端点 https 强制（防明文外带 token 的 SSRF 面）、孤儿问题 best-effort 取消（不烧 QPU 配额）、qp 压缩格式的幻影样本防护</td><td>dwave-backend.ts</td><td>subagent_03</td></tr></tbody></table></div><h3>6.4 测试与工程文化</h3>
+<div class="tbl-wrap"><table><thead><tr><th>#</th><th>优点</th><th>证据</th><th>出处</th></tr></thead><tbody><tr><td>14</td><td><strong>机制测试以手工推导闭式值为 oracle</strong>：p_w=8、take=2、λ=1 精确断言；DSIC 30 实例×多扰动实证；相变定律闭式↔模拟双向验证 + Π 群坍缩普适性检验——理论驱动而非快照驱动</td><td>batch-vcg-scheduler.test.ts、train-vs-hire-phase.test.ts、compound-brain.test.ts</td><td>subagent_05</td></tr><tr><td>15</td><td><strong>质量回归与安全加固的测试形态成熟</strong>：每用例锁定一个真实缺陷（含原型污染/沙箱逃逸/总线鉴权回归）；命令注入/路径穿越/符号链接逃逸全覆盖并处理平台差异（win32 分支）</td><td>quality-regressions.test.ts、security-hardening.test.ts</td><td>subagent_05</td></tr><tr><td>16</td><td><strong>tsconfig 严格度第一梯队</strong>：noUncheckedIndexedAccess + exactOptionalPropertyTypes + verbatimModuleSyntax + noUncheckedSideEffectImports 全开，超过绝大多数开源 TS 仓（2025-2026 前沿基线中前两项均为「严肃项目标配」位）</td><td>tsconfig.json</td><td>subagent_07/04</td></tr><tr><td>17</td><td><strong>CI 门禁文化成熟</strong>：覆盖率（92/82/92/92）+ 死代码双硬门禁，且经 2 OS × 3 Node 矩阵验证；eslint 分区豁免策略——src 全纪律、tests/examples/experiments 定向豁免并逐条写理由注释，是工程判断而非一刀切；示例冒烟进 CI 且钉 5 分钟超时</td><td>ci.yml、eslint.config.mjs</td><td>subagent_07</td></tr><tr><td>18</td><td><strong>防御性编程与类型纪律的日常密度</strong>：completeTask 幂等守卫（注释推演重复收尾的三重危害）、getSchedulingHistory 防御性拷贝、退化参数在入口拒绝（「不让 NaN 静默流穿整个态矢量」）；零 bare catch、零 <code>any</code>，<code>!</code> 断言几乎都有紧邻前置守卫，exactOptionalPropertyTypes 的条件展开写法是正确范本</td><td>core 全半区</td><td>subagent_01</td></tr><tr><td>19</td><td><strong>实验代码的可复现性自觉</strong>：种子显式（mulberry32(1000+run)）、数据代码分离、treatment/control 双臂设计、corrupt 破坏标签保持提示形状的控制臂、争议决策写进文件头注释</td><td>experiments/ 两实验</td><td>subagent_06</td></tr></tbody></table></div><h3>6.5 一句话总结</h3>
+<p>这 19 条优点集中呈现一个模式：<strong>作者对「正确性可以证明、复现可以位级、边界可以枚举」有近乎执念的追求</strong>——机制注释写定理、并行求位级一致、性能优化附复杂度推导、测试用闭式解做 oracle。本报告第 3、4 章的全部问题，恰好都是这一哲学<strong>尚未贯彻到的地方</strong>（状态机、异步纪律、外围工具链），而不是哲学本身的失败。Wave 2/3 的所有改造——单写点状态机、数值口径快照、确定性测试原语——本质上是把这套已有的严谨标准延伸到欠账区域。<strong>这些资产是护城河，不是技术债。</strong></p>
+</section>
+
+<section class="chapter" id="ch7">
+<div class="ch-header"><span class="ch-no">CHAPTER 7</span><h2>已知边界与后续</h2></div>
+<p>本章是审计的诚实性声明：哪些结论可信、哪些区域没看到、静态审读的固有局限、以及建议的下一步。任何审计报告的价值取决于其边界是否被显式声明——本章即为此而写。</p>
+<h3>7.1 审计方式与置信度分级</h3>
+<p>本次审计采用 9 路并行深审（7 路外派 Agent + 2 路主线亲审）+ 交叉复核抽查回读。约 190 条去重后发现的置信度分三档：</p>
+<div class="tbl-wrap"><table><thead><tr><th>档位</th><th>定义</th><th>覆盖内容</th></tr></thead><tbody><tr><td>高置信</td><td>回读验证源码 / 主线亲审 / 官方来源</td><td><span class="sev sev-P0">P0</span> plugin 串行（plugin.ts:140-186）、<span class="sev sev-P1">P1</span> 状态守卫缺失（quantum-scheduler.ts:~460）、<span class="sev sev-P1">P1</span> overloaded 吸收态（quantum-scheduler.ts:402-406）、全部 QPU/基建发现（主线亲审）、Node 20 EOL（2026-04-30）与 ESLint 9 EOL（2026-08-06，官方来源）</td></tr><tr><td>中置信</td><td>单源 + 行号自洽</td><td>core 优化器各 <span class="sev sev-P1">P1</span>（子空间回退 chosen=0、worker 序列化脆弱性、主线程阻塞）、总线 cardinality 攻击面</td></tr><tr><td>待深化</td><td>覆盖缺口或表述分歧，建议后续验证</td><td>见 7.2 与 7.3</td></tr></tbody></table></div><p>两点方法论说明：① 各 subagent 行号自注 ±10 行误差（复核实测 plugin 串行实际在 140-186 行而非声称的 200-233，偏差在容差内）；② 严重度排序按「影响面 × 修复成本」重排过——例如 plugin 串行动作定 P0（事件风暴下堆积无界），而 executor 重试不分类定为 P1，是重排后的结论而非审计员原始判断的照单全收。</p>
+<h3>7.2 覆盖缺口（诚实声明）</h3>
+<p>以下区域<strong>未被深审</strong>，本报告相应结论的覆盖深度如下表所示。引用这些区域的「无发现」不等于「无问题」：</p>
+<div class="tbl-wrap"><table><thead><tr><th>区域</th><th>体积</th><th>覆盖深度</th><th>缺口内容</th></tr></thead><tbody><tr><td>dsh-integration.ts</td><td>15.4KB</td><td>未深审</td><td>subagent_09 声明「待审」后未完成——DSH 集成层仅有模块级盘点，无逐行发现清单</td></tr><tr><td>tools/fs-tools.ts、system-tools.ts、web-tools.ts</td><td>合计约 18KB</td><td>仅边界扫描</td><td>工具层四文件中 3 个未深审；fs/system/web 工具的安全发现仅有 security-hardening 测试间接锚定，无正向审计</td></tr><tr><td>performance/benchmark.ts</td><td>14.7KB</td><td>未深审</td><td>性能基准模块无发现清单，其测量质量（计时方法、统计口径）未评估</td></tr><tr><td>web-console/index.html</td><td>28K 单文件</td><td>仅静态审阅</td><td>XSS 面、鉴权失败处理等 3 条发现来自静态读码，<strong>无运行时验证</strong>；实际浏览器行为未测</td></tr><tr><td>subagent_02/06 的模块概览与 Top3 段</td><td>—</td><td>主线补齐</td><td>两路外派的概览段落未写完，由主线依据发现清单在 brief 中补齐口径</td></tr></tbody></table></div><p>上述缺口已排入 Wave 3 条目 3.4（dsh/tools 深审补课）：<strong>「总线层已深审、工具层仅边界扫描」是本报告对通信与工具半区的准确覆盖声明</strong>，在补课完成前不应被引用为「该区域无问题」的证据。</p>
+<h3>7.3 保留分歧与待验证疑点</h3>
+<p>复核中存在一处表述自相矛盾，按「疑似」降级处理而非采信为结论：</p>
+<ul><li><strong>bruteForceOptimum 耦合键一致性（subagent_08 #13）</strong>：审计员先称 dfs 与 computeEnergies 的耦合编码一致、后又指出 q1==q2（对角项）在三条求解路径上语义不一致——同一发现内部表述冲突。本报告将其降级为「<strong>疑点，建议验证</strong>」，列入 Wave 3 快照测试的验证清单（构造含对角耦合的实例，对照 bruteForce 与态矢量路径的能量语义），在验证完成前不作为 P1 结论引用。</li></ul>
+<h3>7.4 审计环境限制</h3>
+<ul><li><strong>静态审读为主，未运行测试套件</strong>：全部发现来自读码推断，28 文件 5822 LOC 的测试套件（README 称 281 用例）未在本次审计中实际执行——CI 全绿状态以仓库自述与配置为准，未经独立复现。</li><li><strong>行号为近似值</strong>：各 subagent 行号自注 ±10 误差，按函数名回查均可定位；引用时建议以函数名为主锚点。</li><li><strong>未验证运行时行为</strong>：主线程阻塞时长、worker 握手超时、事件风暴堆积等性能类发现（如 subspace-parallel 的分钟级阻塞声称）为代码路径推断，量级判断基于参数推导而非实测。</li><li><strong>前沿基准的固有缺口</strong>（subagent_04 诚实标注）：fast-check 采纳率、AI review 误报率（5-15% 来自非权威来源）、c8 最新版本号、变更行覆盖普及率——均无权威统计，本报告未将其作为硬基准引用。</li></ul>
+<h3>7.5 后续建议</h3>
+<ol><li><strong>先修再测</strong>：按 Wave 1 清单（第 5 章）执行三条<span class="ver">已验证</span> P0/P1 的最小补丁 + EOL 清理 + CI 硬化——1-2 天工作量，全部为高置信发现，无验证依赖。</li><li><strong>回归 CI 全绿后再进 Wave 2</strong>：状态机集中化是回归风险最高的改造，安全网 = Wave 1 新增回归测试 + 现有覆盖率门禁；若 CI 存在未知间歇红（本次未运行套件，无法排除），先按 Wave 3 条目 3.3 消灭 setImmediate 魔法数再动状态机。</li><li><strong>优先补两个安全相关缺口</strong>：tools/ 三文件与 dsh-integration.ts 的深审建议提前（它们是外部输入的直接处理面），web-console 补一次运行时验证（鉴权失败断连路径、XSS 实测）。</li><li><strong>对「疑点」项做一次验证实验</strong>：bruteForceOptimum 对角耦合语义——验证成本小时级，结论直接影响「精确最优参照是否可信」这一算法正确性根基。</li><li><strong>补审完成后更新覆盖声明</strong>：Wave 3 条目 3.4 落地后，本报告 7.2 的缺口表即失效，应发布覆盖更新说明，避免本报告的保守声明被长期误读为「工具层无问题」。</li></ol>
+<h3>7.6 结语</h3>
+<p>本次审计的最终判断可以收敛为一句话：<strong>内核是世界级的，外围欠账是可还的，路线图是可执行的</strong>。约 190 条发现中真正的系统性风险集中在状态机完整性、异步并发纪律、EOL 工具链、测试时序确定性四处——全部有明确修复路径（第 5 章）且不触及内核设计。与此同时，第 6 章列出的 19 项资产——从定理级机制注释到位级一致性的确定性工程——值得原样保留并继续投资。按波次推进，这个仓库有充分条件在 2027 年站上同类项目的第一梯队。</p>
+</section>
+
+
+
+<div class="colophon-end">
+  本报告由 9 路并行审计（7 路外派 Agent 分域深审 + 2 路主线亲审）汇总而成；P0/P1 关键发现经源码回读复核。全部证据以 file:line 标注，行号误差 ±10。审计为静态读码，未运行测试套件；覆盖缺口见第 7 章。
+</div>
+
+</div>
+</main>
+</div>
+</body>
+</html>

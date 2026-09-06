@@ -1,0 +1,415 @@
+src/core/channels.ts(7,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/core/channels.ts(15,7): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(15,20): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(16,7): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(16,20): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(37,42): error TS18048: 'a' is possibly 'undefined'.
+src/core/channels.ts(37,46): error TS18048: 'b' is possibly 'undefined'.
+src/core/channels.ts(42,22): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(42,43): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(44,19): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/channels.ts(47,49): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(47,66): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(54,34): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(55,12): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(57,58): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(57,72): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(62,37): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(63,14): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(73,60): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(73,75): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(74,7): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(74,24): error TS18048: 'dOut' is possibly 'undefined'.
+src/core/channels.ts(74,43): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(75,7): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(75,24): error TS18048: 'dOut' is possibly 'undefined'.
+src/core/channels.ts(75,43): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(88,37): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(89,37): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(110,49): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(110,66): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(112,46): error TS18048: 'a' is possibly 'undefined'.
+src/core/channels.ts(112,50): error TS18048: 'b' is possibly 'undefined'.
+src/core/channels.ts(116,65): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(116,85): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(117,35): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(arrayLength: number): number[]', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+  Overload 2 of 3, '(...items: number[]): number[]', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/core/channels.ts(124,34): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(125,14): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(127,33): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(131,19): error TS2322: Type '(number | undefined)[]' is not assignable to type 'number[]'.
+  Type 'number | undefined' is not assignable to type 'number'.
+    Type 'undefined' is not assignable to type 'number'.
+src/core/channels.ts(148,49): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(148,66): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(153,26): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(153,42): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(155,28): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(155,44): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(156,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/channels.ts(157,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/channels.ts(159,10): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(163,7): error TS2532: Object is possibly 'undefined'.
+src/core/channels.ts(164,7): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(47,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(47,25): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(48,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(48,25): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(56,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(57,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(67,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(67,21): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(67,31): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(67,41): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(68,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(68,21): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(68,31): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(68,41): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(87,27): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(87,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(87,47): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(87,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(88,27): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(88,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(88,47): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(88,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(97,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(97,25): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(98,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(98,25): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(106,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(107,15): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(124,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(124,29): error TS18048: 'ar' is possibly 'undefined'.
+src/core/cmat.ts(124,34): error TS18048: 'br' is possibly 'undefined'.
+src/core/cmat.ts(124,39): error TS18048: 'ai' is possibly 'undefined'.
+src/core/cmat.ts(124,44): error TS18048: 'bi' is possibly 'undefined'.
+src/core/cmat.ts(125,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(125,29): error TS18048: 'ar' is possibly 'undefined'.
+src/core/cmat.ts(125,34): error TS18048: 'bi' is possibly 'undefined'.
+src/core/cmat.ts(125,39): error TS18048: 'ai' is possibly 'undefined'.
+src/core/cmat.ts(125,44): error TS18048: 'br' is possibly 'undefined'.
+src/core/cmat.ts(136,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(137,31): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(148,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(149,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(168,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(168,37): error TS18048: 'ar' is possibly 'undefined'.
+src/core/cmat.ts(168,42): error TS18048: 'br' is possibly 'undefined'.
+src/core/cmat.ts(168,47): error TS18048: 'ai' is possibly 'undefined'.
+src/core/cmat.ts(168,52): error TS18048: 'bi' is possibly 'undefined'.
+src/core/cmat.ts(169,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(169,37): error TS18048: 'ar' is possibly 'undefined'.
+src/core/cmat.ts(169,42): error TS18048: 'bi' is possibly 'undefined'.
+src/core/cmat.ts(169,47): error TS18048: 'ai' is possibly 'undefined'.
+src/core/cmat.ts(169,52): error TS18048: 'br' is possibly 'undefined'.
+src/core/cmat.ts(182,27): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(182,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(182,47): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(182,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(183,27): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(183,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(183,47): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(183,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(210,18): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(210,41): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(211,18): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(211,41): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(221,18): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(221,28): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(221,55): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(221,65): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(240,70): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(240,85): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(248,22): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(249,24): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(249,39): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(249,60): error TS18048: 'apq' is possibly 'undefined'.
+src/core/cmat.ts(259,11): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(260,11): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(263,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(263,44): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(264,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(264,44): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(269,11): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(270,11): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(273,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(273,44): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(274,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(274,44): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(280,31): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(291,20): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(291,47): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(293,18): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(297,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(298,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(301,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(302,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(306,17): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(306,34): error TS18048: 'piv' is possibly 'undefined'.
+src/core/cmat.ts(308,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(308,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(309,7): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(309,19): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(314,37): error TS18048: 's' is possibly 'undefined'.
+src/core/cmat.ts(314,42): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(314,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(315,12): error TS18048: 's' is possibly 'undefined'.
+src/core/cmat.ts(315,16): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(328,44): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(328,51): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(329,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(329,51): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(334,33): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(355,69): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(355,81): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(359,26): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(359,45): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(370,24): error TS18048: 'cluster' is possibly 'undefined'.
+src/core/cmat.ts(370,24): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(375,49): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(375,49): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(378,15): error TS18048: 'cluster' is possibly 'undefined'.
+src/core/cmat.ts(390,11): error TS18048: 'cluster' is possibly 'undefined'.
+src/core/cmat.ts(390,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(391,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(398,35): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(409,25): error TS18048: 'cluster' is possibly 'undefined'.
+src/core/cmat.ts(410,11): error TS18048: 'cluster' is possibly 'undefined'.
+src/core/cmat.ts(410,11): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(429,41): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(429,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(448,69): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(448,78): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(452,26): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(452,39): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(468,13): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(468,23): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(468,33): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(468,43): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(469,13): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(469,23): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(469,33): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(469,43): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(477,21): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(482,22): error TS2345: Argument of type 'Float64Array<ArrayBufferLike> | undefined' is not assignable to parameter of type 'Float64Array<ArrayBufferLike>'.
+  Type 'undefined' is not assignable to type 'Float64Array<ArrayBufferLike>'.
+src/core/cmat.ts(486,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(486,29): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(486,46): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(487,11): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(487,29): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(487,46): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(503,62): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(503,77): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(507,27): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(508,29): error TS2538: Type 'undefined' cannot be used as an index type.
+src/core/cmat.ts(513,21): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(513,35): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(513,55): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(513,69): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(525,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(526,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(527,31): error TS18048: 'im' is possibly 'undefined'.
+src/core/cmat.ts(528,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(537,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(538,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(548,9): error TS18048: 'lam' is possibly 'undefined'.
+src/core/cmat.ts(552,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(552,30): error TS18048: 'lam' is possibly 'undefined'.
+src/core/cmat.ts(552,37): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(552,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(552,48): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(552,48): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(552,59): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(552,59): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(552,70): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(552,70): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(553,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(553,30): error TS18048: 'lam' is possibly 'undefined'.
+src/core/cmat.ts(553,37): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(553,37): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(553,48): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(553,48): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(553,59): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(553,59): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(553,70): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(553,70): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(566,29): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/core/cmat.ts(573,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(573,35): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(573,35): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(573,46): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(573,46): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(573,57): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(573,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(573,68): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(573,68): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(574,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(574,35): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(574,35): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(574,46): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(574,46): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(574,57): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(574,57): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(574,68): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(574,68): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,43): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(589,43): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,54): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(589,54): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,65): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(589,65): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(589,76): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(589,76): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,9): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,30): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,43): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(590,43): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,54): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(590,54): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,65): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(590,65): error TS2532: Object is possibly 'undefined'.
+src/core/cmat.ts(590,76): error TS18048: 'vk' is possibly 'undefined'.
+src/core/cmat.ts(590,76): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(7,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/core/measures.ts(12,43): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(55,13): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(61,7): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(61,32): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(62,7): error TS2532: Object is possibly 'undefined'.
+src/core/measures.ts(62,32): error TS2532: Object is possibly 'undefined'.
+src/core/rng.ts(40,45): error TS2322: Type 'T | undefined' is not assignable to type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+src/core/states.ts(6,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/core/states.ts(6,16): error TS1484: 'CVec' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/core/states.ts(34,27): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(34,37): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(34,47): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(34,57): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(35,27): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(35,37): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(35,47): error TS2532: Object is possibly 'undefined'.
+src/core/states.ts(35,57): error TS2532: Object is possibly 'undefined'.
+src/kernel/audit.ts(25,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/kernel/audit.ts(166,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/kernel/audit.ts(167,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/kernel/collapse.ts(15,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/kernel/collapse.ts(17,10): error TS1484: 'SwitchedChannel' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/kernel/collapse.ts(29,49): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(29,66): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(33,33): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(33,49): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(35,35): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(35,51): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(51,32): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(51,53): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(52,32): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(52,53): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(60,48): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/kernel/collapse.ts(89,40): error TS2532: Object is possibly 'undefined'.
+src/kernel/collapse.ts(90,40): error TS2532: Object is possibly 'undefined'.
+src/kernel/kswitch3.ts(14,3): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/kernel/kswitch3.ts(23,10): error TS1484: 'Stinespring' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/kernel/kswitch3.ts(44,49): error TS2532: Object is possibly 'undefined'.
+src/kernel/kswitch3.ts(44,66): error TS2532: Object is possibly 'undefined'.
+src/kernel/kswitch3.ts(48,52): error TS2532: Object is possibly 'undefined'.
+src/kernel/kswitch3.ts(48,72): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(7,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/switch/chanlib.ts(10,10): error TS1484: 'Stinespring' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/switch/chanlib.ts(66,24): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(67,24): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(107,18): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(107,28): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(107,38): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(107,48): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(108,19): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(108,29): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(108,39): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(108,49): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(111,11): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(111,28): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(111,45): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(112,11): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(112,28): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(112,45): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(117,50): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(117,60): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(117,70): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(117,80): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(125,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/chanlib.ts(125,25): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(126,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/chanlib.ts(126,25): error TS2532: Object is possibly 'undefined'.
+src/switch/chanlib.ts(141,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/chanlib.ts(142,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(23,10): error TS1484: 'CMat' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/switch/isometry.ts(45,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(46,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(85,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(86,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(87,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(88,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(91,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(92,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(93,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(94,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(139,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(140,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(206,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/switch/isometry.ts(207,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+test/readout.test.ts(88,8): error TS2352: Conversion of type 'ExchangeRow | undefined' to type '{ anchors: string[]; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'ExchangeRow' is not comparable to type '{ anchors: string[]; }'.
+    Types of property 'anchors' are incompatible.
+      The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.

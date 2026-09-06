@@ -1,0 +1,32 @@
+{
+  "name": "route-price",
+  "version": "0.1.0",
+  "description": "Route and price for the two OPEN rows. The atlas's own discipline lets OPEN rows quote no numbers — what they owe instead is a route with falsifiers and prices with derivations. This repo is that debt, paid: one dossier per OPEN row (dtc-clock, choice-primitive), each with certificate criteria, milestones that name their own failure mode, and price lines whose arithmetic is re-derived by executable witnesses (the Landauer floor with ln2 re-derived by quadrature and k the exact SI constant; the choice-primitive toy — coherent branching with engineered invariance versus random programs, the no-cloning wall executed as a rephasing-covariance separation, and the certification toll re-invoiced from the epoch-3 postselection ledger). The checker refuses any dossier that claims settledness — the only verdict this repo can express is OPEN-ROUTE; a milestone without a price, a milestone without a falsifier, or a citation that does not resolve all fail the build.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx src/experiments/render.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "route-and-price",
+    "open-rows",
+    "time-crystal-clock",
+    "choice-primitive",
+    "falsifiers-mandatory",
+    "numbers-never-travel-alone"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}

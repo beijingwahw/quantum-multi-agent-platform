@@ -1,0 +1,33 @@
+{
+  "name": "dsic-noether",
+  "version": "0.1.0",
+  "description": "Roadmap #12: the symmetry layer of mechanism design, machine-verified. The epoch-5 sentence 'DSIC is a special case of Noether symmetry' was poetry until a conserved charge was exhibited; this prototype exhibits it. Delivered: (1) the Groves GAUGE GROUP — payments modulo h_i(b_-i) — with the deviation gain (the WELFARE GAP, Phi_v(x(b)) - max Phi_v) as the gauge-invariant charge, integer-exact; (2) implementability as EXACTNESS of the payment 1-form: Groves <=> dp_i = d(W_-i . x) on own-report paths (cycle sums zero, potential reconstruction bitwise), Rochet cyclical monotonicity as no-positive-cycle, with anti-efficient and approximate-solver negative controls; (3) the discrete Noether theorem executed for real (Marsden-West midpoint variational integrator: exact momentum conservation to ~1e-15 under rotational symmetry, systematic drift when symmetry breaks); (4) the bridge: both sides are the same algebra — invariance under a group action => closedness of the contracted 1-form => a potential (charge) exists => stationarity of the truthful/DEL solution. Honest boundary: this is an isomorphism at the discrete-exactness level, not a formal derivation of Green-Laffont from Noether's 1918 continuum theorem",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "repro": "tsx experiments/run-all.ts",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "mechanism-design",
+    "vcg",
+    "gauge-symmetry",
+    "cyclical-monotonicity",
+    "rochet",
+    "discrete-noether",
+    "variational-integrator"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.5.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
+  }
+}
