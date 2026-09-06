@@ -20,6 +20,8 @@ export interface LiveBurialError {
   readonly repo: string;
   readonly category: string;
   readonly wrong: string;
+  /** the correction — the rule the preflight card prints (v0.6.0) */
+  readonly right: string;
 }
 
 export interface LiveRegistry {
@@ -35,7 +37,7 @@ interface RegistryModule {
   BURIAL_RECORD?: ReadonlyArray<{
     batch: number;
     repo: string;
-    errors: ReadonlyArray<{ category: string; wrong: string }>;
+    errors: ReadonlyArray<{ category: string; wrong: string; right: string }>;
   }>;
   DECLARED_TOTAL_BATCHES?: number;
   DECLARED_TOTAL_ERRORS?: number;
@@ -57,7 +59,7 @@ export function loadLiveRegistry(): Promise<LiveRegistry> {
     const errors: LiveBurialError[] = [];
     for (const b of mod.BURIAL_RECORD) {
       b.errors.forEach((e, i) => {
-        errors.push({ key: `b${b.batch}#${i}`, batch: b.batch, index: i, repo: b.repo, category: e.category, wrong: e.wrong });
+        errors.push({ key: `b${b.batch}#${i}`, batch: b.batch, index: i, repo: b.repo, category: e.category, wrong: e.wrong, right: e.right });
       });
     }
     return {

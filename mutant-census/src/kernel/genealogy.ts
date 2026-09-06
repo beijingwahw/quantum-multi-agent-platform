@@ -87,7 +87,7 @@ export interface FamilyResolution {
 
 export const FAMILY_RESOLUTIONS: readonly FamilyResolution[] = [
   { family: "cat:wrong-object", holds: "GATE-ENFORCED", note: "the physics-object class — held at its latest sighting by the dtc-clock test gate (the W-K dual-road agreement)" },
-  { family: "cat:process", holds: "BOOKED-UNENFORCEABLE", note: "the author-discipline class — its latest sighting is the W-G naming collision (no gate holds identifier namespaces); the E1 enrollment miss before it WAS gate-caught, the E1 gate holds the enrollment half" },
+  { family: "cat:process", holds: "GATE-ENFORCED", note: "the author-discipline class — its latest sighting (the W-G naming collision) is now held by the renderer's witness-letter guard; the E1 gate holds the enrollment half" },
   { family: "cat:machine-overruled", holds: "GATE-ENFORCED", note: "the overruled-expectation class — every conviction pinned by a test that asserts the numbers' verdict (e.g. TC27's passive-beats-decoder)" },
   { family: "cat:dimension-slot", holds: "MUTANT-KILLED", note: "the dimension-accounting class — the mAdd shape-blind mutants guard it (MU3 lineage)" },
   { family: "cat:statistics", holds: "MUTANT-KILLED", note: "the statistics class — the 5-sigma census mutants guard it (MU8 lineage)" },

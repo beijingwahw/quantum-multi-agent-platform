@@ -207,7 +207,27 @@ export async function renderCensus(
   out.push(
     "The visitor asked for all the errors given a world-class optimization. The optimization that survives pricing is not a faster kernel but a closed registry: every error ever buried is wired to the guard that kills it now — replayed as a mutant, anchored to a live gate, or booked on the visible boundary with its reason; the burial record is imported live on every run, so the loop cannot be reopened silently. The burial record was the memory of failure — this census is the immune system built from it, and the enrollment is the proof that nothing in that memory is inert. Survivors, when they appear, will be booked as blind spots on this page; that is the difference between quality theatre and a gate.\n",
   );
-  return out.join("\n");
+  const text = out.join("\n");
+  // witness letters must be unique: two censuses claiming one letter is the
+  // b46#5 class, and the renderer refuses to print it (the guard is
+  // registered on the A-board, FIRING-LIVE)
+  assertUniqueWitnessLetters(text);
+  return text;
+}
+
+/** The witness-letter guard (b46#5's tier upgrade): every W-[A-Z] that
+ * headlines a census line belongs to exactly one census. */
+export function assertUniqueWitnessLetters(reportText: string): void {
+  const seen = new Map<string, number>();
+  for (const m of reportText.matchAll(/^- (?:PASS|FAIL) — (W-[A-Z])/gm)) {
+    seen.set(m[1]!, (seen.get(m[1]!) ?? 0) + 1);
+  }
+  const dups = [...seen.entries()].filter(([, n]) => n > 1).map(([w]) => w);
+  if (dups.length > 0) {
+    throw new Error(
+      `the census is illegal — refusing to print it:\n- witnesses [A-board letter guard]: ${dups.join(", ")} each headline two censuses — witness letters must be unique`,
+    );
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

@@ -30,7 +30,7 @@ test("smuggle E1a: a newly buried error without enrollment is convicted by name"
     ...live,
     errors: [
       ...live.errors,
-      { key: "b99#0", batch: 99, index: 0, repo: "mutant-census", category: "process", wrong: "a new error buried without enrollment" },
+      { key: "b99#0", batch: 99, index: 0, repo: "mutant-census", category: "process", wrong: "a new error buried without enrollment", right: "enroll it the same visit" },
     ],
     batchCount: live.batchCount + 1,
     declaredBatches: live.batchCount + 1,

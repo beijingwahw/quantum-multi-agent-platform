@@ -4,15 +4,15 @@
 
 ## Census
 
-- batches: 45
-- errors: 274
+- batches: 46
+- errors: 280
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
 | dtc-clock | 5 | 41 |
-| mutant-census | 4 | 30 |
+| mutant-census | 5 | 36 |
 | nonstoq-anneal | 4 | 22 |
 | ds_extracted/ds | 3 | 21 |
 | bqp-map | 2 | 14 |
@@ -43,9 +43,9 @@
 
 | category | errors |
 | --- | --- |
-| process | 51 |
+| process | 55 |
 | wrong-object | 47 |
-| toolchain | 34 |
+| toolchain | 36 |
 | machine-overruled | 32 |
 | dimension-slot | 29 |
 | statistics | 25 |
@@ -690,14 +690,29 @@
 | batch 45 was buried in the burial registry but its eight errors were NOT enrolled in the mutant-census E-board tiers — the total gate's first run went 1 RED with E1 naming b45#0..#7 un-enrolled (the 'born enrolled' law skipped at birth, caught at the gate) | enroll b45#0..#7 in the same visit as the burial (the 34/35/36 precedent), and this very miss as b45#8 — the E1 closed loop holding by working exactly as legislated: an error without an enforcement anchor cannot be buried | process |
 | the count prose drifted from the count data: the batch-45 context still said 'eight delivery errors' after b45#8 made it nine, and the visit's memory notes wrote 'nine errors across six classes' where the registry carries FIVE distinct categories (the b36 board-drift / b42 count-lag family, third sighting) — caught by the visitor quoting the stale eight back | the reconciliation reads out from the registry, never from memory: 10 entries, five classes (toolchain x3, process x2, anchor-blindspot x2, wrong-object, machine-overruled), 274 declared — and this drift itself enrolled as b45#9; prose counts are a copy of the data, written after reading it | process |
 
+### Batch 46 — mutant-census (2026-09-07)
+
+- context: the v0.5.0 genealogy board (G1-G4) + burial-record's B7 count law: families, resolutions, the catch ledger — six delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第四十六批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| batch 35's context said 'four delivery errors' while the registry carried FIVE — the count-drift family's oldest member, undetected for two days until B7's own pre-flight convicted it on first fire (the law exposing the history it was written from) | the prose aligned to the data ('five'), the finding booked here, and the class is now machine-held: B7 refuses any registry whose stated counts drift from its carried counts | process |
+| the genealogy scratch census first ran as `npx tsx -e` with a multiline program under Git Bash — silent, no output (the b14/b38 family, fifth sighting; the scratch-file rule was already on the books) | a scratch file, run once, numbers harvested, file deleted — the rule exists because the shell's quoting rules own backticks and dollar-braces; -e one-liners are for imports only, never multiline | toolchain |
+| the A-fire B7 demo was inserted into anchors.test.ts with its closing `});` swallowed by the edit — tsc named TS1005 at end of file | every inserted test block is read back at its closing brace before compiling; the typecheck gate held the line (the conviction demo now closes itself) | process |
+| the render wiring first went through a python heredoc whose anchor on the em-dash T-board line failed its own assert (encoding suspicion, undiagnosed) — the patch aborted before any write | heredoc patches with non-ascii anchors are banned outright: Read the file, Edit with the exact on-disk text — the self-set assert did its job and nothing drifted | process |
+| the genealogy test wrote `cd!.latestTier` after an assert.ok narrow — lint named no-unnecessary-type-assertion | assert.ok narrows; the bang is for reads before the narrow, not after — the lint gate held the line | toolchain |
+| the genealogy witness was named W-G without grepping the witness-letter table first — W-G was already the anchor census's letter (renamed W-H before any test ran) | identifier namespaces are grepped before claimed: witnesses, board letters, anchor names — the collision was caught at render-wiring time by reading the file being edited | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..45 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (274 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 274 = repo sum 274)
-- PASS — W-4 declared totals 45 batches / 274 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (12 statements) (every stated count is the data's count)
+- PASS — W-1 numbering is 1..46 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (280 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 280 = repo sum 280)
+- PASS — W-4 declared totals 46 batches / 280 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (13 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (23 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 274 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 280 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

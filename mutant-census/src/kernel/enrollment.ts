@@ -362,5 +362,10 @@ export const ENROLLMENT: readonly EnrollmentRow[] = [
   { key: "b46#2", category: "process", tier: "GATE-ENFORCED", anchor: "mutant-census/package.json :: typecheck", reason: "" },
   { key: "b46#3", category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "non-ascii anchors never through heredoc; Read+Edit always — no gate diffs intent" },
   { key: "b46#4", category: "toolchain", tier: "GATE-ENFORCED", anchor: "mutant-census/package.json :: lint", reason: "" },
-  { key: "b46#5", category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "identifier namespaces (witness letters, board letters, anchor names) are grepped before claimed — no gate holds a naming table" },
+  { key: "b46#5", category: "process", tier: "GATE-ENFORCED", anchor: "mutant-census/src/experiments/render.ts :: witness letters must be unique", reason: "" },
+  // ---- batch 47 (mutant-census v0.6.0: letter guard + pre-flight card + B8) — born enrolled ----
+  { key: "b47#0", category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "law scope is design work — the pre-flight validation harness (validate against the full history before landing) is the discipline; no gate diffs a rule's intended scope" },
+  { key: "b47#1", category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "heredoc with escaped TS strings — the banned class, fifth sighting; Edit tool always, and escapes restructured away (join) so quoting layers have nothing to eat" },
+  { key: "b47#2", category: "toolchain", tier: "GATE-ENFORCED", anchor: "mutant-census/package.json :: typecheck", reason: "" },
+  { key: "b47#3", category: "process", tier: "GATE-ENFORCED", anchor: "mutant-census/package.json :: test", reason: "" },
 ];

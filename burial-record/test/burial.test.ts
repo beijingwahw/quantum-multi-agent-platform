@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkBurial, runWitnesses } from "../src/kernel/audit.js";
+import { checkBurial, runWitnesses, statedDeliveryCounts } from "../src/kernel/audit.js";
 import {
   BURIAL_RECORD,
   DECLARED_TOTAL_BATCHES,
@@ -136,6 +136,33 @@ describe("T2 smuggling trials — the bookkeeping rejects contraband by name", (
       [],
       "twenty-two === 22 must not convict — the truncation trap",
     );
+  });
+
+  it("B8: the lesson heading's stated 处 must equal the registry's carried count (the memory side of b45#9)", () => {
+    const contraband = smuggle((b) => {
+      const batch45 = b.find((x) => x.batch === 45) as unknown as { errors: Array<{ wrong: string; right: string; category: string }> };
+      batch45.errors.pop(); // the memory still says 十处; the registry now carries 9
+    });
+    const hit = checkBurial(contraband).find((v) => v.law === "B8" && v.batch === 45);
+    assert.ok(hit, "expected a B8 conviction on batch 45");
+    assert.match(hit.detail, /states 10 处/);
+    assert.match(hit.detail, /carries 9/);
+  });
+
+  it("B8 regression: '十处五类' on a ten-error five-class batch is legal prose (both sides agree)", () => {
+    assert.deepEqual(
+      checkBurial().filter((v) => v.law === "B8"),
+      [],
+      "the real registry's headings all match their batches",
+    );
+    const d45 = statedDeliveryCounts("### 关键经验（第四十五批——dtc-clock v0.5.0 交付期十处五类）");
+    assert.equal(d45.errors, 10);
+    assert.equal(d45.classes, 5);
+    const d46 = statedDeliveryCounts("### 关键经验（第四十六批——mutant-census G 板＋burial-record B7 交付期六处）");
+    assert.equal(d46.errors, 6);
+    assert.equal(d46.classes, null);
+    const none = statedDeliveryCounts("### 某节（无计数惯用语）");
+    assert.equal(none.errors, null);
   });
 });
 

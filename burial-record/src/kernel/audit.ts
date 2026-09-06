@@ -21,7 +21,12 @@
  *       classes" against the distinct categories. Prose counts are a copy
  *       of the data (the b45#9 law: 'eight' sat on nine for one visit, and
  *       batch 35's 'four' sat on five for two days — both caught by hand,
- *       never again by hand).
+ *       never again by hand);
+ *   B8. the MEMORY side of the same law: the lesson heading's established
+ *       phrase "交付期X处(Y类)" must equal the batch the registry carries —
+ *       b45#9 slipped through exactly here (the registry was reconciled,
+ *       the memory prose was not); only the established phrase is parsed,
+ *       free prose may count anything.
  *
  * Witnesses (independent re-derivations, not transcriptions):
  *   W-1 the numbering is [1..N] by sorted-sequence identity;
@@ -29,7 +34,8 @@
  *       census;
  *   W-3 the per-category census likewise, and both sums equal the total;
  *   W-4 the declared headline constants equal the recounted registry;
- *   W-5 every stated context count equals the carried count (B7's witness).
+ *   W-5 every stated context count equals the carried count (B7's witness);
+ *   W-6 every stated lesson-heading count equals the carried count (B8's).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -103,6 +109,52 @@ export function statedClassCounts(context: string): readonly number[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// B8's parser — the lesson heading's established count phrase, in Chinese
+// numerals: 交付期X处 and the optional Y类. Digits, 一..九, and the 十
+// compounds (十X, X十, X十Y) all parse; 两 counts as 2; anything else is
+// left to the prose it lives in.
+// ---------------------------------------------------------------------------
+
+const CN_DIGITS = new Map<string, number>([
+  ["一", 1], ["二", 2], ["两", 2], ["三", 3], ["四", 4],
+  ["五", 5], ["六", 6], ["七", 7], ["八", 8], ["九", 9],
+]);
+
+export function parseCnCount(word: string): number | null {
+  if (/^\d+$/.test(word)) return Number.parseInt(word, 10);
+  if (word === "十") return 10;
+  if (word.startsWith("十")) {
+    const ones = CN_DIGITS.get(word.slice(1));
+    return ones === undefined ? null : 10 + ones;
+  }
+  if (word.endsWith("十")) {
+    const tens = CN_DIGITS.get(word.slice(0, -1));
+    return tens === undefined ? null : tens * 10;
+  }
+  const tenIdx = word.indexOf("十");
+  if (tenIdx > 0 && tenIdx < word.length - 1) {
+    const tens = CN_DIGITS.get(word.slice(0, tenIdx));
+    const ones = CN_DIGITS.get(word.slice(tenIdx + 1));
+    if (tens !== undefined && ones !== undefined) return tens * 10 + ones;
+  }
+  return CN_DIGITS.get(word) ?? null;
+}
+
+/** The heading line's 交付期X处(Y类) counts; null where not stated. */
+export function statedDeliveryCounts(headingLine: string): { errors: number | null; classes: number | null } {
+  const m = /交付期\s*([一二三四五六七八九十两\d]+)\s*处(?:\s*([一二三四五六七八九十两\d]+)\s*类)?/.exec(headingLine);
+  if (m === null) return { errors: null, classes: null };
+  return {
+    errors: parseCnCount(m[1]!),
+    classes: m[2] === undefined ? null : parseCnCount(m[2]),
+  };
+}
+
+function actualClassesOf(b: BurialBatch): number {
+  return new Set(b.errors.map((e) => e.category)).size;
+}
+
 export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Violation[] {
   const violations: Violation[] = [];
 
@@ -120,12 +172,39 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
     if (!existsSync(resolve(WORKSPACE_ROOT, b.repo, "package.json"))) {
       violations.push({ batch: b.batch, law: "B1", detail: `repo anchor missing on disk: ${b.repo}` });
     }
-    // B4 — source anchor resolves
+    // B4 — source anchor resolves; B8 — the lesson heading's stated counts
     const anchorPath = resolve(WORKSPACE_ROOT, b.source.file);
     if (!existsSync(anchorPath)) {
       violations.push({ batch: b.batch, law: "B4", detail: `source anchor file missing: ${b.source.file}` });
-    } else if (!readFileSync(anchorPath, "utf8").includes(b.source.heading)) {
-      violations.push({ batch: b.batch, law: "B4", detail: `heading "${b.source.heading}" not found in ${b.source.file}` });
+    } else {
+      const anchorText = readFileSync(anchorPath, "utf8");
+      const headingIdx = anchorText.indexOf(b.source.heading);
+      if (headingIdx < 0) {
+        violations.push({ batch: b.batch, law: "B4", detail: `heading "${b.source.heading}" not found in ${b.source.file}` });
+      } else {
+        // B8 — the memory-side count law: the lesson heading's established
+        // phrase "交付期X处(Y类)" must equal the batch the registry carries
+        // (b45#9 slipped through exactly here: the registry was fixed and
+        // the memory prose was not). Only the established phrase is parsed —
+        // free prose may count anything.
+        const lineEnd = anchorText.indexOf("\n", headingIdx);
+        const headingLine = anchorText.slice(headingIdx, lineEnd < 0 ? anchorText.length : lineEnd);
+        const delivery = statedDeliveryCounts(headingLine);
+        if (delivery.errors !== null && delivery.errors !== b.errors.length) {
+          violations.push({
+            batch: b.batch,
+            law: "B8",
+            detail: `the lesson heading states ${delivery.errors} 处, the registry carries ${b.errors.length} errors`,
+          });
+        }
+        if (delivery.classes !== null && delivery.classes !== actualClassesOf(b)) {
+          violations.push({
+            batch: b.batch,
+            law: "B8",
+            detail: `the lesson heading states ${delivery.classes} 类, the batch carries ${actualClassesOf(b)} classes`,
+          });
+        }
+      }
     }
     for (const [i, e] of b.errors.entries()) {
       if (!(CATEGORIES as readonly string[]).includes(e.category)) {
@@ -259,8 +338,34 @@ function witnessStatedCounts(): WitnessResult {
   };
 }
 
+function witnessHeadingCounts(): WitnessResult {
+  let stated = 0;
+  const problems: string[] = [];
+  for (const b of BURIAL_RECORD) {
+    const p = resolve(WORKSPACE_ROOT, b.source.file);
+    if (!existsSync(p)) continue; // B4 owns the missing-file case
+    const text = readFileSync(p, "utf8");
+    const idx = text.indexOf(b.source.heading);
+    if (idx < 0) continue; // B4 owns the missing-heading case
+    const lineEnd = text.indexOf("\n", idx);
+    const line = text.slice(idx, lineEnd < 0 ? text.length : lineEnd);
+    const d = statedDeliveryCounts(line);
+    if (d.errors === null) continue;
+    stated++;
+    if (d.errors !== b.errors.length) problems.push(`b${b.batch}: heading states ${d.errors} 处, carries ${b.errors.length}`);
+    if (d.classes !== null && d.classes !== actualClassesOf(b)) {
+      problems.push(`b${b.batch}: heading states ${d.classes} 类, carries ${actualClassesOf(b)}`);
+    }
+  }
+  return {
+    name: `W-6 stated lesson-heading counts equal carried counts (${stated} statements)`,
+    pass: problems.length === 0,
+    detail: problems.length === 0 ? "the memory side matches the registry side" : problems.join("; "),
+  };
+}
+
 export function runWitnesses(): WitnessResult[] {
-  return [witnessNumbering(), witnessRepoCensus(), witnessCategoryCensus(), witnessDeclaredTotals(), witnessStatedCounts()];
+  return [witnessNumbering(), witnessRepoCensus(), witnessCategoryCensus(), witnessDeclaredTotals(), witnessStatedCounts(), witnessHeadingCounts()];
 }
 
 export function censusByRepo(): Map<string, number> {

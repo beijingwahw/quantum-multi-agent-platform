@@ -1,6 +1,6 @@
 {
   "name": "mutant-census",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "The workspace's quality layer, executed: the burial record's historical defects COMPILED into nine mutation operators (each re-enacting a real error class, provenance on the row), replayed against the shared kernel family and its standard compositions, and KILLED one by one by a ten-property battery that holds for every seeded input (dual-path arithmetic, negative controls, statistical kills labeled DATA-grade). Mutation testing (DEM78, JIA11) and property-based testing (CLA00) are established fields; the claim here is the COUPLING — and, since 0.3.0, the CLOSED LOOP: the burial record is imported LIVE on every run and EVERY error it carries is enrolled to the guard that kills it now (107 on live mutants via a declared-class tie, 61 on build gates anchored file+needle to disk, 36 booked unenforceable with printed reasons) — an error without an enforcement anchor cannot be buried. The kernel family's byte-identity across every repo is censused live (unregistered drift fails the build), the repos' engineering hygiene is machine-swept with zero tolerated unguarded entries, and one command (`npm run total`) judges the whole workspace's tests AND typechecks. Survivors would be declared SURVIVED and booked as blind spots — a silent survivor is a hidden one.",
   "type": "module",
   "engines": {
@@ -11,7 +11,8 @@
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "repro": "tsx src/experiments/render.ts",
     "total": "tsx scripts/total-gate.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "preflight": "tsx src/experiments/preflight.ts"
   },
   "keywords": [
     "mutation-testing",

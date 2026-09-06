@@ -65,6 +65,7 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "mutant-census/src/kernel/audit.ts :: provenanceRepos", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire provenanceRepos", evidence: "a provenance with a trailing paren note ('batch 10 (qverify, expPauli)') resolves to exactly qverify — the charset does not swallow commas, no false conviction" },
   { anchor: "mutant-census/test/anchors.test.ts :: A-fire L2", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire L2", evidence: "batch 35's own lesson as a guard: the L2 demo encodes the law's REAL object read from the ledger's source (a blank column with a settled verdict) — ammo cast from memory fires at nothing, and this demo going green is the proof it was cast from the law" },
   // ---- the census's own laws: fired LIVE, here, on every run ----
+  { anchor: "mutant-census/src/experiments/render.ts :: witness letters must be unique", kind: "FIRING-LIVE", evidence: "a forged report headlining two censuses under one W-letter is refused by the renderer on the spot (assertUniqueWitnessLetters, the b46#5 tier upgrade)" },
   { anchor: "burial-record/package.json :: test", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire B7", evidence: "a forged batch whose context states NINE delivery errors over ten carried errors is convicted BY NAME (law B7) by burial-record's own checkBurial, imported live — the b45#9 class can never again wait for the visitor" },
   { anchor: "mutant-census/src/kernel/audit.ts :: E1", kind: "FIRING-LIVE", evidence: "a forged registry carrying an un-enrolled error is convicted by checkEnrollment on the spot" },
   { anchor: "mutant-census/src/kernel/audit.ts :: E2", kind: "FIRING-LIVE", evidence: "a forged class-mismatched mutant tie is convicted by checkEnrollment on the spot" },
@@ -179,8 +180,21 @@ export function resolveAnchor(reg: AnchorRegistration): { ok: boolean; detail: s
 export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; detail: string }> {
   const registry = await loadLiveRegistry();
   switch (reg.anchor) {
+    case "mutant-census/src/experiments/render.ts :: witness letters must be unique": {
+      // dynamic import: render.ts imports this module statically — the
+      // guard is called here at runtime, never at module init
+      const { assertUniqueWitnessLetters } = await import("../experiments/render.js");
+      const forgedReport = ["- PASS — W-G anchor census (a)", "- PASS — W-G forged twin (b)"].join("\n");
+      try {
+        assertUniqueWitnessLetters(forgedReport);
+        return { ok: false, detail: "the forged duplicate letter was NOT refused" };
+      } catch (err) {
+        const first = (err as Error).message.split("\n")[0] ?? "duplicate letter refused";
+        return { ok: true, detail: `refused on the spot: ${first}` };
+      }
+    }
     case "mutant-census/src/kernel/audit.ts :: E1": {
-      const grown = { ...registry, errors: [...registry.errors, { key: "b99#9", batch: 99, index: 9, repo: "mutant-census", category: "process", wrong: "forged" }] };
+      const grown = { ...registry, errors: [...registry.errors, { key: "b99#9", batch: 99, index: 9, repo: "mutant-census", category: "process", wrong: "forged", right: "the forged fixture carries both columns" }] };
       const hit = checkEnrollment(ENROLLMENT, grown).find((v) => v.law === "E1" && v.row === "b99#9");
       return hit ? { ok: true, detail: `convicted: ${hit.row}` } : { ok: false, detail: "the forged un-enrolled error was NOT convicted" };
     }

@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 46;
-export const DECLARED_TOTAL_ERRORS = 280;
+export const DECLARED_TOTAL_BATCHES = 47;
+export const DECLARED_TOTAL_ERRORS = 284;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -1870,6 +1870,35 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "the genealogy witness was named W-G without grepping the witness-letter table first — W-G was already the anchor census's letter (renamed W-H before any test ran)",
         right: "identifier namespaces are grepped before claimed: witnesses, board letters, anchor names — the collision was caught at render-wiring time by reading the file being edited",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 47,
+    repo: "mutant-census",
+    date: "2026-09-07",
+    context: "the v0.6.0 upgrade: the witness-letter guard (b46#5's tier upgrade), the pre-flight card (G5), burial-record's B8 memory-side count law — four delivery errors, born enrolled on both sides",
+    source: { file: "memory/2026-09-07.md", heading: "关键经验（第四十七批" },
+    errors: [
+      {
+        wrong: "the B8 count law's first two drafts matched every 'N处' in the daily notes' free prose — twelve false convictions on the historical record; the pre-flight validation harness convicted the rule before it ever landed on disk",
+        right: "the law's object is the ESTABLISHED phrase (交付期X处 in the lesson heading), not any count-like text; a law is validated against the full history before it is written into the checker",
+        category: "process",
+      },
+      {
+        wrong: "the fireLive case for the letter guard was drafted through a bash heredoc carrying TS string escapes — the shell ate one layer and planted a REAL newline inside two string literals; the loader convicted the file (esbuild: Unterminated string literal) at test time — the banned heredoc class, FIFTH sighting, in the very visit that upgraded its enrollment",
+        right: "the Edit tool, always, for code carrying escapes (b25/26/36/44 — the class now has its own pre-flight card row); the rewrite used join(chr) instead of inline escapes so the pattern cannot recur through quoting layers",
+        category: "process",
+      },
+      {
+        wrong: "extending the bridge's LiveBurialError with the right column broke three smuggling fixtures and one unused parameter across two files — tsc named TS2741 (property missing) and TS6133 at four sites",
+        right: "when an interface grows, its forgeries grow with it in the same edit — the typecheck gate held the line on all four sites at once",
+        category: "toolchain",
+      },
+      {
+        wrong: "the letter guard's anchor was registered FIRING-LIVE without a fireLive case — the A-board's own A3 law convicted the registration on the spot ('did not fire: no live-fire rule'), failing three tests before the case existed",
+        right: "a FIRING-LIVE registration and its fire routine ship in the SAME edit — A3 holds the guard author to the guard's own standard",
         category: "process",
       },
     ],
