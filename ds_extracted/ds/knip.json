@@ -16,5 +16,9 @@
     "experiments/**/*.ts",
     "scripts/**/*.mjs"
   ],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  // 已评估并否决的 WASM f64x2 SIMD 原型：作为裁决证据保留（bench-kit 实测慢
+  // 2-3×、4× ILP 慢 18.1%），.evaluated.ts 命名使其不入测试 glob；
+  // 显式豁免而非删除——记录即工件。
+  "ignore": ["tests/bench/wasm-simd-prototype.evaluated.ts"]
 }

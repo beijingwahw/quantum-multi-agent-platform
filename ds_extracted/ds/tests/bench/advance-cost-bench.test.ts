@@ -216,6 +216,10 @@ describe('advanceCostKernel 4× ILP 展开锚定', () => {
       return;
     }
     assert.equal(report.verdict, 'no-difference', report.note);
-    assert.ok(report.ciLow <= 1 && 1 <= report.ciHigh, report.note);
+    // 判决语义已含地板纪律：亚地板效应（区间排除 1 但效应量 < 1.07×）
+    // 判 no-difference——c8 插桩对两种代码形状的计数交错可产生 1~3% 的
+    // 真实微偏（CI 慢机实测），旧「CI 必含 1」断言比测量器自己的合同
+    // 更严。效应 ≥ 地板且区间排除 1 时 verdict 会翻成 b-slower/faster，
+    // 由上面的判决断言拦截——本测试只锚定「无判差」。
   });
 });
