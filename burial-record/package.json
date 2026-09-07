@@ -1,6 +1,6 @@
 {
   "name": "burial-record",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "description": "The burial record, exhumed and machine-audited. The visitor's letter says the time capsule's real contents are the error logs — twenty-one batches of them, buried across the daily memory files as prose. This repo promotes that record to a first-class registry: every batch anchored to the repo it happened in and the memory file that records it, every error in two columns (the wrong assertion | the correction), every category drawn from a fixed taxonomy. The checker enforces the bookkeeping laws — B1 a vanished repo books no errors; B2 an error without its correction (or vice versa) fails the build; B3 batch numbering is exactly 1..N with no gaps, because the count already drifted once in prose (the ledger said 20 while the truth was 21); B4 every source anchor resolves on disk; B6 a batch's date must be the memory file it cites. The census witnesses re-derive the headline counts through a second path. The renderer refuses to print an illegal registry.",
   "type": "module",
   "engines": {

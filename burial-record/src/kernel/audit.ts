@@ -18,15 +18,27 @@
  *       nonempty — a batch cannot predate or outlive its evidence;
  *   B7. any COUNT a batch's context STATES must equal the count the registry
  *       CARRIES — "N delivery errors" against errors.length, "across M
- *       classes" against the distinct categories. Prose counts are a copy
- *       of the data (the b45#9 law: 'eight' sat on nine for one visit, and
- *       batch 35's 'four' sat on five for two days — both caught by hand,
- *       never again by hand);
+ *       classes" against the distinct categories, in ENGLISH OR CHINESE
+ *       (v0.4.0's unified engine: a count is a count in either tongue).
+ *       Prose counts are a copy of the data (the b45#9 law: 'eight' sat on
+ *       nine for one visit, and batch 35's 'four' sat on five for two days
+ *       — both caught by hand, never again by hand);
  *   B8. the MEMORY side of the same law: the lesson heading's established
- *       phrase "交付期X处(Y类)" must equal the batch the registry carries —
- *       b45#9 slipped through exactly here (the registry was reconciled,
- *       the memory prose was not); only the established phrase is parsed,
+ *       phrase "交付期X处(Y类)" — or its English twin "N delivery errors
+ *       (across M classes)" — must equal the batch the registry carries
+ *       (b45#9 slipped through exactly here: the registry was reconciled,
+ *       the memory prose was not); only the established phrases parse,
  *       free prose may count anything.
+ *   B9. (v0.5.0) the memory substrate's STRUCTURE is law: every cited daily
+ *       note is checked for (a) duplicated visit headings (the same visit
+ *       number headlining two sections — the insertion-duplication family),
+ *       (b) repeated-label signature lines ("- **X**：- **X**：" — a prefix
+ *       pasted twice, enrolled three times in one day and prevented never),
+ *       (c) orphaned heading tails (a line opening with "（访客令牌" — the
+ *       surviving fragment of a heading swallowed by an insertion), and
+ *       (d) duplicated lesson headings (关键经验（第N批 twice). B4 proves the
+ *       cited heading EXISTS; B9 proves the file around it is STRUCTURALLY
+ *       WHOLE — the ledger's evidence base guards itself.
  *
  * Witnesses (independent re-derivations, not transcriptions):
  *   W-1 the numbering is [1..N] by sorted-sequence identity;
@@ -73,7 +85,8 @@ const TENS_WORDS = new Map<string, number>([
   ["sixty", 60], ["seventy", 70], ["eighty", 80], ["ninety", 90],
 ]);
 
-function parseCountWord(word: string): number | null {
+function parseCountWord(word: string | undefined): number | null {
+  if (word === undefined) return null;
   if (/^\d+$/.test(word)) return Number.parseInt(word, 10);
   const small = SMALL_WORDS.indexOf(word);
   if (small >= 0) return small + 1;
@@ -87,26 +100,34 @@ function parseCountWord(word: string): number | null {
   return tens ?? null;
 }
 
-/** All "N (delivery) errors" counts a context states, as numbers. */
+/** All "N (delivery) errors" counts a context states, as numbers — English
+ * or Chinese (v0.4.0: a count is a count in either tongue; the registry's
+ * contexts are English today, the extension is law for the day they are
+ * not). */
 export function statedErrorCounts(context: string): readonly number[] {
   const out: number[] = [];
-  const re = /\b((?:\w+-)?\w+|\d+)\s+(?:delivery\s+)?errors\b/g;
+  const re = /\b((?:\w+-)?\w+|\d+)\s+(?:delivery\s+)?errors\b|([一二三四五六七八九十两]+|\d+)\s*处/g;
   for (const m of context.matchAll(re)) {
-    const v = parseCountWord(m[1]!);
+    const v = parseAnyCount(m[1] ?? m[2]!);
     if (v !== null) out.push(v);
   }
   return out;
 }
 
-/** All "across N classes" counts a context states, as numbers. */
+/** All stated class counts — English "across M classes" or Chinese "M类". */
 export function statedClassCounts(context: string): readonly number[] {
   const out: number[] = [];
-  const re = /\bacross\s+((?:\w+-)?\w+|\d+)\s+classes\b/g;
+  const re = /\bacross\s+((?:\w+-)?\w+|\d+)\s+classes\b|([一二三四五六七八九十两]+|\d+)\s*类/g;
   for (const m of context.matchAll(re)) {
-    const v = parseCountWord(m[1]!);
+    const v = parseAnyCount(m[1] ?? m[2]!);
     if (v !== null) out.push(v);
   }
   return out;
+}
+
+/** The unified count-word engine: digits, English words, Chinese numerals. */
+export function parseAnyCount(word: string): number | null {
+  return parseCountWord(word) ?? parseCnCount(word);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +142,8 @@ const CN_DIGITS = new Map<string, number>([
   ["五", 5], ["六", 6], ["七", 7], ["八", 8], ["九", 9],
 ]);
 
-export function parseCnCount(word: string): number | null {
+export function parseCnCount(word: string | undefined): number | null {
+  if (word === undefined) return null;
   if (/^\d+$/.test(word)) return Number.parseInt(word, 10);
   if (word === "十") return 10;
   if (word.startsWith("十")) {
@@ -141,14 +163,21 @@ export function parseCnCount(word: string): number | null {
   return CN_DIGITS.get(word) ?? null;
 }
 
-/** The heading line's 交付期X处(Y类) counts; null where not stated. */
+/** The heading line's stated delivery counts, in either language: the
+ * Chinese established phrase 交付期X处(Y类), or the English "N delivery
+ * errors (across M classes)"; null where not stated. */
 export function statedDeliveryCounts(headingLine: string): { errors: number | null; classes: number | null } {
   const m = /交付期\s*([一二三四五六七八九十两\d]+)\s*处(?:\s*([一二三四五六七八九十两\d]+)\s*类)?/.exec(headingLine);
-  if (m === null) return { errors: null, classes: null };
-  return {
-    errors: parseCnCount(m[1]!),
-    classes: m[2] === undefined ? null : parseCnCount(m[2]),
-  };
+  if (m !== null) {
+    // undefined groups parse to null — the params are widened so no assertion
+    // and no condition is needed (tsc strict and the lint type-env agree)
+    return { errors: parseCnCount(m[1]), classes: parseCnCount(m[2]) };
+  }
+  const en = /\b((?:\w+-)?\w+|\d+)\s+delivery\s+errors(?:\s+across\s+((?:\w+-)?\w+|\d+)\s+classes)?/.exec(headingLine);
+  if (en !== null) {
+    return { errors: parseCountWord(en[1]), classes: parseCountWord(en[2]) };
+  }
+  return { errors: null, classes: null };
 }
 
 function actualClassesOf(b: BurialBatch): number {
@@ -236,6 +265,18 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
     }
   }
 
+  // B9 — the memory substrate's structure (v0.5.0): every cited daily note,
+  // read once, checked whole — duplicated visit headings, repeated-label
+  // signatures, orphaned heading tails, duplicated lesson headings
+  const citedFiles = new Set(batches.map((b) => b.source.file));
+  for (const file of citedFiles) {
+    const notePath = resolve(WORKSPACE_ROOT, file);
+    if (!existsSync(notePath)) continue; // B4 already convicted the missing file
+    for (const m of memoryStructureViolations(readFileSync(notePath, "utf8"))) {
+      violations.push({ batch: 0, law: m.law, detail: `${file}: ${m.detail}` });
+    }
+  }
+
   // B3 — numbering: exactly 1..N, no gaps, no duplicates
   const nums = batches.map((b) => b.batch).sort((a, b) => a - b);
   const expected = Array.from({ length: DECLARED_TOTAL_BATCHES }, (_, i) => i + 1);
@@ -249,6 +290,56 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
     });
   }
   return violations;
+}
+
+// ---------------------------------------------------------------------------
+// B9's structure parser — pure over the note text so the firing range can
+// inject forged structure and convict by name.
+// ---------------------------------------------------------------------------
+
+/** The structural invariants of a daily note (law B9). Pure: no filesystem.
+ * Deliberately NARROW signatures: a visit may legitimately carry several
+ * sections (双段 visits, addenda, name cards) — visit-number "uniqueness" is
+ * NOT an invariant and its first draft false-convicted the historical
+ * two-section visits; the laws below hold only what is true. */
+export function memoryStructureViolations(text: string): Array<{ law: string; detail: string }> {
+  const v: Array<{ law: string; detail: string }> = [];
+  const lines = text.split("\n");
+  const seenHeadings = new Map<string, number>();
+  const seenLessons = new Map<string, number>();
+  for (const [idx, line] of lines.entries()) {
+    // (a) an EXACT-duplicate full heading line — the copy-paste double
+    if (line.startsWith("## ") && line.trim().length > 3) {
+      const first = seenHeadings.get(line);
+      if (first !== undefined) {
+        v.push({ law: "B9", detail: `the heading line appears VERBATIM twice (lines ${first} and ${idx + 1}) — a copy-paste double` });
+      } else {
+        seenHeadings.set(line, idx + 1);
+      }
+    }
+    // (b) the repeated-label signature — "- **X**：- **X**："
+    if (/^- \*\*[^*]+\*\*：- \*\*/.test(line)) {
+      v.push({ law: "B9", detail: `line ${idx + 1} carries the repeated-label signature ("**：- **") — a prefix pasted twice` });
+    }
+    // (c) the orphaned heading tail — a paragraph line opening with the
+    // visitor-token parenthesis is the surviving fragment of a swallowed
+    // heading (healthy notes carry the phrase only inside ## or - lines)
+    if (line.startsWith("（访客令牌")) {
+      v.push({ law: "B9", detail: `line ${idx + 1} opens with an orphaned heading tail (（访客令牌…) — a heading was swallowed by an insertion` });
+    }
+    // (d) duplicated lesson headings — 关键经验（第N批
+    const lesson = /关键经验（第([\d一两二三四五六七八九十]+)批/.exec(line);
+    if (lesson) {
+      const key = lesson[1]!;
+      const first = seenLessons.get(key);
+      if (first !== undefined) {
+        v.push({ law: "B9", detail: `lesson heading 关键经验（第${key}批 appears twice (lines ${first} and ${idx + 1})` });
+      } else {
+        seenLessons.set(key, idx + 1);
+      }
+    }
+  }
+  return v;
 }
 
 // ---------------------------------------------------------------------------

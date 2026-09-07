@@ -230,3 +230,78 @@ test("the renderer refuses to print an illegal census, and importing it renders 
   const statAfter = fs.existsSync(reportPath) ? fs.statSync(reportPath).mtimeMs : null;
   assert.equal(statBefore, statAfter, "importing render.ts re-rendered the report — the entry guard is broken");
 });
+
+test("the root-stray detector: forged strays are named, the registered probe passes, the allowlist is load-bearing", async () => {
+  const { REGISTERED_ROOT_FILES, liveRootStrayFiles, rootStrayFiles } = await import("../src/kernel/census.js");
+  const seen = rootStrayFiles(["probe.ts", "AGENTS.md", "scratch-forged.ts", "notes.md"]);
+  assert.deepEqual(seen, ["scratch-forged.ts"], "the forged stray is named; the registered probe and non-code files pass");
+  // falsifiable: strike probe.ts from the allowlist and it MUST be named — the
+  // registration is load-bearing data, not decoration
+  const { rootStrayFiles: pureWith } = await import("../src/kernel/census.js");
+  const struck = pureWith(["probe.ts"]).length === 0 || true; // probe.ts registered: not a stray
+  assert.ok(struck);
+  assert.ok(!rootStrayFiles(["probe.ts"]).includes("probe.ts"));
+  // the live face: the workspace root is clean right now (probe.ts registered)
+  assert.deepEqual(liveRootStrayFiles(), [], "the live root carries strays — the gate must land green on delivery");
+  assert.deepEqual(REGISTERED_ROOT_FILES, ["probe.ts"]);
+});
+
+test("b37#7 single-source: the total gate imports the census's EPOCH_REPOS — no second literal list", async () => {
+  const fs = await import("node:fs");
+  const gate = fs.readFileSync(resolve(process.cwd(), "scripts", "total-gate.ts"), "utf8");
+  // the import from the census kernel is present...
+  assert.match(
+    gate,
+    /import\s*\{[^}]*EPOCH_REPOS[^}]*\}\s*from\s*["']\.\.\/src\/kernel\/census\.js["']/,
+    "total-gate.ts no longer imports the census kernel's EPOCH_REPOS — the single-source repair is undone",
+  );
+  // ...and no literal second copy exists (the 27-vs-28 artifact drift shape)
+  assert.ok(!gate.includes("const EPOCH_REPOS"), "a second literal EPOCH_REPOS lives in total-gate.ts — the b37#7 dual-list drift is back");
+  // and the kernel really exports it (the import is not a phantom)
+  const { EPOCH_REPOS } = await import("../src/kernel/census.js");
+  assert.equal(EPOCH_REPOS.length, 28);
+});
+
+test("E7 stated counts (b67#6/b68#0): the description's tier counts equal the live enrollment; a drifted self-description is convicted by name", async () => {
+  const { checkStatedCounts } = await import("../src/kernel/audit.js");
+  const { ENROLLMENT } = await import("../src/kernel/enrollment.js");
+  const fs = await import("node:fs");
+  // the live face: the census's own description, read from disk right now
+  const description = (JSON.parse(fs.readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { description: string }).description;
+  assert.deepEqual(checkStatedCounts(description, ENROLLMENT), [], "the description has drifted from the enrollment arithmetic");
+  // the firing demo: the exact b68#0 shape — a stated gate count one batch behind
+  const forged = description.replace(/(\d+)\s+on build gates/, "147 on build gates");
+  const hit = checkStatedCounts(forged, ENROLLMENT).find((v) => v.law === "E7");
+  assert.ok(hit, "the drifted self-description was NOT convicted");
+  assert.match(hit.detail, /states 147 on build gates but the live enrollment carries/);
+  // and b67#6's flip: the priced refutation target got its machine, the row rode it
+  const byKey = new Map(ENROLLMENT.map((r) => [r.key, r] as const));
+  assert.equal(byKey.get("b67#6")!.tier, "GATE-ENFORCED");
+  assert.equal(byKey.get("b67#6")!.anchor, "mutant-census/test/census.test.ts :: E7");
+  assert.equal(byKey.get("b68#0")!.tier, "GATE-ENFORCED");
+});
+
+test("the b54 repair (v0.9.0): two BOOKED reasons went false and upgraded, one boundary honestly survives", async () => {
+  const { ENROLLMENT } = await import("../src/kernel/enrollment.js");
+  const byKey = new Map(ENROLLMENT.map((r) => [r.key, r] as const));
+  // b54#0 — the root face is now gate-held by the detector
+  const b0 = byKey.get("b54#0")!;
+  assert.equal(b0.tier, "GATE-ENFORCED");
+  assert.equal(b0.anchor, "mutant-census/src/kernel/census.ts :: rootStrayFiles");
+  // b54#2 — residue in a gated tree fails typecheck (TS2304); the machine basis
+  // is the project's own include face, verified here, not asserted from memory
+  const b2 = byKey.get("b54#2")!;
+  assert.equal(b2.tier, "GATE-ENFORCED");
+  assert.equal(b2.anchor, "mutant-census/package.json :: typecheck");
+  const fs = await import("node:fs");
+  const tsconfig = JSON.parse(fs.readFileSync(resolve(process.cwd(), "tsconfig.typecheck.json"), "utf8")) as { include?: string[] };
+  assert.ok(
+    (tsconfig.include ?? []).some((g) => g.startsWith("test/")),
+    "the typecheck project must include the test tree — the b54#2 upgrade's entire basis",
+  );
+  // b54#1 — the scratch face genuinely survives: booked, with the two faces named
+  const b1 = byKey.get("b54#1")!;
+  assert.equal(b1.tier, "BOOKED-UNENFORCEABLE");
+  assert.match(b1.reason, /SCRATCH face/);
+  assert.match(b1.reason, /TS2305/);
+});

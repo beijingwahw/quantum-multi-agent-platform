@@ -4,38 +4,38 @@
 
 ## Census
 
-- batches: 46
-- errors: 280
+- batches: 73
+- errors: 411
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| dtc-clock | 5 | 41 |
-| mutant-census | 5 | 36 |
+| dtc-clock | 18 | 100 |
+| mutant-census | 13 | 63 |
+| stable-world | 5 | 39 |
 | nonstoq-anneal | 4 | 22 |
 | ds_extracted/ds | 3 | 21 |
+| dsic-noether | 2 | 19 |
 | bqp-map | 2 | 14 |
 | qverify | 1 | 10 |
 | qram-sched | 1 | 9 |
 | quantum-mech | 1 | 8 |
 | switch-sched | 1 | 8 |
 | nosignal-tariff | 1 | 8 |
-| stable-world | 1 | 8 |
 | phase-law | 4 | 8 |
 | ent-sched | 1 | 7 |
 | vacuum-compiler | 1 | 7 |
-| dsic-noether | 1 | 7 |
 | choice-lang | 1 | 7 |
 | causal-ineq | 1 | 6 |
 | postselect-sched | 1 | 6 |
+| burial-record | 2 | 6 |
 | survivor-census | 1 | 6 |
 | ent-clearing | 1 | 6 |
 | ft-qaoa | 1 | 5 |
 | retro-cache | 1 | 5 |
 | k-switch | 1 | 4 |
 | route-price | 1 | 4 |
-| burial-record | 1 | 4 |
 | readout-wall | 1 | 4 |
 | wukong-crossval | 1 | 4 |
 | letter-audit | 1 | 3 |
@@ -43,16 +43,16 @@
 
 | category | errors |
 | --- | --- |
-| process | 55 |
-| wrong-object | 47 |
-| toolchain | 36 |
-| machine-overruled | 32 |
+| process | 149 |
+| wrong-object | 57 |
+| toolchain | 52 |
+| machine-overruled | 33 |
 | dimension-slot | 29 |
-| statistics | 25 |
-| conjugation | 19 |
-| anchor-blindspot | 15 |
+| statistics | 28 |
+| conjugation | 22 |
+| anchor-blindspot | 16 |
+| citation-drift | 14 |
 | bogus-comparison | 11 |
-| citation-drift | 11 |
 
 ## The batches
 
@@ -704,15 +704,362 @@
 | the genealogy test wrote `cd!.latestTier` after an assert.ok narrow — lint named no-unnecessary-type-assertion | assert.ok narrows; the bang is for reads before the narrow, not after — the lint gate held the line | toolchain |
 | the genealogy witness was named W-G without grepping the witness-letter table first — W-G was already the anchor census's letter (renamed W-H before any test ran) | identifier namespaces are grepped before claimed: witnesses, board letters, anchor names — the collision was caught at render-wiring time by reading the file being edited | process |
 
+### Batch 47 — mutant-census (2026-09-07)
+
+- context: the v0.6.0 upgrade: the witness-letter guard (b46#5's tier upgrade), the pre-flight card (G5), burial-record's B8 memory-side count law — four delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第四十七批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the B8 count law's first two drafts matched every 'N处' in the daily notes' free prose — twelve false convictions on the historical record; the pre-flight validation harness convicted the rule before it ever landed on disk | the law's object is the ESTABLISHED phrase (交付期X处 in the lesson heading), not any count-like text; a law is validated against the full history before it is written into the checker | process |
+| the fireLive case for the letter guard was drafted through a bash heredoc carrying TS string escapes — the shell ate one layer and planted a REAL newline inside two string literals; the loader convicted the file (esbuild: Unterminated string literal) at test time — the banned heredoc class, FIFTH sighting, in the very visit that upgraded its enrollment | the Edit tool, always, for code carrying escapes (b25/26/36/44 — the class now has its own pre-flight card row); the rewrite used join(chr) instead of inline escapes so the pattern cannot recur through quoting layers | process |
+| extending the bridge's LiveBurialError with the right column broke three smuggling fixtures and one unused parameter across two files — tsc named TS2741 (property missing) and TS6133 at four sites | when an interface grows, its forgeries grow with it in the same edit — the typecheck gate held the line on all four sites at once | toolchain |
+| the letter guard's anchor was registered FIRING-LIVE without a fireLive case — the A-board's own A3 law convicted the registration on the spot ('did not fire: no live-fire rule'), failing three tests before the case existed | a FIRING-LIVE registration and its fire routine ship in the SAME edit — A3 holds the guard author to the guard's own standard | process |
+
+### Batch 48 — dtc-clock (2026-09-07)
+
+- context: the v0.6.0 tie reset: the even-n cure at the exact Landauer price log2C(n,n/2) — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第四十八批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| W-K grabbed the tariff row by tail index (rows[length-1]) — the moment the tie row was appended, the referent silently moved to row 6 and the witness compared the wrong meter; the test suite named W-K on the spot | name the row you mean (rows[4], the n=5 maintenance row, with a comment saying W-L owns the tie row) — a tail-grab is a stale index waiting for the next append | process |
+| the render wiring went through a python heredoc anchored on an em-dash line — the anchor assert failed, the render edit SILENTLY NEVER LANDED, and the misdiagnosis read the failure as the test-import anchor (b47#1's lesson, repeated one visit after the rule was written from the fifth sighting); all four gates stayed green because TC28's numbers live in the witness — the missing section was caught only by grepping the REPORT for its heading | the Edit tool for any anchor carrying non-ascii, always (sixth family sighting); and the repro's OUTPUT is grepped for the section face before the visit closes — green gates prove the witnesses, the grep proves the page | process |
+| two Edits were refused mid-visit ('file modified since read') after programmatic writes touched the same files between Read and Edit | reread after EVERY programmatic write — the tool's refusal is the guard working; no wrong data landed | process |
+
+### Batch 49 — dtc-clock (2026-09-07)
+
+- context: the v0.7.0 binomial shadow law and the scale census — four delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第四十九批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| a one-liner probe ran as `npx tsx --eval` against the explicit scratch-file rule (the -e family, seventh sighting) — it WORKED this time (no template literals), which is exactly how banned classes survive: they work until they don't | the scratch-file rule is unconditional — -e is never OK because the failure mode is silent, not because it always fails | toolchain |
+| binomialPmfClosed's first draft indexed the partial Pascal row (row[k] instead of the full C(n,k) row rows[n][k]) — tsc named TS2362 at the arithmetic | the typecheck gate held the line; the combination table's shape (a triangle of partial rows) demands the FULL row be selected before indexing | toolchain |
+| a scale-census scratch was placed in the system temp dir — its in-repo relative imports could not resolve from there (MODULE_NOT_FOUND) | scratch files live IN the repo (the b46 rule): the imports resolve, the tooling resolves, and the delete-after rule keeps the tree clean | process |
+| the render section went through a Bash heredoc carrying backslash escapes — the anchor assert failed on an apparently-identical line; the ROOT CAUSE is now NAMED: the Bash tool layer eats ONE escape level even past quoted heredocs (the b47/b48 mechanism, confirmed by a live probe — the file holds the two-char escape while the heredoc delivered a real newline) | the rule upgrades from 'non-ascii anchors never through heredoc' to 'backslash-bearing CODE never through the Bash channel at all' — Edit/Write tools exclusively; retried via Edit and landed | process |
+
+### Batch 50 — dtc-clock (2026-09-07)
+
+- context: the v0.8.0 spectral survival law and the stationary repair — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| a wiring patch carrying backslash escapes went through the Bash heredoc channel AGAIN and died at its anchor assert — the very rule recorded in batch 49 of the same visit, broken minutes after being written (the family's eighth sighting) | the rule is not knowledge, it is a pre-flight checklist item: any patch containing a backslash is Edit/Write by default, the heredoc is never even considered; the retry through Edit landed | process |
+| the spectral derivation's first draft carried FOUR convention slips — the symmetrization ratio inverted (S asymmetric by 0.77), the Jacobi dimension argument squared, the real-pack fed a plain array (silent NaN), and the coefficient's D-sides swapped (reconstruction off by 0.5) — every one caught by the scratch harness's numeric probes BEFORE anything landed | the machine-first scratch harness IS the derivation's review: every convention claim (reversibility, symmetry, orientation) gets a numeric probe, and the probes convicted all four slips in sequence; the landed law reconstructs to 2.0e-15 | process |
+| the ratio test read survival[60] of a 60-period series — out of bounds, NaN — and the test suite named it on the spot | a series of length T is indexed 0..T-1; the ratio at T=60 asks for 61 periods — the test gate held the line | process |
+
+### Batch 51 — dtc-clock (2026-09-07)
+
+- context: the v0.10.0 Krawtchouk spectrum and the second-order face — eight delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十一批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| amputatedSpectrumClosed shipped with drafting residue — three chained .map() calls whose intermediate arithmetic was scratch computation left in the product function; caught by the author's reread before any run | the finished one-liner replaced the residue; every function gets a full reread before its first run — drafts do not survive to the compile | process |
+| the Krawtchouk three-term recurrence was written from memory with the K_{j-2} coefficient (j-1) — the correct constant is (n-j+2); the test suite named it instantly (n=6 j=3 eigenpair residual 44) | mathematical formulas are transcribed from the reference, never recalled — the same law as citations; the solver-free residual check is the formula's firing range | citation-drift |
+| the TC35 DATA row shipped without a census horizon — L2 convicted it by name on the first board check | a DATA row states its scope (the grid, the p-points, the extrapolation order) — numbers without horizon cannot be re-run, and the law exists for exactly that | process |
+| six lint findings in the new code — four unnecessary non-null assertions after narrowing, two template literals interpolating number arrays | the lint gate named all six; arrays join before interpolating, and the bang is for reads before the narrow | toolchain |
+| a python patch carrying nested quotes died with a TypeError through the Bash heredoc channel — the same channel that eats backslashes mangles nested quotes | the rule extends from backslashes to any code-bearing syntax: patches go through the Edit tool, the Bash channel carries commands only | process |
+| batch 50's right-column said the ratio at T=60 asks for 41 periods — a transposition typo (61) that survived a full visit unnoticed, exposed only when the next batch's anchor copied the text verbatim AND MATCHED | anchors that match verbatim are evidence the text was read — and reading exposed the digit; numeric claims in prose get the same read-back as code (the B7 family's lesson, applied to the registry's own right columns) | process |
+| when b51#5 was appended, the lesson heading still said FIVE — B8 convicted the batch by name ('states 5, carries 6'): the author's own count law catching the author's own hand mid-delivery | the heading update is mechanical and travels WITH the batch append — B7/B8 exist precisely so this loop cannot silently converge wrong; the law held, the heading synced | process |
+| the heading sync used an unscoped replace and rewrote batch 46's lesson heading too (six became seven where six was true) — B8 named batch 46 within seconds | heading edits are scoped by their full unique line, never by the count phrase alone — the replace anchored on the whole heading string, and both laws passed | process |
+
+### Batch 52 — dtc-clock (2026-09-07)
+
+- context: the v0.11.0 Rayleigh-Schrodinger closed form for c_2 — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十二批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the first quotient draft multiplied C(n-w,2) twice in the a=2 term — and PASSED at n=4 because the path never fires there (dim=2), a false green by luck of the probe point | a cross-check must exercise every path: probe points are chosen so each branch fires (n>=6 for the two-flip-up path); a lucky pass is not a proof | process |
+| the second draft collected p^2 terms as the two-flip counts only — forgetting that every transition's (1-p)^{n-a-b} factor expands too (the -(n-1) one-flip and C(n,2) diagonal contributions); the Richardson cross-check convicted it at every n>=6 with the gap exactly (n-1)(n-4)/2 | a polynomial coefficient is assembled from the WHOLE expression, factor by factor — 'collect the k-flip terms' is not 'collect the p^k terms'; the cross-check located the missing pieces by their exact signature | process |
+| a render wiring patch carrying a backslash escape went through the Bash heredoc AGAIN and its anchor died on the stripped text (the audit half landed, the render half did not) — the channel rule broken anew, minutes after being read | the rule moves from knowledge to a PRE-FLIGHT CHECKLIST ITEM: before writing any patch, does it contain a backslash? — then the Edit tool, full stop; the retry through Edit landed | process |
+
+### Batch 53 — dtc-clock (2026-09-07)
+
+- context: the v0.12.0 general-n law for c_2 (the central-binomial partial sum) — seven delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十三批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| two Edit calls fired on files the session had not Read (package.json after a grep view, audit.ts after a sed view) — the tool refused both (read/write interleaving, the b48#2 class), the second instance minutes after the first was enrolled | a shell view is not a Read — the Edit tool's read-state tracker decides, not the operator's memory of having 'seen' the file; the refusal is the guard, and the read-back retry landed both times | process |
+| batch 53 was appended to the registry without syncing the declared face — DECLARED_TOTAL_BATCHES/ERRORS still read 52/305, and the declared-totals witness convicted the first gate run on the spot (actual 53 vs expected 52) | the append ritual is ONE edit on both faces — registry batch and declared constants together; B7 exists because the declared constants are the registry's own prose copy of its data | process |
+| two unnecessary type assertions survived in the bilingual count engine from the uncommitted v0.4.0 work — typed-lint refused them at this visit's run (audit.ts 162:57, 169:60) | the visit that runs the gate owns the catch — no-unnecessary-condition holds for inherited code as for new code; the assertions dropped, lint green | toolchain |
+| the declared-face sync after the first conviction wrote 306 for the errors total — batch 53 carried three at that moment, so the data read 308; the declared-totals witness convicted the arithmetic on the second run (actual 308 vs expected 306) | the declared face is arithmetic ON the registry's own totals, never a fresh guess — re-derive, then read the number back before saving (the b45#9 family, caught by its own law this time) | process |
+| the b53#2 enrollment row cited the anchor 'burial-record/package.json :: lint' without first checking the A-board — A1 convicted the census run on the spot ('used by enrollment rows but NOT registered — an unregistered guard holds errors illegally') | a GATE-ENFORCED row's anchor is registered in the SAME breath as the row — check the A-board before writing the row; the registration landed and the census re-ran green | process |
+| the census's own repro gate had been DEAD since the v0.6.0 FIRING-LIVE registration — anchors.ts dynamically imported render.js while render.ts statically imports anchors.ts: when render.ts IS the entry, its top-level await leaves it forever mid-evaluation, the dynamic import can never resolve, and npm run repro exits in ~1.1s 'unsettled top-level await' with the artifact frozen — while every test stays green, because the tests never walk the entry path | the witness-letter guard moved to report.ts (a leaf, node:fs only): render imports the leaf statically, anchors imports it dynamically, and no edge can close a cycle onto the entry; the repro gate rendered on the retry — the entry path now has a walker on every repro run (the b33#1 law, machine-held at last) | anchor-blindspot |
+| the anchor-blindspot family row was flipped to GATE-ENFORCED by the author's reading of b53#5's lesson — but the G1 rules file b53#5's wrong-text under runner-path (the entry-path regex), and G2 convicted BOTH drifts on the spot: anchor-blindspot drifted up, runner-path drifted stale | family rows follow the MACHINE's classification (familyOf over the live wrong-text, first match wins), never the author's filing instinct — G1's rules are the clerk, G2 audits the shelf; and a hand-edited holds-value that is not even a legal tier ('GATE-ENFORCEABLE' as never) is a draft that must never reach the machine | machine-overruled |
+
+### Batch 54 — mutant-census (2026-09-07)
+
+- context: the v0.8.0 J-board per-error equivalence census (the JIA11 boundary measured on the conjugation class, 19/19 exhaustive) — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十四批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the visit's scratch file was first Written at the workspace root, outside the repo it serves — the in-repo placement rule (the b22#2/b49#2 class) caught it on reread before any run; moved into mutant-census/ and rerun clean | scratch files live IN the repo they serve before the first Write — placement is a pre-flight checklist item, not a post-hoc move | process |
+| the scratch imported vecToRho from core/cmat.js — the export lives in core/states.js, and family.ts's own import block says so; Node ESM refused the missing named export at the first run, zero numbers written | grep the export's home module before importing — the family's own import block is the map; the machine's refusal was instant, but the look was cheaper | process |
+| the twin test first shipped a call to a nonexistent helper (await_import()) — draft residue in a file that reached the disk, caught on reread before the suite ever ran | reread every written file before its first run — the eye skips residue the parser will not; a helper call that doesn't exist is a draft wearing finished clothes | process |
+
+### Batch 55 — stable-world (2026-09-07)
+
+- context: the v0.2.0 boundary-clearing visit (the coherent face priced + the thermal reading shipped, AT7/AT8) — seven delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十五批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the visit's first scratch shipped with two residue blocks (a placeholder ternary `0 === 0 ? 1 - 0 : 0` and a nonsense `mMul(wr, cargo) === null as never ? null : kron2(...)` expression) under the wrong extension (.mts against the repo's .ts) — caught on reread before any run, rewritten clean | reread the file between Write and run — residue rides the first draft every time; the extension follows the repo's convention, not the editor's default | process |
+| the REPLACEMENT scratch still carried a senseless labeled block (`WORST舍: { ... break WORST舍; }`) around a two-line update — the same residue class caught on reread again, minutes after enrolling the first | the second reread is not paranoia — a fix that adds text gets its own reread; the b54#2 rule executed three times in one visit proves reread is a fixed step of the write, not a habit | process |
+| the T5 test draft carried a pointless ternary (`reRho === null ? 0 : ...` on a never-null value) and a confused cross-cargo construction for the complex straddler ket — caught on reread before the suite ran; the clean form builds the complex ket directly | draft constructions get replaced whole, not patched around — a construction that needs a dead branch to compile is the wrong construction | process |
+| BCP14's arXiv preprint number was carried from memory as 1310.6190 — the double-source check returned 1311.0275; corrected before anything landed on disk (the KAC47 title lesson's number-shaped sibling, caught at the source) | identifier-grade bibliographic data (preprint numbers, DOIs, volume/page) is verified against the source before writing — memory holds the shape of a reference, never its digits | citation-drift |
+| a witness flag was declared `let boundOk = true` and assigned false only inside a .map callback — TypeScript's control-flow analysis narrowed it to always-truthy in the reading scope and no-unnecessary-condition convicted the first lint run | flags mutated inside closures are invisible to CFA: compute the data first, then judge it in a same-scope loop where the assignment and the read share control flow | toolchain |
+| the package.json description patch's needle was written from memory of the text ('The coherent face model-dependent...') — the assertion refused it (the disk reads 'coherent face model-dependent...'), and the first replacement draft also carried a 'Dephasd' typo; the grep-then-retry landed clean | anchors AND replacement text go through the disk: grep the needle before the patch, reread the replacement before it ships (the b45 edit-anchor family) | process |
+| escapeAtHorizon's first arrangement returned 1 - twoRateInWorld(...) — at beta-dE=40 the occupancy rounds to exactly 1.0 in float64 and the witness PRINTED 0.000e+0 where the true stationary escape is 4.248e-18: a cancellation-induced false zero on the report's face, caught by inspecting the witness output | small probabilities are computed in the cancellation-free arrangement (r/(gamma+r)) * (1 - (1-r-gamma)^K), factored so the tiny factor is formed directly, never as 1 minus a near-one quantity; a suspicious exact zero in witness output is a bug until proven a floor | statistics |
+
+### Batch 56 — stable-world (2026-09-07)
+
+- context: the v0.3.0 boundary-clearing visit (the microscopic bath derived + the coherent shortcut banked, AT9/AT10) — ten delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十六批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the collision scratch's first draft shipped a placeholder residue (an empty `if (t === 1)` block plus `void wMarg;`), unused imports, and a redundant double assignment — caught on reread before any run | residue is the DEFAULT assumption for a first draft and reread is the factory inspection — the b54#2 rule executed and still found cargo (fourth sighting of the class) | process |
+| the T6 test draft carried a dead placeholder block (`void hTot; // placeholder never ships`) inside the unitary check — caught on reread before the suite ran | same class, second file, same visit: reread every file, and a construction that needs a dead branch to compile is the wrong construction | process |
+| the scratch's import list missed mAdd/mScale while the code used both — Node ESM refused at the first run (uses vs imports, the b54#1 class) | the import list is diffed against the file's actual uses before the first run — the loader's refusal is instant but the diff is cheaper | process |
+| audit.ts then missed kron, and on retry mScale — two consecutive loader refusals for the same class in product code, fixed one name at a time instead of diffing the uses list once | fixing imports is a two-table diff (uses vs imports), not whack-a-mole: grep every helper name the new code uses, then ONE import edit | process |
+| the scratch's totalCoherenceBits passed the FULL matrix where the dephased (diagonal-only) matrix was intended — S(copy) - S(rho) = 0 always, convicting a TRUE theorem falsely | the check's object must be constructed as carefully as the theorem's: dephasing means diagonal-only; a check built on the wrong object convicts the innocent | wrong-object |
+| the weight-ledger reference state was written as |+> — but the shortcut hands the weight the input's phase plus pi/2, so the assertion (trace distance to |+>) failed at 1.000 on random phases | phase-carrying objects get phase-invariant assertions (purity + coherence bits), never equality to a fixed reference state — the corrected check passed at 1e-15 | wrong-object |
+| a python multi-line needle patch through the bash channel failed its own assertion (needle mismatch) and did NOT land — yet the scratch files were deleted in the same command before the corrected version ever ran | a failed patch is a stop, not a skip: multi-line patches go through the Edit tool (the channel clause), and evidence files survive until the corrected run has actually produced its numbers | process |
+| transcribing the verified commutator into the witness, the first product dropped the bath term (hS only on one side of [H_tot, U]) — the witness printed 3.30e+0 for an exact-zero commutator | scratch-to-witness transcription is its own error surface: re-type symbol by symbol against the scratch, then run — the witness convicted the transcription, not the theorem | process |
+| the coherence-factor probe indexed [0.4, 0.9] with t from a [0, 6] list — index 6 is undefined, the factor NaN, and NaN <= tol is false so the witness failed loudly | loop variables that index short arrays come from the array's own range — or iterate the array directly; the loud NaN was the machine refusing a silent wrong number | process |
+| Davies' 'Markovian master equations' was carried as 1976 — the CMP 39:91-110 paper is 1974; 1976 is Part II in Math. Ann. 219 — caught by the double-source check, label renamed DAV74 before landing | citation YEARS are identifier-grade data like numbers and titles: memory holds the shape (an old CMP paper by Davies), the sources hold the digits (1974) | citation-drift |
+
+### Batch 57 — stable-world (2026-09-07)
+
+- context: the v0.4.0 boundary-clearing visit (the continuum limit executed + the audit ledger closed, AT11/AT12) — six delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十七批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the scratch draft suppressed five unused imports with trailing `void x;` statements instead of removing the imports — caught on reread before any run | 'making the checker quiet' is not cleanup: unused imports are REMOVED, never voided — residue wears helper clothes too | process |
+| the finite-n block closed form was written as SS_n = (1-s^2)^n — the T=0 form — and applied at finite beta, where the dark-pair freezing makes the within-block coherences mix by the 2x2 matrix (eigenvalue 1-p*s^2); the check convicted at 7.9e-2 | a closed form ships with its domain: derive the regime conditions in the same breath as the formula (at finite beta the bath's excited component freezes dark pairs — the mixing changes) | wrong-object |
+| the straddler tightness check asserted |C^2(weight) - C^8| ~ 0 — but the weight banks the SECTOR bit while the full-basis C^8 also carries the cargo basis artifact (which stays on the register); the check convicted at 9.99e-1 | tightness assertions compare the object being banked, not a convenient superset: the sector bit is the theorem, the full-basis total is a different quantity that happens to contain it | wrong-object |
+| a patch referenced c4 in the straddler loop without defining it there — Node ESM refused at run with ReferenceError | patches that introduce a name verify the name exists in THAT scope before shipping — the loader's refusal was instant | process |
+| the T7 composition test draft carried a dead term (`t / (th * th) * 0 +`) inside the collision-count expression — caught on reread before the suite ran | arithmetic residue inside a live expression is worse than dead code: it evaluates, hides, and misleads — expressions get reread as formulas, not just as syntax | process |
+| the board text first quoted the scratch's census numbers (banked fraction 0.01-0.95, then 0.00-0.82) — the witness's own census reads 0.00-0.37 (different rng consumption); the board numbers were realigned to the witness outputs before finalizing | board numbers are the WITNESS's numbers: scratch and witness consume randomness differently, so every census interval on the board is re-derived from the witness output before it ships | process |
+
+### Batch 58 — dtc-clock (2026-09-07)
+
+- context: the v0.13.0 third-order coefficient c_3 (the first level-repulsion face) — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第五十八批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the c_3 repulsion assembly was wrong in FOUR conventions across two scratch drafts — the sum ran over even j (not eigenmodes of the Dirichlet block), the normalization read <u,u> where <K_j,K_j> belongs, the sign flipped, and the final <u,u> division dropped; the numeric arbiter (the exact eigenvalue cross-examined at two points) convicted every draft | every convention of a perturbation formula gets its own numeric probe BEFORE assembly (sum domain, normalization, sign, outer scaling) — the cross-arbiter runs first and the drafts die at the scratch stage (the b50 law, recurring) | process |
+| the first reading said 'n=4 has no repulsion' because the scratch printed ZERO there — the loop ran j=2..dim over an empty range (dim=2); structure was read from a vacuous witness | a printed ZERO is not a finding until the loop that printed it is checked to be nonempty — vacuous evidence is the empty-set twin of a lucky pass | process |
+| five BigInt/Number mixed divisions shipped in one edit (three in the tests, two in the render table) — the tests crashed with TypeError on the run, tsc named the render pair by file:line | the exact layer's float exits go through one idiom, Number(num)/Number(den), checked before the edit lands — one class, five instances, two gates splitting the catch | toolchain |
+
+### Batch 59 — stable-world (2026-09-07)
+
+- context: the v0.5.0 boundary-clearing visit (the generator identified + the phase-alignment bank, AT13/AT14) — eight delivery errors, born enrolled on both sides (visit renumbered 63 -> 64: a parallel session had taken batch 58 the same day)
+- source: `memory/2026-09-07.md` @ "关键经验（第五十九批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the scratch imported applyUnitaryLocal — an export that does not exist — and suppressed nothing with it because a trailing void kept the phantom alive; caught on reread before any run | phantom imports are residue wearing helper clothes: reread catches the name the loader would refuse | process |
+| the uniformity check's logging took the max over BOTH theta values and then divided by itself — the ratio printed 1.0 for any data, a check that could never fail | a check's arithmetic gets a known-answer test case before it is trusted: feed it two numbers with a known ratio and see it print that ratio | process |
+| the alignment phase was written as -arg(sigma_r) — but U rho U^dag multiplies the element by e^{-i phi}, so alignment needs phi = +arg; the sign flip made opposite-phase states align WORSE (the check convicted at 0.37) | conjugation/phase conventions are written down BEFORE the code: which side carries the conjugate decides the sign, and the machine re-derives it in one run | wrong-object |
+| a code file (the witness runner) was created through the bash heredoc — the banned channel; it survived only because its content happened to contain no backslash, $ or backtick | 'this time it was harmless' is exactly how the heredoc family survives: code files go through the Write tool, no exceptions based on content | process |
+| the kernel's alignedBank shipped with a dead helper (const idx = ... void idx) — caught on reread before any run, the class's fifth sighting in three visits | residue is a per-draft constant; the reread is the factory gate that assumes it | process |
+| the kernel extension used mMul/mDagger without importing them — the typecheck gate refused the first run (TS2304), the first import-class catch held by a gate rather than the loader | after extending a kernel's imports, typecheck runs BEFORE the witnesses — the gate is cheaper than the runner | toolchain |
+| the previous visit's AT11/AT12 board rows had been inserted BEFORE AT10 — the array (and the rendered report) carried the wrong order for a whole visit, unnoticed by every gate | insertion anchors place new rows after their predecessors, and a one-line grep of the id order follows every board insertion — order is part of the face | process |
+| the render-section patch went through python with an escaped needle and its assertion refused (escaping mismatch) — landed on retry through the Edit tool | multi-line needles with escapes go through the Edit tool from the start; the channel has now refused the same patch class three times | process |
+
+### Batch 60 — dtc-clock (2026-09-07)
+
+- context: the v0.14.0 quotient-face law for c_3 (u as the joint Rayleigh vector; the 2/3-share hypothesis refuted) — eight delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the first scratch round wrote reduce(thirdOrderFaces(n) && {...}) — a nonsense && smuggling the c3 construction into reduce — caught on reread before any run | constructions are replaced whole, not patched around (the b55 class, replayed on a different constructor) | process |
+| the same draft also carried a trailing void for an unused import (binomialBig) instead of removing it — caught in the same reread | residue per draft, reread per file — the class's sightings now number seven across four visits; a constant of the process, not a lapse | process |
+| the second scratch round ground past n=38 for eight-plus minutes on the repulsion face's BigInt products before being killed and rerouted via the cheap quotient-only path | the horizon is a PRE-RUN decision: a face whose cost grows superlinearly gets its census cap priced before the first run, not after a stall | process |
+| the scratch imported applyQ2Big/applyQ3Big without checking they were exported (both private) — Node ESM refused the first run | grep the export before the import (b54#1 class); this time the fix doubled as the visit's own kernel export | process |
+| the census printed NaN at n>=28 — Number(num)/Number(den) overflows float64 when the unreduced BigInt parts pass 2^53 | BigInt quotients reach floats through scaled division ((num * 10^12 / den) / 1e12) — the overflow twin of the cancellation lesson (b55#6) | statistics |
+| the W-T insertion script asserted on a runWitnesses shaped as a return-array — the function is block-style push; nothing was written, the redone Edit landed | read the function's actual SHAPE before patching it — shape is part of the anchor | process |
+| the render prose patch through python failed its escaping needle for the FOURTH time in the workspace's history — landed on retry through the Edit tool | the channel has now refused the same patch class four times: prose sections go through the Edit tool with no exception clause | process |
+| the first test run failed 19 !== 18 — the witness-count assertion still carried the pre-W-T count after the suite had already grown to nineteen witnesses | counts follow the data at the same edit: adding a witness greps the assertion's old count in the same breath (b50#4 class, caught by the suite this time) | process |
+
+### Batch 61 — dtc-clock (2026-09-07)
+
+- context: the v0.15.0 coupling closed forms (the repulsion face collapsed to binomials; the 9/8 extrapolation at n=1024) — two delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十一批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the share's analytic reconstruction dropped and doubled factors across two hand-derivation passes (ln(2k) for k; 2n(n-1) for n(n-1)) — both exposed only by reconciliation against the exact value 1.012015313 at n=24, then eliminated by abandoning the algebra for PURE SUBSTITUTION of the closed forms | the reconciliation anchor is pinned BEFORE the reconstruction: a known exact value at a reachable point, and closed forms are assembled by substitution — the machine does the arithmetic, the hand does no algebra | process |
+| the new guard's boolean was inverted (j % 2 !== 0 rejects every ODD j — the exact population it exists to accept) — the suite convicted it on the first run with the guard's own message | a guard defines the ILLEGAL set: after writing one, read which side of the parity it actually rejects — an inverted domain guard kills the whole census with a self-consistent error message | process |
+
+### Batch 62 — dtc-clock (2026-09-07)
+
+- context: the v0.16.0 9/8 limit assembled to theorem grade (the exact central-binomial factorization + the geometric-tail bracket + the correction constant's convergence) — two delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十二批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the scratch's assembled-share function returned NaN at every n — the hand-rolled Stirling log path goes bad at the boundary terms; caught on the output face, and the arbitration was re-routed to the monotone-plus-geometric-tail form the machine can prove | when an assembly path NaNs, do not debug the hand path — re-choose the DELIVERABLE SHAPE: the machine-provable form (monotonicity + geometric tail + convergence) outranks the hand-assembled closed expression | process |
+| the scratch draft carried a trailing void for an unused import — caught by the pre-run cleaning pass before the loader ever saw it | the cleaning pass is now automatic in practice: unused imports removed, voids never shipped (the class's eighth sighting, pre-caught) | process |
+
+### Batch 63 — dtc-clock (2026-09-07)
+
+- context: the v0.17.0 arcsine law (the second independent route to 9/8 and the correction constant's structure) — three delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十三批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the bulk/edge split's condition used AND where OR belonged (edge := k near 0 AND j near 0 — unsatisfiable), so S_edge printed 0.000000 at every n; caught by reading the output face — and the all-bulk data accidentally exposed the arcsine profile directly | a split condition is a definition of which side is which: read its boolean orientation against one concrete k before trusting the zeros — an inverted split silently zeroes a whole class | process |
+| the hand analysis of the chain dropped the /4 (c_k's denominator 2(j-1) = 4k), producing a 4.5-vs-9/8 contradiction that the exact chain identity corrected on sight | the identity chain goes up BEFORE the asymptotic analysis: any hand-derived coefficient reconciles against the exact chain first — global factors have nowhere to hide on a chain | process |
+| the assertion pinned a to 0.5508694 with 2e-6 tolerance, but the test's THREE-point Richardson converges to 0.5508755 — the suite convicted the mismatch; the tolerance was realigned to the honest five-digit identification | identification depth matches extrapolation depth: a claim of k digits is backed by an extrapolation grid that actually reaches them | process |
+
+### Batch 64 — dtc-clock (2026-09-07)
+
+- context: the v0.18.0 correction constant pinned to ten digits with the exact fixed-k edge law — two delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十四批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the sigma-identification scratch was created through the bash heredoc (cat > file <<EOF) — the banned channel; the content survived because it carried no backslash/template syntax, and the run was clean | 'this time it was harmless' is the heredoc family's survival mode, tenth enrollment: scratch files go through the Write tool, content-based exceptions do not exist | process |
+| a closing Bash command was sent with a copy-paste explosion — dozens of repeated npm-test segments in one line; caught on self-review of the sent command and killed mid-flight | a Bash command is itself a deliverable to be reread before sending, exactly like a file — read the whole line, not just the new part | process |
+
+### Batch 65 — mutant-census (2026-09-07)
+
+- context: the v0.9.0 repair visit — the b54 burial repaired (two tiers upgraded where the booked reason went false, one reason made precise where the boundary honestly survives) — two delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十五批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the b54#0 booking reason counted the scratch-placement class as 'third sighting' written from memory — the registry's own text carries four (b22#2 system temp, b33#0 /tmp again, b49#2 system temp, b54#0 the workspace root): the count prose drifted from the data it cites, and ten parallel visits of burials (b55-b64) grew the registry past the drift unseen | a count in ANY field is a copy of the data — grep the registry before writing even a booking-reason count; B7/B8 hold the context and heading faces, the reason field is held by the same discipline | process |
+| two Edit calls were refused on stale read-state — enrollment.ts and the daily note had been rewritten by parallel visit sessions between this session's read and its write (the b48#2 class in a new cross-session variant); the guard bit with zero damage and the full current state was re-read before either edit landed | in a multi-session workspace every read expires the moment another visit lands — the Edit tool's read-state tracker is the only line; on refusal, re-read the WHOLE current face (batch numbers, declared totals, family rows, anchor tables), not just the failed hunk | process |
+
+### Batch 66 — dsic-noether (2026-09-07)
+
+- context: the v0.2.0 continuum-derivation visit — the #14/#16 excluded boundary (Noether 1918 -> Green-Laffont) executed at the smooth layer, every identity the zero polynomial in exact rational arithmetic — twelve delivery errors, born enrolled on both sides
+- source: `memory/2026-09-07.md` @ "关键经验（第六十六批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| xOther divided by the FULL others' sum including o_j itself, leaving o_j's coefficient at (n-2)/n instead of (n-1)/n — the mean runs over all reports but o_j's own term must be excluded from the cross sum; the scratch envelope residual convicted it at exactly -o/4 | each closed form's coefficient layout is hand-derived term by term BEFORE coding (the b18#4 sign law, extended to means): x_j = (n-1)/n o_j - (s + sum_{k!=j} o_k)/n + 1/n — write the per-variable coefficient table first | conjugation |
+| gaugeReadoff subtracted the anchor twice over (p - integ - anchor + pAnchor): the definite fiber integral is integ - integ|s0, so the readoff is p - integ + anchor and its value at s0 is exactly p(s0) — the [I] readoff check convicted the formula on sight | anchor conventions (where the antiderivative vanishes, what the readoff equals at the anchor point) are part of the derivation: pin the readoff's anchor value as an identity before assembling it | conjugation |
+| the K1 off-gauge perturbation was built as p + eps instead of p + eps*s in BOTH functions — a constant shift is pure gauge, so the crime vanished (eps-coefficient 0 instead of -1) and the crime-price witness failed | the perturbation must move ALONG the own-report coordinate to be off the orbit — state WHICH coordinate the crime moves before writing it; a crime that lives in the gauge direction is no crime | wrong-object |
+| pSubst multiplied the substituted variable ONCE regardless of degree (s^2 -> t, not t^2) — and the shared engine bug made [E] and charge==welfare-gap BOTH pass while wrong (the same wrong substitution on both sides cancels); only the independent closed-form target -(n-1)(s-t)^2/(2n) caught it | an identity check through one engine can pass for the wrong reason — every derived identity needs an INDEPENDENT target (closed form, known value, or numeric probe) that does not route through the same substitution path; regression test enrolled the same visit | process |
+| the quarter-turn pullback used SEQUENTIAL substitutions (x := -y then y := x), which re-replaces the y that came from x — pbP residual -x + y convicted it; simultaneous substitution was required | substitution semantics is a convention to write down: variable maps sharing variables must apply SIMULTANEOUSLY (pSubstAll), sequential composition is only legal for disjoint maps — the regression test pins it | conjugation |
+| exp5's positive-cycle witness inverted the orientation condition (positive = c < 0 ? -loop : loop) — the sign to test is the LOOP's, not the parameter's; the first exp5 run failed on +2/175 vs -2/175 | build the known-answer case first (loop sign at one c), then write the branch — orientation logic is a fresh derivation every time, not a copy (the b59 sup-ratio class) | process |
+| the scratch probe mixed BigInt and Number arithmetic (Number(kappa.n) * (kappa.d - kappa.n)) — TypeError crash at runtime, the b60 family in a new file; recurrence inside the gated tree is TS2365 | Rat arithmetic goes through the rat() constructors and rMul/rAdd only — never partial unwrapping of one field; the typecheck anchor holds the in-tree face (scratch files die before gates by design) | toolchain |
+| the new test file omitted imports (pMul, the Rat type) — the first npm test crashed ReferenceError and typecheck named TS2304 twice | import lists are compiled from the use list: grep the identifiers before the first run (the b56 import-inventory law) | toolchain |
+| diamondSideIdentities mutated a zero polynomial's ReadonlyMap directly (numY.mono.set) — lint convicted the unsafe call; assembling terms by hand needs a constructor | the kernel owns safe constructors (pFromMonomials) — mutating readonly internals from a caller is never the route, even in a leaf helper | wrong-object |
+| pDeriv carried an unused arity local — residue caught by lint at first run | read the finished function once before the gate runs (the b54 residue law; residue is the default expectation, re-reading is the factory check) | process |
+| the void-returning arrow shorthand in the smuggling trial — lint convicted it | void-returning calls in arrow bodies get braces — style laws are laws | toolchain |
+| batch 66 was appended to the registry BEFORE the daily-note heading it cites existed on disk — burial-record's own B4 gate convicted the run on the spot (heading not found); the b50 standing rule ('the sequencing slip is noted; on recurrence it ENROLLS') executed itself | the daily-note evidence is the batch's precondition, same edit or earlier — B4 sequencing is a checklist item, not knowledge (fourth sighting, first ENROLLED per the standing rule) | process |
+
+### Batch 67 — mutant-census (2026-09-07)
+
+- context: the v0.10.0 R-board visit — the whole BOOKED population (125 rows) re-audited against the machines that exist now, nine reasons refuted on cited live anchors, fifteen sharpened to name their faces, the repo list single-sourced in the same edit — seven delivery errors, born enrolled AND born audited, across two classes
+- source: `memory/2026-09-07.md` @ "关键经验（第六十七批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the batch-context dump scratch was created through a bash heredoc (cat > file << 'EOF') — the banned channel, eleventh family sighting, committed WHILE writing the repair-audit board itself; the content survived because it carried no backslashes ('this time it was harmless' is the family's survival mode) | code files go through the Write tool, no content-based exceptions — the rule is a pre-flight checklist item, and the visit that builds the audit board is not exempt from the audited history | toolchain |
+| checkRepairAudit's first draft shipped a dead trailing loop (iterating a set only to continue) plus its consequently-unused upgradedKeys const — caught on reread before any machine | residue is a per-draft constant and the reread is the factory check — the unused-symbol face of this class dies at lint in-tree (enrolled GATE on that face); the loop face needed the reread | process |
+| the R3 smuggling trial's first draft carried a nonsense chained identity copy (forged.slice(0, -1).concat({...forged[last]}) — the same array rebuilt for nothing) — caught on reread before the suite ran | live-code construction residue compiles clean and passes tests — the reread is the only inspector of the pre-machine face; constructions are replaced whole, not patched around | process |
+| five unnecessary non-null assertions (hit!.detail after assert.ok(hit) had already narrowed the type) — lint convicted all five at the first run | the narrowing assertions are already guards; read the checker's own type flow before stacking ! on top — the gate caught the most familiar hand | toolchain |
+| the b12#6 needle was transcribed from memory with an added word ('each file's OWN depth' where the disk reads 'each file's depth') — the Edit refused the anchor | needles are copied from the disk text, never from memory of it — one modifier word is enough to miss (the b45#4 family; the refusal is the guard) | process |
+| the A-board count assertion still expected 49 after two new anchors landed (51 on disk) — the test suite convicted the lag on the spot | counts follow the data in the same edit that moves it — the assertion is arithmetic on the registry, not a memory of last visit's number | process |
+| the package.json description carried batch-33-era tier counts (107 on mutants / 61 on gates / 36 booked) through eleven visits while the data moved to 117/138/125 — count drift on a face neither B7 nor B8 reads | any field that carries data is a copy of the data — description strings included; grep the live counts before writing them, the same law as contexts and headings | process |
+
+### Batch 68 — mutant-census (2026-09-07)
+
+- context: the v0.11.0 deep-check visit — R4 needle-level firing evidence for every upgraded row, the workspace prose-count sweep (one drift caught: the census's own description, the same day its class was enrolled), the E7 stated-counts law closing it, the A4 artifact-firing law harvesting the total gate's last recorded run, and b67#6 flipped under R1's standing law — three delivery errors across one class, born enrolled and born audited
+- source: `memory/2026-09-07.md` @ "关键经验（第六十八批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the package.json description still said 147 on gates / 116 booked hours after batch 67 landed (+3 gate, +4 booked) — committed in the SAME VISIT that enrolled b67#6 for this exact class; the deep-check sweep across all 29 repos' prose faces caught it (the only drift in the workspace) | a count is a copy of the data wherever it lives, and the copy must move in the same edit as the data — the E7 law built this visit makes the description face answer to the suite on every run | process |
+| the R4 smuggling trial's first draft destructured a type from a dynamic import (const { FIRING_EVIDENCE, type FiringEvidence } = await import(...)) — invalid syntax, caught on reread before any machine | types ride the top-level static import; values may come dynamically — the typecheck tree kills a recurrence on the spot | process |
+| the daily-note insertion anchored on the visit-72 section heading and CONSUMED it (the b39#0/b40#0 header-swallow class, recurrence) — the orphaned tail surfaced on the immediate grep of the section face | a heading line is part of the anchor's surroundings: after every structural insertion, grep the section face before moving on — no gate diffs heading structure, the discipline is the guard | process |
+
+### Batch 69 — mutant-census (2026-09-07)
+
+- context: the v0.12.0 wrong-object per-error census — the J-board's second exhaustive pilot (44/44): two provenance collapses bit-exact with their prototypes, three distinct readout-object kills on P5, zero equivalent survivors, thirty-nine unbuildable with row-by-row reasons — three delivery errors across one class, born enrolled and born audited
+- source: `memory/2026-09-07.md` @ "关键经验（第六十九批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the W-I witness detail's first draft shipped a nonsense expression (s.key in {}) and a self-note ('wait, computed below') inside the template string — caught on the post-edit reread before any machine saw it | string templates are code faces: the reread covers what goes INSIDE the template literals, not just the code around them (the b55#0 class, recurring) | process |
+| the b36#7 Edit anchor was written from memory with prototype MU5 where the disk reads MU1 — the Edit refused the anchor before any write | needles are copied from the disk text, prototypes included — the refusal is the guard, the grep is the discipline (the b45#4 family) | process |
+| the render helper's classCount looked up category/tier on the PerErrorSpec array — those are enrollment fields; typecheck convicted TS2339 at first run | field ownership precedes the query: which table carries which columns is part of the shape, and the compiler holds it | process |
+
+### Batch 70 — mutant-census (2026-09-07)
+
+- context: the v0.13.0 four-class per-error census — the J-board now covers the ENTIRE 117-row mutation-killed population (conjugation 19, wrong-object 44, dimension-slot 29, statistics 25): nine provenance collapses (every prototype one, one through the crash face), twelve error-level kills, TWO proven equivalent specimens of two different species (representation-blind and input-coverage-blind), ninety-four unbuildable — four delivery errors across two classes, born enrolled and born audited
+- source: `memory/2026-09-07.md` @ "关键经验（第七十批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the battery crash record's first draft read name/grade/inputs/tripper off PROPERTIES[id] — the properties are closures typed as bare functions, the metadata lives inside their return values; typecheck convicted TS2339 three times at once | a closure's metadata is not on the closure — a crashed run gets honest minima (inputs 0, the crash its own tripper); the type system holds field ownership | toolchain |
+| the J1 foreign-row trial's ammunition was b5#0 — a key that BECAME an in-table member the same visit (the statistics pilot enrolled it), so the forged row tripped duplicate-key instead of the foreign-class conviction; the suite convicted the stale premise | trial ammunition is checked against the CURRENT table before firing — a visit that grows the table invalidates its own fixtures; the gate held the line | process |
+| a no-op assertion (Number.isNaN(0) || true) was drafted into the new machine-facts test — a check that can never fail; caught on reread before any run | every assertion gets the question 'what would make this red' — a never-fail check is a constructed zero (the b59#1 class), worse than no check | process |
+| the MEMORY.md visit-entry insertion duplicated the previous entry's prefix a THIRD time (the insertion-shape family) — caught by the immediate grep of the entry heads; the visit-74 occurrence had been fixed on the spot but never enrolled | a repair without an enrollment is an unbalanced account — the ledger follows the fix, and the post-insertion grep of entry heads is now a named step | process |
+
+### Batch 71 — mutant-census (2026-09-07)
+
+- context: the same-visit enrollment of the closing-stage slip — one delivery error, born enrolled and born audited
+- source: `memory/2026-09-07.md` @ "七十五访补册"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the closing verification command launched a SECOND total gate with a detached shell & (the whole line not read before sending — the b64#1 class, whose sibling was enrolled the same morning): the stray instance raced the tracked one for CPU, inflating the wall-sum 650s -> 924s; both came back green by luck, not by design | the command itself is a deliverable — read the whole line before sending, and launch exactly one instance of a whole-workspace gate; the clean single-instance run re-stamps the artifact | process |
+
+### Batch 72 — burial-record (2026-09-08)
+
+- context: the v0.5.0 memory-structure law — B9 guards the ledger's own evidence base (repeated-label signatures, orphaned heading tails, verbatim heading doubles, duplicated lesson headings), the first draft's false invariant convicted by its own first live run — two delivery errors across two classes, born enrolled and born audited
+- source: `memory/2026-09-08.md` @ "关键经验（第七十二批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| B9's first draft held visit-number uniqueness as its invariant — FALSE: the history legitimately carries two-section visits (三十九访双段, 二十九访两节) and the loose lazy-prefix parser also counted 纪元五访客 and future-map headings as visit numbers; the first live run convicted four false positives before anything landed | a law's invariant is run against the full history before it lands — what looks obvious on paper (uniqueness) is false on real structure; the signatures were narrowed to what is true | wrong-object |
+| an insertion Edit meant to add the A-fire B9 test dropped a structural newline (the old_string carried it, the new_string did not) — the following line glued up onto the declaration; caught on the immediate reread | structural inserts read back at the closure point — whatever the old_string carried, the new_string carries too | process |
+
+### Batch 73 — dtc-clock (2026-09-08)
+
+- context: the v0.19.0 singular Euler-Maclaurin assembly visit — TC43's priced final step executed: the exact transfer sigma1 = G*u - sqrt(n), the third-order face closed at theorem grade, and the constant decomposed additively kappa = zeta_m + Phi1 with Phi1 machine-bracketed — eleven delivery errors across four classes, born enrolled on both sides
+- source: `memory/2026-09-08.md` @ "关键经验（第七十三批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the transfer identity was drafted wrong TWICE — first as (G·u − 1)·sqrt(n), then as sigma1 = sqrt(2)·kappa instead of 2·sqrt(2/pi)·kappa — both caught by the meet against the known ten-digit target (the share/(9/8) algebra: sigma1(n) = G·u − sqrt(n) exactly) | a limit identity is a derivation, not a transcription: check dimensions and limit order on paper before the machine run — the target-meet is the arbiter, the draft is not | process |
+| the scratch probe carried a mechanical trio — an undefined local (hHalf) crashing the run, a missing closing brace caught by esbuild, and a Richardson divisor of 4^lev applied to a grid whose h = 1/sqrt(D) HALVES per step (the divisor must be 2^lev − 1) | the Richardson step length lives in the ERROR variable's space (h), not the grid variable's (D) — D quadrupling means h halving; scratch hygiene is the same discipline as kernel hygiene | process |
+| the E-series loop rebuilt C(2k,k) as BigInt per term — O(K^2) at K = 2^20, an unkillable-looking hang until the task was stopped manually; the incremental recurrence m_{k+1} = m_k(2k+3)k/(2(k+1)^2) does it in O(K) | estimate the loop's complexity BEFORE running it at scale — per-term closed-form rebuilding inside a million-iteration loop is the budget decision the visit before the run | process |
+| the zeta-split section compared S(D) against the Riemann profile sum R(D) at mismatched scales (S ~ D^{-1/2} against R ~ const) — the swap diverged linearly in sqrt(D) and the whole frame was scrapped; the correct frame is the cutoff power-law in the m_k masses | pin the comparison objects' SCALES before building the comparison — a frame at the wrong scale produces confident nonsense (the wrong-object class's scale subspecies) | wrong-object |
+| the second next-order coefficient was fitted from (E·sqrt(pi)k^{3/2} − 3/8)·k beyond k ~ 3·10^4, where the float cancellation in m_k − mu_k has eaten the signal — the fit published garbage candidates (b(65536) jumping to −0.0547) before the hand derivation pinned b = −11/128 exactly | compute the cancellation noise floor BEFORE fitting past it — the subtraction m − mu loses ~7 digits at k ~ 10^4; the fit domain ends at the floor, the exact derivation settles the value | statistics |
+| the spot check converted the exact rational via Number(num)/Number(den) at k up to 10^4 — C(2k,k)·(2k+1) overflows past k ~ 500 and the spot came back NaN | BigInt→Number only inside the safe domain (k <= 200); the float face of the masses is the incremental recurrence — the exact rational stays for the small-k proofs | toolchain |
+| edgeMassRational returned 6/8 for m_1 while its docstring said lowest terms — the test convicted 6n !== 3n on the spot; the first gcd rewrite was itself an unreadable draft (divExact ternaries) caught at reread before any run | a mathematical claim in a docstring is data: normalized means gcd-divided (Euclid, on copies — not ad-hoc 2-and-k division); drafts get reread before they run | process |
+| fFunctionFace divided by Number(num)/Number(den) of the exact rational — the same overflow face as the spot check, one function over | one overflow class, sweep ALL its call sites in the same edit — the float exit is edgeMassFloat everywhere | toolchain |
+| arcClosureRelative was probed at n = 32/64/128 beyond the exact c3 path's domain — NaN at 32, and the BigInt Krawtchouk vectors at 64/128 hung the probe until the task was killed; the domain guard (n <= 16) now throws | know the exact path's domain before probing past it — the guard names the boundary the visit forgot | wrong-object |
+| the W-Y witness letter went on the board before the WITNESSES table carried it — checkBoard convicted 'EXACT cites unknown witness' twice (TC44/TC45) and the count assertion (23) lagged one behind the data | the witness alphabet is a registered namespace: letter on the board, WITNESSES entry, and count assertion change in the SAME edit (the b53#5 law's letter-shaped sibling) | process |
+| the visit number and batch number were taken without resync — the parallel sessions had advanced to visit 76 / batch 72 by the time this visit enrolled; the first draft assumed 72/67 | in a multi-session workspace the visit/batch counters are shared state — grep the registry and the daily file BEFORE numbering anything (the b65 resync law, executed pre-emptively this time) | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..46 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (280 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 280 = repo sum 280)
-- PASS — W-4 declared totals 46 batches / 280 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (13 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (23 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..73 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (411 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 411 = repo sum 411)
+- PASS — W-4 declared totals 73 batches / 411 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (43 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (49 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 280 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 411 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

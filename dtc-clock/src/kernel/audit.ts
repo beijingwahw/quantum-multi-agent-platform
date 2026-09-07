@@ -30,7 +30,31 @@
  *   W-I the cliff line and the self-synchronizing clock;
  *   W-J the Pauli wall and the Hamming armor;
  *   W-K the armor dynamics (absorption radius, classical shadow, repair
- *       tariff — v0.5.0).
+ *       tariff — v0.5.0);
+ *   W-L the tie reset (the even-n cure, the Landauer price of the
+ *       decoder's blind spot — v0.6.0);
+ *   W-M the binomial shadow law and the scale census (v0.7.0);
+ *   W-N the spectral survival law and the stationary repair (v0.8.0);
+ *   W-O the universal decay rate (v0.9.0);
+ *   W-P the Krawtchouk spectrum and the second-order face (v0.10.0);
+ *   W-Q the Rayleigh-Schrodinger closed form for c_2 (v0.11.0);
+ *   W-R the general-n law for c_2 — the central-binomial partial sum and
+ *       the retired pi/4 scaling (v0.12.0);
+ *   W-S the third-order coefficient c_3 — the first level-repulsion
+ *   W-T the quotient-face law — u as the joint Rayleigh vector of the
+ *   W-U the coupling closed forms — the truncated norms equal the
+ *   W-V the 9/8 limit assembled — the exact central-binomial
+ *   W-W the arcsine law — the exact chain identity, the pi/2
+ *   W-X the correction constant pinned — sigma1 to ten digits, the
+ *       one-term refutations, and the exact fixed-k edge law;
+ *       profile limit reproducing 9/8, and a's structure;
+ *       factorization, the geometric-tail bracket, and the correction
+ *       constant's convergence;
+ *       classical ones, the coupling is proportional to c_2's binomial,
+ *       and the share extrapolates to 9/8 at n=1024;
+ *       second and third orders, plus the cancellation census that
+ *       refutes the 2/3-share hypothesis;
+ *       face (v0.13.0).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -63,13 +87,58 @@ import { tombstoneCensus } from "./tombstone.js";
 import {
   absorptionRadius,
   armorFireRule,
+  binomialPmfClosed,
   delocalizedFlipCensus,
+  fullRepairCensus,
   localizedDepolCensus,
   localizedFlipCensus,
+  maskPopcountMarginal,
   popcountShadow,
   radiusCensus,
   repairCensus,
+  amputatedSpectrumClosed,
+  decayEigenpairResidual,
+  decayRateConstant,
+  krawtchoukResidual,
+  secondOrderClosed,
+  secondOrderCoefficient,
+  secondOrderGeneral,
+  secondOrderGeneralRational,
+  secondOrderRSRational,
+  thirdOrderClosed,
+  thirdOrderFaces,
+  quotientFaceIdentityResidue,
+  cancellationDeficit,
+  repulsionShare,
+  repulsionAddendClosedRational,
+  couplingClosedFormResidue,
+  modeRatioFactorResidue,
+  shareFloat,
+  correctionConstant,
+  shareChainPieces,
+  arcsineLaw,
+  richardsonLimit,
+  sigmaFirst,
+  edgeAsymptoticCoefficient,
+  summandTimesDim,
+  centralBinomialStepResidue,
+  rationalResidue,
+  shadowQ,
+  spectralArmor,
+  repairedStationary,
+  stationaryBreach,
+  stationaryTie,
+  tieResetBits,
 } from "./armor.js";
+import {
+  kappaFace,
+  transferResidual,
+  kappaFromSigma,
+  arcClosureRelative,
+  edgeNextOrder,
+  edgeSeriesAccelerated,
+  fFunctionFace,
+} from "./assembly.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 const CITATION_KEYS = [
@@ -94,7 +163,7 @@ const FAMILIES: readonly Family[] = [
   "tombstone",
   "certificate",
 ];
-const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-H", "W-I", "W-J", "W-K"] as const;
+const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-H", "W-I", "W-J", "W-K", "W-L", "W-M", "W-N", "W-O", "W-P", "W-Q", "W-R", "W-S", "W-T", "W-U", "W-V", "W-W", "W-X", "W-Y"] as const;
 
 export interface Violation {
   readonly row: string;
@@ -428,9 +497,9 @@ export function runWitnesses(): WitnessResult[] {
       repair.unrepairedWorstFidelity < 0.9 &&
       repair.meanSyndromeBits > 0.1;
     const tt2 = tariffTable();
-    const tariffRow = tt2.rows[tt2.rows.length - 1]!;
+    const tariffRow = tt2.rows[4]!; // the n=5 maintenance row (W-L owns the tie row)
     const tariffOk =
-      tt2.rows.length === 5 &&
+      tt2.rows.length === 6 &&
       Math.abs(tariffRow.units - repair.meanSyndromeBits) <= 1e-3 &&
       tariffRow.units > 0;
     // the law bites: a forged fire rule must DISAGREE with the census
@@ -444,6 +513,198 @@ export function runWitnesses(): WitnessResult[] {
     });
   }
 
+  // W-L — the tie reset (v0.6.0)
+  {
+    const v4 = fullRepairCensus(4, 0.1, DEMO_CIRCUIT, 3);
+    const v4Worst = Math.min(...v4.rows.map((r) => r.advanceFidelity));
+    const dp4 = popcountShadow(4, 0.1, DEMO_CIRCUIT.length * 2, undefined, true, true);
+    let dev4 = 0;
+    for (const r of v4.rows) dev4 = Math.max(dev4, Math.abs(dp4.fidelity[r.beat * 2 - 1]! - r.advanceFidelity));
+    const meterDev = Math.abs(dp4.meanTieBits - v4.meanTieBits);
+    const cure6 = popcountShadow(6, 0.2, 64, undefined, true, true);
+    const old6 = popcountShadow(6, 0.2, 64, undefined, true, false);
+    const tariffOk =
+      Math.abs(tieResetBits(4) - Math.log2(6)) <= 1e-12 &&
+      Math.abs(tieResetBits(6) - Math.log2(20)) <= 1e-12 &&
+      tieResetBits(5) === 0;
+    const tt = tariffTable();
+    const rowOk = tt.rows.length === 6 && Math.abs(tt.rows[5]!.units - 1.1113) <= 1e-3;
+    out.push({
+      witness: "W-L",
+      ok:
+        Math.abs(v4Worst - 1) <= 1e-12 &&
+        dev4 <= 1e-12 &&
+        meterDev <= 1e-12 &&
+        Math.abs(cure6.fidelity[63]! - 1) <= 1e-12 &&
+        old6.fidelity[63]! < 1e-3 &&
+        tariffOk &&
+        rowOk,
+      detail: `n=4 full-repair worst ${v4Worst.toFixed(15)} (passive ${v4.unrepairedWorstFidelity.toFixed(4)}), DP dev ${dev4.toExponential(2)}, tie meter ${v4.meanTieBits.toFixed(4)} bits/period (both roads agree to ${meterDev.toExponential(2)}); n=6 @64: sector-only ${old6.fidelity[63]!.toExponential(2)} -> full ${cure6.fidelity[63]!.toFixed(15)}; constants log2C ${tieResetBits(4).toFixed(4)}/${tieResetBits(6).toFixed(4)} exact; B4 row 6 units ${tt.rows[5]!.units.toFixed(4)}`,
+    });
+  }
+
+  // W-M — the binomial shadow law and the scale census (v0.7.0)
+  {
+    let lawWorst = 0;
+    for (const [n, p, tt] of [
+      [4, 0.2, 12],
+      [6, 0.05, 9],
+      [8, 0.1, 7],
+    ] as const) {
+      const machine = maskPopcountMarginal(n, p, tt);
+      const closed = binomialPmfClosed(n, shadowQ(p, tt));
+      for (let k = 0; k <= n; k++) lawWorst = Math.max(lawWorst, Math.abs(machine[k]! - closed[k]!));
+    }
+    const wrongRelax = Math.max(
+      ...Array.from(maskPopcountMarginal(6, 0.2, 8)).map((v, k) =>
+        Math.abs(v - binomialPmfClosed(6, 1 - Math.pow(1 - 0.2, 8))[k]!),
+      ),
+    );
+    const statWorst = Math.max(
+      ...[4, 6, 8].map((n) => {
+        const m = maskPopcountMarginal(n, 0.2, 400);
+        const breach = Array.from(m.slice(n / 2)).reduce((s, v) => s + v, 0);
+        return Math.max(Math.abs(breach - stationaryBreach(n)), Math.abs(m[n / 2]! - stationaryTie(n)));
+      }),
+    );
+    const scaleFull = [10, 12, 16].every(
+      (n) => Math.abs(popcountShadow(n, 0.2, 64, undefined, true, true).fidelity[63]! - 1) <= 1e-12,
+    );
+    out.push({
+      witness: "W-M",
+      ok: lawWorst <= 1e-14 && wrongRelax > 0.1 && statWorst <= 1e-12 && scaleFull,
+      detail: `binomial law worst ${lawWorst.toExponential(2)} (n=4/6/8); wrong relaxation diverges ${wrongRelax.toFixed(3)}; stationary faces worst ${statWorst.toExponential(2)} (n=4/6/8 @400 periods); full repair exactly 1 at n=10/12/16 @64: ${scaleFull}`,
+    });
+  }
+
+  // W-N — the spectral survival law and the stationary repair (v0.8.0)
+  {
+    let reconWorst = 0;
+    for (const [n, p] of [
+      [4, 0.2],
+      [6, 0.1],
+    ] as const) {
+      const spec = spectralArmor(n, p);
+      const series = spec.survivalSeries(40);
+      const dp = popcountShadow(n, p, 40);
+      for (let tt = 0; tt < 40; tt++) reconWorst = Math.max(reconWorst, Math.abs(series[tt]! - dp.survival[tt]!));
+    }
+    const spec6 = spectralArmor(6, 0.2);
+    const dp6 = popcountShadow(6, 0.2, 61);
+    const ratio = dp6.survival[60]! / dp6.survival[59]!;
+    const stat = repairedStationary(6, 0.2);
+    const dpLong = popcountShadow(6, 0.2, 400, undefined, true, true);
+    const statOk = Math.abs(stat.tieMeter - 1.595083) <= 1e-4 && dpLong.meanTieBits < stat.tieMeter;
+    out.push({
+      witness: "W-N",
+      ok: reconWorst <= 1e-13 && Math.abs(ratio - spec6.lambda1) <= 1e-10 && statOk,
+      detail: `eigen-expansion vs DP worst ${reconWorst.toExponential(2)} (n=4/6, T<=40); ratio at T=60 ${ratio.toFixed(12)} = lambda1 ${spec6.lambda1.toFixed(12)}; stationary faces p_tie ${stat.pTie.toFixed(6)}, tie meter ${stat.tieMeter.toFixed(6)} vs DP@400 mean ${dpLong.meanTieBits.toFixed(6)} (converging from below through the transient)`,
+    });
+  }
+
+  // W-O — the universal decay rate (v0.9.0)
+  {
+    const residual = Math.max(...[4, 6, 10, 20, 40].map((n) => decayEigenpairResidual(n)));
+    let gammaWorst = 0;
+    for (const n of [4, 6, 8, 10, 12, 16, 20, 24, 32, 40]) {
+      gammaWorst = Math.max(gammaWorst, Math.abs(decayRateConstant(n) - 2));
+    }
+    const r1 = (1 - spectralArmor(6, 0.02).lambda1) / 0.02;
+    const r2 = (1 - spectralArmor(6, 0.01).lambda1) / 0.01;
+    const residualHalves = (2 - r1) / (2 - r2);
+    out.push({
+      witness: "W-O",
+      ok: residual <= 1e-12 && gammaWorst <= 1e-9 && Math.abs(residualHalves - 2) <= 0.05,
+      detail: `eigenpair residual ${residual.toExponential(2)} (n=4..40, solver-free); gamma worst ${gammaWorst.toExponential(2)} over ten n; fit face (1-lam)/p at n=6: ${r1.toFixed(6)} (p=0.02), ${r2.toFixed(6)} (p=0.01) — residual ratio ${residualHalves.toFixed(3)} (clean O(p))`,
+    });
+  }
+
+  // W-P — the Krawtchouk spectrum and the second-order face (v0.10.0)
+  {
+    let residualWorst = 0;
+    for (const n of [6, 8, 10, 12, 16, 24]) {
+      for (let k = 1; k <= n / 2; k++) {
+        residualWorst = Math.max(residualWorst, krawtchoukResidual(n, 2 * k - 1));
+      }
+    }
+    const evenFails = krawtchoukResidual(8, 2) > 0.1;
+    const gapWorst = Math.max(
+      ...[6, 8, 12].map((n) => {
+        const spec = amputatedSpectrumClosed(n);
+        return Math.max(...spec.slice(1).map((v, i) => Math.abs(v - spec[i]! + 4)));
+      }),
+    );
+    const c2b = secondOrderCoefficient(4);
+    const c2c = secondOrderCoefficient(6);
+    out.push({
+      witness: "W-P",
+      ok: residualWorst <= 1e-9 && evenFails && gapWorst === 0 && Math.abs(c2b - 1.5) <= 1e-4 && Math.abs(c2c - 1.875) <= 1e-4,
+      detail: `odd-mode residuals worst ${residualWorst.toExponential(2)} (every odd j, n=6..24, solver-free); the even mode K_2 fails: ${evenFails}; the arithmetic gap is exactly 4 (worst deviation ${gapWorst}); c_2 Richardson ${c2b.toFixed(6)} (n=4, vs 3/2), ${c2c.toFixed(6)} (n=6, vs 15/8)`,
+    });
+  }
+
+  // W-Q — the RS closed form for c_2 (v0.11.0)
+  {
+    let agreeWorst = 0;
+    for (const n of [4, 6, 8, 10, 12]) {
+      const closed = secondOrderClosed(n);
+      const rich = secondOrderCoefficient(n);
+      agreeWorst = Math.max(agreeWorst, Math.abs(closed - rich));
+    }
+    const spot4 = Math.abs(secondOrderClosed(4) - 1.5);
+    const spot6 = Math.abs(secondOrderClosed(6) - 1.875);
+    const spot10 = Math.abs(secondOrderClosed(10) - 2.4609375);
+    out.push({
+      witness: "W-Q",
+      ok: agreeWorst <= 1e-4 && spot4 <= 1e-12 && spot6 <= 1e-12 && spot10 <= 1e-12,
+      detail: `quotient vs Richardson worst ${agreeWorst.toExponential(2)} (n=4..12, within the extrapolation error); exact spots: 3/2 ±${spot4.toExponential(2)}, 15/8 ±${spot6.toExponential(2)}, 315/128 ±${spot10.toExponential(2)}`,
+    });
+  }
+
+  // W-R — the general-n law for c_2 (v0.12.0)
+  {
+    let lawWorst = 0n;
+    for (let n = 4; n <= 40; n += 2) {
+      const residue = rationalResidue(secondOrderRSRational(n), secondOrderGeneralRational(n));
+      if (residue > lawWorst || residue < -lawWorst) lawWorst = residue < 0n ? -residue : residue;
+    }
+    let stepWorst = 0n;
+    for (let m = 1; m <= 19; m++) {
+      const step = centralBinomialStepResidue(m);
+      if (step > stepWorst || step < -stepWorst) stepWorst = step < 0n ? -step : step;
+    }
+    const r200 = secondOrderGeneral(200) * Math.sqrt(Math.PI / 400);
+    const scale200 = secondOrderGeneral(200) / Math.sqrt(200);
+    const trueGap = Math.abs(scale200 - Math.sqrt(2 / Math.PI));
+    const piGap = Math.abs(scale200 - Math.PI / 4);
+    out.push({
+      witness: "W-R",
+      ok: lawWorst === 0n && stepWorst === 0n && Math.abs(200 * (1 - r200) - 0.25) <= 5e-3 && piGap > 10 * trueGap,
+      detail: `law vs RS exact residue |${lawWorst}| (n=4..40, BigInt cross-multiplied); partial-sum induction-step residue |${stepWorst}| (m=1..19); r(200) = ${r200.toFixed(9)}, n(1-r) = ${(200 * (1 - r200)).toFixed(5)} -> 1/4; c_2/sqrt(200) = ${scale200.toFixed(9)} vs sqrt(2/pi) ${Math.sqrt(2 / Math.PI).toFixed(9)} (gap ${trueGap.toExponential(2)}) — the pi/4 gap ${piGap.toExponential(2)}, an order larger: retired`,
+    });
+  }
+
+  // W-S — the third-order coefficient c_3 (v0.13.0)
+  {
+    let residWorst = 0;
+    let richWorst = 0;
+    for (const n of [4, 6, 8, 10, 12, 16]) {
+      const c2 = secondOrderClosed(n);
+      const c3 = thirdOrderClosed(n);
+      const p = 0.01;
+      const series = 1 - 2 * p + c2 * p * p + c3 * p ** 3;
+      residWorst = Math.max(residWorst, Math.abs(spectralArmor(n, p).lambda1 - series));
+      const c3At = (q: number): number => (spectralArmor(n, q).lambda1 - 1 + 2 * q - c2 * q * q) / q ** 3;
+      richWorst = Math.max(richWorst, Math.abs(2 * c3At(0.01) - c3At(0.02) - c3));
+    }
+    const rep4 = thirdOrderFaces(4).repulsion.num !== 0n;
+    out.push({
+      witness: "W-S",
+      ok: residWorst <= 2e-8 && richWorst <= 5e-3 && rep4,
+      detail: `three-term series vs lambda_1(1/100): worst ${residWorst.toExponential(2)} (n=4..16, the c_4 p^4 face); Richardson agreement worst ${richWorst.toExponential(2)} (within its contamination); the repulsion face nonzero at n=4 — the repulsion-free gift ends at second order`,
+    });
+  }
+
   // W-F — the certificate and its anchors
   {
     const violations = checkBoard();
@@ -452,6 +713,214 @@ export function runWitnesses(): WitnessResult[] {
       witness: "W-F",
       ok: violations.length === 0 && tt.winner.includes("Bennett") && TARIFF_CRITERION.length > 50,
       detail: `board legal (${violations.length} violations); winner '${tt.winner}' by the legislated criterion; anchors and citation keys alive`,
+    });
+  }
+
+  // W-T — the quotient-face law and the cancellation census
+  {
+    let allZero = true;
+    for (let n = 4; n <= 60; n += 2) {
+      if (quotientFaceIdentityResidue(n) !== 0n) allZero = false;
+    }
+    const spots: Array<{ n: number; num: bigint; den: bigint }> = [
+      { n: 4, num: -1n, den: 1n },
+      { n: 6, num: -5n, den: 2n },
+      { n: 8, num: -35n, den: 8n },
+      { n: 10, num: -105n, den: 16n },
+      { n: 12, num: -1155n, den: 128n },
+    ];
+    let spotsOk = true;
+    for (const s of spots) {
+      const q = thirdOrderFaces(s.n).quotient;
+      if (q.num * s.den !== s.num * q.den) spotsOk = false;
+    }
+    const bigToFloat = (num: bigint, den: bigint): number => Number((num * 10n ** 12n) / den) / 1e12;
+    const shares: number[] = [];
+    const deficits: number[] = [];
+    for (let n = 4; n <= 30; n += 2) {
+      const sh = repulsionShare(n);
+      shares.push(bigToFloat(sh.num, sh.den));
+      const df = cancellationDeficit(n);
+      deficits.push(bigToFloat(df.num, df.den));
+    }
+    const signPatternOk = deficits[7]! < 0 && deficits[8]! > 0;
+    const crossedOk = shares[7]! < 1 && shares[8]! > 1 && shares[13]! > shares[8]!;
+    out.push({
+      witness: "W-T",
+      ok: allZero && spotsOk && signPatternOk && crossedOk,
+      detail: `3<u,Q3 u> + (n-2)<u,Q2 u> = 0 EXACTLY for all even n=4..60 (integer residue, cheap path) — the quotient face inherits TC37 verbatim: q(n) = -(n-2)c2(n)/3 (spots -1, -5/2, -35/8, -105/16, -1155/128 all match); the cancellation census REFUTES the 2/3-share hypothesis: the repulsion share 9r/(2(n-2)c2) crosses 1 between n=18 (${shares[7]!.toFixed(4)}) and n=20 (${shares[8]!.toFixed(4)}) and rises to ${shares[13]!.toFixed(4)} at n=30, the deficit c3 + (n-2)c2/9 flipping sign at the same point (${deficits[7]!.toExponential(2)} to ${deficits[8]!.toExponential(2)}) — the faces' asymptotic split stays open, re-priced`,
+    });
+  }
+
+
+  // W-U — the coupling closed forms and the 9/8 extrapolation
+  {
+    let residue = 0n;
+    for (let n = 4; n <= 36; n += 2) {
+      for (let j = 3; j <= n - 1; j += 2) {
+        residue += couplingClosedFormResidue(n, j);
+      }
+    }
+    // the closed addend reproduces the kernel's exact repulsion face at n=6
+    const faces6 = thirdOrderFaces(6);
+    const a1 = repulsionAddendClosedRational(6, 1);
+    const a2 = repulsionAddendClosedRational(6, 2);
+    const sumNum = a1.num * a2.den + a2.num * a1.den;
+    const sumDen = a1.den * a2.den;
+    const faceOk = faces6.repulsion.num * sumDen === sumNum * faces6.repulsion.den;
+    // the horizon push: monotone past the crossing, 9/8 extrapolation stable
+    const logFactTab: number[] = [0];
+    const logFact = (x: number): number => {
+      while (logFactTab.length <= x) logFactTab.push(logFactTab[logFactTab.length - 1]! + Math.log(logFactTab.length));
+      return logFactTab[x]!;
+    };
+    const logBinom = (a: number, b: number): number => logFact(a) - logFact(b) - logFact(a - b);
+    const shareFloat = (n: number): number => {
+      const dim = n / 2;
+      const m = (n - 2) / 2;
+      const lnC = logBinom(n - 2, m);
+      let lnr = -Infinity;
+      for (let k = 1; k <= dim - 1; k++) {
+        const lnCk =
+          2 * (Math.log(2 * n * (n - 1)) + lnC + logBinom(dim - 1, k)) -
+          (Math.log(2 * (2 * k)) + logBinom(n, 2 * k + 1) + 2 * (n - 1) * Math.LN2 + Math.log(n));
+        lnr = lnr === -Infinity ? lnCk : Math.log(Math.exp(lnr) + Math.exp(lnCk));
+      }
+      const lnc2 = Math.log(n - 1) + lnC - (n - 2) * Math.LN2;
+      return (9 * Math.exp(lnr)) / (2 * (n - 2) * Math.exp(lnc2));
+    };
+    const s24 = shareFloat(24);
+    const s1024 = shareFloat(1024);
+    const extrapolation = s1024 + (s1024 - s24) / (Math.sqrt(1024 / 24) - 1); // a/sqrt(n) one-step
+    const ok = residue === 0n && faceOk && s1024 > s24 && Math.abs(extrapolation - 1.125) <= 2e-3;
+    out.push({
+      witness: "W-U",
+      ok,
+      detail: `the three closed forms hold with ZERO residue over n=4..36, every odd mode (vv = C(n,j)2^(n-1) — truncated Krawtchouk norms equal the classical full norms; uu = n·2^(n-1); |cpl| = 2n(n-1)C(n-2,m)C(dim-1,k), the coupling proportional to c_2's central binomial); the closed addend reproduces the kernel's exact repulsion face (n=6 spot equality); the horizon push: the share rises monotonically to ${s1024.toFixed(6)} at n=1024, and the a/sqrt(n) extrapolation lands at ${extrapolation.toFixed(6)} — the limit 9/8 identified by extrapolation, not claimed as a theorem`,
+    });
+  }
+
+
+  // W-V — the 9/8 limit assembled
+  {
+    let residue = 0n;
+    for (let n = 4; n <= 24; n += 2) {
+      for (let k = 1; k <= n / 2 - 1; k++) residue += modeRatioFactorResidue(n, k);
+    }
+    // share monotone with geometrically shrinking doubling increments -> limit bracketed
+    const shares: Array<{ n: number; s: number }> = [];
+    for (const n of [64, 256, 1024, 2048]) shares.push({ n, s: shareFloat(n) });
+    let monotone = true;
+    let incRatioMax = 0;
+    for (let i = 1; i < shares.length; i++) {
+      if (shares[i]!.s <= shares[i - 1]!.s) monotone = false;
+    }
+    const inc = (i: number): number => (shares[i]!.s - shares[i - 1]!.s) / Math.log2(shares[i]!.n / shares[i - 1]!.n);
+    for (let i = 2; i < shares.length; i++) incRatioMax = Math.max(incRatioMax, inc(i) / inc(i - 1));
+    // geometric tail bound: remaining <= last increment-per-doubling * ratio/(1 - ratio), ratio <= 0.75
+    const lastInc = inc(shares.length - 1);
+    const tail = (lastInc * 0.75) / (1 - 0.75);
+    const sMax = shares[shares.length - 1]!.s;
+    const limLow = sMax;
+    const limHigh = sMax + tail;
+    const bracketOk = limLow <= 1.125 && limHigh >= 1.125 && limHigh - limLow < 0.05;
+    // the correction constant's convergence
+    const a2048 = correctionConstant(2048);
+    const a256 = correctionConstant(256);
+    const convOk = Math.abs(a256 - a2048) < 2e-3 && Math.abs(a2048 - 0.55091) < 2e-4;
+    const ok = residue === 0n && monotone && incRatioMax < 0.8 && bracketOk && convOk;
+    out.push({
+      witness: "W-V",
+      ok,
+      detail: `the central-binomial factorization holds with ZERO residue (n=4..24, all k) — the share reduces to central binomials only; the share is monotone with doubling-increment ratios <= ${incRatioMax.toFixed(3)} (geometric decay), so the limit is bracketed: [${limLow.toFixed(6)}, ${limHigh.toFixed(6)}] at n=2048 — 9/8 = 1.125000 inside the bracket; the first correction a(n) = (9/8 - share(n))·sqrt(n) converges: ${a256.toFixed(6)} (n=256) -> ${a2048.toFixed(6)} (n=2048); if the limit holds, c_3 -> -(n-2)c_2/12`,
+    });
+  }
+
+
+  // W-W — the arcsine law and a's structure
+  {
+    // the chain identity: share = P·A·S/4 exactly (float agreement at the floor)
+    let chainWorst = 0;
+    for (const n of [24, 64, 256]) {
+      const chain = shareChainPieces(n);
+      chainWorst = Math.max(chainWorst, Math.abs(chain.chainShare - shareFloat(n)) / shareFloat(n));
+    }
+    // the arcsine law: rising toward pi/2, Richardson at the top
+    const grid = [1024, 4096, 16384, 65536].map((n) => ({ n, v: arcsineLaw(n) }));
+    const rising = grid.every((g, i) => i === 0 || g.v > grid[i - 1]!.v);
+    const arcsineInf = richardsonLimit(grid, 0.5);
+    // a's two-term law and the one-term refutation
+    const aGrid = [16384, 32768, 65536].map((n) => ({ n, v: correctionConstant(n) }));
+    const aInf = richardsonLimit(aGrid, 1);
+    const aOverBasis = [Math.sqrt(2 / Math.PI), Math.sqrt(Math.PI / 2), Math.sqrt(Math.PI)].map((b) => aInf / b);
+    const refuted = aOverBasis.every((r) => Math.abs(r * 32 - Math.round(r * 32)) > 0.02);
+    const ok = chainWorst <= 1e-12 && rising && Math.abs(arcsineInf - Math.PI / 2) <= 2e-3 && Math.abs(aInf - 0.55087) <= 1e-5 && refuted;
+    out.push({
+      witness: "W-W",
+      ok,
+      detail: `the chain identity share = P·A·S/4 holds exactly (relative deviation ${chainWorst.toExponential(2)} at n=24..256); the arcsine law: S·sqrt(dim)·sqrt(pi) rises monotonically ${grid[0]!.v.toFixed(6)} -> ${grid[3]!.v.toFixed(6)} (dim 512 -> 32768), Richardson to ${arcsineInf.toFixed(6)} vs pi/2 = ${(Math.PI / 2).toFixed(6)} — and pi/2 through the chain reproduces 9/8 (TC41's limit independently confirmed); a = ${aInf.toFixed(5)} with the two-term law a(n) = a + b/n; the one-term basis REFUTED at seven digits (a/sqrt(2/pi) = ${aOverBasis[0]!.toFixed(6)}, none near a small rational) — the arcsine profile's x^(-1/2) endpoint singularities feed the correction with singular Euler-Maclaurin constants: a's full closed form priced as the arc's next step`,
+    });
+  }
+
+
+  // W-X — the correction constant pinned
+  {
+    const grid = [4096, 16384, 65536, 262144].map((n) => ({ n, v: sigmaFirst(n) }));
+    const s1 = richardsonLimit(grid, 1);
+    const risingConv = grid.every((g, i) => i === 0 || g.v > grid[i - 1]!.v);
+    const z12 = -1.4603545088095868;
+    const ratios = [s1 * Math.sqrt(Math.PI) / z12, s1 / z12, s1 * Math.sqrt(Math.PI)];
+    const refuted = ratios.every((r) => Math.abs(r * 64 - Math.round(r * 64)) > 0.02);
+    // the exact fixed-k edge law: summand*dim converges to the coefficient from above
+    let edgeOk = true;
+    for (const k of [1, 2, 3, 4]) {
+      const target = edgeAsymptoticCoefficient(k);
+      const near = summandTimesDim(65536, k);
+      const far = summandTimesDim(262144, k);
+      if (!(Math.abs(near - target) > Math.abs(far - target) && Math.abs(far - target) < 1e-3)) edgeOk = false;
+    }
+    const ok = Math.abs(s1 - -0.4896664762) <= 1e-8 && risingConv && refuted && edgeOk;
+    out.push({
+      witness: "W-X",
+      ok,
+      detail: `sigma1 converges monotonically to ${s1.toFixed(10)} (Richardson, n<=2^18) — a = 0.550874786 at ten digits; the one-term zeta-lattice REFUTED at that precision (${ratios[0]!.toFixed(8)} etc., no small rationals); the fixed-k edge law exact: summand·dim -> (2k+1)C(2k,k)/(2·4^k·k), verified convergent at k=1..4 — the endpoint mass the singular Euler-Maclaurin must regularize; the final coefficient assembly delineated and priced`,
+    });
+  }
+
+  // W-Y — the singular Euler-Maclaurin assembly (TC44/TC45)
+  {
+    const t1 = transferResidual(4096);
+    const t2 = transferResidual(16384);
+    const grid = [16384, 65536, 262144].map((n) => ({ n, v: sigmaFirst(n) }));
+    const s1 = richardsonLimit(grid, 1);
+    const kappa = kappaFromSigma(s1);
+    const kgrid = [16384, 65536, 262144].map((D) => ({ n: D, v: kappaFace(D) }));
+    const kappaRoad = richardsonLimit(kgrid, 0.5);
+    const series = edgeSeriesAccelerated(1 << 20);
+    const phi1 = kappa - series.zetaM;
+    const nextGrid = [64, 256, 1024, 4096].map((k) => ({ n: k, v: edgeNextOrder(k) }));
+    const nextLim = richardsonLimit(nextGrid, 1);
+    const secondAt = (k: number): number => (edgeNextOrder(k) - 0.375) * k;
+    const closure = [8, 12, 16].map((n) => arcClosureRelative(n, s1));
+    const closureDeclining = closure[0]! > closure[1]! && closure[1]! > closure[2]!;
+    const fEdge = fFunctionFace(100000, 3);
+    const ok =
+      t1.residual < 1e-9 &&
+      t2.residual < 1e-9 &&
+      Math.abs(s1 - -0.4896664762) <= 1e-7 &&
+      Math.abs(kappaRoad - kappa) <= 1e-3 &&
+      Math.abs(nextLim - 0.375) <= 1e-6 &&
+      Math.abs(secondAt(8192) - -11 / 128) <= 2e-3 &&
+      closureDeclining &&
+      Math.abs(series.zetaM - -0.306398243) <= 1e-6 &&
+      series.spotChecks <= 1e-12 &&
+      Math.abs(phi1 - -4.547e-4) <= 2e-6 &&
+      phi1 < -1e-4 &&
+      fEdge > 0.999;
+    out.push({
+      witness: "W-Y",
+      ok,
+      detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${-11 / 128} exact), sum(E) = ${series.sumE.toFixed(9)} so zeta_m = ${series.zetaM.toFixed(9)} — and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} SMALL BUT NONZERO: the sharp-cutoff assembly does not close, the cutoff face's constant is machine-bracketed; the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,
     });
   }
 

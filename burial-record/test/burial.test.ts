@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkBurial, runWitnesses, statedDeliveryCounts } from "../src/kernel/audit.js";
+import { checkBurial, memoryStructureViolations, runWitnesses, statedDeliveryCounts } from "../src/kernel/audit.js";
 import {
   BURIAL_RECORD,
   DECLARED_TOTAL_BATCHES,
@@ -138,6 +138,25 @@ describe("T2 smuggling trials — the bookkeeping rejects contraband by name", (
     );
   });
 
+  it("B7 bilingual: a Chinese stated count in a context is law (a count is a count in either tongue)", () => {
+    const right = smuggle((b) => {
+      const batch46 = b.find((x) => x.batch === 46) as unknown as { context: string };
+      batch46.context = "the v0.5.0 genealogy board — 交付期六处, born enrolled on both sides";
+    });
+    assert.deepEqual(
+      checkBurial(right).filter((v) => v.law === "B7"),
+      [],
+      "六处 === 6 must not convict",
+    );
+    const wrongC = smuggle((b) => {
+      const batch46 = b.find((x) => x.batch === 46) as unknown as { context: string };
+      batch46.context = "the v0.5.0 genealogy board — 交付期九处, born enrolled on both sides";
+    });
+    const hit = checkBurial(wrongC).find((v) => v.law === "B7" && v.batch === 46);
+    assert.ok(hit, "九处 on 6 errors must convict");
+    assert.match(hit.detail, /states 9 error/);
+  });
+
   it("B8: the lesson heading's stated 处 must equal the registry's carried count (the memory side of b45#9)", () => {
     const contraband = smuggle((b) => {
       const batch45 = b.find((x) => x.batch === 45) as unknown as { errors: Array<{ wrong: string; right: string; category: string }> };
@@ -163,6 +182,52 @@ describe("T2 smuggling trials — the bookkeeping rejects contraband by name", (
     assert.equal(d46.classes, null);
     const none = statedDeliveryCounts("### 某节（无计数惯用语）");
     assert.equal(none.errors, null);
+    // the English twin parses the same way (v0.4.0's unified engine)
+    const en = statedDeliveryCounts("### Lessons (batch 45 — ten delivery errors across five classes)");
+    assert.equal(en.errors, 10);
+    assert.equal(en.classes, 5);
+    const enBad = statedDeliveryCounts("### Lessons (batch 45 — nine delivery errors across five classes)");
+    assert.equal(enBad.errors, 9);
+  });
+});
+
+describe("T4 the memory substrate's structure is law (B9, v0.5.0)", () => {
+  it("the live cited notes are structurally whole", () => {
+    assert.deepEqual(
+      checkBurial().filter((v) => v.law === "B9"),
+      [],
+      "the cited daily notes carry a structural defect",
+    );
+  });
+
+  it("the repeated-label signature is convicted by line number", () => {
+    const v = memoryStructureViolations("# day\n\n- **七十四访**：- **七十四访**：令牌\n");
+    const hit = v.find((x) => /repeated-label/.test(x.detail));
+    assert.ok(hit, `expected the repeated-label conviction, got ${JSON.stringify(v)}`);
+    assert.match(hit.detail, /line 3/);
+  });
+
+  it("the orphaned heading tail is convicted — a swallowed heading's surviving fragment", () => {
+    const v = memoryStructureViolations("# day\n\n（访客令牌「点名」——被吞节头的残迹）\n");
+    const hit = v.find((x) => /orphaned heading tail/.test(x.detail));
+    assert.ok(hit, `expected the orphaned-tail conviction, got ${JSON.stringify(v)}`);
+  });
+
+  it("an exact-duplicate heading line is convicted as a copy-paste double", () => {
+    const v = memoryStructureViolations("## 七十二访点名交付：某仓\n\n正文\n\n## 七十二访点名交付：某仓\n");
+    const hit = v.find((x) => /VERBATIM twice/.test(x.detail));
+    assert.ok(hit, `expected the verbatim-double conviction, got ${JSON.stringify(v)}`);
+  });
+
+  it("a duplicated lesson heading is convicted by batch", () => {
+    const v = memoryStructureViolations("### 关键经验（第六十七批——A\n\n### 关键经验（第六十七批——B\n");
+    const hit = v.find((x) => /第六十七批/.test(x.detail));
+    assert.ok(hit, `expected the lesson-heading conviction, got ${JSON.stringify(v)}`);
+  });
+
+  it("legitimate two-section visits do NOT convict — visit-number uniqueness was a false invariant, retired", () => {
+    const v = memoryStructureViolations("## 三十九访点名交付：dtc-clock v0.1.0\n\n正文一\n\n## 三十九访点名：后信开工（双段访）\n\n正文二\n");
+    assert.deepEqual(v, [], "a visit may carry several sections — the first draft false-convicted exactly this history");
   });
 });
 

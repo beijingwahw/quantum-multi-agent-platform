@@ -4,8 +4,8 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildRiskCard, checkPreflightCoverage } from "../src/experiments/preflight.js";
-import { assertUniqueWitnessLetters } from "../src/experiments/render.js";
+import { buildRiskCard, checkPreflightCoverage, hotFamilies } from "../src/experiments/preflight.js";
+import { assertUniqueWitnessLetters } from "../src/experiments/report.js";
 import { loadLiveRegistry } from "../src/kernel/bridge.js";
 
 test("G5: the pre-flight card covers every family sighted in the last ten batches (live)", async () => {
@@ -25,12 +25,15 @@ test("G5 bites: a card that omits a recent family is convicted by name", async (
   const cards = [buildRiskCard("burial-record", registry.errors)]; // every other repo's card missing
   const problems = checkPreflightCoverage(cards, registry.errors, registry.batchCount);
   assert.ok(problems.some((p) => /no card at all/.test(p)), problems.join("; "));
-  // and a card with a hole: strip one recent family from dtc-clock's card
+  // and a card with a hole: strip the card's FIRST family — the most-recently
+  // sighted, so the fixture follows the live data instead of hardcoding a
+  // family that ages out of the ten-batch window (the b50#4 lesson's shape)
   const dtc = buildRiskCard("dtc-clock", registry.errors);
-  const holed = { repo: "dtc-clock", rows: dtc.rows.filter((r) => r.family !== "cat:wrong-object") };
+  const victim = dtc.rows[0]!.family;
+  const holed = { repo: "dtc-clock", rows: dtc.rows.filter((r) => r.family !== victim) };
   const all = [holed, ...cards.filter((c) => c.repo !== "dtc-clock")];
   const holes = checkPreflightCoverage(all, registry.errors, registry.batchCount);
-  assert.ok(holes.some((p) => /omits/.test(p)), holes.join("; "));
+  assert.ok(holes.some((p) => new RegExp(`omits[^;]*${victim}`).test(p)), holes.join("; "));
 });
 
 test("the witness-letter guard: a forged report headlining two censuses under one letter is refused", () => {
@@ -43,4 +46,17 @@ test("the witness-letter guard: a forged report headlining two censuses under on
   // the honest roster passes
   assert.doesNotThrow(() => { assertUniqueWitnessLetters("- PASS — W-G anchor census (x)\n- PASS — W-H genealogy census (y)"); },
   );
+});
+
+test("the hot-family summary: sighted within the last three batches, and the single-repo card runs step 0", async () => {
+  const registry = await loadLiveRegistry();
+  // the assertion follows the DATA: whichever repo owns the latest batch is hot
+  const latestBatch = Math.max(...registry.errors.map((e) => e.batch));
+  const latestRepo = registry.errors.find((e) => e.batch === latestBatch)!.repo;
+  const card = buildRiskCard(latestRepo, registry.errors);
+  const hot = hotFamilies(card.rows, registry.batchCount);
+  assert.ok(hot.length >= 1, `${latestRepo} owns batch ${latestBatch} and must be hot`);
+  assert.ok(hot.every((r) => r.latestBatch > registry.batchCount - 3));
+  const cold = card.rows.filter((r) => !hot.includes(r));
+  assert.ok(cold.every((r) => r.latestBatch <= registry.batchCount - 3));
 });

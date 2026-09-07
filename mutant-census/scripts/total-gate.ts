@@ -14,6 +14,10 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+// SINGLE-SOURCED since v0.10.0 (the b37#7 repair): the repo list lives in the
+// census kernel and ONLY there — this script imports it, and the census test
+// tree convicts any second literal copy by reading this file's source.
+import { EPOCH_REPOS } from "../src/kernel/census.js";
 
 interface Job {
   repo: string;
@@ -24,16 +28,6 @@ interface Job {
   /** exclusive jobs run alone — no concurrent siblings (timing-sensitive suites) */
   exclusive?: boolean;
 }
-
-const EPOCH_REPOS: readonly string[] = [
-  "bqp-map", "depreciation-ledger", "route-price", "burial-record", "readout-wall",
-  "nosignal-tariff", "choice-lang", "binding-price", "letter-audit", "wukong-crossval",
-  "survivor-census", "ent-clearing", "postselect-sched", "retro-cache", "stable-world",
-  "qverify", "qram-sched", "nonstoq-anneal", "quantum-mech", "ent-sched",
-  "vacuum-compiler", "dsic-noether", "ft-qaoa", "switch-sched", "causal-ineq", "k-switch",
-  "dtc-clock",
-  "phase-law",
-];
 
 const jobs: Job[] = [];
 for (const repo of [...EPOCH_REPOS, "mutant-census"]) {

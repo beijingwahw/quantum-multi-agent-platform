@@ -29,14 +29,63 @@ import {
 import { bitFlipReadCensus, orbitRun, t1ReadCensus, yFlipReadCensus } from "../src/kernel/clock.js";
 import { detunedCensus } from "../src/kernel/clock.js";
 import {
+  kappaFace,
+  transferResidual,
+  kappaFromSigma,
+  arcClosureRelative,
+  edgeDiff,
+  edgeMassRational,
+  edgeNextOrder,
+  edgeSeriesAccelerated,
+  fFunctionFace,
+} from "../src/kernel/assembly.js";
+import {
   absorptionRadius,
   armorFireRule,
+  binomialPmfClosed,
   delocalizedFlipCensus,
+  fullRepairCensus,
   localizedDepolCensus,
   localizedFlipCensus,
+  maskPopcountMarginal,
   popcountShadow,
   radiusCensus,
+  repairedStationary,
   repairCensus,
+  decayRateConstant,
+  decayEigenpairResidual,
+  amputatedSpectrumClosed,
+  krawtchoukResidual,
+  secondOrderClosed,
+  secondOrderCoefficient,
+  secondOrderGeneral,
+  secondOrderGeneralRational,
+  secondOrderRSRational,
+  thirdOrderClosed,
+  thirdOrderFaces,
+  quotientFaceIdentityResidue,
+  cancellationDeficit,
+  repulsionShare,
+  repulsionAddendClosedRational,
+  couplingClosedFormResidue,
+  modeRatioFactorResidue,
+  shareFloat,
+  correctionConstant,
+  shareChainPieces,
+  arcsineLaw,
+  richardsonLimit,
+  sigmaFirst,
+  edgeAsymptoticCoefficient,
+  summandTimesDim,
+  binomialBig,
+  centralBinomialStepResidue,
+  centralBinomialSumRational,
+  rationalResidue,
+  shadowQ,
+  spectralArmor,
+  stationaryBreach,
+  stationaryTie,
+  tieResetBits,
 } from "../src/kernel/armor.js";
 import {
   K_BOLTZMANN,
@@ -150,7 +199,7 @@ describe("B4 the thermodynamic ledger", () => {
       tt.rows.slice(0, 4).map((r) => r.units),
       [0, 5, 9, 43.02],
     );
-    assert.equal(tt.rows.length, 5);
+    assert.equal(tt.rows.length, 6);
     assert.ok(tt.winner.includes("Bennett"));
     assert.ok(TARIFF_CRITERION.includes("fewest units wins"));
   });
@@ -314,7 +363,7 @@ describe("v0.5.0 — the armor dynamics", () => {
 
   it("TC27: the tariff's maintenance row carries the live meter reading and does not dethrone the ideal", () => {
     const tt = tariffTable();
-    assert.equal(tt.rows.length, 5);
+    assert.equal(tt.rows.length, 6);
     assert.ok(tt.rows[4]!.units > 0 && tt.rows[4]!.units < 1);
     assert.ok(tt.winner.includes("Bennett"));
     const v = repairCensus(5, 0.1, DEMO_CIRCUIT, 3);
@@ -331,6 +380,508 @@ describe("v0.5.0 — the armor dynamics", () => {
   });
 });
 
+describe("v0.6.0 — the tie reset", () => {
+  it("TC28: the full repair is exact at EVEN n — the dead zone is cured", () => {
+    const v = fullRepairCensus(4, 0.1, DEMO_CIRCUIT, 3);
+    for (const r of v.rows) assert.ok(Math.abs(r.advanceFidelity - 1) <= 1e-12, `beat ${r.beat}: ${r.advanceFidelity}`);
+    assert.ok(v.unrepairedWorstFidelity < 0.5, `passive twin ${v.unrepairedWorstFidelity}`);
+  });
+
+  it("TC28: the DP twin agrees on the fidelity AND the tie meter", () => {
+    const v = fullRepairCensus(4, 0.2, DEMO_CIRCUIT, 3);
+    const dp = popcountShadow(4, 0.2, DEMO_CIRCUIT.length * 2, undefined, true, true);
+    for (const r of v.rows) {
+      assert.ok(Math.abs(dp.fidelity[r.beat * 2 - 1]! - r.advanceFidelity) <= 1e-12);
+    }
+    assert.ok(Math.abs(dp.meanTieBits - v.meanTieBits) <= 1e-12, `${dp.meanTieBits} vs ${v.meanTieBits}`);
+  });
+
+  it("TC28: the erasure constant is exact — log2 C(n,n/2), integer binomials, zero at odd n", () => {
+    assert.ok(Math.abs(tieResetBits(4) - Math.log2(6)) <= 1e-12);
+    assert.ok(Math.abs(tieResetBits(6) - Math.log2(20)) <= 1e-12);
+    assert.equal(tieResetBits(5), 0);
+  });
+
+  it("TC28: at odd n the reset is a no-op (the tie set is empty)", () => {
+    const v = fullRepairCensus(5, 0.1, DEMO_CIRCUIT, 3);
+    assert.equal(v.tieTariffBits, 0);
+    assert.ok(v.meanTieBits <= 1e-12, `tie meter ${v.meanTieBits}`);
+    for (const r of v.rows) assert.ok(Math.abs(r.advanceFidelity - 1) <= 1e-12);
+  });
+
+  it("TC28: the long-horizon cure — sector-only 10x-worse becomes exactly 1 with the reset", () => {
+    for (const n of [6, 8]) {
+      const sectorOnly = popcountShadow(n, 0.2, 64, undefined, true, false);
+      const full = popcountShadow(n, 0.2, 64, undefined, true, true);
+      assert.ok(sectorOnly.fidelity[63]! < 1e-3, `n=${n} sector-only ${sectorOnly.fidelity[63]}`);
+      assert.ok(Math.abs(full.fidelity[63]! - 1) <= 1e-12, `n=${n} full ${full.fidelity[63]}`);
+    }
+  });
+
+  it("TC28: the B4 full-repair row carries the double meter and does not dethrone the ideal", () => {
+    const tt = tariffTable();
+    assert.equal(tt.rows.length, 6);
+    assert.ok(tt.rows[5]!.units > 1 && tt.rows[5]!.units < 1.2);
+    assert.ok(tt.winner.includes("Bennett"));
+    const v = fullRepairCensus(6, 0.1, DEMO_CIRCUIT, 3);
+    const live = v.meanSyndromeBits + v.meanTieBits;
+    assert.ok(Math.abs(tt.rows[5]!.units - live) <= 1e-3, `${tt.rows[5]!.units} vs ${live}`);
+  });
+});
+
+describe("v0.7.0 — the binomial shadow law and the scale census", () => {
+  it("TC29: the passive popcount is EXACTLY Bin(n, q_t) with q_t = (1-(1-2p)^t)/2", () => {
+    for (const [n, p, tt] of [
+      [4, 0.2, 12],
+      [6, 0.05, 9],
+      [8, 0.1, 7],
+    ] as const) {
+      const machine = maskPopcountMarginal(n, p, tt);
+      const closed = binomialPmfClosed(n, shadowQ(p, tt));
+      for (let k = 0; k <= n; k++) {
+        assert.ok(Math.abs(machine[k]! - closed[k]!) <= 1e-14, `n=${n} p=${p} t=${tt} k=${k}`);
+      }
+    }
+  });
+
+  it("TC29 negative control: the naive relaxation (flips as absorbing) is WRONG — the law is contentful", () => {
+    const machine = maskPopcountMarginal(6, 0.2, 8);
+    const wrong = binomialPmfClosed(6, 1 - Math.pow(1 - 0.2, 8));
+    let dev = 0;
+    for (let k = 0; k <= 6; k++) dev = Math.max(dev, Math.abs(machine[k]! - wrong[k]!));
+    assert.ok(dev > 0.1, `deviation ${dev}`);
+  });
+
+  it("TC29: the stationary faces — breach = 1/2 + C/2^(n+1), tie = C/2^n — exact at long times", () => {
+    for (const n of [4, 6, 8]) {
+      const m = maskPopcountMarginal(n, 0.2, 400);
+      const breach = Array.from(m.slice(n / 2)).reduce((s, v) => s + v, 0);
+      assert.ok(Math.abs(breach - stationaryBreach(n)) <= 1e-12, `n=${n} breach ${breach}`);
+      assert.ok(Math.abs(m[n / 2]! - stationaryTie(n)) <= 1e-12, `n=${n} tie ${m[n / 2]}`);
+    }
+  });
+
+  it("TC30: the scale census — the full repair is exactly 1 at n=10/12/16, the passive fidelity rises with n", () => {
+    const fids: number[] = [];
+    for (const n of [10, 12, 16]) {
+      const passive = popcountShadow(n, 0.2, 64);
+      const full = popcountShadow(n, 0.2, 64, undefined, true, true);
+      assert.ok(Math.abs(full.fidelity[63]! - 1) <= 1e-12, `n=${n} full ${full.fidelity[63]}`);
+      fids.push(passive.fidelity[63]!);
+    }
+    assert.ok(fids[0]! < fids[1]! && fids[1]! < fids[2]!, `passive F rises with n: ${fids.join(",")}`);
+  });
+});
+
+describe("v0.8.0 — the spectral survival law and the stationary repair", () => {
+  it("TC31: the eigen-expansion reconstructs the DP survival exactly", () => {
+    for (const [n, p] of [
+      [4, 0.2],
+      [6, 0.1],
+    ] as const) {
+      const series = spectralArmor(n, p).survivalSeries(40);
+      const dp = popcountShadow(n, p, 40);
+      for (let tt = 0; tt < 40; tt++) {
+        assert.ok(Math.abs(series[tt]! - dp.survival[tt]!) <= 1e-13, `n=${n} p=${p} T=${tt + 1}`);
+      }
+    }
+  });
+
+  it("TC31: survival(T+1)/survival(T) converges to lambda_1 (the decay constant)", () => {
+    const spec = spectralArmor(6, 0.2);
+    const dp = popcountShadow(6, 0.2, 61);
+    const ratio = dp.survival[60]! / dp.survival[59]!;
+    assert.ok(Math.abs(ratio - spec.lambda1) <= 1e-10, `${ratio} vs ${spec.lambda1}`);
+    assert.ok(spec.lambda1 > 0.66 && spec.lambda1 < 0.67, `lambda1 ${spec.lambda1}`);
+  });
+
+  it("TC31: lambda_1 rises with n at fixed p (the grid face)", () => {
+    for (const p of [0.05, 0.1, 0.2]) {
+      const lams = [4, 8, 16].map((n) => spectralArmor(n, p).lambda1);
+      assert.ok(lams[0]! < lams[1]! && lams[1]! < lams[2]!, `p=${p}: ${lams.join(",")}`);
+    }
+  });
+
+  it("TC32: the repaired stationary faces, and the DP mean converges from below", () => {
+    const stat = repairedStationary(6, 0.2);
+    assert.ok(Math.abs(stat.pTie - 0.201389) <= 1e-5, `p_tie ${stat.pTie}`);
+    const dpLong = popcountShadow(6, 0.2, 400, undefined, true, true);
+    assert.ok(dpLong.meanTieBits < stat.tieMeter, "the transient mean is below the stationary value");
+    assert.ok(Math.abs(stat.tieMeter - dpLong.meanTieBits) < 0.01, `stationary ${stat.tieMeter} vs mean ${dpLong.meanTieBits}`);
+  });
+});
+
+describe("v0.9.0 — the universal decay rate", () => {
+  it("TC33: gamma = 2 EXACTLY at every n probed, and the algebraic eigenpair residual is the rounding floor", () => {
+    for (const n of [4, 6, 8, 10, 12, 16, 20, 24, 32, 40]) {
+      assert.ok(Math.abs(decayRateConstant(n) - 2) <= 1e-9, `n=${n}: ${decayRateConstant(n)}`);
+      assert.ok(decayEigenpairResidual(n) <= 1e-12, `n=${n}: ${decayEigenpairResidual(n)}`);
+    }
+  });
+
+  it("TC33: the fit face — (1-lambda_1(p))/p converges to 2 with the residual halving in p (clean O(p))", () => {
+    const r1 = (1 - spectralArmor(6, 0.02).lambda1) / 0.02;
+    const r2 = (1 - spectralArmor(6, 0.01).lambda1) / 0.01;
+    assert.ok(r2 > r1 && r2 < 2, `monotone toward 2: ${r1} -> ${r2}`);
+    const ratio = (2 - r1) / (2 - r2);
+    assert.ok(Math.abs(ratio - 2) <= 0.05, `residual ratio ${ratio}`);
+  });
+
+  it("TC33 negative control: a WRONG eigenvector claim fails the solver-free residual check", () => {
+    // u_w = n - w (the naive linear candidate) is NOT the eigenpair — the check must bite
+    const n = 6;
+    const dim = n / 2;
+    const b: number[][] = Array.from({ length: dim }, () => new Array<number>(dim).fill(0));
+    for (let w = 0; w < dim; w++) {
+      if (w + 1 < dim) b[w]![w + 1] = n - w;
+      if (w - 1 >= 0) b[w]![w - 1] = w;
+    }
+    let worst = 0;
+    for (let w = 0; w < dim; w++) {
+      let bu = 0;
+      for (let j = 0; j < dim; j++) bu += b[w]![j]! * (n - j);
+      worst = Math.max(worst, Math.abs(bu - (n - 2) * (n - w)));
+    }
+    assert.ok(worst > 0.1, `the naive candidate must fail: ${worst}`);
+  });
+});
+
+describe("v0.10.0 — the Krawtchouk spectrum and the second-order face", () => {
+  it("TC34: every odd Krawtchouk mode is an exact eigenpair of the amputated chain (solver-free)", () => {
+    for (const n of [6, 8, 10, 12, 16, 24]) {
+      for (let k = 1; k <= n / 2; k++) {
+        const j = 2 * k - 1;
+        assert.ok(krawtchoukResidual(n, j) <= 1e-9, `n=${n} j=${j}: ${krawtchoukResidual(n, j)}`);
+      }
+    }
+  });
+
+  it("TC34: the spectrum is the integer arithmetic progression with gap exactly 4", () => {
+    for (const n of [6, 8, 10, 12]) {
+      const spec = amputatedSpectrumClosed(n);
+      assert.equal(spec.length, n / 2);
+      assert.equal(spec[0], n - 2);
+      for (let i = 1; i < spec.length; i++) assert.equal(spec[i]! - spec[i - 1]!, -4);
+    }
+  });
+
+  it("TC34 negative control: the even mode K_2 is NOT an eigenpair of the amputated chain", () => {
+    assert.ok(krawtchoukResidual(8, 2) > 0.1, `K_2 residual ${krawtchoukResidual(8, 2)}`);
+  });
+
+  it("TC35: the Richardson c_2 values match the rationals 3/2 and 15/8", () => {
+    assert.ok(Math.abs(secondOrderCoefficient(4) - 1.5) <= 1e-4, `${secondOrderCoefficient(4)}`);
+    assert.ok(Math.abs(secondOrderCoefficient(6) - 1.875) <= 1e-4, `${secondOrderCoefficient(6)}`);
+  });
+});
+
+describe("v0.11.0 — the RS closed form for c_2", () => {
+  it("TC36: the quotient is exact — 3/2, 15/8, 315/128 at the floating floor", () => {
+    assert.ok(Math.abs(secondOrderClosed(4) - 1.5) <= 1e-12, `${secondOrderClosed(4)}`);
+    assert.ok(Math.abs(secondOrderClosed(6) - 1.875) <= 1e-12, `${secondOrderClosed(6)}`);
+    assert.ok(Math.abs(secondOrderClosed(10) - 2.4609375) <= 1e-12, `${secondOrderClosed(10)}`);
+  });
+
+  it("TC36: the quotient agrees with the Richardson extrapolation within ITS error, at every n", () => {
+    for (const n of [4, 6, 8, 10, 12]) {
+      const closed = secondOrderClosed(n);
+      const rich = secondOrderCoefficient(n);
+      assert.ok(Math.abs(closed - rich) <= 1e-4, `n=${n}: ${closed} vs ${rich}`);
+    }
+  });
+
+  it("TC36 negative control: the naive two-flip-only V_2 (missing the (1-p) expansion) is WRONG — the coefficient assembly is content", () => {
+    // the first draft's object: two-flip counts only, at n=6 the value 6.875
+    const n = 6;
+    const naive = 6.875;
+    assert.ok(Math.abs(secondOrderClosed(n) - naive) > 4, "the exact assembly must differ from the naive one");
+  });
+});
+
+describe("v0.12.0 — the general-n law for c_2", () => {
+  it("TC37: the law (n-1) C(n-2,(n-2)/2) / 2^(n-2) equals the RS quotient EXACTLY — BigInt residue zero at every n=4..40", () => {
+    for (let n = 4; n <= 40; n += 2) {
+      const residue = rationalResidue(secondOrderRSRational(n), secondOrderGeneralRational(n));
+      assert.equal(residue, 0n, `n=${n}: residue ${residue}`);
+    }
+  });
+
+  it("TC37: the law IS the central-binomial partial sum — full-sum equality per n, induction-step residue zero per m", () => {
+    for (let n = 4; n <= 40; n += 2) {
+      const residue = rationalResidue(secondOrderGeneralRational(n), centralBinomialSumRational((n - 2) / 2));
+      assert.equal(residue, 0n, `n=${n}: residue ${residue}`);
+    }
+    for (let m = 1; m <= 19; m++) {
+      assert.equal(centralBinomialStepResidue(m), 0n, `m=${m}`);
+    }
+  });
+
+  it("TC37: the float faces agree — exact spots 3/2, 15/8, 315/128, 693/256; kernel agreement 0.00e+0 (n=4..40)", () => {
+    assert.equal(secondOrderGeneral(4), 1.5);
+    assert.equal(secondOrderGeneral(6), 1.875);
+    assert.equal(secondOrderGeneral(10), 2.4609375);
+    assert.equal(secondOrderGeneral(12), 693 / 256);
+    for (let n = 4; n <= 40; n += 2) {
+      assert.equal(secondOrderClosed(n), secondOrderGeneral(n), `n=${n}`);
+    }
+  });
+
+  it("TC37 asymptotics (DATA, census horizon n=200): r = c_2 sqrt(pi/2n) rises monotonically to 1, n(1-r) -> 1/4, the 1/(32n^2) face -> 1", () => {
+    let prev = 0;
+    const grid = [4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 64, 100, 200];
+    const r = (n: number): number => secondOrderGeneral(n) * Math.sqrt(Math.PI / (2 * n));
+    for (const n of grid) {
+      assert.ok(r(n) > prev, `r must increase at n=${n}`);
+      prev = r(n);
+    }
+    assert.ok(Math.abs(200 * (1 - r(200)) - 0.25) <= 5e-3, `n(1-r) at 200: ${200 * (1 - r(200))}`);
+    for (const n of [24, 40, 200]) {
+      const face = 32 * n * n * (r(n) - 1 + 1 / (4 * n));
+      assert.ok(face >= 1 && face <= 1.3, `second face at n=${n}: ${face}`);
+    }
+  });
+
+  it("TC37: the pi/4 scaling of TC35 is RETIRED — c_2/sqrt(n) -> sqrt(2/pi), and the pi/4 gap is an order larger at the horizon", () => {
+    const scale200 = secondOrderGeneral(200) / Math.sqrt(200);
+    assert.ok(Math.abs(scale200 - Math.sqrt(2 / Math.PI)) <= 2e-3, `${scale200}`);
+    assert.ok(Math.abs(scale200 - Math.PI / 4) > 10 * Math.abs(scale200 - Math.sqrt(2 / Math.PI)));
+    // the crossing sits INSIDE TC35's grid: below pi/4 at n=12, above at n=16
+    assert.ok(secondOrderGeneral(12) / Math.sqrt(12) < Math.PI / 4);
+    assert.ok(secondOrderGeneral(16) / Math.sqrt(16) > Math.PI / 4);
+  });
+
+  it("TC37 negative control: the off-by-shift sibling and the one-power-off denominator are convicted at every probe (n=4..12)", () => {
+    for (const n of [4, 6, 8, 10, 12]) {
+      const rs = secondOrderRSRational(n);
+      const shifted = { num: BigInt(n + 1) * binomialBig(n, n / 2), den: 2n ** BigInt(n) };
+      const wrongPow = { num: BigInt(n - 1) * binomialBig(n - 2, (n - 2) / 2), den: 2n ** BigInt(n - 1) };
+      assert.notEqual(rationalResidue(rs, shifted), 0n, `shifted must fail at n=${n}`);
+      assert.notEqual(rationalResidue(rs, wrongPow), 0n, `wrong power must fail at n=${n}`);
+    }
+    // the domain guard refuses a wrong-object call (odd n) instead of computing nonsense
+    assert.throws(() => secondOrderGeneralRational(5));
+  });
+});
+
+describe("v0.13.0 — the third-order coefficient c_3 (the first level-repulsion face)", () => {
+  it("TC38: the three-term series reproduces lambda_1 exactly — residual is the c_4 p^4 face (<= 2e-8 at p=1/100)", () => {
+    const p = 0.01;
+    for (const n of [4, 6, 8, 10, 12, 16]) {
+      const series = 1 - 2 * p + secondOrderClosed(n) * p * p + thirdOrderClosed(n) * p ** 3;
+      const resid = Math.abs(spectralArmor(n, p).lambda1 - series);
+      assert.ok(resid <= 2e-8, `n=${n}: residual ${resid.toExponential(2)}`);
+    }
+  });
+
+  it("TC38: Richardson on the exact eigenvalue agrees with the exact rational within ITS contamination, at every n", () => {
+    for (const n of [4, 6, 8, 10, 12, 16]) {
+      const c2 = secondOrderClosed(n);
+      const c3At = (q: number): number => (spectralArmor(n, q).lambda1 - 1 + 2 * q - c2 * q * q) / q ** 3;
+      const rich = 2 * c3At(0.01) - c3At(0.02);
+      assert.ok(Math.abs(rich - thirdOrderClosed(n)) <= 5e-3, `n=${n}: ${rich} vs ${thirdOrderClosed(n)}`);
+    }
+  });
+
+  it("TC38: the repulsion face is NONZERO at every n >= 4 — the repulsion-free gift ends at second order; exact spots -7/16 and -515/512", () => {
+    for (const n of [4, 6, 8, 10, 12]) {
+      const { repulsion } = thirdOrderFaces(n);
+      assert.notEqual(repulsion.num, 0n, `the repulsion face must be nonzero at n=${n}`);
+    }
+    assert.equal(thirdOrderClosed(4), -0.4375); // -7/16
+    assert.equal(thirdOrderClosed(6), -1.005859375); // -515/512
+    const rep4 = thirdOrderFaces(4).repulsion;
+    assert.equal(Number(rep4.num) / Number(rep4.den), 0.5625); // 9/16
+  });
+
+  it("TC38 negative control: the quotient-only value (the gift assumption carried past its validity) misses the series by the repulsion face", () => {
+    const p = 0.01;
+    const n = 6;
+    const { quotient } = thirdOrderFaces(n);
+    const seriesGift = 1 - 2 * p + secondOrderClosed(n) * p * p + (Number(quotient.num) / Number(quotient.den)) * p ** 3;
+    const residGift = Math.abs(spectralArmor(n, p).lambda1 - seriesGift);
+    const residFull = Math.abs(spectralArmor(n, p).lambda1 - (1 - 2 * p + secondOrderClosed(n) * p * p + thirdOrderClosed(n) * p ** 3));
+    assert.ok(residGift > 100 * residFull, `gift ${residGift.toExponential(2)} vs full ${residFull.toExponential(2)} — the repulsion face is content`);
+  });
+
+  it("TC38: the domain guard refuses odd n; the rational total equals the two-face sum by construction and evaluates at the float floor", () => {
+    assert.throws(() => thirdOrderFaces(5));
+    for (const n of [4, 6, 8, 10]) {
+      const { quotient, repulsion } = thirdOrderFaces(n);
+      const sum = Number(quotient.num) / Number(quotient.den) + Number(repulsion.num) / Number(repulsion.den);
+      assert.ok(Math.abs(sum - thirdOrderClosed(n)) <= 1e-12, `n=${n}`);
+    }
+  });
+
+  it("TC39: the quotient-face identity is exactly zero for every even n — q(n) = -(n-2)c2(n)/3", () => {
+    for (let n = 4; n <= 44; n += 2) {
+      assert.ok(quotientFaceIdentityResidue(n) === 0n, `n=${n}`);
+    }
+    for (const [n, num, den] of [
+      [4, -1n, 1n],
+      [6, -5n, 2n],
+      [8, -35n, 8n],
+      [12, -1155n, 128n],
+    ] as const) {
+      const q = thirdOrderFaces(n).quotient;
+      assert.ok(q.num * den === num * q.den, `spot n=${n}`);
+    }
+  });
+
+  it("TC43: sigma1 pinned to ten digits; the zeta-lattice refuted; the fixed-k edge law converges", () => {
+    const s1 = richardsonLimit([4096, 16384, 65536, 262144].map((n) => ({ n, v: sigmaFirst(n) })), 1);
+    assert.ok(Math.abs(s1 + 0.4896664762) <= 1e-8, `sigma1 = ${s1}`);
+    const z12 = -1.4603545088095868;
+    for (const r of [(s1 * Math.sqrt(Math.PI)) / z12, s1 / z12, s1 * Math.sqrt(Math.PI)]) {
+      assert.ok(Math.abs(r * 64 - Math.round(r * 64)) > 0.02, "one-term zeta candidate refuted");
+    }
+    for (const k of [1, 2, 3]) {
+      const target = edgeAsymptoticCoefficient(k);
+      const far = summandTimesDim(262144, k);
+      assert.ok(Math.abs(far - target) < 1e-3, `edge law at k=${k}: ${far} vs ${target}`);
+    }
+  });
+
+  it("TC42: the chain identity is exact; the arcsine law rises toward pi/2; a's one-term basis is refuted", () => {
+    for (const n of [24, 64, 256]) {
+      const chain = shareChainPieces(n);
+      assert.ok(Math.abs(chain.chainShare - shareFloat(n)) <= 1e-12 * shareFloat(n), `chain identity at n=${n}`);
+    }
+    assert.ok(arcsineLaw(4096) > arcsineLaw(1024), "the arcsine profile limit rises");
+    assert.ok(arcsineLaw(16384) < Math.PI / 2, "still below pi/2");
+    const aInf = richardsonLimit([16384, 32768, 65536].map((n) => ({ n, v: correctionConstant(n) })), 1);
+    assert.ok(Math.abs(aInf - 0.55087) <= 1e-5, `a(inf) = ${aInf}`);
+    for (const b of [Math.sqrt(2 / Math.PI), Math.sqrt(Math.PI / 2), Math.sqrt(Math.PI)]) {
+      const r = (aInf / b) * 32;
+      assert.ok(Math.abs(r - Math.round(r)) > 0.02, `one-term candidate ${b} must be refuted`);
+    }
+    assert.throws(() => shareChainPieces(5));
+  });
+
+  it("TC41: the factorization is exact; the share is monotone and bracketed around 9/8; the correction constant converges", () => {
+    for (let n = 4; n <= 20; n += 2) {
+      for (let k = 1; k <= n / 2 - 1; k++) {
+        assert.ok(modeRatioFactorResidue(n, k) === 0n, `n=${n} k=${k}`);
+      }
+    }
+    assert.throws(() => modeRatioFactorResidue(6, 0));
+    assert.throws(() => modeRatioFactorResidue(5, 1));
+    const s64 = shareFloat(64);
+    const s2048 = shareFloat(2048);
+    assert.ok(s2048 > s64, "monotone on the spot grid");
+    assert.ok(s2048 > 1.1 && s2048 < 1.125, `share(2048) in (1.1, 9/8): ${s2048}`);
+    const a256 = correctionConstant(256);
+    const a2048 = correctionConstant(2048);
+    assert.ok(Math.abs(a256 - a2048) < 2e-3, `correction constant converges: ${a256} -> ${a2048}`);
+  });
+
+  it("TC40: the coupling closed forms hold with zero residue; the closed addend reproduces the face; the 9/8 extrapolation is stable", () => {
+    for (let n = 4; n <= 28; n += 2) {
+      for (let j = 3; j <= n - 1; j += 2) {
+        assert.ok(couplingClosedFormResidue(n, j) === 0n, `n=${n} j=${j}`);
+      }
+    }
+    // the closed addend sums to the kernel's exact repulsion face
+    for (const n of [6, 8, 10]) {
+      const f = thirdOrderFaces(n);
+      let num = 0n;
+      let den = 1n;
+      for (let k = 1; k <= n / 2 - 1; k++) {
+        const a = repulsionAddendClosedRational(n, k);
+        num = num * a.den + a.num * den;
+        den = den * a.den;
+      }
+      assert.ok(f.repulsion.num * den === num * f.repulsion.den, `closed sum equals the face at n=${n}`);
+    }
+    assert.throws(() => repulsionAddendClosedRational(6, 0));
+    assert.throws(() => repulsionAddendClosedRational(5, 1));
+  });
+
+  it("TC39: the cancellation census — the deficit's sign crossing and the share crossing 1 (2/3-share refuted)", () => {
+    const bigToFloat = (num: bigint, den: bigint): number => Number((num * 10n ** 12n) / den) / 1e12;
+    let prevShare = 0;
+    for (let n = 4; n <= 24; n += 2) {
+      const df = cancellationDeficit(n);
+      const def = bigToFloat(df.num, df.den);
+      const sh = repulsionShare(n);
+      const share = bigToFloat(sh.num, sh.den);
+      if (n <= 18) assert.ok(def < 0, `deficit negative at n=${n}`);
+      if (n >= 20) assert.ok(def > 0, `deficit positive at n=${n}`);
+      assert.ok(share > prevShare, `share monotone at n=${n}`);
+      prevShare = share;
+    }
+    const s18 = repulsionShare(18);
+    const s20 = repulsionShare(20);
+    assert.ok(bigToFloat(s18.num, s18.den) < 1 && bigToFloat(s20.num, s20.den) > 1, "the share crosses 1 between 18 and 20");
+  });
+});
+
+describe("v0.19.0 — the singular Euler–Maclaurin assembly", () => {
+  it("the exact transfer sigma1 = G·u − sqrt(n) holds at the float floor", () => {
+    for (const n of [4096, 16384]) {
+      const t = transferResidual(n);
+      assert.ok(t.residual < 1e-9, `residual ${t.residual}`);
+      assert.ok(Math.abs(t.lhs - t.rhs) < 1e-9);
+    }
+  });
+
+  it("kappa from the transfer carries ten digits; the D-grid road confirms", () => {
+    const s1 = richardsonLimit([16384, 65536, 262144].map((n) => ({ n, v: sigmaFirst(n) })), 1);
+    const kappa = kappaFromSigma(s1);
+    assert.ok(Math.abs(kappa - -0.3068529586) < 1e-6, String(kappa));
+    const road = richardsonLimit([16384, 65536, 262144].map((D) => ({ n: D, v: kappaFace(D) })), 0.5);
+    assert.ok(Math.abs(road - kappa) < 1e-3, `road ${road} vs ${kappa}`);
+  });
+
+  it("the edge series' exact laws: 3/8 and −11/128 (monotone from below)", () => {
+    const next = richardsonLimit([64, 256, 1024, 4096].map((k) => ({ n: k, v: edgeNextOrder(k) })), 1);
+    assert.ok(Math.abs(next - 0.375) < 1e-6, String(next));
+    const second = (edgeNextOrder(8192) - 0.375) * 8192;
+    assert.ok(Math.abs(second - -11 / 128) < 2e-3, String(second));
+    assert.ok(edgeNextOrder(64) < edgeNextOrder(256) && edgeNextOrder(256) < edgeNextOrder(1024));
+  });
+
+  it("edge masses are exact rationals (m_1 = 3/4) and E_1 matches its definition", () => {
+    const m1 = edgeMassRational(1);
+    assert.equal(m1.num, 3n);
+    assert.equal(m1.den, 4n);
+    const mu1 = (2 / Math.sqrt(Math.PI)) * (Math.sqrt(1.5) - Math.sqrt(0.5));
+    assert.ok(Math.abs(edgeDiff(1) - (0.75 - mu1)) < 1e-15);
+  });
+
+  it("the decomposition: zeta_m machine-set, Phi1 SMALL BUT NONZERO", () => {
+    const series = edgeSeriesAccelerated(1 << 18);
+    assert.ok(series.spotChecks < 1e-12, `spot ${series.spotChecks}`);
+    assert.ok(Math.abs(series.zetaM - -0.306398243) < 1e-6, String(series.zetaM));
+    const phi1 = kappaFromSigma(-0.4896664762) - series.zetaM;
+    assert.ok(Math.abs(phi1 - -4.547e-4) < 3e-6, String(phi1));
+    assert.ok(phi1 < -1e-4, "the sharp-cutoff assembly must NOT close exactly");
+  });
+
+  it("the closure face tracks the exact c3 on its rational domain, declining", () => {
+    const s1 = -0.4896664762;
+    const c8 = arcClosureRelative(8, s1);
+    const c12 = arcClosureRelative(12, s1);
+    const c16 = arcClosureRelative(16, s1);
+    assert.ok(c8 > c12 && c12 > c16, `${c8} ${c12} ${c16}`);
+    assert.ok(Math.abs(c16) < 4e-3);
+  });
+
+  it("F(0) = 1: the cutoff function's edge limit", () => {
+    assert.ok(fFunctionFace(100000, 3) > 0.999);
+  });
+
+  it("SMUGGLING TRIAL: the closure face without the sigma1 correction is convicted — the 1/sqrt(n) term is load-bearing", () => {
+    const s1 = -0.4896664762;
+    const bare = thirdOrderClosed(16) / ((-(16 - 2) * secondOrderGeneral(16)) / 12) - 1;
+    const withFace = arcClosureRelative(16, s1);
+    assert.ok(Math.abs(withFace) < Math.abs(bare) / 2, `bare ${bare} vs with ${withFace}`);
+  });
+
+  it("SMUGGLING TRIAL: arcClosureRelative refuses n > 16 (the exact c3 path's domain is small-n)", () => {
+    assert.throws(() => arcClosureRelative(32, -0.49), /small-n/);
+  });
+});
+
 describe("the board and the witnesses", () => {
   it("board is legal (L1-L5)", () => {
     assert.deepEqual(checkBoard(), []);
@@ -339,7 +890,7 @@ describe("the board and the witnesses", () => {
   it("all witnesses re-derive and pass", () => {
     const results = runWitnesses();
     for (const w of results) assert.ok(w.ok, `${w.witness}: ${w.detail}`);
-    assert.equal(results.length, 10);
+    assert.equal(results.length, 24);
   });
 });
 

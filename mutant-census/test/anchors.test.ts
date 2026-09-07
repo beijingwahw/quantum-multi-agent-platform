@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ANCHOR_REGISTRY, checkAnchors, fireLive, FIXTURE_REPO, resolveAnchor } from "../src/kernel/anchors.js";
+import { ANCHOR_REGISTRY, checkAnchors, checkArtifactFiring, fireLive, FIXTURE_REPO, resolveAnchor } from "../src/kernel/anchors.js";
 import { unguardedEntryFiles, WORKSPACE_ROOT } from "../src/kernel/census.js";
 import { ENROLLMENT } from "../src/kernel/enrollment.js";
 import { checkCensus } from "../src/kernel/audit.js";
@@ -20,10 +20,10 @@ test("A1-A3: the anchor registry is legal, symmetric and fully evidenced (live)"
   assert.deepEqual(v, []);
   const byKind = new Map<string, number>();
   for (const r of ANCHOR_REGISTRY) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
-  assert.equal(ANCHOR_REGISTRY.length, 44);
-  assert.equal(byKind.get("FIRING-INJECT"), 7);
-  assert.equal(byKind.get("FIRING-LIVE"), 8);
-  assert.equal(byKind.get("RESOLVED"), 29);
+  assert.equal(ANCHOR_REGISTRY.length, 53);
+  assert.equal(byKind.get("FIRING-INJECT"), 10);
+  assert.equal(byKind.get("FIRING-LIVE"), 9);
+  assert.equal(byKind.get("RESOLVED"), 34);
 });
 
 test("A-fire B4: a forged batch with a dead source anchor is convicted by burial-record's own checker", async () => {
@@ -43,6 +43,20 @@ test("A-fire B4: a forged batch with a dead source anchor is convicted by burial
   const hit = mod.checkBurial(forged).find((v) => v.law === "B4");
   assert.ok(hit, "expected a B4 conviction from burial-record's own checker");
   assert.match(hit.detail, /heading/i);
+});
+
+test("A-fire B9: forged memory text carrying the repeated-label signature is convicted by burial-record's own structure checker (the b70#3 shape)", async () => {
+  const mod = (await import(pathToFileURL(resolve(WORKSPACE_ROOT, "burial-record", "src", "kernel", "audit.ts")).href)) as unknown as {
+    memoryStructureViolations(text: string): Array<{ law: string; detail: string }>;
+  };
+  // the exact b70#3 shape: a visit-entry prefix pasted twice
+  const forged = "# 2026-09-08\n\n- **七十六访**：- **七十六访**：令牌「继续」\n";
+  const hit = mod.memoryStructureViolations(forged).find((v) => v.law === "B9" && /repeated-label/.test(v.detail));
+  assert.ok(hit, "the forged duplication signature was NOT convicted");
+  assert.match(hit.detail, /line 3/);
+  // and the b68#2 family's aftermath: the orphaned tail a swallowed heading leaves
+  const tail = mod.memoryStructureViolations("# day\n\n（访客令牌「被吞的节头」\n").find((v) => /orphaned heading tail/.test(v.detail));
+  assert.ok(tail, "the orphaned tail was NOT convicted");
 });
 
 test("A-fire B7: a context stating the wrong count is convicted by burial-record's own checker (the b45#9 class)", async () => {
@@ -144,6 +158,24 @@ test("smuggle A2: an inject demo that is not on disk is convicted", async () => 
   );
   const v = await checkAnchors(ENROLLMENT, registry);
   assert.ok(v.some((x) => x.law === "A2" && /demo file missing/.test(x.detail)));
+});
+
+test("A4 artifact firing: a RESOLVED anchor whose repo cell is RED in the last recorded run is convicted by name", async () => {
+  const fs = await import("node:fs");
+  const artifactPath = resolve(process.cwd(), "out", "reports", "the-total-gate.md");
+  const liveText = fs.existsSync(artifactPath) ? fs.readFileSync(artifactPath, "utf8") : null;
+  // positive face: the last recorded run is green for every RESOLVED anchor it covers
+  if (liveText !== null) {
+    assert.deepEqual(checkArtifactFiring(liveText, ANCHOR_REGISTRY), [], "a RESOLVED anchor's repo is red in the last recorded run");
+  }
+  // the firing demo: dtc-clock's typecheck cell goes red in the harvested artifact
+  const base = liveText ?? "| repo | test | typecheck |\n| --- | --- | --- |\n| dtc-clock | PASS (1.0s) | PASS (1.0s) |\n";
+  const forged = base.replace(/\| dtc-clock \| (PASS|FAIL)[^|]*\| (PASS|FAIL)[^|]*\|/, "| dtc-clock | PASS (1.0s) | FAIL (tsc error) |");
+  const hit = checkArtifactFiring(forged, ANCHOR_REGISTRY).find((v) => v.law === "A4");
+  assert.ok(hit, "the red cell was NOT convicted");
+  assert.equal(hit.anchor, "dtc-clock/package.json :: typecheck");
+  // and a missing artifact books nothing — the T-board contract stands
+  assert.deepEqual(checkArtifactFiring(null, ANCHOR_REGISTRY), []);
 });
 
 test("the renderer refuses to print an illegal anchor registry", async () => {

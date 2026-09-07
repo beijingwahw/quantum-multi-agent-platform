@@ -81,15 +81,30 @@ export function checkPreflightCoverage(
   return problems;
 }
 
-function cardText(cards: readonly PreflightCard[]): string {
+/** The hot families on a card — sighted within the last three batches.
+ * The delivery protocol's step 0: run the card for the repo you are about
+ * to build in; the hot rows are the ones to read first. */
+export function hotFamilies(rows: readonly RiskRow[], totalBatches: number): readonly RiskRow[] {
+  return rows.filter((r) => r.latestBatch > totalBatches - 3);
+}
+
+function cardText(cards: readonly PreflightCard[], singleRepo = false, totalBatches = 0): string {
   const out: string[] = [];
   out.push("# THE PRE-FLIGHT CARD — the genealogy, forward-facing\n");
   out.push(
-    "> Before a delivery: what is this repo historically at risk for? Every family sighted in the repo, recency-ranked, each with its hold and the latest member's correction — the rule to run. Coverage is law (G5): every family sighted in the last ten batches is on its repo's card.\n",
+    "> DELIVERY PROTOCOL, STEP 0: `npm run preflight -- <repo>` before building in a repo — the rules below are the mistakes that repo already made. Coverage is law (G5): every family sighted in the last ten batches is on its repo's card" +
+      (singleRepo ? "; this run prints ONE repo, hot families (sighted within the last three batches) first" : "") +
+      ".\n",
   );
   for (const card of cards) {
     if (card.rows.length === 0) continue;
     out.push(`\n## ${card.repo}\n`);
+    const hot = totalBatches > 0 ? hotFamilies(card.rows, totalBatches) : [];
+    if (hot.length > 0) {
+      out.push(
+        `HOT (${hot.length} famil${hot.length === 1 ? "y" : "ies"} sighted within the last three batches): ${hot.map((r) => r.family).join(", ")}\n`,
+      );
+    }
     out.push("| family | sightings | latest | held by | the rule (the latest correction) |");
     out.push("| --- | --- | --- | --- | --- |");
     for (const r of card.rows) {
@@ -102,14 +117,23 @@ function cardText(cards: readonly PreflightCard[]): string {
 async function main(): Promise<void> {
   const registry = await loadLiveRegistry();
   const repos = [...new Set(registry.errors.map((e) => e.repo))];
-  const cards = repos.map((r) => buildRiskCard(r, registry.errors));
-  const problems = checkPreflightCoverage(cards, registry.errors, registry.batchCount);
+  const target = process.argv[2];
+  // the coverage law runs over the FULL deck every time, whatever is printed
+  const allCards = repos.map((r) => buildRiskCard(r, registry.errors));
+  const problems = checkPreflightCoverage(allCards, registry.errors, registry.batchCount);
   if (problems.length > 0) {
     throw new Error(`the pre-flight card is illegal — refusing to print it:\n${problems.map((p) => `- ${p}`).join("\n")}`);
   }
-  const path = writeReport("the-preflight-card.md", cardText(cards));
+  if (target !== undefined && !repos.includes(target)) {
+    throw new Error(`no card for '${target}' — the registry carries no errors sighted there`);
+  }
+  const cards = target !== undefined ? [buildRiskCard(target, registry.errors)] : allCards;
+  const path = writeReport(
+    target !== undefined ? `the-preflight-card-${target.replace(/[/\\]/g, "-")}.md` : "the-preflight-card.md",
+    cardText(cards, target !== undefined, registry.batchCount),
+  );
   const watched = new Set(cards.flatMap((c) => c.rows.map((r) => r.family))).size;
-  console.log(`rendered ${path} (${cards.length} repos, ${watched} families watched)`);
+  console.log(`rendered ${path} (${cards.length} repo(s), ${watched} families watched)`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

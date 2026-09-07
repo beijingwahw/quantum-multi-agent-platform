@@ -28,13 +28,22 @@
  *      nothing uses (the K-board symmetry, applied to guards);
  *   A2 INJECT DEMOS ON DISK — demo file exists, demo name in the file;
  *   A3 LIVE FIRE / RESOLUTION — every FIRING-LIVE anchor fires here, every
- *      RESOLVED anchor resolves to its machinery.
+ *      RESOLVED anchor resolves to its machinery;
+ *   A4 ARTIFACT FIRING (v0.11.0, the deep check's second layer) — the total
+ *      gate already fires every repo's suite; the census HARVESTS that
+ *      firing from the last recorded artifact: a RESOLVED test/typecheck
+ *      anchor whose repo cell is RED in that run is a violation — RESOLVED
+ *      evidence deepens from "the machinery exists" to "the machinery fired
+ *      green in the last recorded workspace run". Lint/repro/format anchors
+ *      fire at delivery time, not in the total gate — A4 books nothing for
+ *      them; a missing artifact books nothing either (the T-board contract:
+ *      the artifact records the last EXPLICIT run).
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { MUTANTS, type MutantSpec } from "./family.js";
 import { runKillCensus, runNegativeControls } from "./battery.js";
-import { WORKSPACE_ROOT, unguardedEntryFiles } from "./census.js";
+import { WORKSPACE_ROOT, rootStrayFiles, unguardedEntryFiles } from "./census.js";
 import { ENROLLMENT, type EnrollmentRow } from "./enrollment.js";
 import { checkEnrollment } from "./audit.js";
 import { loadLiveRegistry } from "./bridge.js";
@@ -65,7 +74,7 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "mutant-census/src/kernel/audit.ts :: provenanceRepos", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire provenanceRepos", evidence: "a provenance with a trailing paren note ('batch 10 (qverify, expPauli)') resolves to exactly qverify — the charset does not swallow commas, no false conviction" },
   { anchor: "mutant-census/test/anchors.test.ts :: A-fire L2", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire L2", evidence: "batch 35's own lesson as a guard: the L2 demo encodes the law's REAL object read from the ledger's source (a blank column with a settled verdict) — ammo cast from memory fires at nothing, and this demo going green is the proof it was cast from the law" },
   // ---- the census's own laws: fired LIVE, here, on every run ----
-  { anchor: "mutant-census/src/experiments/render.ts :: witness letters must be unique", kind: "FIRING-LIVE", evidence: "a forged report headlining two censuses under one W-letter is refused by the renderer on the spot (assertUniqueWitnessLetters, the b46#5 tier upgrade)" },
+  { anchor: "mutant-census/src/experiments/render.ts :: witness letters must be unique", kind: "FIRING-LIVE", evidence: "a forged report headlining two censuses under one W-letter is refused on the spot (assertUniqueWitnessLetters, the b46#5 tier upgrade; the guard lives in report.ts since b53#5 — a leaf, so the anchor's dynamic fire can never deadlock the entry)" },
   { anchor: "burial-record/package.json :: test", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire B7", evidence: "a forged batch whose context states NINE delivery errors over ten carried errors is convicted BY NAME (law B7) by burial-record's own checkBurial, imported live — the b45#9 class can never again wait for the visitor" },
   { anchor: "mutant-census/src/kernel/audit.ts :: E1", kind: "FIRING-LIVE", evidence: "a forged registry carrying an un-enrolled error is convicted by checkEnrollment on the spot" },
   { anchor: "mutant-census/src/kernel/audit.ts :: E2", kind: "FIRING-LIVE", evidence: "a forged class-mismatched mutant tie is convicted by checkEnrollment on the spot" },
@@ -74,9 +83,11 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "mutant-census/src/kernel/audit.ts :: W-C", kind: "FIRING-LIVE", evidence: "the negative controls fire live: shape-blind product, lopsided outer, non-CPTP Kraus each get named" },
   { anchor: "mutant-census/src/kernel/battery.ts :: PHASE-SENSITIVE", kind: "FIRING-LIVE", evidence: "MU2 (the conjugated vecToRho — Hermitian, trace 1, PSD, invisible to statehood) is killed EXACTLY by P2's phase-sensitive dual path, live" },
   { anchor: "mutant-census/src/kernel/census.ts :: unguardedEntryFiles", kind: "FIRING-LIVE", evidence: "the in-repo fixture repo's unguarded render entry is NAMED by the detector, live" },
+  { anchor: "mutant-census/src/kernel/census.ts :: rootStrayFiles", kind: "FIRING-LIVE", evidence: "a forged root listing carrying a stray scratch is named by the detector on the spot (the b54#0 ROOT face, gate-held since v0.9.0 — the b46#5 upgrade pattern: the BOOKED reason 'no gate schedules where the scratch file lives' went false; the system-temp face of the class lives outside the workspace tree and stays booked on its own rows)" },
   // ---- the script gates: RESOLVED to their implementing machinery ----
   { anchor: "mutant-census/scripts/total-gate.ts :: typecheck", kind: "RESOLVED", evidence: "the T-board script constructs a typecheck job for every epoch repo (the job spec is in the script source); its full firing IS the total gate run" },
   { anchor: "mutant-census/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired" },
+  { anchor: "burial-record/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired (b53#2's catch, registered the moment it was first needed)" },
   { anchor: "mutant-census/package.json :: repro", kind: "RESOLVED", evidence: "the repro script's tsx target (src/experiments/render.ts) exists — the gate points at a real program" },
   { anchor: "mutant-census/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files — the gate has something to run" },
   { anchor: "mutant-census/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the project the gate compiles" },
@@ -87,6 +98,8 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "ft-qaoa/tsconfig.json :: exactOptionalPropertyTypes", kind: "RESOLVED", evidence: "the flag itself is the machinery; compile-level firing cost booked, content-level check kept" },
   { anchor: "bqp-map/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "dsic-noether/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
+  { anchor: "dsic-noether/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk (include spans src, test, experiments) — registered the moment batch 66 first needed it (the b53#5 law)" },
+  { anchor: "dsic-noether/package.json :: lint", kind: "RESOLVED", evidence: "eslint config on disk and eslint in devDependencies — the machinery batch 66 saw fire three times" },
   { anchor: "ent-clearing/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
   { anchor: "ent-sched/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "ft-qaoa/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
@@ -96,6 +109,8 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "qram-sched/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "readout-wall/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
   { anchor: "stable-world/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
+  { anchor: "stable-world/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files — the gate the R-board's b56#3/b56#7/b56#8/b57#3/b59#0 upgrades ride (their sightings were convicted at suite/typecheck runs of this very tree); registered the moment the R-board first needed it (the b53#5 law)" },
+  { anchor: "stable-world/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired" },
   { anchor: "survivor-census/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "switch-sched/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "vacuum-compiler/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
@@ -104,6 +119,12 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "dtc-clock/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired" },
   { anchor: "phase-law/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files" },
   { anchor: "phase-law/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
+  // ---- the v0.10.0 R-board upgrades: registered with the rows they now hold ----
+  { anchor: "mutant-census/test/census.test.ts :: b37#7", kind: "FIRING-INJECT", demoFile: "mutant-census/test/census.test.ts", demoName: "b37#7", evidence: "the single-source guard: the total-gate script must IMPORT EPOCH_REPOS from the census kernel and carry no second literal list — the dual-list drift that once produced a 27-vs-28 artifact header dies at the suite that reads the script's source" },
+  // ---- the v0.11.0 E7 upgrade: the stated-counts law holds its own history ----
+  { anchor: "mutant-census/test/census.test.ts :: E7", kind: "FIRING-INJECT", demoFile: "mutant-census/test/census.test.ts", demoName: "E7", evidence: "the stated-counts guard: a forged description claiming drifted tier counts (147 on gates where the enrollment carries another number) is convicted BY NAME by checkStatedCounts against the live rows — the b67#6 eleven-visit drift and its same-day recurrence (b68#0) both ride this gate; the renderer refuses to print a drifted self-description" },
+  // ---- the v0.14.0 B9 upgrade: the memory substrate guards itself ----
+  { anchor: "burial-record/src/kernel/audit.ts :: memoryStructureViolations", kind: "FIRING-INJECT", demoFile: "mutant-census/test/anchors.test.ts", demoName: "A-fire B9", evidence: "the memory-structure guard: forged daily-note text carrying the repeated-label signature (the b70#3 shape, pasted three times in one day and prevented never) is convicted BY LINE NUMBER by burial-record's own memoryStructureViolations, imported live — the ledger's evidence base now guards its own structure (B9, v0.5.0 of the record)" },
 ];
 
 export interface AnchorViolation {
@@ -181,9 +202,11 @@ export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; 
   const registry = await loadLiveRegistry();
   switch (reg.anchor) {
     case "mutant-census/src/experiments/render.ts :: witness letters must be unique": {
-      // dynamic import: render.ts imports this module statically — the
-      // guard is called here at runtime, never at module init
-      const { assertUniqueWitnessLetters } = await import("../experiments/render.js");
+      // dynamic import of the LEAF module (report.ts) — never of render.ts:
+      // render.ts imports this module statically, and importing it back
+      // while it is the ENTRY (its top-level await pending) deadlocks the
+      // repro gate — the b53#5 conviction, fixed by the move
+      const { assertUniqueWitnessLetters } = await import("../experiments/report.js");
       const forgedReport = ["- PASS — W-G anchor census (a)", "- PASS — W-G forged twin (b)"].join("\n");
       try {
         assertUniqueWitnessLetters(forgedReport);
@@ -238,9 +261,46 @@ export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; 
         ? { ok: true, detail: "the fixture's unguarded entry is named by the detector" }
         : { ok: false, detail: `the detector saw ${JSON.stringify(named)} — it is blind to the fixture` };
     }
+    case "mutant-census/src/kernel/census.ts :: rootStrayFiles": {
+      const strays = rootStrayFiles(["probe.ts", "AGENTS.md", "scratch-j59-forged.ts"]);
+      return strays.includes("scratch-j59-forged.ts") && !strays.includes("probe.ts")
+        ? { ok: true, detail: `the forged stray is named: ${strays.join(", ")} — the registered probe passes untouched` }
+        : { ok: false, detail: `the detector saw ${JSON.stringify(strays)} — blind to the forged stray` };
+    }
     default:
       return { ok: false, detail: `no live-fire rule for anchor "${reg.anchor}"` };
   }
+}
+
+/** A4: the artifact-firing law — RESOLVED test/typecheck anchors must be
+ * green in the LAST RECORDED total-gate run (the artifact on disk). Pure
+ * over the artifact text so the firing range can inject a forged red cell. */
+export function checkArtifactFiring(artifactText: string | null, registry: readonly AnchorRegistration[]): AnchorViolation[] {
+  if (artifactText === null) return [];
+  const cells = new Map<string, { test: string | undefined; typecheck: string | undefined }>();
+  for (const line of artifactText.split("\n")) {
+    const m = /^\|\s*([^|]+?)\s*\|\s*(PASS|FAIL|—)[^|]*\|\s*(PASS|FAIL|—)/.exec(line);
+    if (m) cells.set(m[1]!.trim(), { test: m[2], typecheck: m[3] });
+  }
+  const v: AnchorViolation[] = [];
+  for (const reg of registry) {
+    if (reg.kind !== "RESOLVED") continue;
+    if (!/ :: (test|typecheck)$/.test(reg.anchor)) continue; // lint/repro/format fire at delivery, not in the total gate
+    const repo = repoOf(reg.anchor);
+    const needle = reg.anchor.split(" :: ")[1] as "test" | "typecheck";
+    const row = cells.get(repo);
+    if (!row) continue; // not recorded in this artifact's table — the machinery face stands on its own
+    const cell = row[needle] ?? "—";
+    if (cell === "—") continue; // not applicable in this run (e.g. the platform's typecheck column) — books nothing
+    if (cell !== "PASS") {
+      v.push({
+        anchor: reg.anchor,
+        law: "A4",
+        detail: `the last recorded total-gate run fired this gate RED for ${repo} — the machinery fired and failed; resolve the red cell before the census stands`,
+      });
+    }
+  }
+  return v;
 }
 
 /** A1-A3 over the enrollment rows and the registry (live by default). */
@@ -278,5 +338,10 @@ export async function checkAnchors(
       if (!r.ok) v.push({ anchor: reg.anchor, law: "A3", detail: `did not resolve: ${r.detail}` });
     }
   }
+  // A4 — harvest the total gate's last recorded firing for the RESOLVED
+  // test/typecheck anchors (the artifact records the last explicit run; its
+  // absence books nothing — the T-board contract)
+  const artifactPath = resolve(process.cwd(), "out", "reports", "the-total-gate.md");
+  v.push(...checkArtifactFiring(existsSync(artifactPath) ? readFileSync(artifactPath, "utf8") : null, registry));
   return v;
 }

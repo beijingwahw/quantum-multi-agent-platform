@@ -1,7 +1,7 @@
 {
   "name": "dsic-noether",
-  "version": "0.1.0",
-  "description": "Roadmap #12: the symmetry layer of mechanism design, machine-verified. The epoch-5 sentence 'DSIC is a special case of Noether symmetry' was poetry until a conserved charge was exhibited; this prototype exhibits it. Delivered: (1) the Groves GAUGE GROUP — payments modulo h_i(b_-i) — with the deviation gain (the WELFARE GAP, Phi_v(x(b)) - max Phi_v) as the gauge-invariant charge, integer-exact; (2) implementability as EXACTNESS of the payment 1-form: Groves <=> dp_i = d(W_-i . x) on own-report paths (cycle sums zero, potential reconstruction bitwise), Rochet cyclical monotonicity as no-positive-cycle, with anti-efficient and approximate-solver negative controls; (3) the discrete Noether theorem executed for real (Marsden-West midpoint variational integrator: exact momentum conservation to ~1e-15 under rotational symmetry, systematic drift when symmetry breaks); (4) the bridge: both sides are the same algebra — invariance under a group action => closedness of the contracted 1-form => a potential (charge) exists => stationarity of the truthful/DEL solution. Honest boundary: this is an isomorphism at the discrete-exactness level, not a formal derivation of Green-Laffont from Noether's 1918 continuum theorem",
+  "version": "0.2.0",
+  "description": "Roadmap #12: the symmetry layer of mechanism design, machine-verified at BOTH layers. v0.1.0: the Groves GAUGE GROUP (payments modulo h_i(b_-i)) with the deviation gain (the WELFARE GAP) as the gauge-invariant charge, integer-exact; implementability as EXACTNESS of the payment 1-form (Rochet cyclical monotonicity, no positive cycle); the discrete Noether theorem executed (Marsden-West midpoint variational integrator); the bridge: invariance => closedness => potential => stationarity, one algebra, two instantiations. v0.2.0 executes the excluded boundary — the CONTINUUM derivation Noether 1918 => Green-Laffont on the quadratic divisible-good family (x_j = theta_j - thetabar + 1/n), every link the ZERO POLYNOMIAL in exact rational arithmetic: [E]nvelope => [I]ntegration (Poincare/FTC, the gauge readoff) => [S]tationarity (efficiency) => [G]roves form p = h(theta_-i) - W_-i(x), both directions (converse = the closed-form charge -(n-1)(s-t)^2/(2n)); Noether I as gauge-orbit conservation of the charge (dG/deps = 0 coefficient-wise); Noether II as the gauge identity whose moduli reading IS Green-Laffont uniqueness (the solver reads the gauge off any DSIC payment and convicts off-orbit payments); four boundary controls mark where the hypotheses are load-bearing: K1 off-gauge (envelope breaks by exactly -eps, crime price eps^2 n/(2(n-1))), K2 efficiency (kappa-family Groves drift kappa(1-kappa)(n-1)/n s; decreasing rule positive cycle c(a-b)^2), K3 topology (the winding form closed yet 2*pi around the unit diamond — Poincare load-bearing, a strictly continuum phenomenon no finite type set can host), K4 smoothness (the second-price kink locus). Honest boundary: proved for smooth mechanisms on convex type regions; the general measurable-space Green-Laffont (GL79) remains quoted — the kink locus is its territory",
   "type": "module",
   "engines": {
     "node": ">=22.11.0"
@@ -19,7 +19,10 @@
     "cyclical-monotonicity",
     "rochet",
     "discrete-noether",
-    "variational-integrator"
+    "variational-integrator",
+    "green-laffont",
+    "noether-theorems",
+    "exact-polynomial-arithmetic"
   ],
   "license": "MIT",
   "devDependencies": {

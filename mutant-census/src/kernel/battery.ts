@@ -496,7 +496,30 @@ export function runProperty(id: string, f: Family = canonicalFamily()): PropResu
 }
 
 export function runBattery(f: Family = canonicalFamily()): PropResult[] {
-  return PROPERTY_IDS.map((id) => runProperty(id, f));
+  // v0.13.0: per-property crash containment — a construction that crashes a
+  // property (the shape-guard refusals, the crash-mutant class) records that
+  // property as FAILING at infinite worst instead of taking the whole battery
+  // down; the J-board's bit-exact prints can then compare crash-shaped
+  // constructions against their crash-shaped prototypes (b24#0 IS MU4).
+  return PROPERTY_IDS.map((id) => {
+    try {
+      return runProperty(id, f);
+    } catch (err) {
+      // the property is a closure over its own metadata; a crashed run
+      // completed ZERO inputs and failed deterministically — the crash is
+      // its own tripper
+      return {
+        id,
+        name: `${id} (crashed before completing)`,
+        grade: "EXACT",
+        inputs: 0,
+        worst: Number.POSITIVE_INFINITY,
+        pass: false,
+        detail: `crashed: ${(err as Error).message}`,
+        tripper: "the crash itself — the composition refused",
+      } satisfies PropResult;
+    }
+  });
 }
 
 /** The kill census: every mutant against its declared killer. */

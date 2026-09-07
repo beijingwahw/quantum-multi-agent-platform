@@ -14,8 +14,9 @@
  * Everything here has a closed form the witnesses re-derive, never assume.
  */
 import type { Rng } from "../core/rng.js";
-import { type CMat, identity, kron, mat, mAdd, mScale } from "../core/cmat.js";
-import { applyKraus } from "../core/channels.js";
+import { type CMat, identity, kron, mat, mAdd, mDagger, mMul, mScale } from "../core/cmat.js";
+import { applyKraus, applyUnitary, partialTrace } from "../core/channels.js";
+import { vonNeumannEntropy } from "../core/measures.js";
 
 export const GAMMA = 0.25;
 export const DATA_DIM = 2;
@@ -229,4 +230,332 @@ export function twoRateRecursion(k: number, r: number, gamma: number = GAMMA): n
   let w = 1;
   for (let step = 0; step < k; step++) w = (1 - r) * w + gamma * (1 - w);
   return w;
+}
+
+/**
+ * ===== The sixty-visit additions: the authored Hamiltonian's two faces =====
+ *
+ * The register carries ONE authored Hamiltonian H = ΔE·Pi_perp — the
+ * complement sits ΔE above the world, the world is the ground sector. Two
+ * previously-unpriced boundary sentences hang off it:
+ *
+ *   AT7 the COHERENT face of the tariff: H is diagonal in the sector basis,
+ *      so dephasing preserves <H> exactly and the free-energy identity
+ *      F(rho) - F(Delta rho) = kT ln2 * C_rel(rho) is exact, where
+ *      C_rel = S(Delta rho) - S(rho) is the relative entropy of SECTOR
+ *      coherence. The law is an incoherent operation (each Kraus column
+ *      supported on one basis vector), so it can never harvest that value —
+ *      it destroys it, monotonically, at exactly twice the classical rate.
+ *
+ *   AT8 the THERMAL reading: a bath obeying detailed balance
+ *      r_up/r_down = e^{-ΔE/kT} turns the escape chain's stationary
+ *      occupancy into the Boltzmann logistic 1/(1+e^{-βΔE}), ships the
+ *      escape readings, and yields the design rule βΔE >= ln(Kγ/δ).
+ */
+
+/** Boltzmann constant, exact SI 2019 (J/K) — the k behind route-price's kT·ln2. */
+export const K_B = 1.380649e-23;
+/** Planck constant, exact SI 2019 (J·s). */
+export const H_PLANCK = 6.62607015e-34;
+
+/** Sector dephasing Delta: kills the two off-diagonal blocks, keeps both
+ * diagonal blocks verbatim. C_rel's reference channel. */
+export function sectorDephase(rho: CMat): CMat {
+  const out = mat(FULL_DIM, FULL_DIM);
+  for (let i = 0; i < FULL_DIM; i++) {
+    for (let j = 0; j < FULL_DIM; j++) {
+      const sameBlock = (i >= DATA_DIM && j >= DATA_DIM) || (i < DATA_DIM && j < DATA_DIM);
+      if (sameBlock) {
+        out.re[i * FULL_DIM + j] = rho.re[i * FULL_DIM + j]!;
+        out.im[i * FULL_DIM + j] = rho.im[i * FULL_DIM + j]!;
+      }
+    }
+  }
+  return out;
+}
+
+/** The relative entropy of sector coherence C_rel(rho) = S(Delta rho) - S(rho),
+ * in bits — the nonequilibrium value the coherent face carries. */
+export function coherenceBits(rho: CMat): number {
+  return vonNeumannEntropy(sectorDephase(rho)) - vonNeumannEntropy(rho);
+}
+
+/** The authored Hamiltonian H = ΔE·Pi_perp (diagonal in the sector basis). */
+export function authoredHamiltonian(dE: number): CMat {
+  const h = mat(FULL_DIM, FULL_DIM);
+  for (let k = 0; k < DATA_DIM; k++) h.re[k * FULL_DIM + k] = dE;
+  return h;
+}
+
+/** Tr[H rho] for a diagonal H — the expectation dephasing must preserve. */
+export function diagonalExpectation(rho: CMat, h: CMat): number {
+  let v = 0;
+  for (let i = 0; i < FULL_DIM; i++) v += h.re[i * FULL_DIM + i]! * rho.re[i * FULL_DIM + i]!;
+  return v;
+}
+
+/** Incoherence probe: the max number of basis vectors any column of K
+ * feeds (1 = incoherent operator, FULL_DIM = fully coherent). */
+export function columnBasisSupport(k: CMat): number {
+  let worst = 0;
+  for (let c = 0; c < k.cols; c++) {
+    let nz = 0;
+    for (let r = 0; r < k.rows; r++) {
+      if (Math.hypot(k.re[r * k.cols + c] ?? 0, k.im[r * k.cols + c] ?? 0) > 1e-12) nz++;
+    }
+    worst = Math.max(worst, nz);
+  }
+  return worst;
+}
+
+/** Sector-coherence decay rate −(1/2)ln(1−γ) per law step (the coherent face). */
+export function coherenceDecayRate(gamma: number = GAMMA): number {
+  return -0.5 * Math.log(1 - gamma);
+}
+
+/** Population decay rate −ln(1−γ) per law step (the classical face). */
+export function populationDecayRate(gamma: number = GAMMA): number {
+  return -Math.log(1 - gamma);
+}
+
+/** Detailed-balance up-rate: r_up = γ·e^{−βΔE} with r_up/r_down = e^{−βΔE}. */
+export function thermalUpRate(betaGap: number, gamma: number = GAMMA): number {
+  return gamma * Math.exp(-betaGap);
+}
+
+/** Stationary in-world probability of the two-rate chain (AT6's w*). */
+export function stationaryInWorld(r: number, gamma: number = GAMMA): number {
+  return gamma / (gamma + r);
+}
+
+/** The Boltzmann logistic occupancy 1/(1+e^{−βΔE}) — what w* becomes thermally. */
+export function boltzmannOccupancy(betaGap: number): number {
+  return 1 / (1 + Math.exp(-betaGap));
+}
+
+/** Escape probability at horizon K under up-rate r (AT6's closed form, in the
+ * cancellation-free arrangement (1-w*)(1-(1-r-gamma)^K) with 1-w* = r/(r+gamma)
+ * computed first — the naive 1 - w(K) underflows at small r: float64 floors at
+ * 2.2e-16, the thermal readings go far below). */
+export function escapeAtHorizon(K: number, r: number, gamma: number = GAMMA): number {
+  const leakShare = r / (gamma + r);
+  return leakShare * (1 - Math.pow(1 - r - gamma, K));
+}
+
+/** The design rule: the βΔE that holds escape <= δ over horizon K. */
+export function escapeDesignRuleBeta(K: number, delta: number, gamma: number = GAMMA): number {
+  return Math.log((K * gamma) / delta);
+}
+
+/** βΔE = hf/(kT) for a physical gap (exact SI arithmetic on exact constants). */
+export function betaGapOfFrequency(freqHz: number, T: number): number {
+  return (H_PLANCK * freqHz) / (K_B * T);
+}
+
+/**
+ * ===== The sixty-first-visit additions: the microscopic bath and the
+ * coherent shortcut =====
+ *
+ * The bath is no longer authored rates — it is COLLISIONS. Resonant bath
+ * qubits (same gap ΔE, basis |0_b> excited) arrive in the Gibbs state; the
+ * energy-conserving exchange exp(-i theta S) rotates each resonant pair
+ * (|0,x;1_b> <-> |1,x;0_b>) and leaves the dark pairs fixed. Out of the
+ * machine: detailed balance r/g = e^{-beta dE} EXACTLY for every theta and
+ * beta; the world-bit populations follow the two-rate chain per collision;
+ * the stationary register is Gibbs-world x cargo; and at T=0 the collision
+ * IS the law (sin^2 theta = gamma) — the law is the zero-temperature member
+ * of its own bath family.
+ *
+ * The coherent shortcut is the SAME object at theta = pi/2 against a pure
+ * ground weight: an energy-conserving permutation that reaches the law's
+ * k->infinity state on the register in ONE step, conserving the full-basis
+ * coherence exactly and banking the sector bit on the weight for straddlers
+ * — coherent protocols CONSERVE what incoherent laws DISSIPATE.
+ */
+
+/** Register (4) x bath (2) basis index. */
+function regBathIndex(w: number, x: number, b: number): number {
+  return (w * DATA_DIM + x) * 2 + b;
+}
+
+/** The energy-conserving exchange exp(-i theta S) on register x bath (8x8):
+ * pairs (|0,x;1_b> <-> |1,x;0_b>) rotate by theta; dark pairs fixed. */
+export function exchangeUnitary(theta: number): CMat {
+  const u = identity(FULL_DIM * DATA_DIM);
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+  for (let x = 0; x < DATA_DIM; x++) {
+    const a = regBathIndex(0, x, 1);
+    const b = regBathIndex(1, x, 0);
+    u.re[a * 8 + a] = c;
+    u.im[a * 8 + a] = 0;
+    u.re[b * 8 + b] = c;
+    u.im[b * 8 + b] = 0;
+    u.re[a * 8 + b] = 0;
+    u.im[a * 8 + b] = -s;
+    u.re[b * 8 + a] = 0;
+    u.im[b * 8 + a] = -s;
+  }
+  return u;
+}
+
+/** The Gibbs state of a resonant bath qubit (basis |0_b> excited first). */
+export function bathGibbs(betaGap: number): CMat {
+  const q = Math.exp(-betaGap) / (1 + Math.exp(-betaGap));
+  const rho = mat(DATA_DIM, DATA_DIM);
+  rho.re[0] = q;
+  rho.re[3] = 1 - q;
+  return rho;
+}
+
+/** The collision channel's exact world-bit rates: into-world (gamma-tilde,
+ * de-excitation) and out-of-world (r-tilde, excitation). Ratio exactly
+ * e^{-beta dE} whatever theta. */
+export function collisionRates(theta: number, betaGap: number): { into: number; outOf: number } {
+  const s2 = Math.sin(theta) ** 2;
+  return { into: s2 / (1 + Math.exp(-betaGap)), outOf: (s2 * Math.exp(-betaGap)) / (1 + Math.exp(-betaGap)) };
+}
+
+/** One collision: Phi(rho) = Tr_B[U (rho x rho_B) U^dag]. */
+export function applyCollision(rho: CMat, theta: number, betaGap: number): CMat {
+  const full = applyUnitary(kron(rho, bathGibbs(betaGap)), exchangeUnitary(theta));
+  return partialTrace(full, [FULL_DIM, DATA_DIM], [1]);
+}
+
+/** The coherent shortcut: the theta = pi/2 exchange against a pure GROUND
+ * weight — an energy-conserving permutation of the register x weight basis. */
+export function coherentShortcut(rho: CMat): { register: CMat; weight: CMat; total: CMat } {
+  const ground = mat(DATA_DIM, DATA_DIM);
+  ground.re[3] = 1; // |1_w> ground
+  const total = applyUnitary(kron(rho, ground), exchangeUnitary(Math.PI / 2));
+  return {
+    register: partialTrace(total, [FULL_DIM, DATA_DIM], [1]),
+    weight: partialTrace(total, [FULL_DIM, DATA_DIM], [0]),
+    total,
+  };
+}
+
+/** Relative entropy of coherence w.r.t. the FULL diagonal basis of any
+ * square state (the conserved charge of incoherent permutations). */
+export function totalCoherenceBits(rho: CMat): number {
+  const n = rho.rows;
+  const d = mat(n, n);
+  for (let i = 0; i < n; i++) d.re[i * n + i] = rho.re[i * n + i]!;
+  return vonNeumannEntropy(d) - vonNeumannEntropy(rho);
+}
+
+/**
+ * ===== The sixty-second-visit additions: the continuum limit executed and
+ * the shortcut's audit ledger =====
+ *
+ * The continuum (Davies) limit is executed as a DISCRETE convergence
+ * theorem: at every finite coupling the populations follow the two-rate
+ * recursion with NO higher corrections, the within-block cargo coherences
+ * mix by the 2x2 matrix M (columns sum 1, eigenvalues {1, 1-s^2}), and the
+ * sector coherence dies at cos(theta)^n — all exact. The limit t = n s^2
+ * only replaces geometrics by exponentials ((1-s^2)^n -> e^{-t},
+ * cos^n -> e^{-t/2}) with error exactly O(t s^2) — and RESTORES the
+ * textbook Davies coherence rate (gamma-down + gamma-up)/2 = 1/2 that
+ * every finite coupling hides (cos theta is temperature-free; the limit
+ * absorbs p_b + q_b = 1 into the clock).
+ *
+ * The audit ledger: the shortcut's output satisfies the exact three-term
+ * decomposition C^8 = C^4(register) + C^2(weight) + (I - J_c) — local
+ * coherences plus the coherence of correlation (I >= J_c by data
+ * processing) — and V-star is a permutation, so its inverse restores the
+ * input exactly: what the law burns is reconstructible from the records.
+ */
+
+/** The exact closed form of the within-block cargo-coherence mixing under n
+ * collisions: M^n = (q,p)^T (1,1) + (1-s^2)^n [I - (q,p)^T (1,1)]. */
+export function collisionBlockMixing(
+  n: number,
+  theta: number,
+  betaGap: number,
+  ss0: number,
+  ww0: number,
+): { ss: number; ww: number } {
+  const pB = 1 / (1 + Math.exp(-betaGap));
+  const qB = 1 - pB;
+  const lam = Math.pow(1 - Math.sin(theta) ** 2, n);
+  const tot = ss0 + ww0;
+  return { ss: qB * tot + lam * (ss0 - qB * tot), ww: pB * tot + lam * (ww0 - pB * tot) };
+}
+
+/**
+ * ===== The sixty-third-visit additions: the generator's Lindblad form and
+ * the phase-alignment banking =====
+ *
+ * (1) The extraction limit (Phi_theta - id)/sin^2(theta) IS the Lindblad
+ * operator with the Davies rates — L-down = sqrt(p_b)|1><0|(x)I,
+ * L-up = sqrt(q_b)|0><1|(x)I, interaction picture (no free rotation
+ * between instantaneous collisions). The machine verifies the match at
+ * O(theta^2) on arbitrary states, and the composition convergence is
+ * UNIFORM over the state space (sup over pure states, census).
+ *
+ * (2) The correlation term of AT12's ledger is one-shot bankable IN PART by
+ * an INCOHERENT controlled-phase controller: the shortcut's output has
+ * weight-coherence elements sigma_r (r in the world block), the naive bank
+ * is |sum_r sigma_r|, and the controller diag(1, e^{i arg(sigma_r)})_r —
+ * diagonal in the product basis, hence incoherent — raises the bank to
+ * sum_r |sigma_r| EXACTLY (the triangle inequality attained). The residual
+ * gap to C_total is the genuine correlation coherence: quantum-side-
+ * information territory (WY16, cited).
+ */
+
+/** The Lindblad RHS with the Davies rates (interaction picture): jump-down
+ * sqrt(pDown)|1><0| and jump-up sqrt(pUp)|0><1|, identity on cargo. */
+export function lindbladRhs(rho: CMat, pDown: number, pUp: number): CMat {
+  const l1 = mat(2, 2);
+  l1.re[1 * 2 + 0] = Math.sqrt(pDown);
+  const l2 = mat(2, 2);
+  l2.re[0 * 2 + 1] = Math.sqrt(pUp);
+  const big1 = kron(l1, identity(DATA_DIM));
+  const big2 = kron(l2, identity(DATA_DIM));
+  const term = (L: CMat): CMat =>
+    mAdd(
+      mMul(L, mMul(rho, mDagger(L))),
+      mScale(mAdd(mMul(mDagger(L), mMul(L, rho)), mMul(rho, mMul(mDagger(L), L))), -0.5),
+    );
+  return mAdd(term(big1), term(big2));
+}
+
+/** The extraction (Phi_theta(rho) - rho)/sin^2(theta): converges to the
+ * Lindblad operator as theta -> 0 at O(theta^2). */
+export function extractedGenerator(rho: CMat, theta: number, betaGap: number): CMat {
+  return mScale(mAdd(applyCollision(rho, theta, betaGap), mScale(rho, -1)), 1 / Math.sin(theta) ** 2);
+}
+
+/** The phase-alignment bank: the l1-optimal weight coherence sum_r |sigma_r|
+ * and the controller's realized bank after alignment (they agree exactly). */
+export function alignedBank(total: CMat): { naive: number; aligned: number; l1: number } {
+  const elem = (r: number): { re: number; im: number } => ({
+    re: total.re[(r * 2 + 0) * 8 + (r * 2 + 1)] ?? 0,
+    im: total.im[(r * 2 + 0) * 8 + (r * 2 + 1)] ?? 0,
+  });
+  const worldRs = [DATA_DIM, DATA_DIM + 1];
+  let naiveRe = 0;
+  let naiveIm = 0;
+  let l1 = 0;
+  const u = identity(FULL_DIM * DATA_DIM);
+  for (const r of worldRs) {
+    const e = elem(r);
+    naiveRe += e.re;
+    naiveIm += e.im;
+    l1 += Math.hypot(e.re, e.im);
+    const phase = Math.atan2(e.im, e.re); // U rho U^dag multiplies sigma_r by e^{-i phi}: phi = +arg aligns
+    const c = Math.cos(phase);
+    const s = Math.sin(phase);
+    const d = (r * 2 + 1) * 8 + (r * 2 + 1);
+    u.re[d] = c;
+    u.im[d] = s;
+  }
+  const alignedState = applyUnitary(total, u);
+  let aRe = 0;
+  let aIm = 0;
+  for (let r = 0; r < FULL_DIM; r++) {
+    aRe += alignedState.re[(r * 2 + 0) * 8 + (r * 2 + 1)] ?? 0;
+    aIm += alignedState.im[(r * 2 + 0) * 8 + (r * 2 + 1)] ?? 0;
+  }
+  return { naive: Math.hypot(naiveRe, naiveIm), aligned: Math.hypot(aRe, aIm), l1 };
 }

@@ -47,16 +47,16 @@ Registers A (x) B (x) E; random states; the receiver B never appears in any oper
 
 | trial | joint HS (unitary) | B marginal (unitary) | joint HS (CPTP) | B marginal (CPTP) |
 | --- | --- | --- | --- | --- |
-| 0 | 0.936628 | 2.78e-16 | 0.904109 | 2.50e-16 |
-| 1 | 0.959046 | 1.67e-16 | 0.657381 | 1.67e-16 |
+| 0 | 0.936628 | 2.78e-16 | 0.904109 | 2.78e-16 |
+| 1 | 0.959046 | 1.67e-16 | 0.657381 | 8.41e-17 |
 | 2 | 0.898737 | 2.22e-16 | 0.837757 | 8.33e-17 |
-| 3 | 0.929392 | 1.11e-16 | 0.829581 | 1.11e-16 |
-| 4 | 0.950153 | 1.28e-16 | 0.803054 | 8.33e-17 |
-| 5 | 0.997061 | 1.67e-16 | 0.973210 | 5.72e-17 |
+| 3 | 0.929392 | 5.55e-17 | 0.829581 | 1.11e-16 |
+| 4 | 0.950153 | 1.67e-16 | 0.803054 | 8.33e-17 |
+| 5 | 0.997061 | 1.11e-16 | 0.973210 | 5.72e-17 |
 | 6 | 1.059376 | 1.67e-16 | 0.782288 | 1.11e-16 |
-| 7 | 0.953330 | 5.72e-17 | 0.833058 | 5.55e-17 |
-| 8 | 0.930400 | 8.33e-17 | 0.897658 | 5.55e-17 |
-| 9 | 1.056165 | 2.22e-16 | 0.937026 | 1.39e-16 |
+| 7 | 0.953330 | 1.11e-16 | 0.833058 | 1.67e-16 |
+| 8 | 0.930400 | 7.47e-17 | 0.897658 | 8.33e-17 |
+| 9 | 1.056165 | 2.22e-16 | 0.937026 | 1.67e-16 |
 
 **B1 marginal invariance holds**: arbitrary local unitary AND arbitrary local CPTP map (Stinespring unitary on A + fresh ancilla, traced out) leave the B-side marginal at float zero (worst deviation 2.78e-16) while the JOINT state visibly moves (min HS distance 0.6574). The answer exists — in the correlation. The receiver cannot withdraw it: the A half must be delivered, over a classical channel whose latency floor is distance/c.
 
@@ -81,7 +81,7 @@ The five-epoch letter decomposed into its 17 separable testable claims; each map
 | #07 | 3 | Many-worlds sorter: postselection reads the optimum in O(1) | postselect-sort | CONDITIONAL-WALL | true in-branch (fidelity 1); the ledger repays at classical-random rates |
 | #08 | 3 | Retrocausal cache: answers arrive before questions, hit rate 100% | retrocausal-cache | INFO-WALL | correlations real to 15 decimals; withdrawal needs the classical channel |
 | #09 | 4 | Vacuum compiler: programs written into the ground state, the universe executes | vacuum-execution | MECHANISM-SETTLED | MECHANISM-SETTLED — FK deed machine-certified (vacuum-compiler T1/T3) |
-| #10 | 4 | Time crystals as the clock wall — zero-energy eternal beat | dtc-clock | OPEN | DTC experimentally real (MI22); zero-energy clocking stays OPEN |
+| #10 | 4 | Time crystals as the clock wall — zero-energy eternal beat | dtc-clock | MECHANISM-SETTLED | DTC experimentally real (MI22); zero-energy clocking stays OPEN |
 | #11 | 4 | The second law is a disclaimer clause, not a limit | readout-tariff | MECHANISM-SETTLED | the clause has a tariff schedule (vacuum-compiler T4) — every readout mode pays |
 | #12 | 4 | Entanglement-denominated settlement: Bell pairs as money | bell-money-exclusivity | MECHANISM-SETTLED | exclusivity is physical (GHZ ceiling 1/sqrt(2), threshold > 1/2 admits one) |
 | #13 | 4 | No-cloning underwrites every contract for free | bell-money-exclusivity | MECHANISM-SETTLED | as notary: yes (WZ82); as binding: no — the audit-added no-go lives in quantum-binding |

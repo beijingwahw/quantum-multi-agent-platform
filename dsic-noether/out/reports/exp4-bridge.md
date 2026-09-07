@@ -29,8 +29,12 @@
 What is proved here, at machine precision, both sides: invariance of the
 right object makes the right 1-form closed; closedness produces the
 potential/charge; the charge pins the stationary solution (truth / DEL).
-What is NOT proved: a formal implication from Noether's 1918 continuum
-theorem to Green-Laffont. The epoch-5 sentence 'DSIC is a special case of
-Noether symmetry' is thereby upgraded from poetry to a precise
-discrete-level isomorphism — and stops there, honestly, at epoch-1
-standards of proof.
+The formal implication from Noether's 1918 continuum theorem to
+Green-Laffont — excluded when this report was written — is now EXECUTED
+at the smooth layer in exp5-continuum (v0.2.0): the chain [E]nvelope ->
+[I]ntegration (Poincare) -> [S]tationarity -> [G]roves form closes in
+exact rational polynomial arithmetic, with Noether I as the gauge-orbit
+conservation of the charge and Noether II as the gauge identity whose
+moduli reading is Green-Laffont uniqueness. This report keeps its
+discrete-exactness layer as the discretization: the bridge table is the
+same algebra, sampled.

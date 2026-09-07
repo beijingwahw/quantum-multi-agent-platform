@@ -5,15 +5,19 @@
  * is the invoked program, so a test's import never executes the render.
  */
 import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { MUTANTS, type MutantSpec } from "../kernel/family.js";
 import { runBattery, runKillCensus, runNegativeControls } from "../kernel/battery.js";
-import { checkCensus, checkEnrollment, runWitnesses, witnessEnrollment, witnessFamily, witnessWorkspace } from "../kernel/audit.js";
+import { checkCensus, checkEnrollment, checkStatedCounts, runWitnesses, witnessEnrollment, witnessFamily, witnessWorkspace } from "../kernel/audit.js";
 import { REGISTERED_DIVERGENCES } from "../kernel/census.js";
 import { ENROLLMENT, type EnrollmentRow } from "../kernel/enrollment.js";
 import { loadLiveRegistry } from "../kernel/bridge.js";
 import { ANCHOR_REGISTRY, checkAnchors, type AnchorRegistration } from "../kernel/anchors.js";
 import { witnessGenealogy } from "../kernel/genealogy.js";
-import { writeReport } from "./report.js";
+import { PER_ERROR, PILOT_CLASSES, witnessEquivalence, type PerErrorSpec } from "../kernel/equiv.js";
+import { REPAIR_AUDIT, checkRepairAudit, witnessRepairAudit, type RepairRow } from "../kernel/repair.js";
+import { assertUniqueWitnessLetters, writeReport } from "./report.js";
 
 /** Renders the census; exported so the gate can prove the renderer REFUSES
  * an illegal registry (it throws before printing a single row). */
@@ -21,6 +25,8 @@ export async function renderCensus(
   mutants: readonly MutantSpec[] = MUTANTS,
   enrollment: readonly EnrollmentRow[] = ENROLLMENT,
   anchorRegistry: readonly AnchorRegistration[] = ANCHOR_REGISTRY,
+  perError: readonly PerErrorSpec[] = PER_ERROR,
+  audit: readonly RepairRow[] = REPAIR_AUDIT,
 ): Promise<string> {
   const violations = checkCensus(mutants);
   if (violations.length > 0) {
@@ -38,10 +44,29 @@ export async function renderCensus(
     const lines = aViolations.map((v) => `- ${v.anchor} [${v.law}]: ${v.detail}`);
     throw new Error(`the anchor registry is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
+  const wj = witnessEquivalence(perError);
+  if (wj.violations.length > 0) {
+    const lines = wj.violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
+    throw new Error(`the per-error equivalence table is illegal — refusing to print it:\n${lines.join("\n")}`);
+  }
+  const rViolations = checkRepairAudit(audit, enrollment, registry);
+  if (rViolations.length > 0) {
+    const lines = rViolations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
+    throw new Error(`the repair audit is illegal — refusing to print it:\n${lines.join("\n")}`);
+  }
+  // E7 — the census's own stated counts (its package.json description) are
+  // copies of the enrollment data; the renderer refuses to print a census
+  // whose self-description has drifted from its own arithmetic
+  const description = (JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { description?: string }).description ?? "";
+  const e7 = checkStatedCounts(description, enrollment);
+  if (e7.length > 0) {
+    const lines = e7.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
+    throw new Error(`the census's own stated counts are illegal — refusing to print it:\n${lines.join("\n")}`);
+  }
   const out: string[] = [];
   out.push("# THE MUTANT CENSUS — the error history replayed and killed, one page\n");
   out.push(
-    "> The burial record exhumed the workspace's errors (every one in two columns). This page is the other half of that ledger: the defect classes REPLAYED as nine live mutants against the shared kernel family and its standard compositions, and killed one by one by a ten-property battery that holds for every seeded input — dual-path arithmetic, negative controls, statistical kills labeled DATA. The family's byte-identity across the workspace and the 26 repos' engineering hygiene are censused LIVE on every run: an unregistered drift fails the build. And the loop is closed all the way down: EVERY error the registry carries is enrolled to the guard that kills it now (E-board, live-imported — an error without an enforcement anchor cannot be buried). Mutation testing and property-based testing are established fields (DEM78, JIA11, CLA00, dual-sourced in citations.md); the executable claim here is the coupling — a machine-audited error registry feeding the operator set, physics invariants as the oracle, zero dependencies. It renders only because the checker passed.\n",
+    "> The burial record exhumed the workspace's errors (every one in two columns). This page is the other half of that ledger: the defect classes REPLAYED as nine live mutants against the shared kernel family and its standard compositions, and killed one by one by a ten-property battery that holds for every seeded input — dual-path arithmetic, negative controls, statistical kills labeled DATA. The family's byte-identity across the workspace and the 28 epoch repos' engineering hygiene are censused LIVE on every run: an unregistered drift fails the build. And the loop is closed all the way down: EVERY error the registry carries is enrolled to the guard that kills it now (E-board, live-imported — an error without an enforcement anchor cannot be buried), and the per-error question is measured where it is decidable (J-board: the equivalent-mutant boundary, censused error by error on the pilot classes). Mutation testing and property-based testing are established fields (DEM78, JIA11, CLA00, dual-sourced in citations.md); the executable claim here is the coupling — a machine-audited error registry feeding the operator set, physics invariants as the oracle, zero dependencies. It renders only because the checker passed.\n",
   );
 
   out.push("## M-board — the kill register (mutation census)\n");
@@ -151,7 +176,7 @@ export async function renderCensus(
 
   out.push("## A-board — the anchor witness registry (every guard, evidence on file)\n");
   out.push(
-    "E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RESOLVED to its machinery — a guard that never convicts is a false guard. The registry is symmetric: an unregistered anchor may not hold errors, and a stale registration is itself a violation.\n",
+    "E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RESOLVED to its machinery — a guard that never convicts is a false guard. The registry is symmetric: an unregistered anchor may not hold errors, and a stale registration is itself a violation. Since v0.11.0 the RESOLVED class goes one layer deeper (A4): the total gate has already fired every repo's suite, and the census harvests that firing from the last recorded artifact — a RESOLVED test/typecheck anchor whose repo cell is red in that run is a violation, evidence upgraded from \"the machinery exists\" to \"the machinery fired green\".\n",
   );
   const kindOrder: Record<string, number> = { "FIRING-INJECT": 0, "FIRING-LIVE": 1, RESOLVED: 2 };
   for (const reg of [...anchorRegistry].sort((a, b) => kindOrder[a.kind]! - kindOrder[b.kind]!)) {
@@ -174,6 +199,41 @@ export async function renderCensus(
     `The catch census: gate ${c.gate} / author ${c.author} / numbers ${c.numbers} / visitor ${c.visitor} over ${c.total} errors — the gate fraction rose from ${(c.earlyGateFraction * 100).toFixed(0)}% (batches 1-22) to ${(c.lateGateFraction * 100).toFixed(0)}% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.\n`,
   );
 
+  out.push("## J-board — the per-error equivalence census (the JIA11 boundary, measured)\n");
+  out.push(
+    "The E-board ties an error to its class prototype — honest, and coarse (one mutant guards its whole registered class). The J-board asks the next question, per error: what does a FAITHFUL family-level re-enactment of THIS error's own defect do against the battery? The verdict vocabulary is closed — COLLAPSES (bit-exact battery-indistinguishable from the class prototype: the class tie is already the fixed point of per-error construction), ERROR-LEVEL (a distinct construction the battery kills: the tie refines from category to error), EQUIVALENT (a live survivor — the open problem in person, booked with its reason), UNBUILDABLE (the defect's home composition is not a family member — booked). The exchange that makes this decidable: PROGRAM equivalence is undecidable (the open problem, JIA11); BATTERY-indistinguishability — the (pass, worst) vectors over all ten properties — is a relation the machine decides bit-exactly. The census claims the second and books the first.\n",
+  );
+  out.push("| key | prototype | construction / booking | verdict | live detail |");
+  out.push("| --- | --- | --- | --- | --- |");
+  const printOf = (k: string): string => {
+    const spec = perError.find((r) => r.key === k)!;
+    if (spec.verdict === "UNBUILDABLE" || spec.verdict === "EQUIVALENT") return spec.reason ?? "";
+    return spec.built ?? "";
+  };
+  for (const spec of perError) {
+    out.push(`| ${spec.key} | ${spec.prototype} | ${printOf(spec.key)} | ${spec.verdict} | ${wj.rows.find((r) => r.key === spec.key)!.detail} |`);
+  }
+  out.push("");
+  const jTally = new Map<string, number>();
+  for (const r of wj.rows) jTally.set(r.computed, (jTally.get(r.computed) ?? 0) + 1);
+  const classCount = (cls: string): number => enrollment.filter((r) => r.category === cls && r.tier === "MUTANT-KILLED").length;
+  out.push(
+    `Pilots: ${PILOT_CLASSES.map((c) => `${c} EXHAUSTIVE (${classCount(c)}/${classCount(c)} of its MUTANT-KILLED rows)`).join("; ")} — the ENTIRE mutation-killed population, censused per error. ${jTally.get("COLLAPSES") ?? 0} collapses — the prototypes' OWN history errors re-enact bit-exactly (b29#0 IS MU1, b20#0 IS MU2, b31#4 IS MU3, b24#0 IS MU4 through the crash face, b21#0 IS MU5, b31#0 IS MU6, b31#3 IS MU7, b31#5 IS MU8, b19#3 IS MU9: ALL NINE prototypes now have their provenance error as a bit-exact specimen — the class tie is the fixed point of per-error construction, nine for nine). ${jTally.get("ERROR-LEVEL") ?? 0} error-level kills — the class tie was real but coarse: conjugation gave P3/P4 their first real-error trippers and the b26#0/b28#2 TWINS; wrong-object gave three P5 readout-object kills (joint cells as marginals, the partner's outcome pinned where summing was meant, the axis unitary applied where a measurement was meant); dimension-slot gave the tensor written as a product (b13#2, P2) and the 1x1-scalar mMul scaling (b31#1 — crash face on P5, distinct from MU3's P2 face, so no collapse). ${jTally.get("EQUIVALENT") ?? 0} equivalent survivors, PROVEN not merely un-killed, and of TWO DIFFERENT SPECIES: b30#0's globally-negated ket is invisible at the density layer (representation-blindness, a one-line elementwise proof) and b5#2's unguarded 0/0 ratio lives on a degenerate branch the battery's inputs never reach (P(zero accepted) <= 0.7^60 — input-coverage blindness, a probability bound; on every exercised input the construction is the CORRECT estimator). The JIA11 phenomenon is not one wall but (at least) two. The unbuildable ${jTally.get("UNBUILDABLE") ?? 0} — the defect's home (optimizers, eigensolvers, simulators, protocols, verifiers, index conventions, calibration choices, property-internal constructions) is not a family member; no faithful re-enactment exists at this layer, and the booking says so, row by row.\n`,
+  );
+
+  out.push("## R-board — the repair audit (every BOOKED reason, refuted or held)\n");
+  out.push(
+    "A BOOKED reason is a universal claim — \"no machine can hold this line\" — and such claims are not proved, they are REFUTED one witness machine at a time. Visit v0.9.0 audited one batch this way; this board audits the WHOLE booked population with a decidable criterion: does a recurrence of this row's defect die at a scheduled gate? Nine reasons had gone false (the machine convicted the sighting itself, or the gated trees kill the recurrence — b47#1's heredoc damage died at the loader, b56#7's transcription error died at the exact-zero tolerance, b37#7's dual repo list is single-sourced in the same edit) and their rows now sit on live anchors; fifteen were coarse and are sharpened to name their FACES (the b54#1 dual-face precedent — which face is booked, which is held); the rest are held with the ungated face stated. The audit is STANDING LAW (R1): a booked row without a verdict fails the build, a later flip without an audit edit fails the build — born-audited, every one.\n",
+  );
+  const rTally = new Map<string, number>();
+  for (const r of audit) rTally.set(r.verdict, (rTally.get(r.verdict) ?? 0) + 1);
+  out.push(
+    `| verdict | rows | meaning |\n| --- | --- | --- |\n| UPGRADED | ${rTally.get("UPGRADED") ?? 0} | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |\n| SHARPENED | ${rTally.get("SHARPENED") ?? 0} | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |\n| HELD | ${rTally.get("HELD") ?? 0} | the reason is true as written; the basis states the ungated face |\n`,
+  );
+  out.push("**Every verdict, with its basis:**\n");
+  for (const r of audit) out.push(`- **${r.verdict}** ${r.key} — ${r.basis}`);
+  out.push("");
+
   out.push("## T-board — the total gate\n");
   out.push(
     "`npm run total` runs the WHOLE workspace as one verdict: every epoch repo's test suite AND typecheck, plus the main platform repo's full suite — machine-judged, stamped, rendered to `out/reports/the-total-gate.md`. The artifact records the last explicit run; this census verifies the command exists and the artifact's contract. 全量 is a command, not an adjective.\n",
@@ -190,16 +250,19 @@ export async function renderCensus(
     `- ${anchorViolations.length === 0 ? "PASS" : "FAIL"} — W-G anchor census (${anchorRegistry.length} guards registered: ${kindTally.get("FIRING-INJECT") ?? 0} firing-inject demos on disk, ${kindTally.get("FIRING-LIVE") ?? 0} fired live this run, ${kindTally.get("RESOLVED") ?? 0} resolved to machinery${anchorViolations.length > 0 ? `; violations: ${anchorViolations.slice(0, 3).map((x) => `${x.anchor} [${x.law}]`).join("; ")}` : ""})`,
   );
   out.push(`- ${wg.result.pass ? "PASS" : "FAIL"} — ${wg.result.name} (${wg.result.detail})`);
+  out.push(`- ${wj.result.pass ? "PASS" : "FAIL"} — ${wj.result.name} (${wj.result.detail})`);
+  const wy = await witnessRepairAudit(audit, enrollment);
+  out.push(`- ${wy.pass ? "PASS" : "FAIL"} — ${wy.name} (${wy.detail})`);
 
   out.push("\n## Boundaries\n");
   out.push(
-    "- The mutant set is HISTORICALLY MOTIVATED, not exhaustive: nine defect classes compiled from the burial record, not a proof that no tenth class exists. Equivalent mutants are a known open problem of the field (JIA11); none are claimed away here.\n" +
+      "- The mutant set is HISTORICALLY MOTIVATED, not exhaustive: nine defect classes compiled from the burial record, not a proof that no tenth class exists. Equivalent mutants are a known open problem of the field (JIA11); none are claimed away here — and the conjugation class now carries a per-error equivalence census (J-board) with one PROVEN specimen booked.\n" +
       "- The family's mAdd does NOT check shapes — by design, recorded at batch 31 ('the dimension account is always the coder's'). MU3 is killed at the COMPOSITION layer (the embedding's dimension contract), not by an adder that would break ten byte-identical members.\n" +
       "- Statistical kills are DATA-grade: they convict at 5 sigma by design of the property, not by theorem. The exact kills are exact.\n" +
       "- The W-board's unguarded-entry detector is a string-level heuristic (writeReport/writeFileSync without the guard); its misses are surfaced, not enforced — the K-board's hash census is the exact one.\n" +
       "- The registered divergences record THAT bytes differ and why they may; whether they SHOULD is each repo's appeal court (`npm test` there). This census adjudicates identity, not intent.\n" +
-      "- The E-board's MUTANT-KILLED tie is CLASS-level: one mutant guards its whole registered category-class (the registry's own B0-verified filing), not each error individually re-mutated; the equivalent-mutant open problem (JIA11) stands. Per-error mutants are not claimed.\n" +
-      "- The tier assignment is judgment recorded as data; the appeal is editing the enrollment table — and E1-E6 hold the edit to the registry, the disk and the arithmetic. BOOKED-UNENFORCEABLE is the honest boundary: lines no machine can hold, each printed with its reason above. Visibility is the substitute for enforcement, and it is priced as such.\n" +
+      "- The E-board's MUTANT-KILLED tie is CLASS-level; the J-board has now measured the per-error question on ALL FOUR classes EXHAUSTIVELY (conjugation 19/19 at v0.8.0; wrong-object 44/44 and dimension-slot 29/29 and statistics 25/25 at v0.13.0 — the ENTIRE 117-row mutation-killed population): 9 collapses (every prototype's own history error, bit-exact — the class tie is the fixed point of per-error construction, nine for nine), 12 error-level kills (distinct faithful constructions, killed — the tie refines), 2 PROVEN equivalent mutants of TWO SPECIES (b30#0: representation-blindness — global phase unobservable at the density layer; b5#2: input-coverage blindness — the degenerate 0/0 branch lies outside the battery's input distribution, proven by a probability bound), 94 unbuildable (the defect's home is not a family member). The equivalent-mutant open problem (JIA11) is not solved — it is MEASURED on the workspace's entire mutation-killed history, and the decidable exchange is named: program equivalence is undecidable, battery-indistinguishability is decided bit-exactly.\n" +
+      "- The tier assignment is judgment recorded as data; the appeal is editing the enrollment table — and E1-E6 hold the edit to the registry, the disk and the arithmetic. BOOKED-UNENFORCEABLE is the honest boundary: lines no machine can hold, each printed with its reason above — and since v0.10.0 each REASON is itself audited data (R-board): refuted rows upgrade on cited anchors, surviving rows name their ungated face, and the audit's judgment layer is the authors' — the machine holds coverage, vocabulary and citation, not the verdicts' wisdom. Visibility is the substitute for enforcement, and it is priced as such.\n" +
       "- 'World-class frontier' priced honestly: mutation testing (DEM78, JIA11) and property-based testing (CLA00) are the field's foundations, cited; per-error regression policy is folklore ('every bug gets a test'). The contribution claimed is the executable CLOSED LOOP — a machine-audited error registry imported live by the quality gate, so no error can be buried without a machine-checkable enforcement anchor — nothing grander.\n",
   );
 
@@ -209,25 +272,10 @@ export async function renderCensus(
   );
   const text = out.join("\n");
   // witness letters must be unique: two censuses claiming one letter is the
-  // b46#5 class, and the renderer refuses to print it (the guard is
-  // registered on the A-board, FIRING-LIVE)
+  // b46#5 class, and the renderer refuses to print it (the guard lives in
+  // report.ts since b53#5 — a leaf, so no import cycle can reach the entry)
   assertUniqueWitnessLetters(text);
   return text;
-}
-
-/** The witness-letter guard (b46#5's tier upgrade): every W-[A-Z] that
- * headlines a census line belongs to exactly one census. */
-export function assertUniqueWitnessLetters(reportText: string): void {
-  const seen = new Map<string, number>();
-  for (const m of reportText.matchAll(/^- (?:PASS|FAIL) — (W-[A-Z])/gm)) {
-    seen.set(m[1]!, (seen.get(m[1]!) ?? 0) + 1);
-  }
-  const dups = [...seen.entries()].filter(([, n]) => n > 1).map(([w]) => w);
-  if (dups.length > 0) {
-    throw new Error(
-      `the census is illegal — refusing to print it:\n- witnesses [A-board letter guard]: ${dups.join(", ")} each headline two censuses — witness letters must be unique`,
-    );
-  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

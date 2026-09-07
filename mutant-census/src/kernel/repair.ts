@@ -1,0 +1,414 @@
+/**
+ * THE REPAIR AUDIT (R-board) — every BOOKED-UNENFORCEABLE row re-audited
+ * against the machines that exist NOW.
+ *
+ * A BOOKED reason is a universal claim ("no machine can hold this line").
+ * Such claims cannot be proved — they are REFUTED, one witness machine at a
+ * time. Visit 70 (v0.9.0) audited one batch this way (b54: two reasons had
+ * gone false, one boundary survived sharpened); this board makes the audit a
+ * standing law over the WHOLE booked population, with a closed verdict
+ * vocabulary and a decidable criterion per row:
+ *
+ *   UPGRADED   — the reason has gone false (or is made false by a gate built
+ *                in the same edit): either the sighting itself was convicted
+ *                by a scheduled gate, or a recurrence landing in the gated
+ *                trees dies there. The row flips to GATE-ENFORCED and the
+ *                basis MUST cite the falsifying anchor verbatim (R2).
+ *   SHARPENED  — the reason survives but was coarse: the class has FACES,
+ *                some already gate-held (the b54#1 dual-face precedent); the
+ *                reason is rewritten to name which face is booked and which
+ *                is held.
+ *   HELD       — the reason is true as written; the basis states the ungated
+ *                face (transient act, pre-machine draft, environment,
+ *                external truth, prose intent) in one line.
+ *
+ * Laws (live, every run):
+ *   R1 COVERAGE, BORN-AUDITED — the audit population equals the live booked
+ *       population plus every row this board upgraded: a booked row without
+ *       an audit verdict fails the build, a HELD/SHARPENED verdict on a row
+ *       that is no longer booked fails the build (a later flip must edit the
+ *       audit in the same act), and an UPGRADED verdict must sit on a row
+ *       that really is GATE-ENFORCED now. From this board on, every new
+ *       booked error is audited at birth or the build is red.
+ *   R2 FALSIFICATION CITED — an UPGRADED basis must contain the row's live
+ *       anchor string verbatim ("path :: needle"): the falsifying gate is
+ *       named in the evidence, machine-checked (the anchor's own resolution
+ *       is E3's jurisdiction, enforced on the same run).
+ *   R3 CLOSED VOCABULARY — verdicts from the closed set, unique keys, every
+ *       key addresses a live registry error, every basis non-empty.
+ *   R4 FIRING EVIDENCE (v0.11.0, the deep check) — every UPGRADED row
+ *       carries a needle-level witness IN the cited gate's own tree: the
+ *       file on disk plus the exact assertion/include/import that fires on
+ *       this row's defect class. E3 proves the anchor's needle; the A-board
+ *       proves the gate's machinery; R4 proves the row's SPECIFIC defect
+ *       class has live machinery — the deepest of the three, one needle per
+ *       upgrade, verified every run.
+ */
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { WORKSPACE_ROOT } from "./census.js";
+import type { EnrollmentRow } from "./enrollment.js";
+import type { LiveRegistry } from "./bridge.js";
+import type { WitnessResult } from "./audit.js";
+import { ENROLLMENT } from "./enrollment.js";
+import { loadLiveRegistry } from "./bridge.js";
+
+export type RepairVerdict = "HELD" | "SHARPENED" | "UPGRADED";
+export const REPAIR_VERDICTS: readonly RepairVerdict[] = ["HELD", "SHARPENED", "UPGRADED"];
+
+export interface RepairRow {
+  /** "bN#i" — must address a live registry error (R3) */
+  readonly key: string;
+  readonly verdict: RepairVerdict;
+  readonly basis: string;
+}
+
+/**
+ * The audit, row by row, in registry order. Written 2026-09-07 (v0.10.0)
+ * against the 125-row booked population of the 66-batch / 380-error registry.
+ */
+export const REPAIR_AUDIT: readonly RepairRow[] = [
+  // ---- batch 2 ----
+  { key: "b2#3", verdict: "HELD", basis: "TS-Python parity needs both toolchains in CI; GitHub Actions is unreachable from this workspace (the GENESIS-C boundary) — no scheduled gate commands another machine's runner" },
+  { key: "b2#6", verdict: "HELD", basis: "which interpreter answers to python3 on this Windows box is environment state; no workspace gate commands the host" },
+  { key: "b2#7", verdict: "HELD", basis: "push-failure triage (network vs auth vs remote) is operator judgment over transient evidence; no gate sees the network" },
+  // ---- batch 4 ----
+  { key: "b4#3", verdict: "HELD", basis: "the retry loop's exit-code honesty is a shell act the gates never observe; the artifact it produces is checked, the loop itself is not" },
+  // ---- batch 8 ----
+  { key: "b8#5", verdict: "HELD", basis: "threshold policy is experiment design — what the engine schedules was corrected by hand; no gate chooses policy" },
+  // ---- batch 9 ----
+  { key: "b9#5", verdict: "HELD", basis: "search-effort allocation over 20k states is design work; a gate cannot price the author's stopping rule" },
+  { key: "b9#6", verdict: "HELD", basis: "instance-set strength is a claim about construction intent; no machine parses 'tight' " },
+  // ---- batch 10 ----
+  { key: "b10#6", verdict: "HELD", basis: "the compass grind's abandonment was a judgment call mid-search; nothing scheduled observes a search in progress" },
+  { key: "b10#8", verdict: "SHARPENED", basis: "dual-face, made explicit: the ACT (hand-writing templates through a python heredoc) is transient and ungated; the DAMAGE face cannot ship — a truncated markdown template breaks the render the repro gate runs. Booked: the act face only" },
+  { key: "b10#9", verdict: "HELD", basis: "which side of a diagnosis is trusted is epistemics, not mechanics; no gate audits the author's trust" },
+  // ---- batch 11 ----
+  { key: "b11#7", verdict: "HELD", basis: "aggregation order (sum of ratios vs ratio of sums) is comparison semantics; no property pins intent — the comparison-design face is ungated" },
+  // ---- batch 12 ----
+  { key: "b12#6", verdict: "SHARPENED", basis: "dual-face: a wrong resolve root aimed at a missing file dies loudly at the gate that loads it (ENOENT — test/repro); the silent face is a wrong root that lands on a DIFFERENT existing file. Booked: the silent face only" },
+  { key: "b12#7", verdict: "HELD", basis: "rounding a measured slope toward a theorem's constant is prose honesty; the reconciliation of prose numbers against witnesses is priced future work (the family's refutation target), no gate diffs intent today" },
+  // ---- batch 13 ----
+  { key: "b13#6", verdict: "SHARPENED", basis: "dual-face: the heredoc-via-JSON patch act is transient; a damaged file landing in the gated tree dies at typecheck (the loader convicted the b47#1 twin exactly there). Booked: the act face only" },
+  { key: "b14#4", verdict: "HELD", basis: "tsx -e under Git Bash fails SILENTLY for TS-importing one-liners — the act leaves no artifact for any gate to see" },
+  { key: "b14#5", verdict: "HELD", basis: "which rows weaken a table is editorial selection; no gate judges row choice" },
+  // ---- batch 19 ----
+  { key: "b19#5", verdict: "HELD", basis: "README wording by the expected limit is prose honesty; unenforceable line-by-line (reconciliation gate priced)" },
+  // ---- batch 21 ----
+  { key: "b21#3", verdict: "HELD", basis: "hand-computed price columns corrected by the witness — prose-number reconciliation is the family's priced refutation target; no gate diffs prose against numbers yet" },
+  // ---- batch 22 ----
+  { key: "b22#2", verdict: "SHARPENED", basis: "dual-face placement class: the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the system-temp face lives outside the workspace tree no scheduled gate can scan. Booked: the outside-tree face only" },
+  { key: "b22#3", verdict: "HELD", basis: "law-label sequencing (B0-B4 then B6) is authoring; no linter sequences another repo's law ids" },
+  // ---- batch 23 ----
+  { key: "b23#3", verdict: "SHARPENED", basis: "dual-face: the FAMILY-file face of the batch-23 class is gate-held — W-D byte-identity censuses every member live and its law cites this very class; the non-family idiom face (report.ts's contract) is review. Booked: the non-family face only" },
+  // ---- batch 25 ----
+  { key: "b25#1", verdict: "HELD", basis: "drafts one and two never reached a machine; the reread is the factory gate for pre-machine drafts — no scheduled gate compiles an editor buffer" },
+  { key: "b25#6", verdict: "SHARPENED", basis: "dual-face: the heredoc act is transient; a truncated render.ts cannot compile — the typecheck face dies on the spot. Booked: the act face only" },
+  // ---- batch 26 ----
+  { key: "b26#1", verdict: "SHARPENED", basis: "dual-face (b25#6's twin): the act is ungated, the truncated probe file is a syntax death in the gated tree. Booked: the act face only" },
+  // ---- batch 27 ----
+  { key: "b27#0", verdict: "HELD", basis: "design-before-code is sequencing discipline; collapsed drafts never reached the machine" },
+  // ---- batch 28 ----
+  { key: "b28#3", verdict: "HELD", basis: "count-after-construction (21 built, 20 shipped) is census discipline at authoring time; the instance census verifies content, not completeness intent" },
+  // ---- batch 29 ----
+  { key: "b29#4", verdict: "HELD", basis: "displayed fractions vs their true denominator is print-layer honesty; no gate formats the register's intent" },
+  { key: "b29#5", verdict: "HELD", basis: "already dual-face in its reason: unused symbols die at the gates, live-code residue (`| \"\"`) is review — the booked face is the live-code draft residue" },
+  // ---- batch 30 ----
+  { key: "b30#1", verdict: "HELD", basis: "toExponential(6) masking 1+2.1e-8 is a display-format choice; the witness columns carry the true digits, the format itself is not gated" },
+  { key: "b30#4", verdict: "SHARPENED", basis: "dual-face: the in-tree faces of the residue class (unused indirections, void branches, mid-file imports) die at lint/typecheck; the live-code placeholder face (a rejects() line that compiles) is review. Booked: the pre-machine draft and the live-code face" },
+  // ---- batch 32 ----
+  { key: "b32#7", verdict: "HELD", basis: "the >1000-means-sigma formatting heuristic is semantic labeling; no gate parses what a unit label claims" },
+  { key: "b32#9", verdict: "HELD", basis: "the kill census verifies KILLS; residue-free mutant construction is authorship — a sloppy mutant that still dies passes every gate" },
+  { key: "b32#11", verdict: "HELD", basis: "the tree-walk rewrite never reached the machine; pre-machine drafts are reread territory" },
+  // ---- batch 33 ----
+  { key: "b33#0", verdict: "SHARPENED", basis: "dual-face placement class (b22#2's family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles); the /tmp face resolves outside the workspace (D:\\Data\\Temp) where no scheduled gate scans. Booked: the outside-tree face only" },
+  { key: "b33#2", verdict: "HELD", basis: "npx resolving deps from the wrong root is invocation environment; the sanctioned path (each repo's own npm run) is documented, not machine-forced" },
+  { key: "b33#3", verdict: "HELD", basis: "a scout pipeline that filters every line is a transient shell act; the numbers it would have produced are simply absent — nothing on disk to gate" },
+  // ---- batch 34 ----
+  { key: "b34#0", verdict: "HELD", basis: "the bash-inline regex surgery act is transient; its failure mode (zero replacements, silently) leaves the ORIGINAL file intact — no damaged artifact to catch" },
+  { key: "b34#3", verdict: "HELD", basis: "the phantom call was caught in self-review before any run; drafts that never reach the machine cannot be gated" },
+  // ---- batch 36 ----
+  { key: "b36#12", verdict: "HELD", basis: "folding one metric under another claim's label is field semantics; no gate parses what a field name promises" },
+  { key: "b36#13", verdict: "UPGRADED", basis: "the tolerance face is SELF-CATCHING: the gate refused its own witness at the sighting (a tolerance calibrated at one run's 1.3e-97 goes red the moment the class moves to n=5's 2.9e-79); recurrence dies at `dtc-clock/package.json :: test` — the machine convicted this very sighting" },
+  { key: "b36#14", verdict: "HELD", basis: "8e9-flops Kraus multiplies are performance debt, not wrongness; no workspace gate times complexity" },
+  { key: "b36#15", verdict: "HELD", basis: "the D^2 C^4 vs D^2 C^3 mis-estimate is analysis arithmetic at design time; no gate audits an estimate" },
+  { key: "b36#16", verdict: "HELD", basis: "board literals drifting from witness numbers (rng consumption order) is the prose-number face; a board-vs-witness reconciliation gate is the priced refutation target — none exists yet" },
+  { key: "b36#17", verdict: "SHARPENED", basis: "dual-face: the heredoc act is ungated (it even swallowed the lines that bury it); the damaged-file face dies at the loader/typecheck the moment it lands — b47#1 was convicted exactly there. Booked: the act face only" },
+  // ---- batch 37 ----
+  { key: "b37#1", verdict: "UPGRADED", basis: "the wrong-depth import is module-loader bait: the ds suite refused it with ERR_MODULE_NOT_FOUND at the sighting, and the same wrong depth is TS2307 on the scheduled typecheck of the same tree; recurrence dies at `ds_extracted/ds/package.json :: test` — the machine convicted this very sighting" },
+  { key: "b37#6", verdict: "HELD", basis: "grep -c's exit-1-on-zero is shell semantics inside an author's && chain; no gate commands the author's shell" },
+  { key: "b37#7", verdict: "UPGRADED", basis: "FALSIFIED AND REPAIRED IN THE SAME EDIT (v0.10.0): total-gate.ts now imports the one EPOCH_REPOS from the census kernel — the second literal list is gone — and the single-source test fires on every suite run; a recurrence (any second literal repo list) dies at `mutant-census/test/census.test.ts :: b37#7`" },
+  // ---- batch 38 ----
+  { key: "b38#0", verdict: "HELD", basis: "scratch residue caught by the reread seconds after the batch-36 lesson; pre-machine drafts" },
+  { key: "b38#1", verdict: "HELD", basis: "the silent tsx -e family (b14's class): the act leaves no output and no artifact" },
+  // ---- batch 39 ----
+  { key: "b39#0", verdict: "HELD", basis: "the anchor-swallow is a patch act; the vanished header is caught only by eyes on the section face — no gate diffs comment structure" },
+  // ---- batch 40 ----
+  { key: "b40#0", verdict: "HELD", basis: "same anchor-swallow class, third and fourth sightings; the aftermath face is prose structure no gate parses" },
+  // ---- batch 42 ----
+  { key: "b42#1", verdict: "HELD", basis: "the python assert fired on prettier-reflowed text — a transient patch act; the assertion IS a guard, but it is the author's own, not scheduled" },
+  // ---- batch 43 ----
+  { key: "b43#2", verdict: "HELD", basis: "a MISS swallowed by an && chain is shell-act semantics; the stale-success face is process" },
+  // ---- batch 44 ----
+  { key: "b44#1", verdict: "SHARPENED", basis: "dual-face: the heredoc act is ungated; the structure-collapse face (three unused variables, a dead branch) dies at lint in the gated tree. Booked: the act face only" },
+  // ---- batch 45 ----
+  { key: "b45#3", verdict: "HELD", basis: "exhaustive-cost budgeting on render columns is a pre-run design call; no gate times a repro cell by cell" },
+  { key: "b45#4", verdict: "HELD", basis: "anchoring from memory instead of the disk is a patch act; the Edit MISS is its own refusal — nothing damaged lands" },
+  { key: "b45#5", verdict: "HELD", basis: "the 2 KB block anchor on invisible whitespace is a patch act, same face as b45#4" },
+  { key: "b45#6", verdict: "HELD", basis: "the runner binary's PATH residency is the author shell's environment; npm scripts resolve locally by design" },
+  // ---- batch 46 ----
+  { key: "b46#1", verdict: "HELD", basis: "the silent tsx -e family, fifth sighting — the act is outputless" },
+  { key: "b46#3", verdict: "HELD", basis: "the python heredoc anchor abort is a patch act that refused itself before any write — no artifact, no gate" },
+  // ---- batch 47 ----
+  { key: "b47#0", verdict: "HELD", basis: "the pre-flight validation harness exists and convicted the drafts — but it runs at delivery step 0, not on a scheduled gate; the rule-authoring face stays process" },
+  { key: "b47#1", verdict: "UPGRADED", basis: "the damaged file landed in the gated tree and the loader convicted it on the spot (a real newline inside two string literals is a syntax death); recurrence dies at `mutant-census/package.json :: typecheck` — the machine convicted this very sighting" },
+  // ---- batch 48 ----
+  { key: "b48#1", verdict: "HELD", basis: "the anchor assert failed and the render edit silently never landed — a no-op act; the guard that catches it is greping the report face before closing, which is process" },
+  { key: "b48#2", verdict: "HELD", basis: "the read-state refusal is the harness tool's own guard — a machine, but not a gate this workspace schedules; the refusal IS the enforcement" },
+  // ---- batch 49 ----
+  { key: "b49#0", verdict: "HELD", basis: "the -e family's survival mode is working-sometimes: silent failure is not always fatal, and an act with no artifact has no gate" },
+  { key: "b49#2", verdict: "SHARPENED", basis: "dual-face placement class (b22#2/b33#0 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles); the system-temp face is outside the tree. Booked: the outside-tree face only" },
+  { key: "b49#3", verdict: "HELD", basis: "the Bash channel's escape-eating is tool-layer physics; the channel is banned by rule, and rules about channels are process — no gate inspects how a patch was delivered" },
+  // ---- batch 50 ----
+  { key: "b50#0", verdict: "HELD", basis: "the backslash-through-channel class, eighth sighting — same transient act face as b49#3" },
+  { key: "b50#1", verdict: "HELD", basis: "derivation conventions are verified by numeric probes in the scratch harness; no gate reviews a derivation — the probes do, and they are author's tools" },
+  // ---- batch 51 ----
+  { key: "b51#0", verdict: "HELD", basis: "product-function residue caught by reread before any run; the pre-machine face" },
+  { key: "b51#4", verdict: "HELD", basis: "nested quotes die in the Bash channel exactly as backslashes do — the same transient act face" },
+  { key: "b51#5", verdict: "HELD", basis: "the transposition typo lived in numeric prose; verbatim-anchor copying exposed it a visit later — prose-number reconciliation is priced, not built" },
+  { key: "b51#7", verdict: "HELD", basis: "replace-scoping is a patch act; B8 catches the aftermath on the memory side, the act itself is ungated" },
+  // ---- batch 52 ----
+  { key: "b52#0", verdict: "HELD", basis: "the false-green probe point lived in a scratch derivation; the Richardson cross-check that killed it is an author's tool, not a scheduled gate" },
+  { key: "b52#1", verdict: "HELD", basis: "the missing (1-p)-expansion terms were scratch-derivation arithmetic; same face as b52#0" },
+  { key: "b52#2", verdict: "HELD", basis: "the channel class again — the patch died at its own anchor assert; nothing landed" },
+  // ---- batch 53 ----
+  { key: "b53#0", verdict: "HELD", basis: "the Edit-before-Read refusals were the harness guard firing — enforcement happened, but by the tool, not a scheduled gate" },
+  // ---- batch 54 ----
+  { key: "b54#1", verdict: "HELD", basis: "already dual-faced by the v0.9.0 audit: the typecheck-tree face is GATE (TS2305, the b46#2 precedent), the scratch face is booked — re-audit confirms both faces as written" },
+  // ---- batch 65 ----
+  { key: "b65#1", verdict: "HELD", basis: "the cross-session stale read-state is the same harness-guard face as b48#2/b53#0 — the tool's refusal is the line, and it fired" },
+  // ---- batch 55 ----
+  { key: "b55#0", verdict: "HELD", basis: "first-draft residue under the wrong label caught by reread; pre-machine face" },
+  { key: "b55#1", verdict: "HELD", basis: "residue in the REPLACEMENT draft, minutes after enrolling the first — pre-machine face, same as b55#0" },
+  { key: "b55#2", verdict: "HELD", basis: "test-draft residue caught on reread before the suite; pre-machine face" },
+  { key: "b55#3", verdict: "HELD", basis: "arXiv digits are external truth: memory holds the shape, the publisher holds the digits; no local gate can reach the source (double-sourcing is process)" },
+  { key: "b55#5", verdict: "HELD", basis: "the needle-from-memory patch act; the assertion refused it — an author guard, not a scheduled gate" },
+  { key: "b55#6", verdict: "HELD", basis: "the cancellation-prone arrangement compiles and runs; which arrangement was chosen is design semantics no machine holds — the discipline (and the suspicious-zero alarm) is process" },
+  // ---- batch 56 ----
+  { key: "b56#0", verdict: "HELD", basis: "collision-scratch residue caught on reread; pre-machine face" },
+  { key: "b56#1", verdict: "HELD", basis: "dead placeholder block in a test draft caught on reread; pre-machine face" },
+  { key: "b56#2", verdict: "SHARPENED", basis: "dual-face (the b54#1 shape): the SCRATCH face is booked — Node's first-run refusal is instant but instant is not a gate (the file dies before gates run); the PRODUCT-tree twin face is TS2305 on the scheduled typecheck (the b46#2 precedent — b56#3 rides it). Booked: the scratch face only" },
+  { key: "b56#3", verdict: "UPGRADED", basis: "the missing-import face fired in PRODUCT code (audit.ts): two consecutive loader refusals at run, and the same defect is TS2305 on the scheduled typecheck of the same tree; recurrence dies at `stable-world/package.json :: typecheck`" },
+  { key: "b56#4", verdict: "HELD", basis: "the wrong-object check (full matrix where dephased was meant) convicts nothing loudly — S(copy)-S(rho)=0 always; semantic object choice is ungated by any generic machine" },
+  { key: "b56#5", verdict: "HELD", basis: "the phase-blind reference state is a wrong-object check in scratch; same ungated semantics face as b56#4" },
+  { key: "b56#6", verdict: "HELD", basis: "the failed patch plus deleted evidence is an act-sequence face; the rule (evidence survives until the corrected run) is process" },
+  { key: "b56#7", verdict: "UPGRADED", basis: "transcription errors into an exact-zero witness die at the tolerance: the commutator printed 3.30e+0 against an exact-zero claim and the suite went red at the sighting; recurrence dies at `stable-world/package.json :: test` — the machine convicted this very sighting" },
+  { key: "b56#8", verdict: "UPGRADED", basis: "a NaN witness fails loudly (NaN <= tol is false): the coherence-factor probe failed the suite at the sighting; recurrence dies at `stable-world/package.json :: test` — the machine convicted this very sighting" },
+  { key: "b56#9", verdict: "HELD", basis: "citation YEARS are external truth, same face as b55#3 — the publisher's record is the only source" },
+  // ---- batch 57 ----
+  { key: "b57#0", verdict: "HELD", basis: "void-suppressed imports caught on reread; the void idiom evades no-unused-vars by design, the pre-machine face is booked (removal-not-suppression is the rule)" },
+  { key: "b57#1", verdict: "HELD", basis: "applying a T=0 closed form at finite beta is domain-semantics — the formula was correct on its own domain; no generic gate checks a formula's domain of application" },
+  { key: "b57#2", verdict: "HELD", basis: "the tightness assertion compared a convenient superset — assertion-object choice is semantics, ungated generically (the scratch face)" },
+  { key: "b57#3", verdict: "UPGRADED", basis: "an undefined name in a product loop is TS2304 on the scheduled typecheck — the b54#2 precedent verbatim (the sighting's ReferenceError at run is the same death one gate earlier); recurrence dies at `stable-world/package.json :: typecheck`" },
+  { key: "b57#4", verdict: "HELD", basis: "the dead term inside a live expression was caught on reread; expressions-as-formulas review is pre-machine" },
+  { key: "b57#5", verdict: "HELD", basis: "board numbers vs the witness's own census — the prose-number face again; reconciliation gate priced, not built" },
+  // ---- batch 58 ----
+  { key: "b58#0", verdict: "HELD", basis: "the four convention slips lived across two scratch drafts; the eigenvalue arbiter that killed them is an author's probe, not a scheduled gate" },
+  { key: "b58#1", verdict: "HELD", basis: "the vacuous loop printed ZERO from an empty range — scratch-analysis face; the 'is the loop nonempty' check is author discipline" },
+  // ---- batch 59 ----
+  { key: "b59#0", verdict: "UPGRADED", basis: "a phantom import (applyUnitaryLocal) in product code is TS2305 on the scheduled typecheck; the sighting was caught at reread, but recurrence that reaches the tree dies there — the b54#2 shape (caught by review, gated on recurrence) at `stable-world/package.json :: typecheck`" },
+  { key: "b59#1", verdict: "HELD", basis: "the self-dividing ratio was a check that could never fail — tautology detection needs the known-answer test case, which is authoring; no generic gate proves a check can fail" },
+  { key: "b59#2", verdict: "HELD", basis: "the conjugation-sign convention is derivation semantics in scratch; conventions are written down by hand, no machine holds which side carries the conjugate" },
+  { key: "b59#3", verdict: "HELD", basis: "the heredoc-created code file survived because its content was benign — 'this time it was harmless' is the family's survival mode; content-based exceptions are banned BY RULE precisely because no gate can audit the channel" },
+  { key: "b59#4", verdict: "HELD", basis: "the dead helper was caught on reread; pre-machine face (fifth sighting of the class)" },
+  { key: "b59#6", verdict: "HELD", basis: "board rows out of order for a whole visit, unnoticed by every gate — no scheduled gate parses per-repo board arrays; an id-order checker is priced future work" },
+  { key: "b59#7", verdict: "HELD", basis: "the escaped-needle python patch refused itself and landed on retry via Edit — transient act face" },
+  // ---- batch 60 ----
+  { key: "b60#0", verdict: "HELD", basis: "the nonsense && inside reduce was caught on reread before any run; pre-machine face" },
+  { key: "b60#1", verdict: "HELD", basis: "trailing void for an unused import, caught in the same reread; pre-machine face" },
+  { key: "b60#2", verdict: "HELD", basis: "the horizon is a PRE-RUN decision — budgeting is design; no gate prices a census cap before the first run" },
+  { key: "b60#3", verdict: "SHARPENED", basis: "dual-face (b54#1/b56#2 family): the SCRATCH face is booked (refused at first run, gone before gates); the product-tree face (importing a private member) is TS2305 on the scheduled typecheck — the b46#2 precedent. Booked: the scratch face only" },
+  { key: "b60#4", verdict: "HELD", basis: "the overflow NaN was an arrangement choice in scratch printing; scaled division is the discipline, no gate holds arrangements" },
+  { key: "b60#5", verdict: "HELD", basis: "the insertion script asserted on a remembered function shape and wrote nothing — transient act face" },
+  { key: "b60#6", verdict: "HELD", basis: "the channel's fourth refusal of the same patch class — transient act face, nothing landed" },
+  // ---- batch 61 ----
+  { key: "b61#0", verdict: "HELD", basis: "the hand-derivation factor slips lived in scratch; the reconciliation anchor that killed them is an author's probe" },
+  // ---- batch 62 ----
+  { key: "b62#0", verdict: "HELD", basis: "the NaN assembly was caught on the scratch output face; re-choosing the deliverable shape is design" },
+  { key: "b62#1", verdict: "HELD", basis: "trailing void caught by the pre-run cleaning pass; pre-machine face" },
+  // ---- batch 63 ----
+  { key: "b63#0", verdict: "SHARPENED", basis: "dual-face: the scratch-analysis face is booked; the IN-TREE guard-boolean face is suite-held — b61#1's inverted guard was convicted by the tests on the spot. Booked: the scratch face only" },
+  { key: "b63#1", verdict: "HELD", basis: "the dropped /4 lived in hand analysis; the exact chain identity corrected it — author's identity chain, not a gate" },
+  // ---- batch 64 ----
+  { key: "b64#0", verdict: "HELD", basis: "the heredoc-created scratch survived benign (tenth enrollment of the class) — the channel is ungatable by rule, not by machine; no content-based exceptions" },
+  { key: "b64#1", verdict: "HELD", basis: "the copy-paste explosion was caught in self-review of the command line — the command channel is not a gate's territory" },
+  // ---- batch 66 ----
+  { key: "b66#5", verdict: "HELD", basis: "already dual-faced at enrollment (the v0.2.0 dsic-noether delivery): the renderer face is unenforceable (no scheduled gate runs exp5), the same logic is gated in the test tree's skew case — re-audit confirms as written" },
+  // ---- batch 67 (born audited: the R-board's own visit, R1's first exercise) ----
+  { key: "b67#0", verdict: "HELD", basis: "the act face — a heredoc-created scratch that survived by luck, eleventh sighting committed while the audit board itself was being written; no machine sees the channel, the Write-tool rule is the only guard, and the damaged-file face dies at the loader (the b47#1 twin)" },
+  { key: "b67#2", verdict: "HELD", basis: "live-code construction residue in a test draft caught on reread — the pre-machine face; the class's unused-symbol faces die at lint in-tree (b67#1 rides that face), the live-code face is review-only" },
+  { key: "b67#4", verdict: "HELD", basis: "patch-act face: the needle-from-memory Edit miss was refused by the tool's own guard — a machine, but not a scheduled gate (the b45#4 family; the refusal fired)" },
+  { key: "b67#6", verdict: "UPGRADED", basis: "FLIPPED ONE VISIT LATER UNDER R1's STANDING LAW: the priced refutation target got its machine — E7 (v0.11.0) checks the description's stated tier counts against the live enrollment arithmetic on every suite run and the renderer refuses to print a drifted self-description; recurrence dies at `mutant-census/test/census.test.ts :: E7`" },
+  { key: "b68#2", verdict: "SHARPENED", basis: "dual-face since v0.14.0: the swallow's AFTERMATH face (the orphaned tail line, the repeated-label signature, verbatim heading doubles) is gate-held by B9 — the repeated insertions of one day each left exactly these signatures; the ABSENCE face (a heading silently gone, no fragment left) has no should-exist oracle and stays booked with the section-face grep as its discipline" },
+  { key: "b69#0", verdict: "HELD", basis: "pre-machine draft residue in a template string caught on the post-edit reread — the pre-machine face (the b55#0 class); the in-tree syntax-visible faces of residue die at typecheck, prose-in-string residue is review" },
+  { key: "b69#1", verdict: "HELD", basis: "patch-act face: the anchor-from-memory Edit miss was refused by the tool's own guard (the b45#4 family) — a machine, but not a scheduled gate" },
+  { key: "b70#2", verdict: "HELD", basis: "pre-machine draft face: the never-fail assertion was caught on reread before the suite ran — the b59#1 class (a check that cannot fail is constructed zero); no gate proves a check can fail generically" },
+  { key: "b70#3", verdict: "UPGRADED", basis: "FLIPPED ONE VISIT LATER UNDER R1's STANDING LAW (the second priced target to get its machine, after E7): B9 (v0.5.0 of the record) checks every cited daily note's structure on every suite run — the repeated-label signature this error IS, the orphaned tails its family left, and verbatim heading doubles all convict by line number; recurrence dies at `burial-record/src/kernel/audit.ts :: memoryStructureViolations`" },
+  { key: "b71#0", verdict: "HELD", basis: "command-act face: the detached duplicate launch raced its own gate — the cost was real (wall-sum inflated 42%) but the act lives in the author's shell, which no scheduled gate inspects; read-the-whole-line is the discipline (the b64#1 family)" },
+  { key: "b72#0", verdict: "HELD", basis: "law-design face: the first invariant was false (visit-number uniqueness) and the live first run convicted legitimate history — no scheduled gate proves a law's invariant true; the run-before-landing probe is the discipline (the b50#1 numeric-probe family, applied to law design)" },
+  { key: "b72#1", verdict: "HELD", basis: "edit-act face: the newline-dropping insert was caught on the post-edit reread — no scheduled gate diffs formatting intent; read-back after every structural insert" },
+  // ---- batch 73 (dtc-clock v0.19.0) — born audited ----
+  { key: "b73#1", verdict: "HELD", basis: "scratch-act face: the mechanical trio lived in a scratch file that dies before gates by design; the kernel's richardsonLimit handles arbitrary step ratios and its outputs are gate-asserted — the scratch face is author review" },
+  { key: "b73#2", verdict: "HELD", basis: "budget face: the O(K^2) loop hang has no non-timeout gate; the incremental recurrence it became is spot-checked under the suite — complexity-estimation before a scale run is a stopping-rule judgment, not a machine" },
+  { key: "b73#3", verdict: "HELD", basis: "frame face: no scheduled gate audits the choice of comparison frame — the mismatched-scale section was scrapped on the numbers it produced; scale-first is derivation discipline (the wrong-object class's ungated subspecies)" },
+  { key: "b73#4", verdict: "HELD", basis: "noise-floor face (b55#6's class at a new subtraction): the fitted value beyond the cancellation floor was wrong but the second-law value is asserted at k=8192 under the suite — the beyond-floor fit domain is author arithmetic" },
+  { key: "b73#10", verdict: "HELD", basis: "counter face: visit/batch numbering is pre-gate shared state by construction — no scheduled gate numbers visits; grep-the-registry-first is the discipline (the b65 law, executed pre-emptively here)" },
+];
+
+export interface RepairViolation {
+  readonly row: string;
+  readonly law: string;
+  readonly detail: string;
+}
+
+/** R4: needle-level firing evidence for every UPGRADED row — the file on
+ * disk inside the cited gate's tree, plus the exact assertion, include
+ * pattern, or import that fires on THIS row's defect class. Needles are
+ * grepped from the live trees at enrollment time, never from memory. */
+export interface FiringEvidence {
+  /** an UPGRADED audit row's key */
+  readonly key: string;
+  /** workspace-relative path inside the row's cited gate's tree */
+  readonly path: string;
+  /** the assertion/include/import text that fires on the defect class */
+  readonly needle: string;
+}
+
+export const FIRING_EVIDENCE: readonly FiringEvidence[] = [
+  { key: "b36#13", path: "dtc-clock/test/dtc.test.ts", needle: "pairing odd zero / even identity" },
+  { key: "b37#1", path: "ds_extracted/ds/tests/sched-bench/sched-bench.test.ts", needle: "../../src/bench/generator.js" },
+  { key: "b37#7", path: "mutant-census/test/census.test.ts", needle: "b37#7" },
+  { key: "b47#1", path: "mutant-census/tsconfig.typecheck.json", needle: "test/**/*" },
+  { key: "b56#3", path: "stable-world/tsconfig.typecheck.json", needle: "src/**/*" },
+  { key: "b56#7", path: "stable-world/test/stable.test.ts", needle: "[U, H_tot] norm" },
+  { key: "b56#8", path: "stable-world/test/stable.test.ts", needle: "the coherence factor is temperature-free" },
+  { key: "b57#3", path: "stable-world/tsconfig.typecheck.json", needle: "src/**/*" },
+  { key: "b59#0", path: "stable-world/tsconfig.typecheck.json", needle: "src/**/*" },
+  { key: "b67#6", path: "mutant-census/test/census.test.ts", needle: "E7" },
+  { key: "b70#3", path: "burial-record/src/kernel/audit.ts", needle: "memoryStructureViolations" },
+];
+
+/** R1-R4 over the audit table against the live enrollment and registry. */
+export function checkRepairAudit(
+  audit: readonly RepairRow[],
+  enrollment: readonly EnrollmentRow[],
+  registry: LiveRegistry,
+  evidence: readonly FiringEvidence[] = FIRING_EVIDENCE,
+): RepairViolation[] {
+  const v: RepairViolation[] = [];
+  const enrolledByKey = new Map(enrollment.map((r) => [r.key, r] as const));
+  const liveByKey = new Map(registry.errors.map((e) => [e.key, e] as const));
+  const seen = new Set<string>();
+  for (const r of audit) {
+    if (!REPAIR_VERDICTS.includes(r.verdict)) {
+      v.push({ row: r.key, law: "R3", detail: `illegal verdict "${r.verdict}" — the vocabulary is closed` });
+      continue;
+    }
+    if (seen.has(r.key)) {
+      v.push({ row: r.key, law: "R3", detail: "duplicate audit key" });
+      continue;
+    }
+    seen.add(r.key);
+    if (!liveByKey.has(r.key)) {
+      v.push({ row: r.key, law: "R3", detail: "audits an error the registry does not carry — a dead key" });
+      continue;
+    }
+    if (r.basis.trim() === "") {
+      v.push({ row: r.key, law: "R3", detail: "empty basis — an audit verdict must say why, on the record" });
+      continue;
+    }
+    const enrolled = enrolledByKey.get(r.key);
+    if (!enrolled) {
+      v.push({ row: r.key, law: "R1", detail: "the audited error is not enrolled — the audit cannot outrun the E-board" });
+      continue;
+    }
+    if (r.verdict === "UPGRADED") {
+      if (enrolled.tier !== "GATE-ENFORCED") {
+        v.push({
+          row: r.key,
+          law: "R1",
+          detail: `verdict UPGRADED but the live enrollment tier is ${enrolled.tier} — an upgrade must sit on a row that really is gate-held`,
+        });
+      } else if (!r.basis.includes(enrolled.anchor)) {
+        v.push({
+          row: r.key,
+          law: "R2",
+          detail: `the basis does not cite the falsifying anchor verbatim — expected "${enrolled.anchor}" inside the basis`,
+        });
+      }
+    } else if (enrolled.tier !== "BOOKED-UNENFORCEABLE") {
+      v.push({
+        row: r.key,
+        law: "R1",
+        detail: `verdict ${r.verdict} but the live enrollment tier is ${enrolled.tier} — a later flip must edit this audit row in the same act`,
+      });
+    }
+  }
+  for (const row of enrollment) {
+    if (row.tier === "BOOKED-UNENFORCEABLE" && !seen.has(row.key)) {
+      v.push({
+        row: row.key,
+        law: "R1",
+        detail: "booked without an audit verdict — born-audited is law: every new booked row carries its repair-audit verdict in the same edit",
+      });
+    }
+  }
+  // R4 — firing evidence: one needle-level witness per UPGRADED row, live
+  const upgradedAuditKeys = new Set(audit.filter((r) => r.verdict === "UPGRADED").map((r) => r.key));
+  const evidenceBykey = new Map<string, FiringEvidence[]>();
+  for (const e of evidence) {
+    const list = evidenceBykey.get(e.key) ?? [];
+    list.push(e);
+    evidenceBykey.set(e.key, list);
+    if (!upgradedAuditKeys.has(e.key)) {
+      v.push({ row: e.key, law: "R4", detail: "firing evidence carried for a row that is not UPGRADED — evidence follows verdicts" });
+    }
+  }
+  for (const key of upgradedAuditKeys) {
+    const rows = evidenceBykey.get(key) ?? [];
+    if (rows.length === 0) {
+      v.push({ row: key, law: "R4", detail: "UPGRADED without firing evidence — the deep check requires the needle-level witness in the cited gate's tree" });
+      continue;
+    }
+    if (rows.length > 1) {
+      v.push({ row: key, law: "R4", detail: `${rows.length} evidence rows — exactly one needle per upgrade` });
+    }
+    const e = rows[0]!;
+    const full = resolve(WORKSPACE_ROOT, e.path);
+    if (!existsSync(full)) {
+      v.push({ row: key, law: "R4", detail: `evidence file missing: ${e.path}` });
+    } else if (!readFileSync(full, "utf8").includes(e.needle)) {
+      v.push({ row: key, law: "R4", detail: `evidence needle "${e.needle}" not found in ${e.path} — the firing witness is not on disk` });
+    }
+  }
+  return v;
+}
+
+/** W-Y: the repair audit census — every verdict live against the enrollment. */
+export async function witnessRepairAudit(
+  audit: readonly RepairRow[] = REPAIR_AUDIT,
+  enrollment: readonly EnrollmentRow[] = ENROLLMENT,
+): Promise<WitnessResult> {
+  const registry = await loadLiveRegistry();
+  const v = checkRepairAudit(audit, enrollment, registry);
+  const tally: Record<string, number> = {};
+  for (const r of audit) tally[r.verdict] = (tally[r.verdict] ?? 0) + 1;
+  return {
+    name: "W-Y repair audit census",
+    pass: v.length === 0,
+    detail:
+      v.length > 0
+        ? `${v.length} violation(s): ${v.slice(0, 5).map((x) => `${x.row} [${x.law}]`).join("; ")}${v.length > 5 ? ", …" : ""}`
+        : `${audit.length} booked-population rows audited LIVE (of the ${enrollment.filter((r) => r.tier === "BOOKED-UNENFORCEABLE").length} booked + ${tally["UPGRADED"] ?? 0} upgraded) — UPGRADED ${tally["UPGRADED"] ?? 0} on cited live anchors with needle-level firing evidence (R4, ${FIRING_EVIDENCE.length} needles in the cited gates' own trees), SHARPENED ${tally["SHARPENED"] ?? 0} to named faces, HELD ${tally["HELD"] ?? 0} with the ungated face stated; born-audited is law`,
+  };
+}

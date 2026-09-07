@@ -226,6 +226,13 @@ export function tariffTable(): { rows: TariffRow[]; winner: string } {
       units: 0.4253,
       note: "v0.5.0's maintenance contract: the 1-bit sector read's Shannon entropy per period — 0 while the armor holds strictly (a deterministic read pays 0, the TC14 criterion), metered under fire; the conditional global flip is unitary and pays 0; W-K re-derives this meter reading live and convicts drift",
     },
+    {
+      machine: "DTC clock, full-repair (tie reset added, n=6 p=0.10)",
+      garbageBits: 0,
+      readoutBits: 1.1113, // 0.2985 syndrome + 0.8128 amortized tie erasure (TC28/W-L)
+      units: 1.1113,
+      note: "v0.6.0's complete maintenance contract at even n: the syndrome bit PLUS the tie reset's amortized erasure H2(p_tie) + p_tie*log2C(n,n/2) — the exact-pole reset erases WHICH tie state the clock was in, exactly log2 C(6,3) = 4.322 bits per tie by exchangeability; at odd n the tie set is empty and this row degenerates to the row above; W-L re-derives the meter live and convicts drift",
+    },
   ];
   let winner: TariffRow = rows[0]!;
   for (const r of rows) if (r.units < winner.units) winner = r;

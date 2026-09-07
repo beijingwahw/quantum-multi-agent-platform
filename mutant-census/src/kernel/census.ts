@@ -2,7 +2,7 @@
  * THE LIVE CENSUSES — K and W boards. Both run against the REAL workspace on
  * every `npm test`: the kernel family's byte-identity across every repo
  * (an unregistered drift fails the build — the batch-23 class, silent
- * contract drift in a reused file), and the 26 repos' engineering hygiene
+ * contract drift in a reused file), and the 28 epoch repos' engineering hygiene
  * (scripts, strict TS, entry guards). Registrations are data; reality is
  * computed. Where they disagree, the build says so.
  */
@@ -15,8 +15,10 @@ export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 /** The five files of the shared kernel family (byte-copied lineage). */
 export const FAMILY_FILES = ["cmat.ts", "states.ts", "channels.ts", "rng.ts", "measures.ts"] as const;
 
-/** The 26 epoch repos of the workspace (the main platform lives elsewhere and
- * is not a family member). */
+/** The 28 epoch repos of the workspace (the main platform lives elsewhere and
+ * is not a family member). SINGLE-SOURCED since v0.10.0 (the b37#7 repair):
+ * total-gate.ts imports this list — a second literal copy is a convicted
+ * shape (the census.test.ts :: b37#7 guard reads the script's source). */
 export const EPOCH_REPOS: readonly string[] = [
   "bqp-map",
   "depreciation-ledger",
@@ -234,4 +236,26 @@ export function scanWorkspace(): readonly WorkspaceScanRow[] {
   for (const repo of EPOCH_REPOS) rows.push(scanOne(repo, false));
   for (const p of PLATFORM_REPOS) rows.push(scanOne(p.repo, true));
   return rows;
+}
+
+/** The registered files that legitimately live at the WORKSPACE ROOT itself.
+ * Everything else bearing a code extension at the root is a STRAY: the root
+ * is not a scratch home (the b22#2/b33#0/b49#2/b54#0 placement class — this
+ * detector holds the ROOT face, the one sighted at b54#0; the system-temp
+ * face lives outside the workspace tree and stays booked on its own rows). */
+export const REGISTERED_ROOT_FILES: readonly string[] = ["probe.ts"];
+
+/** The root-stray detector, PURE over a name list — the forged-listing fire
+ * demo injects here, so no witness ever mutates the filesystem. */
+export function rootStrayFiles(names: readonly string[]): string[] {
+  return names.filter((n) => /\.(ts|tsx|js|mjs|cjs)$/.test(n) && !REGISTERED_ROOT_FILES.includes(n));
+}
+
+/** The live face: the workspace root's own direct FILE children (directories
+ * are not files; the repos own their trees). */
+export function liveRootStrayFiles(root = WORKSPACE_ROOT): string[] {
+  const names = readdirSync(root, { withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => d.name);
+  return rootStrayFiles(names);
 }

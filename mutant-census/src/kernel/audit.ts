@@ -32,7 +32,12 @@
  *       is printed on the report — the boundary is visible, not implied;
  *   E5. the two registries may not drift: the burial record's declared totals
  *       must equal what it carries;
- *   E6. closed tier vocabulary, unique keys, no category re-labeling.
+ *   E6. closed tier vocabulary, unique keys, no category re-labeling;
+ *   E7. (v0.11.0) the census's OWN stated counts are law: any tier count the
+ *       package.json description states must equal the live enrollment
+ *       arithmetic — the description is a copy of the data (the b67#6/b68#0
+ *       class: counts drift the moment a batch lands), and copies answer to
+ *       the same law as contexts and lesson headings.
  *
  * Witnesses:
  *   W-A the kill census (9 mutants, live margins);
@@ -40,7 +45,9 @@
  *   W-C the negative controls (synthetic violators must FIRE);
  *   W-D the family census (live hashes vs the register);
  *   W-E the workspace census (26 repos, live);
- *   W-F the enrollment census (every buried error, live against the registry).
+ *   W-F the enrollment census (every buried error, live against the registry);
+ *   [W-I — the per-error equivalence census, lives in equiv.ts: the J-board's
+ *    witness; kept out of runWitnesses so it stays with its own laws J1-J3.]
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -48,7 +55,9 @@ import { MUTANTS, type MutantSpec } from "./family.js";
 import { PROPERTY_IDS, runBattery, runKillCensus, runNegativeControls } from "./battery.js";
 import {
   REGISTERED_DIVERGENCES,
+  REGISTERED_ROOT_FILES,
   WORKSPACE_ROOT,
+  liveRootStrayFiles,
   scanFamily,
   scanWorkspace,
   type FamilyScanRow,
@@ -189,7 +198,7 @@ export function witnessFamily(): { result: WitnessResult; rows: readonly FamilyS
   };
 }
 
-/** W-E: the workspace census — 26 epoch repos + the platform, live. */
+/** W-E: the workspace census — 28 epoch repos + the platform + the root, live. */
 export function witnessWorkspace(): { result: WitnessResult; rows: readonly WorkspaceScanRow[] } {
   const rows = scanWorkspace();
   const problems: string[] = [];
@@ -202,6 +211,10 @@ export function witnessWorkspace(): { result: WitnessResult; rows: readonly Work
       );
     }
   }
+  const strays = liveRootStrayFiles();
+  for (const s of strays) {
+    problems.push(`workspace root stray: ${s} — the root is not a scratch home (registered: ${REGISTERED_ROOT_FILES.join(", ")})`);
+  }
   const epochRows = rows.filter((r) => !r.isPlatform);
   const platformRows = rows.filter((r) => r.isPlatform);
   const unguardedTotal = epochRows.reduce((s, r) => s + r.unguardedEntries.length, 0);
@@ -212,7 +225,7 @@ export function witnessWorkspace(): { result: WitnessResult; rows: readonly Work
       detail:
         problems.length > 0
           ? problems.join("; ")
-          : `${epochRows.length}/${epochRows.length} epoch repos: test+typecheck+repro and strict TS, ${unguardedTotal} unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ${platformRows.map((r) => r.repo).join(", ")} (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: ${rows.filter((r) => r.reportCount > 0).length}/${rows.length}`,
+          : `${epochRows.length}/${epochRows.length} epoch repos: test+typecheck+repro and strict TS, ${unguardedTotal} unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ${platformRows.map((r) => r.repo).join(", ")} (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: ${rows.filter((r) => r.reportCount > 0).length}/${rows.length}; workspace root: ${strays.length} strays (registered: ${REGISTERED_ROOT_FILES.join(", ")}) — the root-stray gate, v0.9.0`,
     },
     rows,
   };
@@ -293,6 +306,33 @@ export function checkEnrollment(
       law: "E5",
       detail: `the burial record declares ${registry.declaredBatches} batches / ${registry.declaredErrors} errors but carries ${registry.batchCount} / ${registry.errors.length} — the two registries may not drift`,
     });
+  }
+  return v;
+}
+
+/** E7: the census's own stated tier counts (package.json description) equal
+ * the live enrollment arithmetic. Any stated count is checked; absent counts
+ * claim nothing. The parser matches the description's established phrases. */
+export function checkStatedCounts(description: string, rows: readonly EnrollmentRow[]): Violation[] {
+  const v: Violation[] = [];
+  const tally = (tier: string): number => rows.filter((r) => r.tier === tier).length;
+  const claims: Array<{ re: RegExp; tier: string; label: string }> = [
+    { re: /(\d+)\s+on live mutants/, tier: "MUTANT-KILLED", label: "on live mutants" },
+    { re: /(\d+)\s+on build gates/, tier: "GATE-ENFORCED", label: "on build gates" },
+    { re: /(\d+)\s+booked unenforceable/, tier: "BOOKED-UNENFORCEABLE", label: "booked unenforceable" },
+  ];
+  for (const c of claims) {
+    const m = c.re.exec(description);
+    if (!m) continue;
+    const stated = Number.parseInt(m[1]!, 10);
+    const live = tally(c.tier);
+    if (stated !== live) {
+      v.push({
+        row: "description",
+        law: "E7",
+        detail: `states ${stated} ${c.label} but the live enrollment carries ${live} — a stated count is a copy of the data (b67#6/b68#0 class)`,
+      });
+    }
   }
   return v;
 }

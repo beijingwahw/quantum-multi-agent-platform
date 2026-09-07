@@ -14,6 +14,26 @@ Every new reference was double-sourced before enrollment (publisher/archive + in
   - Source 2: bibliographic record cross-checked against Wikipedia's citation of the 2000 first edition, https://en.wikipedia.org/wiki/Quantum_Computation_and_Quantum_Information
   - Used for: the amplitude-damping channel family (Ch. 8) that the law instantiates (damping INTO the marked world, Ch.-convention inverted and defined explicitly in `law.ts`); also the general density-matrix formalism. Provenance anchor — every closed form here is re-derived by the witnesses, never transcribed.
 
+- **BCP14** — T. Baumgratz, M. Cramer, M. B. Plenio, "Quantifying Coherence", *Physical Review Letters* 113, 140401 (2014). doi:10.1103/PhysRevLett.113.140401.
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.113.140401
+  - Source 2: arXiv:1311.0275, https://arxiv.org/abs/1311.0275 (verified — the preprint number is 1311.0275; writing it from memory produced 1310.6190, the citation-drift class caught at the source)
+  - Used for: the relative entropy of coherence C_rel(ρ) = S(ρ_diag) − S(ρ) and its monotonicity under incoherent operations (AT7) — the theorem behind the erasure census. The machine witnesses the monotonicity as a census on the law's own trajectories and the closed-form values exactly; the citation anchors the theorem's provenance, not the arithmetic.
+
+- **BIPM19** — BIPM, *The International System of Units (SI)*, 9th edition (2019; current version 4.01). k = 1.380 649 × 10⁻²³ J K⁻¹ exactly (defines the kelvin); h = 6.626 070 15 × 10⁻³⁴ J s exactly (defines the kilogram).
+  - Source 1: BIPM SI Brochure 9th ed. EN PDF, https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf
+  - Source 2: NIST Special Publication 330 (2019), The International System of Units (SI), https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.330-2019.pdf
+  - Used for: the exact-SI arithmetic of the thermal readings (AT8) — βΔE = hf/(kT) needs both constants exact, so the 5 GHz / 10 mK anchors carry no measurement error by construction.
+
+- **DAV74** — E. B. Davies, "Markovian master equations", *Communications in Mathematical Physics* 39(2), 91–110 (1974). doi:10.1007/BF01608389.
+  - Source 1: bibliographic record cross-checked via Google Scholar's Davies profile (CMP 39(2), 91–110, 1974) and Semantic Scholar, https://www.semanticscholar.org/paper/b223bf1d3a7b8c765893ceaf3480e4fa9586922b
+  - Source 2: cited verbatim (volume/pages/DOI) by Dann, Rossi et al., "Quantum thermo-dynamical construction for driven open systems" and by arXiv:2507.10080 — two independent bibliographic witnesses agree on **1974** (the 1976 "Markovian master equations II" lives in Math. Ann. 219 — the year was the memory's contribution, the sources corrected it)
+  - Used for: the weak-coupling tradition AT9 executes a discrete shadow of (repeated interactions with resonant Gibbs qubits; detailed balance and the Davies generator). The machine executes the collision model exactly; the continuum weak-coupling limit is cited, not executed — that is the row's own stated boundary.
+
+- **WY16** — A. Winter, D. Yang, "Operational Resource Theory of Coherence", *Physical Review Letters* 116, 120404 (2016). doi:10.1103/PhysRevLett.116.120404.
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.116.120404
+  - Source 2: arXiv:1506.07975, https://arxiv.org/abs/1506.07975
+  - Used for: the operational backdrop of AT10's banking claim — coherence's work value under incoherent operations (distillation/dilution). The machine banks the straddler's full bit on the weight exactly (free-energy excess = kT ln2 witnessed); what WY16's framework prices beyond that (asymptotic distillation rates) is cited, not re-derived.
+
 ## Anchored in-book (not re-verified here)
 
 - **The kT·ln2 erasure schedule per bit at 300 K / 10 mK** (AT5) — anchored to `route-price` (D1-P1: k exact SI 2019, ln2 by quadrature, E(300 K) = 2.87098e−21 J, E(10 mK) = 9.56993e−26 J) and behind it the settled ledger row #11 (`vacuum-compiler`).
