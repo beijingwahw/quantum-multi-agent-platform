@@ -94,10 +94,16 @@ describe('bench-kit 测量器自验证', () => {
   });
 
   it('③ 灵敏度·小效应：+25% 工作负载仍可判（效应越过伪影地板）', (t) => {
+    // 小效应检测是全套件中唯一的统计功效受限断言（①只需 CI 含 1、②真效应
+    // 2.0 余量巨大）：CI windows runner（共享 2 核）实测 30 轮时 bootstrap
+    // 下界跌破 1 判 no-difference——功效预算必须覆盖慢机。杠杆两手一起上：
+    // 单轮负载加倍（固定时长抢占尖峰的相对量级减半，MAD 围栏负担减轻）＋
+    // 轮数 30→80（分层后每层 40 样本，中位 bootstrap 区间按 √n 收紧）。
+    // 本地实测下界 1.234（30 轮旧配置 1.225），总时长 ~1.2s。
     const report = comparePaired(
-      { name: '1x', run: computeWorkload(40) },
-      { name: '1.25x', run: computeWorkload(50) },
-      { rounds: 30, warmupRounds: 12, seed: 9999 },
+      { name: '1x', run: computeWorkload(80) },
+      { name: '1.25x', run: computeWorkload(100) },
+      { rounds: 80, warmupRounds: 16, seed: 9999 },
     );
     if (skipIfHostile(t, report)) return;
     assert.equal(report.verdict, 'b-slower', report.note);
