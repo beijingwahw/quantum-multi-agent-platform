@@ -23,7 +23,7 @@
     "example:quantum": "tsx examples/quantum-breakthrough-benchmark.ts",
     "example:qpu": "tsx examples/qpu-real-hardware.ts",
     "performance": "tsx scripts/performance-test.ts",
-    "coverage": "c8 --include src/** --check-coverage --statements 92 --branches 82 --functions 92 --lines 92 --reporter=text --reporter=text-summary --reporter=json-summary node --import tsx --test \"tests/**/*.test.ts\"",
+    "coverage": "c8 --include \"src/**\" --check-coverage --statements 92 --branches 82 --functions 92 --lines 92 --reporter=text --reporter=text-summary --reporter=json-summary node --import tsx --test \"tests/**/*.test.ts\"",
     "knip": "knip",
     "bench": "tsx scripts/bench.ts",
     "bench:regenerate": "tsx scripts/bench.ts regenerate"

@@ -14,6 +14,12 @@ concurrency:
 permissions:
   contents: read
 
+# 平台源码自仓库重组后位于 ds_extracted/ds（研究工作区在根目录展开），
+# 所有 npm 步骤在该目录执行；本文件是 CI 的唯一活源（ds 子树内不再留副本，防双表漂移）。
+defaults:
+  run:
+    working-directory: ds_extracted/ds
+
 jobs:
   verify:
     runs-on: ${{ matrix.os }}
@@ -31,6 +37,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+          cache-dependency-path: ds_extracted/ds/package-lock.json
       - run: npm ci
       - run: npm run format:check
       - run: npm run typecheck
@@ -46,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-node${{ matrix.node-version }}
-          path: coverage/
+          path: ds_extracted/ds/coverage/
           retention-days: 7
       - name: 供应链扫描（I3 四件套之四：生产依赖审计）
         run: npm audit --omit=dev --audit-level=high

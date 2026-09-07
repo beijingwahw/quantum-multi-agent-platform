@@ -17,6 +17,11 @@ concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
 
+# 平台包自仓库重组后位于 ds_extracted/ds；本文件是发布链的唯一活源。
+defaults:
+  run:
+    working-directory: ds_extracted/ds
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -28,6 +33,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: ds_extracted/ds/package-lock.json
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run format:check

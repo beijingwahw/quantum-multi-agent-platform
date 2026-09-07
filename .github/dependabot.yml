@@ -1,9 +1,10 @@
 # I7：依赖更新自动化（此前全手工）。npm 周更 + actions 周更——
 # 安全补丁类更新频率贴合 npm 生态节奏，_major 版本由人工评审。
+# 仓库重组后：npm 包清单在 ds_extracted/ds，actions 工作流在根 .github/。
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directory: /ds_extracted/ds
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

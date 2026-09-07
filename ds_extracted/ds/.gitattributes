@@ -1,0 +1,5 @@
+# 统一检出为 LF：GitHub Actions 的 Windows runner 自带 Git 默认
+# core.autocrlf=true，文本文件检出成 CRLF 后会被 prettier 的
+# endOfLine=lf 逐文件点名（CI 矩阵两格 Windows 长期红的根因）。
+# 仓级钉死行尾，四个矩阵格在任何平台检出同一字节。
+* text=auto eol=lf
