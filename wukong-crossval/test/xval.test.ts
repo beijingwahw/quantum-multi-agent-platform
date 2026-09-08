@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkBudgetTable, checkRobustTable, checkXval, runWitnesses } from "../src/kernel/audit.js";
+import { checkBudgetTable, checkRobustTable, checkXval, requireInstance, runWitnesses } from "../src/kernel/audit.js";
 import { XVAL, type XvalRow } from "../src/kernel/ledger.js";
-import { enumerateOptimum, instanceSet, makeRng, quboValue, runQaoa, uniformState, costTable, expectation, sampleWithReadoutNoise, type Instance } from "../src/kernel/crossval.js";
-import { binomCdf, chernoffShots, minShots, powerAt } from "../src/kernel/power.js";
-import { choose, exactObservedHitRate, flipKernel, perturbCensus, popcount, CENSUS_DELTAS } from "../src/kernel/robust.js";
+import { applyCost, applyRX, costTable, dimOf, enumerateOptimum, expectation, exportCircuit, instanceSet, makeRng, optimizeOffline, probOf, quboValue, runQaoa, sampleWithReadoutNoise, uniformState, type Instance } from "../src/kernel/crossval.js";
+import { binomCdf, chernoffShots, klBern, logBinomCdf, minShots, powerAt } from "../src/kernel/power.js";
+import { choose, distanceMasses, exactObservedHitRate, exactShellMass, flipKernel, perturbCensus, popcount, CENSUS_DELTAS } from "../src/kernel/robust.js";
 import { exactProbe } from "../src/kernel/probe.js";
 import { budgetRowsForDepth, BUDGET_CAP } from "../src/kernel/budget.js";
-import { discriminatorRow, fitDepolarizing, fitReadoutFlip, mcShellDemo } from "../src/kernel/discriminate.js";
+import { depolShellMass, discriminatorRow, fitDepolarizing, fitReadoutFlip, MC_SHELL_DEMO, mcShellDemo } from "../src/kernel/discriminate.js";
+import { XvalError } from "../src/kernel/error.js";
 
 function smuggle(mutate: (rows: XvalRow[]) => void): XvalRow[] {
   const copy = JSON.parse(JSON.stringify(XVAL)) as XvalRow[];
@@ -17,10 +18,13 @@ function smuggle(mutate: (rows: XvalRow[]) => void): XvalRow[] {
   return copy;
 }
 
+let probe8Memo: Instance | undefined;
 function probe8(): Instance {
-  const inst = instanceSet().find((i) => i.id === "np-n8-0");
-  assert.ok(inst, "np-n8-0 exists");
-  return inst;
+  // the seeded set is pure; enumerating all 20 instances (2^20 states at the
+  // top size) once per process is a memo, not a behavior change
+  probe8Memo ??= instanceSet().find((i) => i.id === "np-n8-0");
+  assert.ok(probe8Memo, "np-n8-0 exists");
+  return probe8Memo;
 }
 
 describe("T1 the package is ready", () => {
@@ -37,7 +41,7 @@ describe("T2 the kernel machinery", () => {
   it("enumeration finds a planted optimum", () => {
     const base = { id: "planted", n: 6, kind: "coupled" as const, linear: [1, 2, 3, 4, 5, 6], coupling: [[1, 1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1], [1, 1], [1]] };
     const { optBits, optValue } = enumerateOptimum(base);
-    assert.equal(optValue, quboValue({ ...base, optBits: 0, optValue: 0 }, 0b111111));
+    assert.equal(optValue, quboValue(base, 0b111111));
     assert.equal(optBits, 0b111111);
   });
 
@@ -262,7 +266,7 @@ describe("T8 the discriminator (X8's arithmetic)", () => {
     // n=8 at f=0.02 is an INFLATION operating point: no physical depolarizing fit
     assert.ok(!row.depolPhysical && row.fitLambda > 1);
     assert.equal(row.separable, true); // separated outright by sign
-    const mc = mcShellDemo(inst, 1, 0.02, 40000, 5);
+    const mc = mcShellDemo(inst, MC_SHELL_DEMO.depth, MC_SHELL_DEMO.flip, MC_SHELL_DEMO.shots, MC_SHELL_DEMO.seed);
     const sigma = Math.sqrt((mc.readoutPrediction * (1 - mc.readoutPrediction)) / 40000);
     assert.ok(Math.abs(mc.shell1Estimate - mc.readoutPrediction) < 4 * sigma, "MC shell-1 lands on the readout branch");
     assert.ok(mc.depolPrediction > mc.readoutPrediction, "the depolarizing branch is visibly apart here");
@@ -290,5 +294,114 @@ describe("T4 the renderer refuses to print an illegal package", () => {
     await import("../src/experiments/render.js");
     const p = resolve(process.cwd(), "out", "reports", "the-xval-package.md");
     assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+  });
+});
+
+function rejectsByCode(code: string, fn: () => unknown): void {
+  assert.throws(fn, (e: unknown) => e instanceof XvalError && e.code === code, `expected a named ${code} rejection`);
+}
+
+describe("T9 the named error surface — contraband input is rejected by code, never NaN", () => {
+  it("sampleWithReadoutNoise rejects zero shots, illegal flips, mismatched layouts, and out-of-range optBits by name", () => {
+    const inst = probe8();
+    const psi = runQaoa(inst, { betas: [0.3], gammas: [0.7] });
+    rejectsByCode("XVAL_SHOTS_RANGE", () => sampleWithReadoutNoise(psi, inst.n, inst.optBits, 0, 0, makeRng(1)));
+    rejectsByCode("XVAL_FLIP_RANGE", () => sampleWithReadoutNoise(psi, inst.n, inst.optBits, 10, -0.01, makeRng(1)));
+    rejectsByCode("XVAL_FLIP_RANGE", () => sampleWithReadoutNoise(psi, inst.n, inst.optBits, 10, 1.01, makeRng(1)));
+    rejectsByCode("XVAL_LAYOUT_MISMATCH", () => sampleWithReadoutNoise(uniformState(inst.n + 1), inst.n, inst.optBits, 10, 0, makeRng(1)));
+    rejectsByCode("XVAL_BITS_RANGE", () => sampleWithReadoutNoise(psi, inst.n, 1 << inst.n, 10, 0, makeRng(1)));
+  });
+
+  it("runQaoa and exportCircuit reject unpaired parameter vectors", () => {
+    const inst = probe8();
+    rejectsByCode("XVAL_PARAMS_LENGTH", () => runQaoa(inst, { betas: [0.3], gammas: [] }));
+    rejectsByCode("XVAL_PARAMS_LENGTH", () => exportCircuit(inst, { betas: [0.3, 0.4], gammas: [0.7] }, 100));
+  });
+
+  it("the QUBO referee rejects shape contraband and qubit counts that would wrap 1 << n", () => {
+    const shortLinear = { id: "short", n: 4, kind: "coupled" as const, linear: [1, 2, 3], coupling: [[], [], [], []] };
+    rejectsByCode("XVAL_QUBO_SHAPE", () => quboValue(shortLinear, 0b1010));
+    rejectsByCode("XVAL_N_RANGE", () => uniformState(31));
+    rejectsByCode("XVAL_N_RANGE", () => enumerateOptimum({ ...shortLinear, linear: [1, 2, 3, 4], n: 31 }));
+  });
+
+  it("distanceMasses rejects layout mismatches and out-of-range references", () => {
+    const psi = uniformState(4);
+    rejectsByCode("XVAL_LAYOUT_MISMATCH", () => distanceMasses(psi, 5, 0));
+    rejectsByCode("XVAL_BITS_RANGE", () => distanceMasses(psi, 4, 16));
+  });
+
+  it("the shell kernels reject shell indices beyond the mass vector (the silent-NaN hole, wave 6)", () => {
+    const masses = exactProbe(probe8(), 1).masses;
+    rejectsByCode("XVAL_SHELL_RANGE", () => exactShellMass(masses, 0.02, masses.length));
+    rejectsByCode("XVAL_SHELL_RANGE", () => depolShellMass(masses, 8, 0.5, -1));
+  });
+
+  it("exactObservedHitRate rejects empty mass vectors and out-of-range flips", () => {
+    const masses = exactProbe(probe8(), 1).masses;
+    rejectsByCode("XVAL_MASSES_SHAPE", () => exactObservedHitRate(new Float64Array(0), 0.02));
+    rejectsByCode("XVAL_FLIP_RANGE", () => exactObservedHitRate(masses, 1.5));
+  });
+
+  it("minShots names its three rejection classes", () => {
+    rejectsByCode("XVAL_MINSHOTS_NULL_RATE", () => minShots(0, 0.1, 0.05, 0.8, 1e6));
+    rejectsByCode("XVAL_MINSHOTS_ALT_RATE", () => minShots(0.3, 0.3, 0.05, 0.8, 1e6));
+    rejectsByCode("XVAL_MINSHOTS_LEVEL", () => minShots(0.3, 0.5, 0, 0.8, 1e6));
+  });
+
+  it("the seeded-instance lookup names a missing id", () => {
+    rejectsByCode("XVAL_INSTANCE_MISSING", () => requireInstance("np-n8-99"));
+  });
+
+  it("exactProbe and optimizeOffline reject non-integer depths", () => {
+    rejectsByCode("XVAL_DEPTH_RANGE", () => exactProbe(probe8(), 1.5));
+    rejectsByCode("XVAL_DEPTH_RANGE", () => optimizeOffline(probe8(), -1));
+  });
+
+  it("checkBudgetTable turns an illegal operating point into a named X6 violation, not an anonymous throw", () => {
+    const inst = probe8();
+    const real = budgetRowsForDepth(inst, 1, [0.02], [1], [0.2], 0.05, BUDGET_CAP);
+    const contraband = real.map((r) => ({ ...r, flip: 7 }));
+    const hit = checkBudgetTable(contraband).find((v) => v.law === "X6" && v.detail.includes("illegal operating point"));
+    assert.ok(hit, "expected the illegal flip level to be named as an X6 violation");
+  });
+});
+
+describe("T10 hand-checkable anchors — the gates and bounds pinned by hand arithmetic", () => {
+  it("applyCost multiplies by e^{-i gamma c} exactly as written by hand", () => {
+    // n=1, split layout [re0, re1 | im0, im1]; |0> = 1 + 0i, cost(|0>) = 1, gamma = pi/2:
+    // e^{-i pi/2} = -i, so the amplitude becomes -i — re = 0, im = -1
+    const psi = new Float64Array([1, 0, 0, 0]);
+    applyCost(psi, new Float64Array([1, 0]), Math.PI / 2);
+    assert.ok(Math.abs(psi[0]!) < 1e-15, "real part is cos(-pi/2) = 0");
+    assert.ok(Math.abs(psi[2]! + 1) < 1e-15, "imaginary part is sin(-pi/2) = -1");
+    // the zero-cost state is the identity path (untouched)
+    assert.equal(psi[1], 0);
+    assert.equal(psi[3], 0);
+  });
+
+  it("applyRX's sign convention is pinned by hand: e^{+i (theta/2) X}, the conjugate of textbook RX", () => {
+    // |0> = 1 + 0i, theta = pi: the code's hand value is amp(|1>) = +i.
+    // Textbook RX(pi) = e^{-i (pi/2) X} would give -i; the offline optimizer's
+    // beta axis is the textbook's -beta — frozen, disclosed in applyRX's contract
+    const psi = new Float64Array([1, 0, 0, 0]);
+    applyRX(psi, 1, 0, Math.PI);
+    assert.ok(Math.abs(psi[0]!) < 1e-15 && Math.abs(psi[2]!) < 1e-15, "amp(|0>) = cos(pi/2) = 0");
+    assert.ok(Math.abs(psi[1]!) < 1e-15, "amp(|1>) real part is 0");
+    assert.ok(Math.abs(psi[3]! - 1) < 1e-15, "amp(|1>) imaginary part is +1, not -1");
+  });
+
+  it("klBern is zero on the diagonal and matches the hand value at (1/2, 1/4)", () => {
+    assert.equal(klBern(0.3, 0.3), 0);
+    // hand: D(1/2 || 1/4) = 1/2 ln 2 + 1/2 ln(2/3) = 1/2 ln(4/3)
+    const hand = 0.5 * Math.log(4 / 3);
+    assert.ok(Math.abs(klBern(0.5, 0.25) - hand) < 1e-15);
+  });
+
+  it("logBinomCdf's first term is exactly n log q, and the layout accessors pin the split", () => {
+    assert.equal(logBinomCdf(0, 10, 0.3), 10 * Math.log(0.7));
+    const psi = new Float64Array([0.6, 0, 0.8, 0]); // amp(|0>) = 0.6 + 0.8i
+    assert.equal(dimOf(psi), 2);
+    assert.ok(Math.abs(probOf(psi, 0) - 1) < 1e-15, "0.36 + 0.64 = 1");
   });
 });

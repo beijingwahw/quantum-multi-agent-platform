@@ -17,13 +17,20 @@
  * No floats enter any ordering decision below; float values are computed only
  * for display, after the exact verdict is already on record.
  */
+import { staticExpectedErasureBits } from "./ledger.js";
+import { VacuumError } from "../core/cmat.js";
 
-/** The T4 static-mode tariff in bits (float, display only). */
+/** The T4 static-mode tariff in bits (float, display only). THE single
+ * definition of (T+1)·log2(T+1) lives in the ledger (staticExpectedErasureBits
+ * via uniformEntropyBits) — this delegate replaced an identical local copy at
+ * v0.3.0 (bit-identical: both computed clockStates * Math.log2(clockStates)). */
 export function fkStaticBits(clockStates: number): number {
-  return clockStates * Math.log2(clockStates);
+  return staticExpectedErasureBits(clockStates);
 }
 
-function bigPow(base: bigint, exp: number): bigint {
+/** Exact integer power — the ONLY definition in the repository since v0.3.0
+ * (amplify.ts's identical private copy was retired). */
+export function bigPow(base: bigint, exp: number): bigint {
   let out = 1n;
   for (let i = 0; i < exp; i++) out *= base;
   return out;
@@ -32,10 +39,10 @@ function bigPow(base: bigint, exp: number): bigint {
 /** Exact: is (T+1)·log2(T+1) < c ? — decided as (T+1)^(T+1) < 2^c. */
 export function fkStaticUndercuts(clockStates: number, rivalUnits: number): boolean {
   if (!Number.isInteger(clockStates) || clockStates < 2) {
-    throw new Error(`fkStaticUndercuts: clockStates ${clockStates} out of domain`);
+    throw new VacuumError("tariff/clock-states-out-of-domain", `fkStaticUndercuts: clockStates ${clockStates} out of domain`);
   }
   if (!Number.isInteger(rivalUnits) || rivalUnits < 0) {
-    throw new Error(`fkStaticUndercuts: rivalUnits ${rivalUnits} out of domain`);
+    throw new VacuumError("tariff/rival-units-out-of-domain", `fkStaticUndercuts: rivalUnits ${rivalUnits} out of domain`);
   }
   return bigPow(BigInt(clockStates), clockStates) < bigPow(2n, rivalUnits);
 }
@@ -44,10 +51,10 @@ export function fkStaticUndercuts(clockStates: number, rivalUnits: number): bool
  * -1 (x < c), 0 (x = c), +1 (x > c) — decided as (T+1)^(T+1) vs 2^c. */
 export function fkStaticCompare(clockStates: number, rivalUnits: number): -1 | 0 | 1 {
   if (!Number.isInteger(clockStates) || clockStates < 2) {
-    throw new Error(`fkStaticCompare: clockStates ${clockStates} out of domain`);
+    throw new VacuumError("tariff/clock-states-out-of-domain", `fkStaticCompare: clockStates ${clockStates} out of domain`);
   }
   if (!Number.isInteger(rivalUnits) || rivalUnits < 0) {
-    throw new Error(`fkStaticCompare: rivalUnits ${rivalUnits} out of domain`);
+    throw new VacuumError("tariff/rival-units-out-of-domain", `fkStaticCompare: rivalUnits ${rivalUnits} out of domain`);
   }
   const lhs = bigPow(BigInt(clockStates), clockStates);
   const rhs = bigPow(2n, rivalUnits);
@@ -67,8 +74,11 @@ export function fkStaticIntegerBracket(clockStates: number): { lo: bigint; hi: b
  * |100·x − q| ≤ ½, i.e. 2·100·x ∈ [2q−1, 2q+1), decided exactly as
  * (T+1)^(200(T+1)) vs 2^(2q∓1). */
 export function fkStaticRoundsTo(clockStates: number, quotedHundredths: number): boolean {
+  if (!Number.isInteger(clockStates) || clockStates < 2) {
+    throw new VacuumError("tariff/clock-states-out-of-domain", `fkStaticRoundsTo: clockStates ${clockStates} out of domain`);
+  }
   if (!Number.isInteger(quotedHundredths) || quotedHundredths < 0) {
-    throw new Error(`fkStaticRoundsTo: quotedHundredths ${quotedHundredths} out of domain`);
+    throw new VacuumError("tariff/hundredths-out-of-domain", `fkStaticRoundsTo: quotedHundredths ${quotedHundredths} out of domain`);
   }
   const lhs = bigPow(BigInt(clockStates), 200 * clockStates);
   const low = bigPow(2n, 2 * quotedHundredths - 1);
@@ -102,5 +112,5 @@ export function tariffCrossoverDepth(rivalUnits: number): number {
   for (let depth = 2; depth <= 64; depth++) {
     if (!fkStaticUndercuts(depth + 1, rivalUnits)) return depth;
   }
-  throw new Error(`tariffCrossoverDepth: no crossover up to depth 64 for rival ${rivalUnits}`);
+  throw new VacuumError("tariff/crossover-not-found", `tariffCrossoverDepth: no crossover up to depth 64 for rival ${rivalUnits}`);
 }

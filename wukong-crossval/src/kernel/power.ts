@@ -23,6 +23,7 @@
  * region nests inside the exact critical region — the exact test at the
  * Chernoff N is at least as powerful. Machine-verified on every row.
  */
+import { XvalError } from "./error.js";
 
 export interface MinShotsResult {
   /** minimum shots under the scan definition; null = censored beyond cap */
@@ -155,9 +156,9 @@ export function powerAt(shots: number, p0: number, p1: number, alpha: number): n
  * power(N*-1) < target.
  */
 export function minShots(p0: number, p1: number, alpha: number, target: number, cap: number): MinShotsResult {
-  if (!(p0 > 0 && p0 < 1)) throw new Error(`minShots: null rate p0 must be in (0,1), got ${p0}`);
-  if (!(p1 > 0 && p1 < 1 && p1 !== p0)) throw new Error(`minShots: alternative p1 must be in (0,1) and differ from p0, got ${p1} vs ${p0}`);
-  if (!(0 < alpha && alpha < 1) || !(0 < target && target < 1)) throw new Error("minShots: alpha and target must be in (0,1)");
+  if (!(p0 > 0 && p0 < 1)) throw new XvalError("XVAL_MINSHOTS_NULL_RATE", `minShots: null rate p0 must be in (0,1), got ${p0}`);
+  if (!(p1 > 0 && p1 < 1 && p1 !== p0)) throw new XvalError("XVAL_MINSHOTS_ALT_RATE", `minShots: alternative p1 must be in (0,1) and differ from p0, got ${p1} vs ${p0}`);
+  if (!(0 < alpha && alpha < 1) || !(0 < target && target < 1)) throw new XvalError("XVAL_MINSHOTS_LEVEL", "minShots: alpha and target must be in (0,1)");
   const chernoff = chernoffShots(p0, p1, alpha, 1 - target);
   let hi = 1;
   while (hi < cap && powerAt(hi, p0, p1, alpha) < target) hi *= 2;

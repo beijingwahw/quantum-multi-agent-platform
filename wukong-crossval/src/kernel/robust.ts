@@ -10,7 +10,8 @@
  * this file.
  */
 import type { QaoaParams } from "./crossval.js";
-import { expectation, runQaoa } from "./crossval.js";
+import { dimOf, expectation, probOf, requireStateLayout, runQaoa } from "./crossval.js";
+import { requireQubitCount, requireUnitInterval, XvalError } from "./error.js";
 import type { ExactProbe } from "./probe.js";
 
 /** Hamming weight of a 32-bit pattern (Kernighan-free branchless form). */
@@ -24,10 +25,14 @@ export function popcount(x: number): number {
 
 /** Exact |psi_s|^2 mass by Hamming distance d(s, ref) — one statevector pass. */
 export function distanceMasses(psi: Float64Array, n: number, ref: number): Float64Array {
-  const half = psi.length >> 1;
+  requireStateLayout(psi, n, "distanceMasses");
+  if (!Number.isInteger(ref) || ref < 0 || ref >= 1 << n) {
+    throw new XvalError("XVAL_BITS_RANGE", `distanceMasses: reference must be a basis state in [0, ${String(1 << n)}) for n=${String(n)}, got ${String(ref)}`);
+  }
+  const half = dimOf(psi);
   const m = new Float64Array(n + 1);
   for (let k = 0; k < half; k++) {
-    m[popcount(k ^ ref)]! += psi[k]! * psi[k]! + (psi[half + k] as number) * (psi[half + k] as number);
+    m[popcount(k ^ ref)]! += probOf(psi, k);
   }
   return m;
 }
@@ -47,6 +52,8 @@ export function choose(n: number, k: number): number {
  * and distance-labeled states form a complete partition).
  */
 export function flipKernel(n: number, f: number): Float64Array[] {
+  requireQubitCount(n, "flipKernel");
+  requireUnitInterval(f, "flipKernel: flip probability");
   const T: Float64Array[] = [];
   for (let d = 0; d <= n; d++) {
     const row = new Float64Array(n + 1);
@@ -72,18 +79,28 @@ export function flipKernel(n: number, f: number): Float64Array[] {
  * f = 0 returns mass(0) = |psi_opt|^2; f = 1/2 returns 1/2^n exactly.
  */
 export function exactObservedHitRate(masses: Float64Array, f: number): number {
+  if (masses.length < 1) {
+    throw new XvalError("XVAL_MASSES_SHAPE", `exactObservedHitRate: the Hamming-distance mass vector must carry n+1 >= 1 entries, got ${String(masses.length)}`);
+  }
+  requireUnitInterval(f, "exactObservedHitRate: flip probability");
   const n = masses.length - 1;
   let r = 0;
-  for (let d = 0; d <= n; d++) r += (masses[d] as number) * f ** d * (1 - f) ** (n - d);
+  for (let d = 0; d <= n; d++) r += masses[d]! * f ** d * (1 - f) ** (n - d);
   return r;
 }
 
-/** Exact probability of landing in the Hamming-1 shell of the optimum. */
+/** Exact probability of landing in the Hamming-`shell` shell of the optimum.
+ * The shell index is domain-checked: an out-of-range shell read `undefined`
+ * off the kernel row and produced a silent NaN (the dimension-slot family) —
+ * it is now rejected by name. */
 export function exactShellMass(masses: Float64Array, f: number, shell: number): number {
+  if (!Number.isInteger(shell) || shell < 0 || shell >= masses.length) {
+    throw new XvalError("XVAL_SHELL_RANGE", `exactShellMass: shell index must be an integer in [0, ${String(masses.length)}) (the mass vector's own length), got ${String(shell)}`);
+  }
   const n = masses.length - 1;
   const T = flipKernel(n, f);
   let m = 0;
-  for (let d = 0; d <= n; d++) m += (masses[d] as number) * (T[d] as Float64Array)[shell]!;
+  for (let d = 0; d <= n; d++) m += masses[d]! * T[d]![shell]!;
   return m;
 }
 
@@ -131,8 +148,8 @@ export function perturbCensus(probe: ExactProbe, deltas: readonly number[]): Per
         for (const s of [-1, 1] as const) {
           const betas = [...params.betas];
           const gammas = [...params.gammas];
-          if (which === "beta") betas[l] = (betas[l] as number) + s * delta;
-          else gammas[l] = (gammas[l] as number) + s * delta;
+          if (which === "beta") betas[l] = betas[l]! + s * delta;
+          else gammas[l] = gammas[l]! + s * delta;
           vals[s < 0 ? 0 : 1] = expectation(runQaoa(inst, { betas, gammas }), costs);
         }
         const [em, ep] = vals;
@@ -198,7 +215,7 @@ export function robustSummary(probe: ExactProbe, deltas: readonly number[], band
     maxGain,
     minCurvature: minCurv,
     maxCurvature: maxCurv,
-    p0: masses[0] as number,
+    p0: masses[0]!,
     band: [exactObservedHitRate(masses, fHi), exactObservedHitRate(masses, fLo)],
     params: census.params,
   };

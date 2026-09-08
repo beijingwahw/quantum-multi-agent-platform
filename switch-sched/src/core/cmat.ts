@@ -41,15 +41,6 @@ export function identity(d: number): CMat {
   return m;
 }
 
-export function vAdd(a: CVec, b: CVec): CVec {
-  const r = vec(a.n);
-  for (let i = 0; i < a.n; i++) {
-    r.re[i] = a.re[i]! + b.re[i]!;
-    r.im[i] = a.im[i]! + b.im[i]!;
-  }
-  return r;
-}
-
 export function vScale(a: CVec, s: number): CVec {
   const r = vec(a.n);
   for (let i = 0; i < a.n; i++) {
@@ -174,33 +165,9 @@ export function kron(a: CMat, b: CMat): CMat {
   return m;
 }
 
-/** Kronecker product of column vectors. */
-export function vKron(a: CVec, b: CVec): CVec {
-  const v = vec(a.n * b.n);
-  for (let i = 0; i < a.n; i++) {
-    for (let j = 0; j < b.n; j++) {
-      v.re[i * b.n + j] = a.re[i]! * b.re[j]! - a.im[i]! * b.im[j]!;
-      v.im[i * b.n + j] = a.re[i]! * b.im[j]! + a.im[i]! * b.re[j]!;
-    }
-  }
-  return v;
-}
-
 export function kronAll(mats: CMat[]): CMat {
   if (mats.length === 0) throw new Error('kronAll needs >=1 matrix');
   return mats.reduce((acc, m) => kron(acc, m));
-}
-
-export function vecToMat(v: CVec): CMat {
-  const m = mat(v.n, 1);
-  m.re.set(v.re);
-  m.im.set(v.im);
-  return m;
-}
-
-export function matToVec(m: CMat): CVec {
-  if (m.cols !== 1) throw new Error('matToVec requires column');
-  return { n: m.rows, re: m.re.slice(), im: m.im.slice() };
 }
 
 export function isHermitian(a: CMat, tol = 1e-12): boolean {
@@ -364,8 +331,7 @@ export function eigVecsFromValues(
     rngState = (rngState * 1664525 + 1013904223) >>> 0;
     return rngState / 4294967296;
   };
-  const out: Array<Float64Array | null> = new Array<Float64Array | null>(n).fill(null);
-  for (let ci = 0; ci < clusters.length; ci++) {
+  const out: Array<Float64Array | null> = new Array<Float64Array | null>(n).fill(null);  for (let ci = 0; ci < clusters.length; ci++) {
     const cluster = clusters[ci]!;
     const lam = values[cluster[0]!]!;
     // distance to nearest eigenvalue outside this cluster
@@ -410,8 +376,12 @@ export function eigVecsFromValues(
       out[cluster[j]!] = block[j]!;
     }
   }
-  if (out.some((v) => v === null)) throw new Error('eigVecsFromValues: incomplete eigenspace');
-  return out as Float64Array[];
+  const complete: Float64Array[] = [];
+  for (const v of out) {
+    if (v === null) throw new Error('eigVecsFromValues: incomplete eigenspace');
+    complete.push(v);
+  }
+  return complete;
 }
 
 /**
@@ -572,28 +542,6 @@ export function sqrtPSD(a: CMat): CMat {
         // |v><v| * s, v is real-normalized complex column
         out.re[i * n + j] = out.re[i * n + j]! + s * (vk.re[i]! * vk.re[j]! + vk.im[i]! * vk.im[j]!);
         out.im[i * n + j] = out.im[i * n + j]! + s * (vk.im[i]! * vk.re[j]! - vk.re[i]! * vk.im[j]!);
-      }
-    }
-  }
-  return out;
-}
-
-/** Rebuild a Hermitian matrix from its spectral decomposition. */
-export function fromSpectral(values: Float64Array, vectors: CMat[]): CMat {
-  const first = vectors[0];
-  if (first === undefined) throw new Error('fromSpectral: empty spectral list');
-  const n = first.rows;
-  // values and vectors are parallel lists, one per eigenpair of the n x n matrix
-  if (values.length !== n || vectors.length !== n) {
-    throw new Error(`fromSpectral: expected ${n} values and vectors, got ${values.length}/${vectors.length}`);
-  }
-  const out = mat(n, n);
-  for (let k = 0; k < n; k++) {
-    const vk = vectors[k]!;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        out.re[i * n + j] = out.re[i * n + j]! + values[k]! * (vk.re[i]! * vk.re[j]! + vk.im[i]! * vk.im[j]!);
-        out.im[i * n + j] = out.im[i * n + j]! + values[k]! * (vk.im[i]! * vk.re[j]! - vk.re[i]! * vk.im[j]!);
       }
     }
   }

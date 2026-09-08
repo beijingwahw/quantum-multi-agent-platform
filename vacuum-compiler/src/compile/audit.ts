@@ -21,6 +21,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { exactRationalPower, rationalToFloat, type ExactRational } from "./amplify.js";
 import { fkStaticCompare, fkStaticRoundsTo } from "./tariff.js";
+import { VacuumError } from "../core/cmat.js";
 
 // ---------------------------------------------------------------------------
 // 1. The decay-table auditor
@@ -48,6 +49,11 @@ export interface DecayTableViolation {
  * >= 10 floor), MC outside the 5-sigma band, and structural corruption
  * (gaps/duplicates in k). */
 export function auditDecayTable(eps: ExactRational, rows: readonly SubmittedDecayRow[], trials = 20000): readonly DecayTableViolation[] {
+  // The auditor's own ground must be legal: a non-probability eps would make
+  // the "exact recomputation" meaningless — rejected by name, not audited.
+  if (eps.num < 0n || eps.den <= 0n || eps.num > eps.den) {
+    throw new VacuumError("amplify/epsilon-out-of-domain", `auditDecayTable: eps = ${eps.num}/${eps.den}, expected a rational in [0, 1]`);
+  }
   const violations: DecayTableViolation[] = [];
   const seen = new Set<number>();
   for (const r of rows) {

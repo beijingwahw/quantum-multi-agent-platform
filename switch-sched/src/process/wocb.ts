@@ -18,7 +18,7 @@
 import { type CMat, eigenvaluesHermitian, identity, isHermitian, kronAll, mAdd, mMul, mScale, mTrace } from '../core/cmat.js';
 import { PAULI_X, PAULI_Z } from '../core/states.js';
 import { cjMatrix, processProbability } from './cj.js';
-import { causalWitness, classicalCensus, gameWitnessFunctional } from './gypi.js';
+import { causalWitness, gameWitnessFunctional, verifyCensusSizeCap } from './gypi.js';
 import { judgeTermTypes, type TermJudge } from './termtype.js';
 
 /** W_OCB = ¼[𝟙 + (σ_z^{A2}σ_z^{B1} + σ_z^{A1}σ_x^{B1}σ_z^{B2})/√2]. */
@@ -49,9 +49,12 @@ export interface EigenSummary {
 /** Hermitian eigenvalue summary with a PSD verdict at the given tolerance. */
 export function eigenSummary(w: CMat, tol = 1e-12): EigenSummary {
   const eig = Array.from(eigenvaluesHermitian(w)).sort((x, y) => x - y);
+  const min = eig[0];
+  const max = eig[eig.length - 1];
+  if (min === undefined || max === undefined) throw new Error('eigenSummary: empty spectrum');
   return {
-    min: eig[0]!,
-    max: eig[eig.length - 1]!,
+    min,
+    max,
     negativeCount: eig.filter((l) => l < -tol).length,
     values: eig,
   };
@@ -174,24 +177,13 @@ export function verifyWitnessCertificate(claim: WitnessCertificate): WitnessVerd
 /**
  * The classical cap certificate: exhaustive census recomputation plus witness
  * nonnegativity on the census optimum (the polytope argument is linear, so
- * the vertex cap caps every shared-randomness strategy).
+ * the vertex cap caps every shared-randomness strategy). The size/cap
+ * counterfeit check is the shared core in gypi.ts — one checker, two entry
+ * shapes, no divergent copies of the conviction message.
  */
 export function verifyClassicalCapRecord(claimed: {
   familySize: number;
   maxPsucc: number;
 }): WitnessVerdict {
-  const truth = classicalCensus();
-  if (claimed.familySize !== truth.length) {
-    return {
-      ok: false,
-      reason: `CLASSICAL-CENSUS-COUNTERFEIT: claimed ${claimed.familySize} deterministic strategies, machine census has ${truth.length}`,
-    };
-  }
-  if (Math.abs(claimed.maxPsucc - truth[0]!.psucc) > 1e-12) {
-    return {
-      ok: false,
-      reason: `CLASSICAL-CENSUS-COUNTERFEIT: claimed cap ${claimed.maxPsucc.toFixed(6)}, machine cap ${truth[0]!.psucc.toFixed(6)} — the classical causal bound cannot be inflated`,
-    };
-  }
-  return { ok: true, reason: `verified: ${truth.length} vertices, cap ${truth[0]!.psucc.toFixed(6)}` };
+  return verifyCensusSizeCap(claimed);
 }

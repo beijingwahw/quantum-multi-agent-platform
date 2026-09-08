@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { type CMat, identity, mat, matEq, mAdd, mDagger, mMul } from '../src/core/cmat.js';
+import { identity, kron, mat, matEq, mAdd, mDagger, mMul } from '../src/core/cmat.js';
 import { applyKraus, partialTrace } from '../src/core/channels.js';
 import { makeRng } from '../src/core/rng.js';
 import {
   KET0,
+  MINUS,
   PLUS,
+  basisRho,
   PAULI_X,
   PAULI_Z,
   randomStateVec,
@@ -39,32 +41,6 @@ import {
   switchedEnsembleChi,
   switchedSlices,
 } from '../src/switch/capacity.js';
-
-/** Kronecker product of two matrices, generic (used for d=4 gate construction). */
-function kron2(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          out.re[(i * b.rows + p) * out.cols + (j * b.cols + q)] =
-            out.re[(i * b.rows + p) * out.cols + (j * b.cols + q)]! + a.re[i * a.cols + j]! * b.re[p * b.cols + q]!;
-          out.im[(i * b.rows + p) * out.cols + (j * b.cols + q)] =
-            out.im[(i * b.rows + p) * out.cols + (j * b.cols + q)]! + a.im[i * a.cols + j]! * b.re[p * b.cols + q]!;
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function basisRho(d: number, i: number): CMat {
-  const m = mat(d, d);
-  m.re[i * d + i] = 1;
-  return m;
-}
-
-const MINUS = { n: 2, re: Float64Array.from([1, -1].map((x) => x / Math.SQRT2)), im: new Float64Array(2) };
 
 test('partialTrace: Bell marginals are I/2 (stride regression guard)', () => {
   // |Φ⁺⟩ density: ½(|00⟩+|11⟩)(·)†
@@ -109,8 +85,8 @@ test('switch of unitary boxes: commutation task readout deterministic (|−⟩ i
   assert.ok(matEq(control, vecToRho(MINUS), 1e-12));
 
   // d=4 commuting involutions (X⊗I, I⊗X): control stays |+⟩.
-  const xI = kron2(PAULI_X, identity(2));
-  const Ix = kron2(identity(2), PAULI_X);
+  const xI = kron(PAULI_X, identity(2));
+  const Ix = kron(identity(2), PAULI_X);
   const sc2 = makeSwitchedChannel(krausToStinespring(unitaryKraus(xI)), krausToStinespring(unitaryKraus(Ix)));
   const out2 = sc2.channel(kronRho(vecToRho(PLUS), basisRho(4, 0)));
   const control2 = partialTrace(out2, [2, 4], [1]);

@@ -10,7 +10,7 @@
  * control-displacement witness is the operational slice we verify.)
  */
 
-import { type CMat, eigenvaluesHermitian, mat, mAdd, mScale } from '../core/cmat.js';
+import { type CMat, kron } from '../core/cmat.js';
 import { partialTrace } from '../core/channels.js';
 import { traceDistance } from '../core/measures.js';
 
@@ -24,24 +24,13 @@ export function controlDisplacement(rhoOutCS: CMat, dTarget: number, rhoCIn: CMa
   return traceDistance(controlOut, rhoCIn);
 }
 
-/** Kronecker product of density matrices. */
+/**
+ * Kronecker product of density matrices. Delegates to core kron — the two
+ * were byte-identical duplicates (same loop nest, same complex accumulate)
+ * and are pinned bit-equal by test/hardening.test.ts.
+ */
 export function kronRho(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const re = a.re[i * a.cols + j]! * b.re[p * b.cols + q]! - a.im[i * a.cols + j]! * b.im[p * b.cols + q]!;
-          const im = a.re[i * a.cols + j]! * b.im[p * b.cols + q]! + a.im[i * a.cols + j]! * b.re[p * b.cols + q]!;
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          out.re[ri * out.cols + ci] = out.re[ri * out.cols + ci]! + re;
-          out.im[ri * out.cols + ci] = out.im[ri * out.cols + ci]! + im;
-        }
-      }
-    }
-  }
-  return out;
+  return kron(a, b);
 }
 
 /** Exact product test ρ == ρ_A ⊗ ρ_B across the cut dims [dA, dB]. */
@@ -56,13 +45,11 @@ export function isProductAcross(rho: CMat, dA: number, dB: number, tol = 1e-12):
   return err <= tol;
 }
 
-/** Trace norm ½·Tr|ρ − ρ_A⊗ρ_B|: distance from being product across [dA, dB]. */
+/** Trace norm ½·Tr|ρ − ρ_A⊗ρ_B|: distance from being product across [dA, dB].
+ * Delegates to traceDistance — the bodies were byte-identical (eig of
+ * ρ − ρ_A⊗ρ_B, ½ Σ|λ|); pinned bit-equal by test/hardening.test.ts. */
 export function productDeviation(rho: CMat, dA: number, dB: number): number {
   const rhoA = partialTrace(rho, [dA, dB], [1]);
   const rhoB = partialTrace(rho, [dA, dB], [0]);
-  const diff = mAdd(rho, mScale(kronRho(rhoA, rhoB), -1));
-  const eig = eigenvaluesHermitian(diff);
-  let s = 0;
-  for (const l of eig) s += Math.abs(l);
-  return s / 2;
+  return traceDistance(rho, kronRho(rhoA, rhoB));
 }

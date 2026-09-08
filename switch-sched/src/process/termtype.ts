@@ -37,10 +37,6 @@ export const VALID_TERM_TYPES: readonly string[] = [
   'A1B1B2',
 ];
 
-/** Direction sub-families of causally ordered processes. */
-export const A_NOT_BEFORE_B_TYPES: readonly string[] = ['', 'A1', 'B1', 'A1B1', 'A2B1', 'A1A2B1'];
-export const B_NOT_BEFORE_A_TYPES: readonly string[] = ['', 'A1', 'B1', 'A1B1', 'A1B2', 'A1B1B2'];
-
 export interface PauliTerm {
   readonly factors: readonly [string, string, string, string];
   readonly type: string;
@@ -91,16 +87,4 @@ export function judgeTermTypes(w: CMat, tol = 1e-12): TermJudge {
   const terms = pauliTerms(w, tol);
   const forbidden = terms.filter((t) => !VALID_TERM_TYPES.includes(t.type));
   return { terms, forbidden, valid: forbidden.length === 0 };
-}
-
-/** Direction slices: terms that could only come from each ordering. */
-export function orderExclusiveTerms(w: CMat, tol = 1e-12): {
-  a2Touching: readonly PauliTerm[]; // terms requiring an A⋠B component
-  b2Touching: readonly PauliTerm[]; // terms requiring a B⋠A component
-} {
-  const terms = pauliTerms(w, tol);
-  return {
-    a2Touching: terms.filter((t) => t.factors[1] !== 'I'),
-    b2Touching: terms.filter((t) => t.factors[3] !== 'I'),
-  };
 }

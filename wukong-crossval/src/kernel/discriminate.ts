@@ -16,7 +16,17 @@
 import type { Instance } from "./crossval.js";
 import { makeRng, sampleWithReadoutNoise } from "./crossval.js";
 import { choose, exactObservedHitRate, exactShellMass, popcount } from "./robust.js";
+import { XvalError } from "./error.js";
 import { exactProbe } from "./probe.js";
+
+/** The four size probes the X8 face reports on (single-sourced: the W-H
+ * witness and the renderer's table must probe the same instances). */
+export const DISC_PROBE_IDS: readonly string[] = ["np-n8-0", "np-n12-4", "np-n16-7", "np-n20-11"];
+
+/** The MC-under-readout-truth demonstration's fixed arguments (single-sourced:
+ * the witness, the rendered report, and the test suite run one demo, not
+ * three that could drift apart). */
+export const MC_SHELL_DEMO = { depth: 1, flip: 0.02, shots: 40000, seed: 5 } as const;
 
 export interface DiscriminatorRow {
   readonly instanceId: string;
@@ -83,8 +93,13 @@ export function fitDepolarizing(p0: number, n: number, r: number): number {
 
 /** Shell mass under global depolarizing at mixing lambda: lambda * ideal + (1 - lambda) * uniform. */
 export function depolShellMass(masses: Float64Array, n: number, lambda: number, shell: number): number {
+  if (!Number.isInteger(shell) || shell < 0 || shell >= masses.length) {
+    // an out-of-range shell read `undefined` off the mass vector and produced
+    // a silent NaN — rejected by name (the dimension-slot family)
+    throw new XvalError("XVAL_SHELL_RANGE", `depolShellMass: shell index must be an integer in [0, ${String(masses.length)}) (the mass vector's own length), got ${String(shell)}`);
+  }
   const u = choose(n, shell) / 2 ** n;
-  const ideal = masses[shell] as number;
+  const ideal = masses[shell]!;
   return lambda * ideal + (1 - lambda) * u;
 }
 
@@ -95,7 +110,10 @@ export function discriminatorRow(
   flip: number,
   plannedShots: number,
 ): DiscriminatorRow {
-  const p0 = masses[0] as number;
+  if (!Number.isInteger(plannedShots) || plannedShots < 1) {
+    throw new XvalError("XVAL_SHOTS_RANGE", `discriminatorRow: planned shots must be an integer >= 1 (the sigma column divides by it), got ${String(plannedShots)}`);
+  }
+  const p0 = masses[0]!;
   const r = exactObservedHitRate(masses, flip);
   const { fit, residual } = fitReadoutFlip(masses, r, flip);
   const lam = fitDepolarizing(p0, meta.n, r);
@@ -140,6 +158,6 @@ export function mcShellDemo(
   for (const [bits, c] of res.counts) if (popcount(bits ^ inst.optBits) === 1) shell1 += c;
   const masses = probe.masses;
   const readout = exactShellMass(masses, flip, 1);
-  const lam = fitDepolarizing(masses[0] as number, inst.n, exactObservedHitRate(masses, flip));
+  const lam = fitDepolarizing(masses[0]!, inst.n, exactObservedHitRate(masses, flip));
   return { shell1Estimate: shell1 / shots, readoutPrediction: readout, depolPrediction: depolShellMass(masses, inst.n, lam, 1) };
 }

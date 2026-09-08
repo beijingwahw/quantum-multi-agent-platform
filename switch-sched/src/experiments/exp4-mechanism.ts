@@ -18,7 +18,7 @@
 
 import assert from 'node:assert/strict';
 import { type CMat, mat } from '../core/cmat.js';
-import { partialTrace } from '../core/channels.js';
+import { applyKraus, applyUnitary, partialTrace } from '../core/channels.js';
 import { PLUS, rotY, vecToRho, KET0 } from '../core/states.js';
 import { krausToStinespring, makeSwitchedChannel } from '../switch/isometry.js';
 import { kronRho } from '../switch/witnesses.js';
@@ -73,16 +73,7 @@ export function main(): void {
   const ak = allocKraus();
   let maxGainDef = -Infinity;
   for (const th of thetaGrid) {
-    const report = mat(D, D);
-    const r = rotY(th);
-    for (let b2 = 0; b2 < DB; b2++) {
-      for (let p2 = 0; p2 < DP; p2++) {
-        for (let j = 0; j < DB; j++) {
-          report.re[((b2 * DP + p2) * D) + (j * DP + p2)] = r.re[b2 * DB + j]!;
-        }
-      }
-    }
-    const out = applyDef(report, ak, rho0);
+    const out = applyDef(reportMatrix(th), ak, rho0);
     const u = utilityOnP(out);
     const gain = u - 2;
     maxGainDef = Math.max(maxGainDef, gain);
@@ -173,54 +164,11 @@ function reportMatrix(th: number): CMat {
   return m;
 }
 
-/** A ∘ R: Σ_K K (R ρ R†) K†. */
+/** A ∘ R: applyKraus(applyUnitary(ρ, R), A) — the core channel primitives,
+ * single-sourced from core/cmat + core/channels (the local copies of
+ * mMul/mDagger/mAdd/applyDef were byte-identical duplicates). */
 function applyDef(report: CMat, allocK: CMat[], rho: CMat): CMat {
-  const rr = matMulVec(matMulVec(report, rho), matDag(report));
-  let acc = mat(D, D);
-  for (const K of allocK) {
-    acc = add(acc, matMulDag(matMulVec(K, rr), K));
-  }
-  return acc;
-}
-
-function matMulVec(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows, b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let k = 0; k < a.cols; k++) {
-      const ar = a.re[i * a.cols + k]!;
-      const ai = a.im[i * a.cols + k]!;
-      if (ar === 0 && ai === 0) continue;
-      for (let j = 0; j < b.cols; j++) {
-        out.re[i * b.cols + j] = out.re[i * b.cols + j]! + (ar * b.re[k * b.cols + j]! - ai * b.im[k * b.cols + j]!);
-        out.im[i * b.cols + j] = out.im[i * b.cols + j]! + (ar * b.im[k * b.cols + j]! + ai * b.re[k * b.cols + j]!);
-      }
-    }
-  }
-  return out;
-}
-
-function matDag(a: CMat): CMat {
-  const out = mat(a.cols, a.rows);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      out.re[j * a.rows + i] = a.re[i * a.cols + j]!;
-      out.im[j * a.rows + i] = -a.im[i * a.cols + j]!;
-    }
-  }
-  return out;
-}
-
-function matMulDag(a: CMat, b: CMat): CMat {
-  return matMulVec(a, matDag(b));
-}
-
-function add(a: CMat, b: CMat): CMat {
-  const m = mat(a.rows, a.cols);
-  for (let k = 0; k < a.re.length; k++) {
-    m.re[k] = a.re[k]! + b.re[k]!;
-    m.im[k] = a.im[k]! + b.im[k]!;
-  }
-  return m;
+  return applyKraus(applyUnitary(rho, report), allocK);
 }
 
 // batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render

@@ -16,8 +16,9 @@ import {
   cvecZero,
   eigHermitian,
   firstExcited,
+  VacuumError,
 } from "../src/core/cmat.js";
-import { assertGateLibrary } from "../src/compile/gates.js";
+import { assertGateLibrary, cnot4, embedSingle, embedTwoAdjacent } from "../src/compile/gates.js";
 import {
   dataBasisState,
   demoProgram,
@@ -44,7 +45,7 @@ import {
   stateNorm,
   staticReadoutFidelity,
 } from "../src/compile/history.js";
-import { geometricAttempts, pricedWalk, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
+import { expectedErasureBits, geometricAttempts, pricedWalk, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
 import {
   amplifiedStaticBits,
   binomialAmplificationResidue,
@@ -56,6 +57,8 @@ import {
   type ExactRational,
 } from "../src/compile/amplify.js";
 import {
+  bigPow,
+  fkStaticBits,
   fkStaticCompare,
   fkStaticIntegerBracket,
   fkStaticRoundsTo,
@@ -64,20 +67,11 @@ import {
   tariffOrderingAtDepth,
 } from "../src/compile/tariff.js";
 import { auditBoundaryCitation, auditDecayTable, type BoundaryCitation, type SubmittedDecayRow } from "../src/compile/audit.js";
-import { Rng } from "../src/compile/rng.js";
+import { Rng, randomDataState } from "../src/compile/rng.js";
 
-function randomDataState(dim: number, rng: Rng) {
-  const v = cvecZero(dim);
-  for (let k = 0; k < dim; k++) {
-    v.re[k] = rng.next() * 2 - 1;
-    v.im[k] = rng.next() * 2 - 1;
-  }
-  const n = Math.sqrt(v.re.reduce((s, x) => s + x * x, 0) + v.im.reduce((s, x) => s + x * x, 0));
-  for (let k = 0; k < dim; k++) {
-    v.re[k] = v.re[k]! / n;
-    v.im[k] = v.im[k]! / n;
-  }
-  return v;
+/** Convict by error code, never by message prose. */
+function throwsCode(code: string): (err: unknown) => boolean {
+  return (err: unknown): boolean => err instanceof VacuumError && err.code === code;
 }
 
 describe("T0 kernels", () => {
@@ -541,4 +535,130 @@ describe("T4 walk price (v0.2.0)", () => {
     assert.ok(Math.abs(1 - cargo) < 1e-12, `fidelity ${cargo}`);
   });
 });
+
+describe("T6 the quality wall: error surface and module surface (v0.3.0)", () => {
+  it("NaN-grid conviction: malformed grids and dim mismatches are rejected by name; legal operands bit-identical", () => {
+    const eye2 = cmatEye(2);
+    const eye4 = cmatEye(4);
+    const ragged: CMat = { dim: 2, re: [[1, 0], [0]], im: [[0, 0], [0, 0]] }; // row 1 is 1-wide
+    assert.throws(() => cmatMaxDiff(eye2, ragged), throwsCode("cmat/malformed-grid"));
+    assert.throws(() => cmatMul(eye2, eye4), throwsCode("cmat/dim-mismatch"));
+    assert.throws(() => cmatApplyMaxNorm(eye2, cvecZero(4)), throwsCode("cmat/dim-mismatch"));
+    assert.throws(() => cvecInner(cvecZero(4), cvecZero(8)), throwsCode("cmat/dim-mismatch"));
+    assert.throws(() => eigHermitian(ragged), throwsCode("cmat/malformed-grid"));
+    const skew: CMat = { dim: 2, re: [[1, 1], [0, 0]], im: [[0, 0], [0, 0]] }; // not Hermitian
+    assert.throws(() => eigHermitian(skew), throwsCode("cmat/not-hermitian"));
+    assert.throws(() => firstExcited(new Float64Array(0)), throwsCode("cmat/empty-spectrum"));
+    // legal operands pass unchanged (the guards reject, they never rewrite)
+    assert.equal(cmatMaxDiff(eye2, eye2), 0);
+    assert.equal(cmatMaxDiff(cmatMul(eye4, eye4), eye4), 0);
+    // a wrong-dim step matrix can no longer poison the propagation grid with NaNs
+    assert.throws(() => buildPropagation(2, [{ matrix: eye2 }]), throwsCode("hamiltonian/step-dim-mismatch"));
+    assert.throws(() => buildDressing(2, [{ matrix: eye2 }]), throwsCode("hamiltonian/step-dim-mismatch"));
+  });
+
+  it("SMUGGLING TRIAL: the silent gate drop is dead — off-register placements are named and rejected", () => {
+    // pre-fix evidence: embedTwoAdjacent(cnot4(), -1, 2) returned the 4x4 IDENTITY
+    // (the placement never matched, the chain came back all-identities with the
+    // right dimension) — the gate vanished without a signal
+    assert.throws(() => embedTwoAdjacent(cnot4(), -1, 2), throwsCode("gate/placement-out-of-range"));
+    assert.throws(() => embedTwoAdjacent(cnot4(), 1, 2), throwsCode("gate/placement-out-of-range")); // pair (1,2) exceeds the register
+    assert.throws(() => embedTwoAdjacent(cnot4(), 0.5, 3), throwsCode("gate/placement-out-of-range"));
+    assert.throws(() => embedTwoAdjacent(cnot4(), 2, 2), throwsCode("gate/placement-out-of-range"));
+    assert.throws(() => embedSingle([cmatEye(4)], 1), throwsCode("gate/factor-not-qubit")); // 4x4 where a 1-qubit factor belongs
+    assert.throws(() => embedSingle([cmatEye(2)], 2), throwsCode("gate/factor-count-mismatch"));
+    // the legal placements still land exactly where they always did
+    assert.equal(embedTwoAdjacent(cnot4(), 0, 3).dim, 8);
+    assert.ok(cmatUnitaryDev(embedTwoAdjacent(cnot4(), 1, 3)) < 1e-14);
+  });
+
+  it("hang conviction: geometricAttempts rejects p outside (0,1] by name; p=1 stays exact", () => {
+    // pre-fix evidence: p=0 spun the draw loop forever (bernoulli(0) never fires);
+    // p>1 returned a sub-unit "mean" — both now named rejections
+    assert.throws(() => geometricAttempts(0, new Rng(1)), throwsCode("ledger/probability-out-of-domain"));
+    assert.throws(() => geometricAttempts(1.5, new Rng(1)), throwsCode("ledger/probability-out-of-domain"));
+    assert.throws(() => geometricAttempts(0.5, new Rng(1), 0), throwsCode("ledger/trials-out-of-domain"));
+    const { mean, mc } = geometricAttempts(1, new Rng(9));
+    assert.equal(mean, 1);
+    assert.equal(mc, 1); // every trial succeeds on attempt 1, exactly
+  });
+
+  it("epsilon smuggling: non-probability eps is rejected by name at the census AND the auditor", () => {
+    // pre-fix evidence: eps = 3/2 silently produced a census with mc = 1 and
+    // sigma = NaN rows, and the auditor would have recomputed against the
+    // meaningless ground — both entries now reject the class by name
+    const bogus = { num: 3n, den: 2n };
+    assert.throws(() => decayCensus(bogus, 4, new Rng(1)), throwsCode("amplify/epsilon-out-of-domain"));
+    assert.throws(() => auditDecayTable(bogus, []), throwsCode("amplify/epsilon-out-of-domain"));
+    assert.throws(() => exactRationalPower({ num: 1n, den: 0n }, 2), throwsCode("amplify/malformed-rational"));
+    assert.throws(() => exactRationalPower({ num: 1n, den: 2n }, -1), throwsCode("amplify/rounds-out-of-domain"));
+  });
+
+  it("circuit entry rejections: pattern bits and qubit ranges are named", () => {
+    const circuit = demoProgram().circuit;
+    assert.throws(() => dataBasisState(2, [0]), throwsCode("circuit/pattern-length-mismatch"));
+    assert.throws(() => dataBasisState(2, [0, 2]), throwsCode("circuit/pattern-bit-not-binary"));
+    assert.throws(() => program(circuit, [5], new Map()), throwsCode("circuit/checked-qubit-out-of-range"));
+    assert.throws(() => program(circuit, [], new Map([[9, 1]])), throwsCode("circuit/accept-qubit-out-of-range"));
+    // the historical state guards its data dimension
+    assert.throws(() => historyState(circuit, cvecZero(8)), throwsCode("cmat/dim-mismatch"));
+  });
+
+  it("readout guards: a non-divisor clock and an out-of-range clock step are named", () => {
+    // pre-fix evidence: clockStates=5 on a 28-dim state truncated D to 5 and
+    // read past the buffers silently (garbage, no signal)
+    const psi28 = cvecZero(28);
+    assert.throws(() => conditionalData(psi28, 5, 0), throwsCode("readout/clock-not-divisor"));
+    assert.throws(() => clockRho(psi28, 5), throwsCode("readout/clock-not-divisor"));
+    assert.throws(() => conditionalData(psi28, 7, 7), throwsCode("readout/clock-step-out-of-range"));
+    assert.throws(() => spectralEvolve({ values: new Float64Array(3), vectors: [cvecZero(4), cvecZero(4)] }, cvecZero(4), 0), throwsCode("readout/eigendecomposition-mismatch"));
+    assert.throws(() => pricedWalk(cmatEye(4), { values: new Float64Array(4), vectors: [] }, cvecZero(4), 7, 0, 0), throwsCode("ledger/walk-step-out-of-domain"));
+  });
+
+  it("tariff domain rejections are named (the exact path refuses illegal inputs, not just wrong answers)", () => {
+    assert.throws(() => fkStaticUndercuts(1, 5), throwsCode("tariff/clock-states-out-of-domain"));
+    assert.throws(() => fkStaticCompare(4, 2.5), throwsCode("tariff/rival-units-out-of-domain"));
+    assert.throws(() => fkStaticRoundsTo(12, -1), throwsCode("tariff/hundredths-out-of-domain"));
+    assert.throws(() => uniformEntropyBits(0), throwsCode("ledger/outcomes-out-of-domain"));
+    assert.throws(() => bareClockChain(1), throwsCode("hamiltonian/clock-states-out-of-domain"));
+  });
+
+  it("single-source anchors: one bigPow, one erasure-price formula — exact-value proofs", () => {
+    // bigPow: THE definition (amplify's identical private copy retired) — hand-checked
+    assert.equal(bigPow(2n, 10), 1024n);
+    assert.equal(bigPow(12n, 0), 1n);
+    assert.equal(bigPow(-3n, 3), -27n);
+    // fkStaticBits delegates to the ledger's single (T+1)·log2(T+1) definition
+    // (both former copies computed clockStates * Math.log2(clockStates) — the
+    // delegation is bit-identical, asserted by strict float equality)
+    assert.equal(fkStaticBits(12), staticExpectedErasureBits(12));
+    assert.equal(fkStaticBits(7), staticExpectedErasureBits(7));
+    // expectedErasureBits (folded into exp3's wall table): exact dyadic values
+    assert.equal(expectedErasureBits(0.5, 8), 6); // log2(8)=3, 3/0.5
+    assert.equal(expectedErasureBits(1, 7), uniformEntropyBits(7));
+    assert.throws(() => expectedErasureBits(0, 7), throwsCode("ledger/probability-out-of-domain"));
+    // the single randomDataState (rng.js) draws byte-identically to the retired
+    // test copy: same seed, same state, norm 1
+    const s = randomDataState(4, new Rng(42));
+    assert.ok(Math.abs(Math.hypot(...Array.from(s.re), ...Array.from(s.im)) - 1) < 1e-12);
+  });
+
+  it("module surface regression: the retired dead exports stay deleted (no import path)", async () => {
+    const cmat = await import("../src/core/cmat.js");
+    assert.ok(!("cmatAdd" in cmat), "cmatAdd must stay retired");
+    assert.ok(!("cvecBasisState" in cmat), "cvecBasisState must stay retired");
+    assert.ok(!("cvecAddScaled" in cmat), "cvecAddScaled must stay retired");
+    const circuitMod = await import("../src/compile/circuit.js");
+    assert.ok(!("circuitUnitary" in circuitMod), "circuitUnitary must stay retired");
+    const historyMod = await import("../src/compile/history.js");
+    assert.ok(!("overlap" in historyMod), "overlap must stay retired");
+    const ledgerMod = await import("../src/compile/ledger.js");
+    assert.ok(!("directExecutionErasureBits" in ledgerMod), "directExecutionErasureBits must stay retired");
+    assert.ok(typeof ledgerMod.expectedErasureBits === "function", "expectedErasureBits survives (absorbed into exp3's wall table)");
+    const rngMod = await import("../src/compile/rng.js");
+    assert.ok(!("pick" in rngMod.Rng.prototype), "Rng.pick must stay retired");
+    assert.ok(typeof rngMod.randomDataState === "function", "randomDataState lives here (single-sourced)");
+  });
+});
+
 

@@ -4,7 +4,23 @@
  * real embedding <= 208), so dense clarity beats speed everywhere.
  * Complex matrices: separate re/im row-major number[][] grids.
  * Complex vectors: separate re/im Float64Array.
+ *
+ * v0.3.0 quality wall: every public kernel names its preconditions — a
+ * malformed grid, a dimension mismatch, or an out-of-domain parameter is a
+ * coded VacuumError (the silently-corrupted-NaN class is dead), and the
+ * unused collateral surplus (cmatAdd, cvecBasisState, cvecAddScaled — zero
+ * references across the workspace at retirement) is deleted.
  */
+
+/** Every precondition rejection in this repository carries a stable,
+ * machine-checkable code — tests and audits convict by name, never by
+ * message prose. */
+export class VacuumError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(`${code}: ${message}`);
+    this.name = "VacuumError";
+  }
+}
 
 export interface CMat {
   readonly dim: number;
@@ -18,7 +34,45 @@ export interface CVec {
   readonly im: Float64Array;
 }
 
+/** A matrix is well-formed iff dim is a positive integer and both grids are
+ * exactly dim x dim (ragged re/im is the classic silent-NaN source). */
+export function requireWellFormed(m: CMat, what: string): void {
+  if (!Number.isInteger(m.dim) || m.dim < 1) {
+    throw new VacuumError("cmat/malformed-grid", `${what}: dim must be a positive integer, got ${m.dim}`);
+  }
+  if (m.re.length !== m.dim || m.im.length !== m.dim) {
+    throw new VacuumError("cmat/malformed-grid", `${what}: re/im must each have ${m.dim} rows, got ${m.re.length}/${m.im.length}`);
+  }
+  for (let i = 0; i < m.dim; i++) {
+    const rr = m.re[i]!;
+    const ri = m.im[i]!;
+    if (rr.length !== m.dim || ri.length !== m.dim) {
+      throw new VacuumError("cmat/malformed-grid", `${what}: row ${i} is ${rr.length}/${ri.length} wide, expected ${m.dim}`);
+    }
+  }
+}
+
+/** A vector is well-formed iff dim is a positive integer and both components
+ * carry exactly dim entries. */
+export function requireWellFormedVec(v: CVec, what: string): void {
+  if (!Number.isInteger(v.dim) || v.dim < 1) {
+    throw new VacuumError("cvec/malformed-vector", `${what}: dim must be a positive integer, got ${v.dim}`);
+  }
+  if (v.re.length !== v.dim || v.im.length !== v.dim) {
+    throw new VacuumError("cvec/malformed-vector", `${what}: re/im must each have ${v.dim} entries, got ${v.re.length}/${v.im.length}`);
+  }
+}
+
+export function requireSameDim(a: CMat, b: CMat, what: string): void {
+  if (a.dim !== b.dim) {
+    throw new VacuumError("cmat/dim-mismatch", `${what}: ${a.dim} vs ${b.dim}`);
+  }
+}
+
 export function cmatZero(dim: number): CMat {
+  if (!Number.isInteger(dim) || dim < 1) {
+    throw new VacuumError("cmat/malformed-grid", `cmatZero: dim must be a positive integer, got ${dim}`);
+  }
   return {
     dim,
     re: Array.from({ length: dim }, () => new Array<number>(dim).fill(0)),
@@ -32,19 +86,11 @@ export function cmatEye(dim: number, scale = 1): CMat {
   return m;
 }
 
-export function cmatAdd(a: CMat, b: CMat): CMat {
-  const out = cmatZero(a.dim);
-  for (let i = 0; i < a.dim; i++) {
-    for (let j = 0; j < a.dim; j++) {
-      out.re[i]![j] = (a.re[i]![j] as number) + (b.re[i]![j] as number);
-      out.im[i]![j] = (a.im[i]![j] as number) + (b.im[i]![j] as number);
-    }
-  }
-  return out;
-}
-
 /** Entrywise maximum |a - b| (complex modulus), the house distance metric. */
 export function cmatMaxDiff(a: CMat, b: CMat): number {
+  requireWellFormed(a, "cmatMaxDiff");
+  requireWellFormed(b, "cmatMaxDiff");
+  requireSameDim(a, b, "cmatMaxDiff");
   let d = 0;
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
@@ -59,6 +105,7 @@ export function cmatMaxDiff(a: CMat, b: CMat): number {
 
 /** Hermiticity deviation max |H - H^dagger| (should be ~1e-16 for our builders). */
 export function cmatHermDev(h: CMat): number {
+  requireWellFormed(h, "cmatHermDev");
   let d = 0;
   for (let i = 0; i < h.dim; i++) {
     for (let j = 0; j < h.dim; j++) {
@@ -73,23 +120,14 @@ export function cmatHermDev(h: CMat): number {
 }
 
 export function cvecZero(dim: number): CVec {
+  if (!Number.isInteger(dim) || dim < 1) {
+    throw new VacuumError("cvec/malformed-vector", `cvecZero: dim must be a positive integer, got ${dim}`);
+  }
   return { dim, re: new Float64Array(dim), im: new Float64Array(dim) };
 }
 
-export function cvecBasis(dim: number, index: number): CVec {
-  const v = cvecZero(dim);
-  v.re[index] = 1;
-  return v;
-}
-
-export function cvecAddScaled(v: CVec, w: CVec, sr: number, si: number): void {
-  for (let k = 0; k < v.dim; k++) {
-    v.re[k] = (v.re[k] as number) + sr * (w.re[k] as number) - si * (w.im[k] as number);
-    v.im[k] = (v.im[k] as number) + sr * (w.im[k] as number) + si * (w.re[k] as number);
-  }
-}
-
 export function cvecNorm(v: CVec): number {
+  requireWellFormedVec(v, "cvecNorm");
   let s = 0;
   for (let k = 0; k < v.dim; k++) s += (v.re[k] as number) ** 2 + (v.im[k] as number) ** 2;
   return Math.sqrt(s);
@@ -97,6 +135,11 @@ export function cvecNorm(v: CVec): number {
 
 /** <v|w> (v^dagger w), complex result. */
 export function cvecInner(v: CVec, w: CVec): { re: number; im: number } {
+  requireWellFormedVec(v, "cvecInner");
+  requireWellFormedVec(w, "cvecInner");
+  if (v.dim !== w.dim) {
+    throw new VacuumError("cmat/dim-mismatch", `cvecInner: ${v.dim} vs ${w.dim}`);
+  }
   let re = 0;
   let im = 0;
   for (let k = 0; k < v.dim; k++) {
@@ -118,7 +161,9 @@ export function cvecFidelity(v: CVec, w: CVec): number {
 
 /** y = A x. */
 export function cmatApply(a: CMat, x: CVec): CVec {
-  if (a.dim !== x.dim) throw new Error(`cmatApply: dim mismatch ${a.dim} vs ${x.dim}`);
+  requireWellFormed(a, "cmatApply");
+  requireWellFormedVec(x, "cmatApply");
+  if (a.dim !== x.dim) throw new VacuumError("cmat/dim-mismatch", `cmatApply: ${a.dim} vs ${x.dim}`);
   const out = cvecZero(a.dim);
   for (let i = 0; i < a.dim; i++) {
     let re = 0;
@@ -147,6 +192,7 @@ export function cmatApplyMaxNorm(a: CMat, x: CVec): number {
 
 /** Unitarity deviation max |M^dagger M - I| for square matrices. */
 export function cmatUnitaryDev(m: CMat): number {
+  requireWellFormed(m, "cmatUnitaryDev");
   const n = m.dim;
   let d = 0;
   for (let i = 0; i < n; i++) {
@@ -170,6 +216,7 @@ export function cmatUnitaryDev(m: CMat): number {
 
 /** Trace, complex result. */
 export function cmatTrace(m: CMat): { re: number; im: number } {
+  requireWellFormed(m, "cmatTrace");
   let re = 0;
   let im = 0;
   for (let i = 0; i < m.dim; i++) {
@@ -181,6 +228,9 @@ export function cmatTrace(m: CMat): { re: number; im: number } {
 
 /** out = A * B for square matrices of equal dim. */
 export function cmatMul(a: CMat, b: CMat): CMat {
+  requireWellFormed(a, "cmatMul");
+  requireWellFormed(b, "cmatMul");
+  requireSameDim(a, b, "cmatMul");
   const n = a.dim;
   const out = cmatZero(n);
   for (let i = 0; i < n; i++) {
@@ -204,6 +254,8 @@ export function cmatMul(a: CMat, b: CMat): CMat {
 
 /** Tensor product a ⊗ b. */
 export function cmatKron(a: CMat, b: CMat): CMat {
+  requireWellFormed(a, "cmatKron");
+  requireWellFormed(b, "cmatKron");
   const dim = a.dim * b.dim;
   const out = cmatZero(dim);
   for (let i = 0; i < a.dim; i++) {
@@ -226,6 +278,7 @@ export function cmatKron(a: CMat, b: CMat): CMat {
 
 /** Conjugate transpose. */
 export function cmatAdjoint(m: CMat): CMat {
+  requireWellFormed(m, "cmatAdjoint");
   const out = cmatZero(m.dim);
   for (let i = 0; i < m.dim; i++) {
     for (let j = 0; j < m.dim; j++) {
@@ -239,11 +292,11 @@ export function cmatAdjoint(m: CMat): CMat {
 /** Full Hermitian eigendecomposition via the 2n x 2n real embedding
  * [[Re, -Im], [Im, Re]] (eigenvalues in exact pairs) + cyclic Jacobi with
  * separate row and column passes. Self-certifying: the decomposition is
- * accepted only if sum_j lambda_j v_j v_j^dagger reconstructs H.
- */
+ * accepted only if sum_j lambda_j v_j v_j^dagger reconstructs H. */
 export function eigHermitian(h: CMat): { values: Float64Array; vectors: CVec[] } {
+  requireWellFormed(h, "eigHermitian");
   if (cmatHermDev(h) > 1e-12 * Math.max(1, Math.abs(cmatTrace(h).re))) {
-    throw new Error("eigHermitian: input not Hermitian");
+    throw new VacuumError("cmat/not-hermitian", `eigHermitian: input not Hermitian (deviation above tolerance)`);
   }
   const n = h.dim;
   const N = 2 * n;
@@ -329,7 +382,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CVec[] }
     }
     const lam = a[idx[clusterStart] as number]![idx[clusterStart] as number] as number;
     const mult = clusterEnd - clusterStart; // real multiplicity = 2 x complex multiplicity
-    if (mult % 2 !== 0) throw new Error(`eigHermitian: odd real multiplicity ${mult} at lambda ${lam}`);
+    if (mult % 2 !== 0) throw new VacuumError("cmat/odd-multiplicity", `eigHermitian: odd real multiplicity ${mult} at lambda ${lam}`);
     const m = mult / 2;
     const basis: CVec[] = [];
     for (let j = clusterStart; j < clusterEnd && basis.length < m; j++) {
@@ -357,14 +410,14 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CVec[] }
       }
       basis.push(z);
     }
-    if (basis.length !== m) throw new Error(`eigHermitian: cluster at ${lam} rebuilt ${basis.length} of ${m} complex eigenvectors`);
+    if (basis.length !== m) throw new VacuumError("cmat/cluster-rebuild-failed", `eigHermitian: cluster at ${lam} rebuilt ${basis.length} of ${m} complex eigenvectors`);
     for (let j = 0; j < m; j++) {
       values[vectors.length] = lam;
       vectors.push(basis[j] as CVec);
     }
     clusterStart = clusterEnd;
   }
-  if (vectors.length !== n) throw new Error(`eigHermitian: decoded ${vectors.length} of ${n} eigenvectors`);
+  if (vectors.length !== n) throw new VacuumError("cmat/eigendecode-failed", `eigHermitian: decoded ${vectors.length} of ${n} eigenvectors`);
 
   // reconstruction certificate: sum_k lam_k v_k v_k^dagger == H
   const recon = cmatZero(n);
@@ -380,7 +433,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CVec[] }
     }
   }
   if (cmatMaxDiff(recon, h) > 1e-8 * Math.max(1, scale)) {
-    throw new Error(`eigHermitian: reconstruction deviation ${cmatMaxDiff(recon, h)}`);
+    throw new VacuumError("cmat/reconstruction-failed", `eigHermitian: reconstruction deviation ${cmatMaxDiff(recon, h)}`);
   }
   return { values, vectors };
 }
@@ -394,6 +447,9 @@ export function eigenvaluesHermitian(h: CMat): Float64Array {
  * silently returns 0 whenever the ground is degenerate (H_prop's always is:
  * every input's history is a ground state). */
 export function firstExcited(values: Float64Array, tol = 1e-9): { gap: number; groundDegeneracy: number } {
+  if (values.length === 0) {
+    throw new VacuumError("cmat/empty-spectrum", "firstExcited: an empty spectrum has no ground state");
+  }
   const e0 = values[0] as number;
   for (let k = 1; k < values.length; k++) {
     if ((values[k] as number) - e0 > tol) return { gap: (values[k] as number) - e0, groundDegeneracy: k };

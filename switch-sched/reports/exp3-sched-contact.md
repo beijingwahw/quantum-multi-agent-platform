@@ -37,13 +37,13 @@ pays only when the payload must transit erasing structure on both branches.**
 ## Table 3 — random CPTP pairs (control group)
 
 - 40 random isometry pairs (d = 2, env 2), random orthogonal input pairs
-- receiver = system register: Δ median **-0.160158**, max **-0.029598**,
+- receiver = system register: Δ median **-0.149905**, max **-0.009113**,
   positives Δ > 1e−9: **0/40**
-- receiver = joint (system + control): Δ median **0.144983**, max **0.648371**,
-  positives: **36/40**
+- receiver = joint (system + control): Δ median **0.147796**, max **0.526844**,
+  positives: **34/40**
 
 Generic channel pairs give the system-register receiver no edge — median deficit, zero
-positives in this sample; the JOINT receiver (system + control) wins on 36/40, but that
+positives in this sample; the JOINT receiver (system + control) wins on 34/40, but that
 partly reflects an extra output register no plain definite-order use has, not order
 advantage per se (against the fully general causally-separable class the question is
 what process witnesses decide — cited, OCB 2012 / Goswami 2018). For scheduling, the

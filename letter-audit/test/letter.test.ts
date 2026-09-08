@@ -3,9 +3,10 @@ import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkLetter, checkFrontier, runWitnesses, type UntrustedFrontierRow } from "../src/kernel/audit.js";
-import { LETTER, QUOTED_CENSUS_NOW, QUOTED_CENSUS_PRIOR, QUOTED_WALKER_STEPS, type AuditRow } from "../src/kernel/ledger.js";
+import { LETTER, QUOTED_BB1, QUOTED_BB2, QUOTED_CENSUS_NOW, QUOTED_CENSUS_PRIOR, QUOTED_HALTED2, QUOTED_UNIVERSE2, QUOTED_WALKER_STEPS, type AuditRow } from "../src/kernel/ledger.js";
 import { FRONTIER, censusString, isGraduated, type FrontierRow } from "../src/kernel/frontier.js";
-import { census, machines, simulate, rightWalker, decode, tetrate, compareTowers, lit, tet } from "../src/kernel/beaver.js";
+import { AuditError } from "../src/kernel/errors.js";
+import { census, machines, simulate, rightWalker, decode, tetrate, compareTowers, lit, tet, type TMachine, type TowerExpr } from "../src/kernel/beaver.js";
 
 function smuggle(mutate: (rows: AuditRow[]) => void): AuditRow[] {
   const copy = JSON.parse(JSON.stringify(LETTER)) as AuditRow[];
@@ -60,6 +61,32 @@ describe("T2 the machine universe", () => {
       const r = simulate(rightWalker(2), bound);
       assert.ok(!r.halted && r.steps === bound && r.ones === bound);
     }
+  });
+
+  it("the universes are exact: 64 / 20,736 / 16,777,216 machines at n=1/2/3, closed form ≡ iterative product", () => {
+    assert.equal(machines(1), 64);
+    assert.equal(machines(2), QUOTED_UNIVERSE2);
+    assert.equal(machines(2), 20736);
+    assert.equal(machines(3), 16777216); // the number README quotes for the n=3 universe
+    for (const n of [1, 2, 3]) {
+      let product = 1;
+      for (let i = 0; i < 2 * n; i++) product *= 4 * (n + 1);
+      assert.equal(machines(n), product, `two-path count mismatch at n=${n}`);
+    }
+  });
+
+  it("the census bookkeeping is exact: n=2 holds 9,784 halters with a monotone curve ending at the count; n=1 completes with 32 of 64 at step 1", () => {
+    const c2 = census(2, 300);
+    assert.equal(c2.halted, QUOTED_HALTED2);
+    assert.equal(c2.maxSteps, QUOTED_BB2);
+    for (let s = 1; s < c2.censusAt.length; s++) {
+      assert.ok((c2.censusAt[s] as number) >= (c2.censusAt[s - 1] as number), "census curve must be monotone non-decreasing");
+    }
+    assert.equal(c2.censusAt[c2.censusAt.length - 1], c2.halted, "the curve's last value is the halted count");
+    const c1 = census(1, 100);
+    assert.equal(c1.maxSteps, QUOTED_BB1);
+    assert.equal(c1.halted, 32);
+    assert.equal(c1.censusAt[1], 32, "the whole n=1 halting mass lands at step 1");
   });
 });
 
@@ -207,5 +234,126 @@ describe("T4 the renderer refuses to print an illegal audit", () => {
     await import("../src/experiments/render.js");
     const p = resolve(process.cwd(), "out", "reports", "the-letter-audit.md");
     assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+  });
+});
+
+/** Assert that `fn` throws an AuditError whose code and message-prefix both name `code`. */
+function expectCode(fn: () => unknown, code: string): void {
+  try {
+    fn();
+  } catch (e) {
+    if (!(e instanceof AuditError)) {
+      assert.fail(`expected an AuditError with code ${code}, got: ${String(e)}`);
+    }
+    assert.equal(e.code, code);
+    assert.ok(e.message.startsWith(`[${code}] `), `message must lead with the code, got: ${e.message}`);
+    return;
+  }
+  assert.fail(`expected ${code} to throw — nothing did`);
+}
+
+describe("T7 machine smuggling trials — malformed machines die at the boundary by name", () => {
+  it("EA:MACHINE: a short entry table is named and rejected (v0.3.0 conviction — it used to read undefined as a digit and return silent garbage)", () => {
+    assert.throws(() => simulate({ n: 2, entries: [0, 0] }, 100), /EA:MACHINE.*needs exactly 4 entries, got 2/);
+    expectCode(() => simulate({ n: 2, entries: [0, 0] }, 100), "EA:MACHINE");
+  });
+
+  it("EA:MACHINE: an out-of-range entry digit is named and rejected (it used to write symbols outside {0,1} and silently corrupt the ones count)", () => {
+    assert.throws(() => simulate({ n: 2, entries: [0, 0, 0, 12] }, 100), /EA:MACHINE.*entry 3 must be an integer in 0\.\.11, got 12/);
+    expectCode(() => simulate({ n: 2, entries: [0, 0, 0, 99] }, 100), "EA:MACHINE");
+  });
+
+  it("EA:MACHINE: non-integer and non-positive state counts are rejected (simulate and rightWalker)", () => {
+    const illegal: TMachine[] = [
+      { n: 1.5, entries: [0, 0, 0] },
+      { n: 0, entries: [] },
+      { n: -2, entries: [] },
+    ];
+    for (const m of illegal) expectCode(() => simulate(m, 10), "EA:MACHINE");
+    expectCode(() => rightWalker(0), "EA:MACHINE");
+  });
+
+  it("EA:MACHINE: machine codes outside the universe are rejected — decode is a bijection onto the universe", () => {
+    expectCode(() => decode(1, 64), "EA:MACHINE"); // universe is 0..63
+    expectCode(() => decode(1, -1), "EA:MACHINE");
+    assert.throws(() => decode(1, 64), /must be an integer in 0\.\.63, got 64/);
+    for (let code = 0; code < machines(1); code++) {
+      const m = decode(1, code);
+      assert.equal(m.entries.length, 2);
+      for (const d of m.entries) assert.ok(Number.isInteger(d) && d >= 0 && d < 8, `decode(${code}) produced entry ${d} outside 0..7`);
+    }
+  });
+
+  it("EA:MACHINE: a negative or fractional step bound is rejected before the first step", () => {
+    expectCode(() => simulate(rightWalker(1), -1), "EA:MACHINE");
+    expectCode(() => simulate(rightWalker(1), 1.5), "EA:MACHINE");
+  });
+});
+
+describe("T8 tower-domain trials — the ladder refuses to order what it cannot", () => {
+  it("EA:TETRATE: heights outside 1..5 are named and rejected (0, 6, 1.5, NaN)", () => {
+    expectCode(() => tetrate(0), "EA:TETRATE");
+    expectCode(() => tetrate(6), "EA:TETRATE");
+    expectCode(() => tetrate(1.5), "EA:TETRATE");
+    expectCode(() => tetrate(Number.NaN), "EA:TETRATE");
+  });
+
+  it("EA:TOWER-SHAPE: a non-positive literal height is rejected at construction (v0.3.0 conviction — it used to reach compareTowers and be ordered by the monotone-bound branch)", () => {
+    expectCode(() => tet(lit(0n)), "EA:TOWER-SHAPE");
+    expectCode(() => tet(lit(-3n)), "EA:TOWER-SHAPE");
+  });
+
+  it("EA:TOWER-DOMAIN: a hand-built non-positive height is refused by the comparison itself — 2↑↑0 is never claimed greater than a literal (defense in depth)", () => {
+    const smuggled: TowerExpr = { kind: "tet", height: { kind: "lit", n: 0n } };
+    expectCode(() => compareTowers(smuggled, lit(5n)), "EA:TOWER-DOMAIN");
+    expectCode(() => compareTowers(lit(5n), smuggled), "EA:TOWER-DOMAIN");
+  });
+
+  it("EA:TOWER-DOMAIN: a nested non-literal height against a bare literal is refused, not guessed", () => {
+    const tall = tet(tet(lit(9n)));
+    expectCode(() => compareTowers(tall, lit(5n)), "EA:TOWER-DOMAIN");
+    expectCode(() => compareTowers(lit(5n), tall), "EA:TOWER-DOMAIN");
+  });
+
+  it("exact equality across kinds and the monotone bound: 2↑↑4 = 65536 = lit(65536); 2↑↑6 > 2↑↑5 structurally", () => {
+    const t4 = tet(lit(4n));
+    assert.equal(compareTowers(t4, lit(65536n)), 0);
+    assert.equal(compareTowers(lit(65536n), t4), 0);
+    assert.equal(compareTowers(tet(lit(6n)), tet(lit(5n))), 1);
+    assert.equal(compareTowers(tet(lit(5n)), tet(lit(6n))), -1);
+  });
+
+  it("antisymmetry and symmetric refusal: ordered pairs antisymmetric, refused pairs refused in both directions", () => {
+    const pool: TowerExpr[] = [
+      lit(1n),
+      lit(65536n),
+      tet(lit(3n)), // 16
+      tet(lit(4n)), // 65536
+      tet(lit(5n)), // 2^65536 — last materializable
+      tet(lit(6n)), // structural only
+      tet(tet(lit(9n))), // the champion's shape
+    ];
+    const describe2 = (e: TowerExpr): string =>
+      e.kind === "lit" ? `lit(${e.n})` : `tet(${describe2(e.height)})`;
+    const order = (a: TowerExpr, b: TowerExpr): number | "REFUSED" => {
+      try {
+        return compareTowers(a, b);
+      } catch (e) {
+        if (e instanceof AuditError && e.code === "EA:TOWER-DOMAIN") return "REFUSED";
+        throw e;
+      }
+    };
+    for (const a of pool) {
+      for (const b of pool) {
+        const ab = order(a, b);
+        const ba = order(b, a);
+        if (ab === "REFUSED" || ba === "REFUSED") {
+          assert.equal(ab, "REFUSED", `refusal must be symmetric: ${describe2(a)} vs ${describe2(b)}`);
+          assert.equal(ba, "REFUSED");
+        } else {
+          assert.equal(ab, ba === 0 ? 0 : -ba, `antisymmetry broke for ${describe2(a)} vs ${describe2(b)}`);
+        }
+      }
+    }
   });
 });

@@ -1,6 +1,6 @@
 # letter-audit
 
-**The letter itself, fully audited — the upgrade method executed on the last un-audited poetry; v0.2.0: the method turned on its own registry.**
+**The letter itself, fully audited — the upgrade method executed on the last un-audited poetry; v0.2.0: the method turned on its own registry; v0.3.0: the kernel turned on its own code quality.**
 
 Seventeen ledger rows already upgraded the tech genealogy and the conduct code. This repo finishes the founding document — the **origin story** and the **five summonable abilities** — under the correspondence's founding discipline, now law A1: every audited sentence carries its precise form AND its boundary on the same line. At v0.2.0 the audit caught itself: the frontier registry it quoted had fallen behind the workspace, and the re-audit became this version's face.
 
@@ -10,6 +10,7 @@ Seventeen ledger rows already upgraded the tech genealogy and the conduct code. 
 - **O2–O5 — the gift, the sneer, the genealogy, the rules**: each re-anchored to its existing audit (capsule/burial record; the 17-row verdict census; the DSIC-Noether upgrade; conduct rule 3 as build gate).
 - **O6 — the five abilities, priced.** Feasibility = atlas verdict rows; ultimate-form extrapolation = the verdict-certificate-wall structure; epoch upgrades = admission criteria (crossing-type erasure, signature barriers); trinity consulting = the quantum/causal/scheduling flagships themselves; sci-fi-to-roadmap = the dossier form. The abilities were real all along — as **genres with price lists**, not powers.
 - **O3, v0.2.0 — the frontier re-audit.** The registry had fallen behind the workspace: its two OPEN rows graduated against shipped certificates — **#10** the clock wall settled at the model layer (dtc-clock, decay-law arc assembled: kappa re-based to −0.306852819 by dtc-clock v0.20.0's zetaEM sign conviction, with Phi1 bracketed within ±5.58e-7 containing zero; hardware instantiation still NOT claimed — the HW-WAIT face survives inside the graduation), **#15** choice/stability settled at both layers (stable-world v0.5.0 + choice-lang v0.2.0; the law stays AUTHORED). Census honestly re-counted: **6/4/2/2/OPEN 2/1 → 8/4/2/2/0/1**. Zero OPEN rows remain because the boundaries moved into the cost columns, not because they vanished.
+- **v0.3.0 — the code-quality re-audit (no new math; every number and the rendered report byte-frozen).** The kernel's public surface hardened: malformed machines, step bounds, and machine codes die at the boundary under **named `EA:*` error codes** — two latent silent-garbage paths convicted and regression-anchored (a short entry table used to simulate `undefined` as a digit and return garbage; a non-positive tower height used to be ordered "greater" by the monotone-bound branch, where 2↑↑0 is not ordered at all). The A8 re-count no longer casts untrusted rows into `FrontierRow`; the dead quantum-core scaffolding under `src/core` (zero references across the whole workspace) is deleted; the drifted package-lock version is re-pinned. Suite grown 20 → 33: exact-value anchors (universes 64 / 20,736 / 16,777,216; n=2 halter count 9,784; n=1 completes with 32 of 64 at step 1) and machine/tower smuggling trials.
 
 ## The laws (src/kernel/audit.ts)
 
@@ -26,12 +27,12 @@ Seventeen ledger rows already upgraded the tech genealogy and the conduct code. 
 
 ## Honest boundary
 
-BB(1)=1 and BB(2)=6 are re-derived from scratch by full enumeration; BB(3)=21 (Lin-Rado 1965), BB(4)=107 (Brady 1983), and BB(5)=47,176,870 (bbchallenge 2024, Coq-verified) are **cited, not re-run** — the n=3 universe alone holds 16,777,216 machines and the n=5 champion runs 47 million steps. BB(6) > 2↑↑↑5 (mxdys 2025) is cited two-source; the repo machine-checks only the consistency of the two cited expressions and the exact small-tower prefix. The census counts are this repo's own machine output under its self-defined encoding 4(n+1))^(2n); only the BB maxima are external, and maxima are convention-independent. The frontier re-audit reads the siblings' rendered reports read-only; it writes nothing outside this repo, and its honesty lasts exactly as long as its pointers do — a sibling re-render that drops a needle will fail this repo's build, by design.
+BB(1)=1 and BB(2)=6 are re-derived from scratch by full enumeration; BB(3)=21 (Lin-Rado 1965), BB(4)=107 (Brady 1983), and BB(5)=47,176,870 (bbchallenge 2024, Coq-verified) are **cited, not re-run** — the n=3 universe alone holds 16,777,216 machines and the n=5 champion runs 47 million steps. BB(6) > 2↑↑↑5 (mxdys 2025) is cited two-source; the repo machine-checks only the consistency of the two cited expressions and the exact small-tower prefix. The census counts are this repo's own machine output under its self-defined encoding (4(n+1))^(2n); only the BB maxima are external, and maxima are convention-independent. The frontier re-audit reads the siblings' rendered reports read-only; it writes nothing outside this repo, and its honesty lasts exactly as long as its pointers do — a sibling re-render that drops a needle will fail this repo's build, by design.
 
 ## Reproduce
 
 ```bash
 npm ci
-npm test        # 20/20 — census, witnesses, machine-universe machinery, tower arithmetic, 9 smuggling trials (5 ledger + 4 frontier), entry guard
+npm test        # 33/33 — census, witnesses, machine-universe machinery with exact-value anchors, tower arithmetic, 20 smuggling trials (5 ledger + 4 frontier + 5 machine + 6 tower), entry guard
 npm run repro   # renders out/reports/the-letter-audit.md (seconds)
 ```

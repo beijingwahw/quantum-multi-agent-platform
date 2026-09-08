@@ -1,6 +1,6 @@
 {
   "name": "switch-sched",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Machine verification of the theorem layer behind indefinite causal order (Epoch 2): the quantum switch as an executable supermap certificate (isometry, dilation independence, fixed-order irreducibility for the involution/commutation task), the zero+zero→positive capacity theorem of switched channel pairs in exact arithmetic (Ebler-Salek-Chiribella flagship, replacer and completely depolarizing dilations), an admission table for 'order as a resource' on scheduling-shaped channel pairs (allocate/execute as CPTP maps, switch vs best fixed order), a first toy of incentive constraints when report/allocation order is switched, and the OCB process-witness face machine-checked at bounded dimension (causal inequality 3/4 vs (2+√2)/4, exhaustive 8192-vertex classical census, W_OCB validity certificates, isotropic noise threshold 1/√2, the switch playing the same game at 5/8)",
   "type": "module",
   "engines": {

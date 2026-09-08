@@ -65,7 +65,7 @@ machine register (the scheduling-relevant one).
   the payload TRANSITS erasing channels on both branches** — an
   allocation-created payload erased after the fact gets no rescue.
 - Random CPTP pairs (40 seeds): system-register receiver never wins (median
-  deficit −0.16, 0/40 positive); joint receiver wins 36/40, partly on the
+  deficit −0.15, 0/40 positive); joint receiver wins 34/40, partly on the
   strength of an extra output register — reported with that caveat, see
   docs/theory.md.
 

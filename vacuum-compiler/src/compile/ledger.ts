@@ -11,17 +11,29 @@
  * multiply by kT ln2 for energy (LAND61, citation verified in-house).
  */
 import type { Rng } from "./rng.js";
-import { type CMat, type CVec, cmatApply, cvecInner } from "../core/cmat.js";
+import { type CMat, type CVec, cmatApply, cvecInner, requireWellFormed, requireWellFormedVec, VacuumError } from "../core/cmat.js";
 import { spectralEvolve } from "./history.js";
 
 /** Shannon entropy of a uniform distribution on N outcomes, in bits. */
 export function uniformEntropyBits(n: number): number {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new VacuumError("ledger/outcomes-out-of-domain", `uniformEntropyBits: ${n} (need >= 1 outcome)`);
+  }
   return Math.log2(n);
 }
 
 /** Expected number of attempts to hit "success" with probability p per try
- * (geometric), plus a seeded Monte-Carlo cross-check. */
+ * (geometric), plus a seeded Monte-Carlo cross-check.
+ * v0.3.0 conviction: p outside (0, 1] used to hang the caller (p = 0 never
+ * succeeds — an infinite draw loop) or return a sub-unit "mean" (p > 1);
+ * both are now named rejections. */
 export function geometricAttempts(p: number, rng: Rng, trials = 10000): { mean: number; mc: number } {
+  if (!(p > 0 && p <= 1)) {
+    throw new VacuumError("ledger/probability-out-of-domain", `geometricAttempts: p = ${p}, expected (0, 1]`);
+  }
+  if (!Number.isInteger(trials) || trials < 1) {
+    throw new VacuumError("ledger/trials-out-of-domain", `geometricAttempts: trials = ${trials}, expected a positive integer`);
+  }
   const mean = 1 / p;
   let total = 0;
   for (let i = 0; i < trials; i++) {
@@ -38,20 +50,15 @@ export function staticExpectedErasureBits(clockStates: number): number {
 }
 
 /** Expected clock-record erasure for an arbitrary per-attempt success
- * probability p (fueled / walk modes): (1/p)·log2(T+1) bits. */
+ * probability p (fueled / walk modes): (1/p)·log2(T+1) bits. THE single
+ * definition of the erasure-price formula (the tariff's display float and
+ * exp3's wall table route through here — the former local copies were
+ * bit-identical duplicates, retired v0.3.0). */
 export function expectedErasureBits(probSuccess: number, clockStates: number): number {
-  return expectedErasureBitsRaw(probSuccess, uniformEntropyBits(clockStates));
-}
-
-function expectedErasureBitsRaw(p: number, entropyBits: number): number {
-  return entropyBits / p;
-}
-
-/** Direct comparison baseline: running the circuit costs T unitary gates and
- * ZERO erasure — unitary evolution is reversible. This is the wall the README
- * states plainly: the vacuum never beats running the program. */
-export function directExecutionErasureBits(): number {
-  return 0;
+  if (!(probSuccess > 0 && probSuccess <= 1)) {
+    throw new VacuumError("ledger/probability-out-of-domain", `expectedErasureBits: p = ${probSuccess}, expected (0, 1]`);
+  }
+  return uniformEntropyBits(clockStates) / probSuccess;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +71,9 @@ export function directExecutionErasureBits(): number {
  * time). Mandelstam–Tamm: any orthogonalizing evolution takes time at least
  * pi/(2 sigma_E), the anchor lower bound for the walk's timescale. */
 export function energySpread(h: CMat, psi: CVec): number {
-  const hp = cmatApply(h, psi);
+  requireWellFormed(h, "energySpread");
+  requireWellFormedVec(psi, "energySpread");
+  const hp = cmatApply(h, psi); // also enforces h.dim === psi.dim, by name
   const mean = cvecInner(psi, hp).re;
   const meanSq = cvecInner(hp, hp).re;
   return Math.sqrt(Math.max(meanSq - mean * mean, 0));
@@ -95,6 +104,15 @@ export function pricedWalk(
   tMax: number,
   step = 0.25,
 ): PricedWalk {
+  if (!(step > 0)) {
+    throw new VacuumError("ledger/walk-step-out-of-domain", `pricedWalk: step = ${step}, expected > 0 (a non-positive step never advances the sweep)`);
+  }
+  if (!(tMax >= 0)) {
+    throw new VacuumError("ledger/walk-horizon-out-of-domain", `pricedWalk: tMax = ${tMax}, expected >= 0`);
+  }
+  if (!Number.isInteger(clockStates) || clockStates < 1 || psi0.dim % clockStates !== 0) {
+    throw new VacuumError("readout/clock-not-divisor", `pricedWalk: state dim ${psi0.dim} is not a multiple of clockStates ${clockStates}`);
+  }
   const C = clockStates;
   const D = psi0.dim / C;
   const pAtT = (psi: CVec): number => {

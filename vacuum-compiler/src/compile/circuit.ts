@@ -3,7 +3,7 @@
  * the full 2^n space (the compiler consumes embedded unitaries), plus the
  * bookkeeping needed for reports and for the input/output checks.
  */
-import { type CMat, type CVec, cmatApply, cmatEye, cmatMul, cmatUnitaryDev, cvecZero } from "../core/cmat.js";
+import { type CMat, type CVec, cmatApply, cmatUnitaryDev, cvecZero, VacuumError } from "../core/cmat.js";
 import { GATES, cnot4, embedSingle, embedTwoAdjacent } from "./gates.js";
 import type { Rng } from "./rng.js";
 
@@ -31,14 +31,10 @@ export function unitaryDeviation(c: Circuit): number {
   return d;
 }
 
-/** U_t ... U_1 as a single 2^n matrix (for conditional-readout targets). */
-export function circuitUnitary(c: Circuit): CMat {
-  let u = cmatEye(2 ** c.nQubits);
-  for (const s of c.steps) u = cmatMul(s.matrix, u);
-  return u;
-}
-
-/** Apply U_t ... U_1 to a data-space state. */
+/** Apply U_t ... U_1 to a data-space state. (Composition-as-a-matrix, the
+ * former dead export circuitUnitary, is deliberately NOT re-provided: the
+ * live paths are this per-application runner and buildDressing's progressive
+ * product inside the full data⊗clock space.) */
 export function runCircuit(c: Circuit, input: CVec): CVec {
   let psi = input;
   for (const s of c.steps) psi = cmatApply(s.matrix, psi);
@@ -47,7 +43,14 @@ export function runCircuit(c: Circuit, input: CVec): CVec {
 
 export function dataBasisState(nQubits: number, pattern: readonly number[]): CVec {
   const dim = 2 ** nQubits;
-  if (pattern.length !== nQubits) throw new Error("dataBasisState: pattern length mismatch");
+  if (pattern.length !== nQubits) {
+    throw new VacuumError("circuit/pattern-length-mismatch", `dataBasisState: ${pattern.length} bits for ${nQubits} qubits`);
+  }
+  for (let q = 0; q < nQubits; q++) {
+    if (pattern[q] !== 0 && pattern[q] !== 1) {
+      throw new VacuumError("circuit/pattern-bit-not-binary", `dataBasisState: pattern[${q}] = ${pattern[q]}, expected 0 or 1`);
+    }
+  }
   let idx = 0;
   for (let q = 0; q < nQubits; q++) {
     if (pattern[q] === 1) idx += 2 ** (nQubits - 1 - q);
@@ -77,7 +80,7 @@ export function randomCircuit(nQubits: number, depth: number, rng: Rng): Circuit
   }
   const c: Circuit = { nQubits, steps };
   const dev = unitaryDeviation(c);
-  if (dev > 1e-13) throw new Error(`randomCircuit: unitarity dev ${dev}`);
+  if (dev > 1e-13) throw new VacuumError("circuit/unitarity-violation", `randomCircuit: unitarity dev ${dev}`);
   return c;
 }
 
@@ -88,10 +91,14 @@ export function program(
   acceptPattern: ReadonlyMap<number, 0 | 1>,
 ): CompiledProgram {
   for (const q of checkedQubits) {
-    if (q < 0 || q >= circuit.nQubits) throw new Error("program: checked qubit out of range");
+    if (!Number.isInteger(q) || q < 0 || q >= circuit.nQubits) {
+      throw new VacuumError("circuit/checked-qubit-out-of-range", `program: checked qubit ${q} outside [0, ${circuit.nQubits})`);
+    }
   }
   for (const q of acceptPattern.keys()) {
-    if (q < 0 || q >= circuit.nQubits) throw new Error("program: accept qubit out of range");
+    if (!Number.isInteger(q) || q < 0 || q >= circuit.nQubits) {
+      throw new VacuumError("circuit/accept-qubit-out-of-range", `program: accept qubit ${q} outside [0, ${circuit.nQubits})`);
+    }
   }
   return { circuit, checkedQubits, acceptPattern };
 }

@@ -37,10 +37,11 @@
  * ledger: k rounds of static readout erase k·(T+1)·log2(T+1) bits —
  * amplification is priced, not free (the wall again).
  */
-import { type CVec, cvecZero } from "../core/cmat.js";
+import { type CVec, cvecZero, VacuumError } from "../core/cmat.js";
 import { type Circuit, type CompiledProgram, program, runCircuit } from "./circuit.js";
 import { GATES, embedSingle } from "./gates.js";
 import { staticExpectedErasureBits } from "./ledger.js";
+import { bigPow } from "./tariff.js";
 import type { Rng } from "./rng.js";
 
 // ---------------------------------------------------------------------------
@@ -52,8 +53,28 @@ export interface ExactRational {
   readonly den: bigint; // positive
 }
 
+/** Interface-contract check: num >= 0, den > 0 (the class of inputs every
+ * exact-rational kernel below names before touching). */
+function requireRational(r: ExactRational, what: string): void {
+  if (r.num < 0n || r.den <= 0n) {
+    throw new VacuumError("amplify/malformed-rational", `${what}: num ${r.num}, den ${r.den} (need num >= 0, den > 0)`);
+  }
+}
+
+/** A probability-valued rational: 0 <= num <= den (den > 0). */
+function requireProbabilityRational(r: ExactRational, what: string): void {
+  requireRational(r, what);
+  if (r.num > r.den) {
+    throw new VacuumError("amplify/epsilon-out-of-domain", `${what}: ${r.num}/${r.den} exceeds 1 — not a probability`);
+  }
+}
+
 /** (num/den)^k in exact integer arithmetic. */
 export function exactRationalPower(r: ExactRational, k: number): ExactRational {
+  requireRational(r, "exactRationalPower");
+  if (!Number.isInteger(k) || k < 0) {
+    throw new VacuumError("amplify/rounds-out-of-domain", `exactRationalPower: k = ${k}, expected a nonnegative integer`);
+  }
   let num = 1n;
   let den = 1n;
   for (let i = 0; i < k; i++) {
@@ -67,6 +88,7 @@ export function exactRationalPower(r: ExactRational, k: number): ExactRational {
  * Correctly rounded whenever num, den fit in 2^53 — always true at the
  * bounded k this census runs; bit-exact when the rational is dyadic. */
 export function rationalToFloat(r: ExactRational): number {
+  requireRational(r, "rationalToFloat");
   return Number(r.num) / Number(r.den);
 }
 
@@ -75,6 +97,10 @@ export function rationalToFloat(r: ExactRational): number {
  * i.e. sum_j C(k,j) num^j (den-num)^{k-j} = den^k. Returns the BigInt
  * residue (0 when the identity holds exactly). */
 export function binomialAmplificationResidue(r: ExactRational, k: number): bigint {
+  requireRational(r, "binomialAmplificationResidue");
+  if (!Number.isInteger(k) || k < 0) {
+    throw new VacuumError("amplify/rounds-out-of-domain", `binomialAmplificationResidue: k = ${k}, expected a nonnegative integer`);
+  }
   let sum = 0n;
   let choose = 1n; // C(k, 0)
   for (let j = 0; j <= k; j++) {
@@ -87,12 +113,6 @@ export function binomialAmplificationResidue(r: ExactRational, k: number): bigin
   return sum - bigPow(r.den, k);
 }
 
-function bigPow(base: bigint, exp: number): bigint {
-  let out = 1n;
-  for (let i = 0; i < exp; i++) out *= base;
-  return out;
-}
-
 // ---------------------------------------------------------------------------
 // The per-round soundness of a partially-accepting program
 // ---------------------------------------------------------------------------
@@ -100,6 +120,9 @@ function bigPow(base: bigint, exp: number): bigint {
 /** Acceptance probability of the output state against the program's accept
  * pattern (the AND of the per-qubit bits): |<acc|psi>|^2 summed. */
 export function acceptanceProbability(output: CVec, nQubits: number, acceptPattern: ReadonlyMap<number, 0 | 1>): number {
+  if (output.dim !== 2 ** nQubits) {
+    throw new VacuumError("amplify/qubit-count-mismatch", `acceptanceProbability: output dim ${output.dim}, expected ${2 ** nQubits} = 2^${nQubits}`);
+  }
   let p = 0;
   for (let d = 0; d < output.dim; d++) {
     let accepting = true;
@@ -174,6 +197,13 @@ export interface DecayRow {
  * 10 are reported exact-only — no tolerance is stretched to cover a census
  * that cannot resolve them. */
 export function decayCensus(eps: ExactRational, kMax: number, rng: Rng, trials = 20000): readonly DecayRow[] {
+  requireProbabilityRational(eps, "decayCensus");
+  if (!Number.isInteger(kMax) || kMax < 1) {
+    throw new VacuumError("amplify/rounds-out-of-domain", `decayCensus: kMax = ${kMax}, expected a positive integer`);
+  }
+  if (!Number.isInteger(trials) || trials < 1) {
+    throw new VacuumError("amplify/trials-out-of-domain", `decayCensus: trials = ${trials}, expected a positive integer`);
+  }
   const p = rationalToFloat(eps);
   const rows: DecayRow[] = [];
   for (let k = 1; k <= kMax; k++) {

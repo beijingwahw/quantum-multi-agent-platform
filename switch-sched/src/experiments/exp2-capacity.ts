@@ -22,21 +22,15 @@
  */
 
 import assert from 'node:assert/strict';
-import { type CMat, mat } from '../core/cmat.js';
+import { type CMat } from '../core/cmat.js';
 import { applyKraus } from '../core/channels.js';
-import { PLUS, uniformOrthVec, uniformVec, vecToRho, PAULI_X, PAULI_Z } from '../core/states.js';
+import { PLUS, basisRho, uniformOrthVec, uniformVec, vecToRho, PAULI_X, PAULI_Z } from '../core/states.js';
 import { traceDistance } from '../core/measures.js';
 import { krausToStinespring, makeSwitchedChannel } from '../switch/isometry.js';
 import { completelyDepolarizingKraus, depolarizingKraus, replacerKraus, unitaryKraus } from '../switch/chanlib.js';
 import { channelEnsembleChi, helstromTwo, switchedEnsembleChi, switchedSlices } from '../switch/capacity.js';
 import { writeReport } from './report.js';
 import { pathToFileURL } from "node:url";
-
-function basisRho(d: number, i: number): CMat {
-  const m = mat(d, d);
-  m.re[i * d + i] = 1;
-  return m;
-}
 
 interface PairResult {
   name: string;

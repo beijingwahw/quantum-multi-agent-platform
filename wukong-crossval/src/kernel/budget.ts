@@ -59,7 +59,7 @@ export function budgetRowFromMasses(
   beta: number,
   cap: number,
 ): BudgetRow {
-  const p0 = masses[0] as number;
+  const p0 = masses[0]!;
   const predicted = exactObservedHitRate(masses, flip);
   const p1 = p0 + effectRel * (predicted - p0);
   const base = {
@@ -117,7 +117,8 @@ export function budgetRowsForDepth(
 // axis, and the two power targets the calibration stage would quote.
 export const BUDGET_FLIPS: readonly number[] = [0.01, 0.02, 0.05];
 export const BUDGET_EFFECTS: readonly number[] = [1, 0.5, 0.25];
-export const BUDGET_BETAS: readonly number[] = [0.2, 0.1];
+/** power targets, as (1 - beta); the X8 discriminator plans at the first */
+export const BUDGET_BETAS = [0.2, 0.1] as const;
 export const BUDGET_ALPHA = 0.05;
 /** censoring cap — rows beyond it ship as censored with the Chernoff bound */
 export const BUDGET_CAP = 10_000_000;

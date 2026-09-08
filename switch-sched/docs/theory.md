@@ -109,8 +109,8 @@ Machine register M ∈ {idle, busyA, busyB}, task register T; receiver reads M.
   here the payload is CREATED by alloc and erased after the fact — nothing
   transits, nothing is recombined.
 - Random isometry pairs (40 seeds, d = 2, env 2): system-register receiver
-  0/40 positive, median Δ ≈ −0.16. Joint receiver 36/40 positive, median
-  ≈ +0.14 — but the joint readout includes the control, an output register
+  0/40 positive, median Δ ≈ −0.15. Joint receiver 34/40 positive, median
+  ≈ +0.15 — but the joint readout includes the control, an output register
   no plain definite-order use possesses; we report it as a caveat, not as
   order advantage (the right general comparison class is the causally
   separable strategies of the process-matrix framework — §8 of this file

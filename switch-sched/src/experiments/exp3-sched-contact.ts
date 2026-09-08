@@ -19,10 +19,10 @@
  */
 
 import assert from 'node:assert/strict';
-import { type CMat, mat, mDagger, mMul } from '../core/cmat.js';
+import { type CMat, identity, mat, matEq, mAdd, mDagger, mMul, mScale } from '../core/cmat.js';
 import { applyKraus, partialTrace } from '../core/channels.js';
 import { makeRng } from '../core/rng.js';
-import { PLUS, randomStateVec, vecToRho } from '../core/states.js';
+import { PLUS, basisRho, randomStateVec, vecToRho } from '../core/states.js';
 import { traceDistance } from '../core/measures.js';
 import { krausToStinespring, makeSwitchedChannel } from '../switch/isometry.js';
 import { randomChannelStinespring } from '../switch/chanlib.js';
@@ -34,12 +34,6 @@ const DM = 3; // machine register: 0 = idle, 1 = busyA, 2 = busyB
 const DT = 2; // task register: 0 = A, 1 = B
 const D = DM * DT;
 const idx = (m: number, t: number): number => m * DT + t;
-
-function eye(d: number): CMat {
-  const m = mat(d, d);
-  for (let i = 0; i < d; i++) m.re[i * d + i] = 1;
-  return m;
-}
 
 function allocKraus(): CMat[] {
   const kraus: CMat[] = [];
@@ -80,30 +74,15 @@ function allocErasedKraus(eps: number): CMat[] {
   const base = allocKraus();
   const kraus: CMat[] = [];
   const keep = Math.sqrt(1 - eps);
-  for (const K of base) kraus.push(mMul(mScaleMat(keep, K), eye(D)));
+  for (const K of base) kraus.push(mMul(mScale(K, keep), identity(D)));
   const erase = Math.sqrt(eps);
   for (let j = 0; j < DM; j++) {
     // E_j = |+⟩⟨j|_M ⊗ I_T — replacer Kraus, amplitude 1 (Σ_j E_j†E_j = I)
     const E = mat(D, D);
     for (let t = 0; t < DT; t++) E.re[idx(0, t) * D + idx(j, t)] = 1;
-    for (const K of base) kraus.push(mMul(mScaleMat(erase, E), K));
+    for (const K of base) kraus.push(mMul(mScale(E, erase), K));
   }
   return kraus;
-}
-
-function mScaleMat(s: number, a: CMat): CMat {
-  const m = mat(a.rows, a.cols);
-  for (let k = 0; k < a.re.length; k++) {
-    m.re[k] = s * a.re[k]!;
-    m.im[k] = s * a.im[k]!;
-  }
-  return m;
-}
-
-function basisRho(d: number, i: number): CMat {
-  const m = mat(d, d);
-  m.re[i * d + i] = 1;
-  return m;
 }
 
 /** D(Λ) with receiver = machine register only. */
@@ -119,19 +98,8 @@ function tpCheck(kraus: CMat[], label: string): void {
   let tr = 0;
   for (let i = 0; i < D; i++) tr += out.re[i * D + i]!;
   assert.ok(Math.abs(tr - 1) < 1e-12, `${label} not trace preserving: ${tr}`);
-  const sum = kraus.reduce((acc, K) => mAddMat(acc, mMul(mDagger(K), K)), mat(D, D));
-  let err = 0;
-  for (let k = 0; k < D * D; k++) err = Math.max(err, Math.abs(sum.re[k]! - (Math.floor(k / D) === k % D ? 1 : 0)));
-  assert.ok(err < 1e-12, `${label} fails Σ K†K = I by ${err}`);
-}
-
-function mAddMat(a: CMat, b: CMat): CMat {
-  const m = mat(a.rows, a.cols);
-  for (let k = 0; k < a.re.length; k++) {
-    m.re[k] = a.re[k]! + b.re[k]!;
-    m.im[k] = a.im[k]! + b.im[k]!;
-  }
-  return m;
+  const sum = kraus.reduce((acc, K) => mAdd(acc, mMul(mDagger(K), K)), mat(D, D));
+  assert.ok(matEq(sum, identity(D), 1e-12), `${label} fails Σ K†K = I`);
 }
 
 export function main(): void {
@@ -225,6 +193,14 @@ export function main(): void {
   const median = (deltas[Math.floor(N / 2) - 1]! + deltas[Math.floor(N / 2)]!) / 2;
   jointDeltas.sort((x, y) => x - y);
   const medianJoint = (jointDeltas[Math.floor(N / 2) - 1]! + jointDeltas[Math.floor(N / 2)]!) / 2;
+  // regression anchor for the v0.3.0 orthoPair conviction: the sample behind
+  // Table 3 is seed-pinned, so any future perturbation of the rng stream
+  // (an extra draw smuggled into the pipeline) moves these numbers and dies
+  // here instead of silently re-rolling the reported statistics
+  assert.ok(positiveDelta === 0, `system-register receiver must show 0/${N} positives, got ${positiveDelta}`);
+  assert.strictEqual(median.toFixed(6), '-0.149905', 'system-register median drifted — rng stream perturbed?');
+  assert.strictEqual(positiveJoint, 34, 'joint positives drifted — rng stream perturbed?');
+  assert.strictEqual(medianJoint.toFixed(6), '0.147796', 'joint median drifted — rng stream perturbed?');
   lines.push(`- ${N} random isometry pairs (d = 2, env 2), random orthogonal input pairs`);
   lines.push(`- receiver = system register: Δ median **${median.toFixed(6)}**, max **${maxDelta.toFixed(6)}**,`);
   lines.push(`  positives Δ > 1e−9: **${positiveDelta}/${N}**`);
@@ -232,7 +208,7 @@ export function main(): void {
   lines.push(`  positives: **${positiveJoint}/${N}**`);
   lines.push('');
   lines.push('Generic channel pairs give the system-register receiver no edge — median deficit, zero');
-  lines.push('positives in this sample; the JOINT receiver (system + control) wins on 36/40, but that');
+  lines.push(`positives in this sample; the JOINT receiver (system + control) wins on ${positiveJoint}/${N}, but that`);
   lines.push('partly reflects an extra output register no plain definite-order use has, not order');
   lines.push('advantage per se (against the fully general causally-separable class the question is');
   lines.push('what process witnesses decide — cited, OCB 2012 / Goswami 2018). For scheduling, the');
@@ -253,8 +229,14 @@ function mChain(outer: CMat[], inner: CMat[]): CMat[] {
 
 function orthoPair(rng: ReturnType<typeof makeRng>, d: number): CMat[] {
   const a = randomStateVec(rng, d);
-  // Gram-Schmidt a second vector against a (complex inner product, conj on first)
-  const b = { re: randomStateVec(rng, d).re, im: randomStateVec(rng, d).im };
+  // Gram-Schmidt a second vector against a (complex inner product, conj on first).
+  // DEFECT CONVICTION (v0.3.0): this line used to call randomStateVec TWICE —
+  // b.re from one draw, b.im from the next — silently burning an extra draw
+  // per trial and welding the seed stream to the bug. The distribution of b
+  // was unaffected (independent Gaussians either way), but the sample behind
+  // Table 3 was; fixed to one draw, the Table-3 statistics re-drawn from the
+  // same seed, and the prose numbers updated in the same stroke.
+  const b = randomStateVec(rng, d);
   let dre = 0;
   let dim = 0;
   for (let k = 0; k < d; k++) {

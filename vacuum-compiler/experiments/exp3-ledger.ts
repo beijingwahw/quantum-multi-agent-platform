@@ -17,7 +17,7 @@ import { type CVec, cvecFidelity, cvecZero, eigHermitian } from "../src/core/cma
 import { dataBasisState, program, randomCircuit, runCircuit } from "../src/compile/circuit.js";
 import { assemble } from "../src/compile/hamiltonian.js";
 import { conditionalData, spectralEvolve, stateNorm } from "../src/compile/history.js";
-import { geometricAttempts, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
+import { geometricAttempts, expectedErasureBits, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
 import { Rng } from "../src/compile/rng.js";
 import { table, writeReport } from "./report.js";
 
@@ -151,12 +151,14 @@ function run(): void {
   console.log(`C. walk: peak P(T) = ${maxP.toFixed(4)} at t = ${argMaxT}; conditional fidelity exactly 1 (worst dev ${worstFid.toExponential(2)}); curve circuit-independent (dev ${curveIndepDev.toExponential(2)})`);
   if (!(maxP > 1e-3)) failures.push(`walk never delivers: peak ${maxP}`);
 
-  // --- the wall, in one table
+  // --- the wall, in one table (the arbitrary-p rows route through the
+  // ledger's single erasure formula, expectedErasureBits, since v0.3.0 —
+  // bit-identical to the former inline entropy/p divisions)
   const wallRows: string[][] = [
     ["direct execution", "0", "T unitary gates, reversible", "0"],
     ["static (ground state)", `${(1 / C).toFixed(4)}`, "measure clock, retry", staticExpectedErasureBits(C).toFixed(2)],
-    [`fueled (eps=0.4·Delta)`, `${pAt[4]!.toFixed(4)}`, "oil: tilt -eps·t (gap closes; cargo stays exact)", `${(uniformEntropyBits(C) / (pAt[4] as number)).toFixed(2)}`],
-    [`walk (free clock)`, `${maxP.toFixed(4)}`, `coherent time t*=${argMaxT}; energy bandwidth ~ ||H||`, `${(uniformEntropyBits(C) / maxP).toFixed(2)}`],
+    [`fueled (eps=0.4·Delta)`, `${pAt[4]!.toFixed(4)}`, "oil: tilt -eps·t (gap closes; cargo stays exact)", expectedErasureBits(pAt[4] as number, C).toFixed(2)],
+    [`walk (free clock)`, `${maxP.toFixed(4)}`, `coherent time t*=${argMaxT}; energy bandwidth ~ ||H||`, expectedErasureBits(maxP, C).toFixed(2)],
   ];
 
   const body = [

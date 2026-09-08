@@ -25,10 +25,11 @@
  */
 
 import assert from 'node:assert/strict';
-import { type CMat, eigenvaluesHermitian, identity, isHermitian, kron } from '../core/cmat.js';
+import { eigenvaluesHermitian, isHermitian } from '../core/cmat.js';
 import { makeRng } from '../core/rng.js';
 import { randomStateVec, vecToRho } from '../core/states.js';
-import { firstPartyProcess } from '../process/cj.js';
+import { traceReal } from '../core/measures.js';
+import { firstPartyProcess, sharedStateProcess } from '../process/cj.js';
 import {
   CLASSICAL_CAP,
   OCB_QUANTUM_VALUE,
@@ -63,9 +64,12 @@ export function main(): void {
   assert.ok(isHermitian(sGame), 'S_game must be Hermitian');
   assert.ok(isHermitian(witness), 'S must be Hermitian');
   const witEig = Array.from(eigenvaluesHermitian(witness)).sort((x, y) => x - y);
-  lines.push(`S_game Hermitian: yes; Tr[S_game] = ${traceOf(sGame).toFixed(6)};`);
-  lines.push(`witness S = (3/16)𝟙 − S_game spectrum: min ${witEig[0]!.toFixed(6)}, max ${witEig[witEig.length - 1]!.toFixed(6)}.`);
-  if (witEig[0]! < -1e-12) {
+  const eigMin = witEig[0];
+  const eigMax = witEig[witEig.length - 1];
+  if (eigMin === undefined || eigMax === undefined) throw new Error('exp5: witness spectrum came back empty');
+  lines.push(`S_game Hermitian: yes; Tr[S_game] = ${traceReal(sGame).toFixed(6)};`);
+  lines.push(`witness S = (3/16)𝟙 − S_game spectrum: min ${eigMin.toFixed(6)}, max ${eigMax.toFixed(6)}.`);
+  if (eigMin < -1e-12) {
     lines.push('S is NOT positive semidefinite — nonnegativity on causally separable processes is');
     lines.push('NOT a PSD argument; it is the causal inequality itself (census: exact over classical');
     lines.push('vertices; quantum definite-order: sampled battery below; general proof: OCB Eq. (2), cited).');
@@ -75,7 +79,9 @@ export function main(): void {
   // ---------------------------------------------------------------------
   lines.push('## 2. Exhaustive classical census (both definite orders)\n');
   const census = classicalCensus();
-  const cap = census[0]!.psucc;
+  const best = census[0];
+  if (best === undefined) throw new Error('exp5: census came back empty');
+  const cap = best.psucc;
   const achievers = census.filter((p) => Math.abs(p.psucc - CLASSICAL_CAP) < 1e-12);
   const bFirst = census.filter((p) => p.order === 'B-first');
   const aFirst = census.filter((p) => p.order === 'A-first');
@@ -89,7 +95,7 @@ export function main(): void {
   assert.ok(Math.abs(cap - CLASSICAL_CAP) < 1e-12, 'classical cap must be exactly 3/4');
   assert.strictEqual(census.length, 8192);
   lines.push('');
-  lines.push(`Argmax vertex: ${census[0]!.label} (both orders achieve 3/4 — the cap is an order-free`);
+  lines.push(`Argmax vertex: ${best.label} (both orders achieve 3/4 — the cap is an order-free`);
   lines.push('property of the game). Shared randomness cannot exceed the vertex cap: p_succ is linear');
   lines.push('in the behavior, so the maximum over convex mixtures sits on a vertex. **Classical causal');
   lines.push(`cap = 3/4, machine-census-verified over all ${census.length} deterministic strategies.**`);
@@ -113,10 +119,11 @@ export function main(): void {
       count++;
     }
   }
-  // shared entanglement (Bell state on A1B1)
+  // shared entanglement (Bell state on A1B1) — the shared-state process is
+  // cj.sharedStateProcess, the single source for ρ^{A1B1} ⊗ 𝟙^{A2} ⊗ 𝟙^{B2}
   const bell = { rows: 4, cols: 4, re: new Float64Array(16), im: new Float64Array(16) };
   bell.re[0] = 0.25; bell.re[3] = 0.25; bell.re[12] = 0.25; bell.re[15] = 0.25;
-  const sharedBell = kron(kron(bell, identity(2)), identity(2));
+  const sharedBell = sharedStateProcess(bell);
   const witBell = witnessValue(sharedBell);
   lines.push(`- ${count} random definite-order processes (complex Kraus channels, both orders):`);
   lines.push(`  min Tr[S W] = ${minWit.toExponential(3)} (worst case ${worstLabel}) — no violation.`);
@@ -204,12 +211,6 @@ export function main(): void {
 
   writeReport('exp5-process-witness', lines.join('\n'));
   console.log(lines.join('\n'));
-}
-
-function traceOf(m: CMat): number {
-  let s = 0;
-  for (let i = 0; i < m.rows; i++) s += m.re[i * m.cols + i]!;
-  return s;
 }
 
 // batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render

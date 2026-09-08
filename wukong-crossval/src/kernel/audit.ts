@@ -21,14 +21,15 @@ import {
   uniformState,
   type Instance,
 } from "./crossval.js";
+import { XvalError } from "./error.js";
 import { QUOTED_COUPLED, QUOTED_INSTANCES, QUOTED_LINEAR, QUOTED_P0_TOL, XVAL, type XvalRow } from "./ledger.js";
 import { budgetRowFromMasses, BUDGET_CAP, type BudgetRow } from "./budget.js";
 import { perturbCensus, type PerturbRow } from "./robust.js";
 import { exactProbe } from "./probe.js";
 import { powerAt } from "./power.js";
-import { discriminatorRow, mcShellDemo } from "./discriminate.js";
+import { DISC_PROBE_IDS, discriminatorRow, MC_SHELL_DEMO, mcShellDemo } from "./discriminate.js";
 
-export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
+const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
 export interface Violation {
   readonly row: string;
@@ -45,6 +46,16 @@ let instMemo: Instance[] | undefined;
 function instances(): Instance[] {
   instMemo ??= instanceSet();
   return instMemo;
+}
+
+/** The seeded set lookup every must-exist consumer goes through — a missing
+ * id is rejected by name, never an anonymous TypeError off a `find` cast. */
+export function requireInstance(id: string): Instance {
+  const hit = instances().find((i) => i.id === id);
+  if (hit === undefined) {
+    throw new XvalError("XVAL_INSTANCE_MISSING", `requireInstance: the seeded instance set does not contain "${id}"`);
+  }
+  return hit;
 }
 
 /** What reaches the audit boundary: rows as they arrive at runtime. The
@@ -81,7 +92,10 @@ function witnessInstances(): WitnessResult {
   let sep = true;
   for (const i of lin) {
     let v = 0;
-    for (let k = 0; k < i.n; k++) if ((i.linear[k] as number) > 0) v += i.linear[k] as number;
+    for (let k = 0; k < i.n; k++) {
+      const w = i.linear[k]!;
+      if (w > 0) v += w;
+    }
     if (Math.abs(i.optValue - v) > 1e-12) sep = false;
   }
   const ok = inst.length === QUOTED_INSTANCES && lin.length === QUOTED_LINEAR && inst.length - lin.length === QUOTED_COUPLED && sep;
@@ -89,8 +103,7 @@ function witnessInstances(): WitnessResult {
 }
 
 function witnessOffline(): WitnessResult {
-  const instAll = instances();
-  const target = instAll.find((i) => i.n === 8 && i.kind === "coupled") as (typeof instAll)[number];
+  const target = requireInstance("np-n8-0"); // the first coupled n=8 probe
   // p=0 anchor: uniform expectation = mean cost
   const costs = costTable(target);
   const psi0 = uniformState(target.n);
@@ -103,14 +116,13 @@ function witnessOffline(): WitnessResult {
   let psum = 0;
   const psi1 = runQaoa(target, params);
   const dim = psi1.length >> 1;
-  for (let k = 0; k < dim; k++) psum += psi1[k]! * psi1[k]! + (psi1[dim + k] as number) * (psi1[dim + k] as number);
+  for (let k = 0; k < dim; k++) psum += psi1[k]! * psi1[k]! + psi1[dim + k]! * psi1[dim + k]!;
   const ok = Math.abs(e0 - mean) < QUOTED_P0_TOL && e1 < e0 && Math.abs(psum - 1) < 1e-9;
   return { name: "W-B offline optimization anchors", pass: ok, detail: `p=0: E = mean cost (${e0.toFixed(6)} vs ${mean.toFixed(6)}); p=1 improves to ${e1.toFixed(4)}; norm 1 at ${psum.toFixed(12)}` };
 }
 
 function witnessDryRun(): WitnessResult {
-  const instAll = instances();
-  const target = instAll.find((i) => i.n === 8 && i.kind === "coupled") as (typeof instAll)[number];
+  const target = requireInstance("np-n8-0");
   const params = optimizeOffline(target, 1);
   const psi = runQaoa(target, params);
   const zero = sampleWithReadoutNoise(psi, target.n, target.optBits, 6000, 0, makeRng(7));
@@ -127,12 +139,11 @@ function witnessDryRun(): WitnessResult {
 }
 
 function witnessExport(): WitnessResult {
-  const instAll = instances();
-  const target = instAll.find((i) => i.n === 8 && i.kind === "coupled") as (typeof instAll)[number];
+  const target = requireInstance("np-n8-0");
   const params = optimizeOffline(target, 1);
   const e1 = exportCircuit(target, params, 1000);
   const e2 = exportCircuit(target, params, 1000);
-  const roundTrip = e1.layers.length === 1 && (e1.layers[0] as { beta: number }).beta === (params.betas[0] as number) && JSON.stringify(e1) === JSON.stringify(e2) && e1.cost.linear.length === target.n;
+  const roundTrip = e1.layers.length === 1 && e1.layers[0]!.beta === params.betas[0]! && JSON.stringify(e1) === JSON.stringify(e2) && e1.cost.linear.length === target.n;
   return { name: "W-D export round-trip", pass: roundTrip, detail: `deterministic JSON, ${e1.layers.length} layer(s), cost fields complete (${e1.cost.linear.length} linear)` };
 }
 
@@ -183,7 +194,15 @@ export function checkBudgetTable(rows: readonly BudgetRow[]): Violation[] {
     const meta = { instanceId: inst.id, n: inst.n, kind: inst.kind, depth: head.depth };
     for (const r of group) {
       const key = budgetRowKey(r);
-      const truth = budgetRowFromMasses(probe.masses, meta, r.flip, r.effectRel, r.alpha, r.beta, BUDGET_CAP);
+      let truth: BudgetRow;
+      try {
+        truth = budgetRowFromMasses(probe.masses, meta, r.flip, r.effectRel, r.alpha, r.beta, BUDGET_CAP);
+      } catch (e) {
+        // an operating point no honest table would carry (e.g. a flip level
+        // outside [0,1]): named as a violation, never an anonymous throw
+        violations.push({ row: key, law: "X6", detail: `illegal operating point: ${e instanceof Error ? e.message : String(e)}` });
+        continue;
+      }
       if (!numEq(r.p0, truth.p0) || !numEq(r.p1, truth.p1)) {
         violations.push({
           row: key,
@@ -211,7 +230,7 @@ export function checkBudgetTable(rows: readonly BudgetRow[]): Violation[] {
       }
       if (truth.shots !== null) {
         const target = 1 - r.beta;
-        if ((truth.power as number) < target || powerAt(truth.shots - 1, r.p0, r.p1, r.alpha) >= target) {
+        if (truth.power! < target || powerAt(truth.shots - 1, r.p0, r.p1, r.alpha) >= target) {
           violations.push({ row: key, law: "X6", detail: `minimality not two-sided verified: power(N*)=${String(truth.power)} vs target ${target}` });
         }
       }
@@ -299,10 +318,9 @@ function witnessRobustLaw(): WitnessResult {
 }
 
 function witnessDiscriminator(): WitnessResult {
-  const probes = ["np-n8-0", "np-n12-4", "np-n16-7", "np-n20-11"];
   let fitsOk = true;
   let recomputeOk = true;
-  for (const id of probes) {
+  for (const id of DISC_PROBE_IDS) {
     const inst = instances().find((i) => i.id === id);
     if (inst === undefined) {
       recomputeOk = false;
@@ -314,8 +332,8 @@ function witnessDiscriminator(): WitnessResult {
     const again = discriminatorRow(probe.masses, { instanceId: inst.id, n: inst.n, depth: 1 }, 0.02, 1_000_000);
     if (Math.abs(again.gap - row.gap) > 0 || Math.abs(again.sigma - row.sigma) > 0) recomputeOk = false;
   }
-  const mc = mcShellDemo(instances().find((i) => i.id === "np-n8-0") as Instance, 1, 0.02, 40000, 5);
-  const mcSigma = Math.sqrt((mc.readoutPrediction * (1 - mc.readoutPrediction)) / 40000);
+  const mc = mcShellDemo(requireInstance("np-n8-0"), MC_SHELL_DEMO.depth, MC_SHELL_DEMO.flip, MC_SHELL_DEMO.shots, MC_SHELL_DEMO.seed);
+  const mcSigma = Math.sqrt((mc.readoutPrediction * (1 - mc.readoutPrediction)) / MC_SHELL_DEMO.shots);
   const mcOk = Math.abs(mc.shell1Estimate - mc.readoutPrediction) <= 4 * mcSigma;
   const pass = fitsOk && recomputeOk && mcOk;
   return {

@@ -5,9 +5,9 @@
  */
 
 import { type CMat, mat } from '../core/cmat.js';
-import type { Rng } from '../core/rng.js';
+import { type Rng, complexGaussian } from '../core/rng.js';
 import { weyl } from '../core/states.js';
-import { type Stinespring, krausToStinespring } from './isometry.js';
+import { type Stinespring, assertStinespring } from './isometry.js';
 
 /**
  * Replacer channel Λ(ρ) = |v⟩⟨v| · Tr ρ for the uniform |v⟩: K_i = |v⟩⟨i|.
@@ -88,11 +88,9 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
   for (let c = 0; c < d; c++) {
     const v = { re: [] as number[], im: [] as number[] };
     for (let r = 0; r < d * envDim; r++) {
-      const u1 = Math.max(rng(), 1e-12);
-      const u2 = rng();
-      const rad = Math.sqrt(-2 * Math.log(u1));
-      v.re.push(rad * Math.cos(2 * Math.PI * u2));
-      v.im.push(rad * Math.sin(2 * Math.PI * u2));
+      const g = complexGaussian(rng);
+      v.re.push(g.re);
+      v.im.push(g.im);
     }
     cols.push(v);
   }
@@ -127,7 +125,9 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
     }
   }
   const st: Stinespring = { d, envDim, V };
-  // isometry certificate happens inside krausToStinespring-equivalent check
+  // isometry certificate before the dilation leaves the module — the comment
+  // used to claim this check happened; now it actually does
+  assertStinespring(st);
   return st;
 }
 
@@ -146,5 +146,3 @@ export function stinespringToKraus(st: Stinespring): CMat[] {
   }
   return kraus;
 }
-
-export { krausToStinespring };

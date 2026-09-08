@@ -13,7 +13,7 @@
  * H_fuel = -ε Σ_t t |t><t| ⊗ I tilts the clock toward late times — the oil
  * that buys readout probability and (measured, not assumed) dirties the cargo.
  */
-import { type CMat, cmatEye, cmatHermDev, cmatMul, cmatZero } from "../core/cmat.js";
+import { type CMat, cmatEye, cmatHermDev, cmatMul, cmatZero, requireWellFormed, VacuumError } from "../core/cmat.js";
 import type { CompiledProgram } from "./circuit.js";
 
 export interface CompiledHamiltonian {
@@ -28,7 +28,22 @@ function dataDim(nQubits: number): number {
   return 2 ** nQubits;
 }
 
+/** A circuit's steps must each be a well-formed dim-2^n unitary acting on the
+ * data register — a wrong-dim step matrix used to write NaNs into the grid
+ * silently (the conviction class of the v0.3.0 quality wall). */
+function requireStepMatrices(nQubits: number, steps: ReadonlyArray<{ matrix: CMat }>, what: string): void {
+  const D = dataDim(nQubits);
+  for (let t = 0; t < steps.length; t++) {
+    const u = steps[t] as { matrix: CMat };
+    requireWellFormed(u.matrix, `${what}[${t}]`);
+    if (u.matrix.dim !== D) {
+      throw new VacuumError("hamiltonian/step-dim-mismatch", `${what}[${t}]: step matrix dim ${u.matrix.dim}, expected ${D} = 2^${nQubits}`);
+    }
+  }
+}
+
 export function buildPropagation(nQubits: number, steps: ReadonlyArray<{ matrix: CMat }>): CMat {
+  requireStepMatrices(nQubits, steps, "buildPropagation step");
   const D = dataDim(nQubits);
   const C = steps.length + 1;
   const h = cmatZero(D * C);
@@ -125,7 +140,7 @@ export function assemble(
     for (let i = 0; i < D * C; i++) h.re[i]![i] = (h.re[i]![i] as number) + (hf.re[i]![i] as number);
   }
   const hermDev = cmatHermDev(h);
-  if (hermDev > 1e-14) throw new Error(`assembled Hamiltonian not Hermitian: ${hermDev}`);
+  if (hermDev > 1e-14) throw new VacuumError("hamiltonian/not-hermitian", `assembled Hamiltonian not Hermitian: ${hermDev}`);
   return {
     h,
     nQubits: circuit.nQubits,
@@ -145,6 +160,9 @@ export function clockChainEigenvalue(k: number, clockStates: number): number {
 /** The bare clock chain operator itself: ½ the path-graph Laplacian on C
  * vertices, tensored with nothing (data space excluded). */
 export function bareClockChain(clockStates: number): CMat {
+  if (!Number.isInteger(clockStates) || clockStates < 2) {
+    throw new VacuumError("hamiltonian/clock-states-out-of-domain", `bareClockChain: ${clockStates} (a path graph needs >= 2 vertices)`);
+  }
   const C = clockStates;
   const m = cmatZero(C);
   for (let t = 1; t < C; t++) {
@@ -158,6 +176,7 @@ export function bareClockChain(clockStates: number): CMat {
 
 /** The dressing unitarity W = sum_t (U_t...U_1) ⊗ |t><t|. */
 export function buildDressing(nQubits: number, steps: ReadonlyArray<{ matrix: CMat }>): CMat {
+  requireStepMatrices(nQubits, steps, "buildDressing step");
   const D = 2 ** nQubits;
   const C = steps.length + 1;
   const w = cmatZero(D * C);

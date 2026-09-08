@@ -241,8 +241,9 @@ export function checkFrontier(rows: readonly UntrustedFrontierRow[] = FRONTIER):
     }
   }
   // A8: the census quoted in the ledger equals the machine's re-count
-  const now = censusString(rows as readonly FrontierRow[], "verdict");
-  const prior = censusString(rows as readonly FrontierRow[], "priorVerdict");
+  // (censusString is generic over the row shape: no cast of untrusted rows)
+  const now = censusString(rows, "verdict");
+  const prior = censusString(rows, "priorVerdict");
   if (now !== QUOTED_CENSUS_NOW) {
     violations.push({
       row: "census",

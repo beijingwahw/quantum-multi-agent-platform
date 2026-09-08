@@ -3,8 +3,8 @@
  * Every formula here has a closed-form value a test can assert against.
  */
 
-import { type CMat, type CVec, basisVec, identity, mat, vNormalize } from './cmat.js';
-import type { Rng } from './rng.js';
+import { type CMat, type CVec, basisVec, mat, vNormalize } from './cmat.js';
+import { type Rng, complexGaussian } from './rng.js';
 
 export const KET0: CVec = basisVec(2, 0);
 export const KET1: CVec = basisVec(2, 1);
@@ -27,6 +27,13 @@ export function uniformOrthVec(d: number): CVec {
   return v;
 }
 
+/** Density matrix |i⟩⟨i| on dimension d — the computational-basis anchor. */
+export function basisRho(d: number, i: number): CMat {
+  const m = mat(d, d);
+  m.re[i * d + i] = 1;
+  return m;
+}
+
 export function vecToRho(v: CVec): CMat {
   const m = mat(v.n, v.n);
   for (let i = 0; i < v.n; i++) {
@@ -38,22 +45,13 @@ export function vecToRho(v: CVec): CMat {
   return m;
 }
 
-export function maximallyMixed(d: number): CMat {
-  const m = mat(d, d);
-  for (let i = 0; i < d; i++) m.re[i * d + i] = 1 / d;
-  return m;
-}
-
 /** Random normalized complex vector (Gaussian, then normalize). */
 export function randomStateVec(rng: Rng, d: number): CVec {
   const v = { n: d, re: new Float64Array(d), im: new Float64Array(d) };
   for (let k = 0; k < d; k++) {
-    // Box-Muller pair
-    const u1 = Math.max(rng(), 1e-12);
-    const u2 = rng();
-    const r = Math.sqrt(-2 * Math.log(u1));
-    v.re[k] = r * Math.cos(2 * Math.PI * u2);
-    v.im[k] = r * Math.sin(2 * Math.PI * u2);
+    const g = complexGaussian(rng);
+    v.re[k] = g.re;
+    v.im[k] = g.im;
   }
   return vNormalize(v);
 }
@@ -108,8 +106,4 @@ export function weyl(d: number, a: number, b: number): CMat {
     m.im[row * d + j] = Math.sin(ang);
   }
   return m;
-}
-
-export function eye(d: number): CMat {
-  return identity(d);
 }

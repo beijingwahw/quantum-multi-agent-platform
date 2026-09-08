@@ -150,6 +150,22 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   { repo: "dtc-clock", file: "channels.ts", reason: "the v0.21.0 quality sweep deleted this member's dead channels exports (2 zero-reference faces); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
   { repo: "dtc-clock", file: "rng.ts", reason: "the v0.21.0 quality sweep deleted this member's unused rng export (1 zero-reference face) and refactored the construction to the Object.assign shape (the bit stream byte-identical); re-convergence is the appeal court's call" },
   { repo: "dtc-clock", file: "measures.ts", reason: "the v0.21.0 quality sweep's faces touched this member's measures copy (the dead-export and cast-clearance passes); the canon's algorithmic faces are untouched; re-convergence is the appeal court's call" },
+  // -- the batch-87 wave append (the quality wave's sixth and FINAL batch, the
+  // E faces of letter-audit 0.3.0 and switch-sched 0.3.0) ----------------------
+  // The wave cleared BOTH remaining full members in one stroke: letter-audit
+  // deleted its whole src/core directory (1,048 lines, zero references
+  // workspace-wide) — all five family files read NOT-PRESENT there, a legal
+  // status needing no row (the phase-law precedent) — and switch-sched's
+  // absorption sweep pared four of its five copies (measures untouched,
+  // still byte-identical to the canon). The full-member count drops to ZERO:
+  // the canon now stands alone, every epoch member either diverged-registered
+  // or not-present. Registered as debt, not adjudicated: whether the canon
+  // sheds its own dead faces (or any member re-converges) is the appeal
+  // court's call.
+  { repo: "switch-sched", file: "cmat.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused cmat exports (vAdd/vKron/vecToMat/matToVec/fromSpectral, grep-verified zero-reference; the C face's kronRho callers moved to the canon's kron in the same wave); the canon's surviving faces are untouched between the deletions; re-convergence is the appeal court's call" },
+  { repo: "switch-sched", file: "states.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused states exports (maximallyMixed/eye; the gypi z0/z1 callers moved to KET0/KET1 in the same wave); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
+  { repo: "switch-sched", file: "channels.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused channels exports (depolarize and filterBasisDigit); the canon's algorithmic faces are untouched between the deletions; re-convergence is the appeal court's call" },
+  { repo: "switch-sched", file: "rng.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused rng export (fmt; the Box-Muller callers moved to the canon's complexGaussian in the same wave); the bit stream is untouched; re-convergence is the appeal court's call" },
 ];
 
 export type FamilyStatus =

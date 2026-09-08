@@ -18,11 +18,7 @@
  * complex-valued anchors in test/process.test.ts (Born-rule reconstructions).
  */
 
-import { type CMat, type CVec, identity, kron, mat, mDagger, mMul, mTrace } from '../core/cmat.js';
-import { vecToRho } from '../core/states.js';
-
-/** Register layout of every 4-qubit process matrix in this layer. */
-export const PROCESS_DIMS = [2, 2, 2, 2] as const;
+import { type CMat, type CVec, identity, kron, mat, mMul, mTrace } from '../core/cmat.js';
 
 /**
  * CJ matrix of a CP map given by its Kraus operators (input dP → output dF),
@@ -78,20 +74,6 @@ export function measurePrepareKraus(psi: CVec, phi: CVec): CMat[] {
   return [K];
 }
 
-/** Outcome-summed CJ (the CPTP map when measurement outcomes are ignored). */
-export function instrumentSum(parts: readonly CMat[]): CMat {
-  const first = parts[0];
-  if (first === undefined) throw new Error('instrumentSum: empty instrument');
-  const out = mat(first.rows, first.cols);
-  for (const M of parts) {
-    for (let k = 0; k < out.re.length; k++) {
-      out.re[k] = out.re[k]! + M.re[k]!;
-      out.im[k] = out.im[k]! + M.im[k]!;
-    }
-  }
-  return out;
-}
-
 /** OCB Eq. (3): P(M_A, M_B) = Tr[W (M_A ⊗ M_B)]. */
 export function processProbability(w: CMat, mA: CMat, mB: CMat): number {
   const t = mTrace(mMul(w, kron(mA, mB)));
@@ -122,6 +104,11 @@ export function firstPartyProcess(
   rhoIn: CMat,
   channelKraus: readonly CMat[],
 ): CMat {
+  // a malformed input state would silently index past its rows and produce a
+  // NaN process that could sneak into a battery — refuse it at the boundary
+  if (rhoIn.rows !== 2 || rhoIn.cols !== 2) {
+    throw new Error(`firstPartyProcess: input state must be 2x2 on the first party's wire, got ${rhoIn.rows}x${rhoIn.cols}`);
+  }
   const cj = cjMatrix(channelKraus);
   const w = mat(16, 16);
   for (let i1 = 0; i1 < 2; i1++) {
@@ -166,14 +153,4 @@ export function firstPartyProcess(
     }
   }
   return w;
-}
-
-/** |v⟩⟨v| ⊗ |w⟩⟨w| on (A1 ⊗ B1) for shared-product-state processes. */
-export function productRho(v: CVec, w: CVec): CMat {
-  return kron(vecToRho(v), vecToRho(w));
-}
-
-/** Utility used by validity checks: Hilbert-Schmidt overlap Tr[A†B] real part. */
-export function hsOverlap(a: CMat, b: CMat): number {
-  return mTrace(mMul(mDagger(a), b)).re;
 }

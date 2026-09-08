@@ -58,7 +58,16 @@ export const CENSUS_ORDER: readonly FrontierVerdict[] = [
   "INFO-WALL",
 ];
 
-export function censusString(rows: readonly FrontierRow[], key: "verdict" | "priorVerdict"): string {
+/**
+ * Census string over the fixed verdict order. Generic in the row shape so the
+ * checker can re-count UNTRUSTED rows (stringly verdicts, pre-validation)
+ * without casting them into `FrontierRow` first — a cast there would be a
+ * type-level lie about unvalidated data.
+ */
+export function censusString<K extends "verdict" | "priorVerdict">(
+  rows: ReadonlyArray<{ readonly [P in K]: string }>,
+  key: K,
+): string {
   return CENSUS_ORDER.map((v) => rows.filter((r) => r[key] === v).length).join("/");
 }
 

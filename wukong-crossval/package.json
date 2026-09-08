@@ -1,6 +1,6 @@
 {
   "name": "wukong-crossval",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The hardware milestone's executable half: the local-exact-engine vs real-QPU cross-validation pipeline, built to the Wukong-180 machine-time application's own specification and ready to run the day the hours are granted. Seeded instance set (8/12/16/20 qubits; 5 linear + 15 NP-hard coupled) with optima by exhaustive enumeration (never heuristics, X1); QAOA p=1..3 with ALL variational parameters optimized offline against the exact statevector (the dry-run QPU never feeds back into optimization, X2); circuit export in a Qiskit-compatible JSON form plus shot sampling; readout confusion matrices with inversion applied to the counts; a noise model that states its provenance (X3); the falsifier criteria the application itself names (X5); the power-analysis layer — minimum shots per instance x noise x effect to distinguish the model-predicted hit-rate change from the no-change null, exact binomial critical regions with machine-verified Chernoff bounds, censored honestly beyond 1e7 (X6); the parameter-robustness census — perturbation grid, curvature as data, exact predicted degradation band via Hamming-shell convolution (X7); and the sharpened falsifier — readout flips vs global depolarizing fitted to the same decay, separability at the planned budgets reported as found (X8). Dry-run mode: the local engine plays the QPU, full pipeline end-to-end. The renderer refuses an illegal experiment package.",
   "type": "module",
   "engines": {

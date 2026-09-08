@@ -9,15 +9,14 @@
  */
 import { pathToFileURL } from "node:url";
 import { XVAL } from "../kernel/ledger.js";
-import { checkBudgetTable, checkRobustTable, checkXval, runWitnesses } from "../kernel/audit.js";
+import { checkBudgetTable, checkRobustTable, checkXval, requireInstance, runWitnesses } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
 import { instanceSet, type Instance } from "../kernel/crossval.js";
-import { allocationScope, buildBudgetTable, budgetDepths, BUDGET_CAP, type BudgetRow } from "../kernel/budget.js";
+import { allocationScope, BUDGET_BETAS, BUDGET_CAP, BUDGET_FLIPS, buildBudgetTable, budgetDepths, type BudgetRow } from "../kernel/budget.js";
 import { CENSUS_BAND, CENSUS_DELTAS, perturbCensus, robustSummary, type PerturbRow } from "../kernel/robust.js";
 import { exactProbe } from "../kernel/probe.js";
-import { discriminatorRow, mcShellDemo } from "../kernel/discriminate.js";
-
-const DISC_PROBES: readonly string[] = ["np-n8-0", "np-n12-4", "np-n16-7", "np-n20-11"];
+import { DISC_PROBE_IDS, discriminatorRow, MC_SHELL_DEMO, mcShellDemo } from "../kernel/discriminate.js";
+import { XvalError } from "../kernel/error.js";
 
 function fmt(x: number | null): string {
   if (x === null) return "censored";
@@ -80,7 +79,7 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
   lines.push("\nSpecimen census rows (one probe per size, depth 1, every angle x delta):\n");
   lines.push("| instance | angle | delta | dE- | dE+ | curvature |");
   lines.push("| --- | --- | --- | --- | --- | --- |");
-  for (const id of DISC_PROBES) {
+  for (const id of DISC_PROBE_IDS) {
     const inst = insts.find((i) => i.id === id);
     if (inst === undefined) continue;
     for (const r of perturbCensus(exactProbe(inst, 1), CENSUS_DELTAS).rows) {
@@ -93,12 +92,12 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
   lines.push("\n## The falsifier sharpened (X8) — readout vs depolarizing, as data\n");
   lines.push("| instance | n | f | r | fit f | lambda | depol physical | shell1 readout | shell1 depol | gap | sigma @ planned | separable |");
   lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
-  for (const id of DISC_PROBES) {
+  for (const id of DISC_PROBE_IDS) {
     const inst = insts.find((i) => i.id === id);
     if (inst === undefined) continue;
     const probe = exactProbe(inst, 1);
-    for (const flip of [0.01, 0.02, 0.05]) {
-      const plan = budget.find((b) => b.instanceId === id && b.depth === 1 && b.flip === flip && b.effectRel === 1 && b.beta === 0.2);
+    for (const flip of BUDGET_FLIPS) {
+      const plan = budget.find((b) => b.instanceId === id && b.depth === 1 && b.flip === flip && b.effectRel === 1 && b.beta === BUDGET_BETAS[0]);
       const plannedShots = plan?.shots ?? BUDGET_CAP;
       const row = discriminatorRow(probe.masses, { instanceId: inst.id, n: inst.n, depth: 1 }, flip, plannedShots);
       lines.push(
@@ -106,7 +105,7 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
       );
     }
   }
-  const mc = mcShellDemo(insts.find((i) => i.id === "np-n8-0") as (typeof insts)[number], 1, 0.02, 40000, 5);
+  const mc = mcShellDemo(requireInstance("np-n8-0"), MC_SHELL_DEMO.depth, MC_SHELL_DEMO.flip, MC_SHELL_DEMO.shots, MC_SHELL_DEMO.seed);
   lines.push(
     `\nMC demonstration under readout truth (n=8 probe, f=0.02, 40k shots, X3's own sampler): sampled shell-1 mass ${mc.shell1Estimate.toFixed(5)} vs readout prediction ${mc.readoutPrediction.toFixed(5)} vs depolarizing prediction ${mc.depolPrediction.toFixed(5)} — the data lands on the readout branch. As found: the two models are separated outright wherever the predicted change is an inflation (no physical depolarizing fit exists); at decay operating points separability dies with size — 4.7-10 sigma at n=12, 1.8-4.0 sigma at n=16 (borderline at f=0.01), 0.08-0.20 sigma at n=20 (NOT separable at any planned budget; ~100x the shots or a stronger statistic needed) — and the readout fit is only locally unique (a spurious global root near f=0.37 reproduces the same hit rate).\n`,
   );
@@ -134,7 +133,7 @@ function main(): void {
       ...violations.map((v) => `${v.row} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`CROSS-VALIDATION REJECTED — the package is not ready:\n${reasons.join("\n")}`);
+    throw new XvalError("XVAL_PACKAGE_REJECTED", `CROSS-VALIDATION REJECTED — the package is not ready:\n${reasons.join("\n")}`);
   }
   const path = writeReport("the-xval-package.md", renderPackage(insts, budget, censusRows));
   console.log(`cross-validation package rendered -> ${path}`);

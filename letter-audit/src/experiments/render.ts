@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { LETTER } from "../kernel/ledger.js";
 import { checkLetter, checkFrontier, runWitnesses } from "../kernel/audit.js";
 import { FRONTIER, isGraduated } from "../kernel/frontier.js";
+import { AuditError } from "../kernel/errors.js";
 import { writeReport } from "./report.js";
 
 function renderAudit(): string {
@@ -51,7 +52,7 @@ function main(): void {
       ...violations.map((v) => `${v.row} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`LETTER AUDIT REJECTED — the upgrade is one-sided:\n${reasons.join("\n")}`);
+    throw new AuditError("EA:RENDER", `LETTER AUDIT REJECTED — the upgrade is one-sided:\n${reasons.join("\n")}`);
   }
   const path = writeReport("the-letter-audit.md", renderAudit());
   console.log(`letter audit rendered -> ${path}`);

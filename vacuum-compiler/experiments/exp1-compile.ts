@@ -8,27 +8,13 @@
  *    has E>0 (the QMA-witness semantics at toy scale)
  * E. static readout: P(T) = 1/(T+1) exactly, conditional fidelity exactly 1
  */
-import { type CVec, cmatApplyMaxNorm, cvecInner, cvecZero, eigenvaluesHermitian } from "../src/core/cmat.js";
+import { type CVec, cmatApplyMaxNorm, cvecInner, eigenvaluesHermitian } from "../src/core/cmat.js";
 import { assertGateLibrary } from "../src/compile/gates.js";
 import { dataBasisState, demoProgram, program, randomCircuit, runCircuit } from "../src/compile/circuit.js";
 import { assemble, buildPropagation } from "../src/compile/hamiltonian.js";
 import { clockRho, historyState, staticReadoutFidelity } from "../src/compile/history.js";
-import { Rng } from "../src/compile/rng.js";
+import { Rng, randomDataState } from "../src/compile/rng.js";
 import { table, writeReport } from "./report.js";
-
-function randomDataState(dim: number, rng: Rng): CVec {
-  const v = cvecZero(dim);
-  for (let k = 0; k < dim; k++) {
-    v.re[k] = rng.next() * 2 - 1;
-    v.im[k] = rng.next() * 2 - 1;
-  }
-  const n = Math.sqrt(v.re.reduce((s, x) => s + x * x, 0) + v.im.reduce((s, x) => s + x * x, 0));
-  for (let k = 0; k < dim; k++) {
-    v.re[k] = v.re[k]! / n;
-    v.im[k] = v.im[k]! / n;
-  }
-  return v;
-}
 
 function groundCount(values: Float64Array, tol: number): number {
   let c = 0;

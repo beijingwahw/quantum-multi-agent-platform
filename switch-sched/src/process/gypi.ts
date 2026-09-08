@@ -17,11 +17,11 @@
  */
 
 import { type CMat, type CVec, identity, kron, mat, mScale } from '../core/cmat.js';
-import { KET0, PLUS, vecToRho } from '../core/states.js';
+import { KET0, KET1, PLUS, vecToRho } from '../core/states.js';
 import { marginalProbs } from '../core/channels.js';
 import { krausToStinespring, makeSwitchedChannel } from '../switch/isometry.js';
 import { kronRho } from '../switch/witnesses.js';
-import { cjMatrix, measurePrepareKraus, processProbability } from './cj.js';
+import { measurePrepareKraus, processProbability } from './cj.js';
 
 export const HALF = 1 / 2;
 /** (2+√2)/4 = cos²(π/8) — the OCB quantum value; also √2/2 + 1/2. */
@@ -263,14 +263,14 @@ export interface CensusVerdict {
 }
 
 /**
- * Verify a claimed classical-census record by recomputing the census from
- * scratch. A counterfeit record (inflated cap, wrong argmax, truncated
- * family) is NAMED and REJECTED — the number on trial never enters the
- * reports unverified.
+ * Shared core of the census counterfeit checkers: family size and cap must
+ * survive exhaustive recomputation. verifyClassicalCensus adds the argmax
+ * needle on top; wocb.verifyClassicalCapRecord consumes this directly.
  */
-export function verifyClassicalCensus(claimed: CensusRecord): CensusVerdict {
+export function verifyCensusSizeCap(claimed: { familySize: number; maxPsucc: number }): CensusVerdict {
   const truth = classicalCensus();
-  const best = truth[0]!;
+  const best = truth[0];
+  if (best === undefined) throw new Error('verifyCensusSizeCap: census came back empty');
   if (claimed.familySize !== truth.length) {
     return {
       ok: false,
@@ -283,24 +283,26 @@ export function verifyClassicalCensus(claimed: CensusRecord): CensusVerdict {
       reason: `CLASSICAL-CENSUS-COUNTERFEIT: claimed cap ${claimed.maxPsucc.toFixed(6)}, machine cap ${best.psucc.toFixed(6)} — the classical causal bound 3/4 cannot be exceeded`,
     };
   }
-  if (claimed.argmaxLabel !== best.label) {
+  return { ok: true, reason: `verified: ${truth.length} vertices, cap ${best.psucc.toFixed(6)}` };
+}
+
+/**
+ * Verify a claimed classical-census record by recomputing the census from
+ * scratch. A counterfeit record (inflated cap, wrong argmax, truncated
+ * family) is NAMED and REJECTED — the number on trial never enters the
+ * reports unverified.
+ */
+export function verifyClassicalCensus(claimed: CensusRecord): CensusVerdict {
+  const sizeCap = verifyCensusSizeCap(claimed);
+  if (!sizeCap.ok) return sizeCap;
+  const best = classicalCensus()[0];
+  if (best !== undefined && claimed.argmaxLabel !== best.label) {
     return {
       ok: false,
       reason: `CLASSICAL-CENSUS-COUNTERFEIT: claimed argmax "${claimed.argmaxLabel}", machine argmax "${best.label}"`,
     };
   }
-  return { ok: true, reason: 'verified against exhaustive recomputation' };
-}
-
-/** Eigenvalue-free real symmetric check helper reused by judges: Hermitian? */
-export function isRealHermitian(w: CMat, tol = 1e-12): boolean {
-  if (w.im.some((z) => Math.abs(z) > tol)) return false;
-  for (let i = 0; i < 16; i++) {
-    for (let j = i + 1; j < 16; j++) {
-      if (Math.abs(w.re[i * 16 + j]! - w.re[j * 16 + i]!) > tol) return false;
-    }
-  }
-  return true;
+  return sizeCap;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,18 +325,19 @@ export function isRealHermitian(w: CMat, tol = 1e-12): boolean {
  * instruments, one target state.
  */
 export function psuccOCBThroughSwitch(): number {
-  const z0: CVec = { n: 2, re: Float64Array.from([1, 0]), im: new Float64Array(2) };
-  const z1: CVec = { n: 2, re: Float64Array.from([0, 1]), im: new Float64Array(2) };
+  // xp/xm are deliberately local: they use Math.SQRT1_2, which is NOT the
+  // same double as PLUS/MINUS's normalized 1/Math.sqrt(2) — merging them
+  // would perturb the 5/8 anchor's bits for no single-sourcing gain.
   const xp: CVec = { n: 2, re: Float64Array.from([Math.SQRT1_2, Math.SQRT1_2]), im: new Float64Array(2) };
   const xm: CVec = { n: 2, re: Float64Array.from([Math.SQRT1_2, -Math.SQRT1_2]), im: new Float64Array(2) };
   let acc = 0;
   for (let a = 0; a < 2; a++) {
     for (let b = 0; b < 2; b++) {
       for (let bp = 0; bp < 2; bp++) {
-        const krausA = [measurePrepareKraus(z0, a === 0 ? z0 : z1)[0]!, measurePrepareKraus(z1, a === 0 ? z0 : z1)[0]!];
+        const krausA = [measurePrepareKraus(KET0, a === 0 ? KET0 : KET1)[0]!, measurePrepareKraus(KET1, a === 0 ? KET0 : KET1)[0]!];
         const krausB = bp === 1
-          ? [measurePrepareKraus(z0, z0)[0]!, measurePrepareKraus(z1, z0)[0]!]
-          : [measurePrepareKraus(xp, (b ^ 0) === 0 ? z0 : z1)[0]!, measurePrepareKraus(xm, (b ^ 1) === 0 ? z0 : z1)[0]!];
+          ? [measurePrepareKraus(KET0, KET0)[0]!, measurePrepareKraus(KET1, KET0)[0]!]
+          : [measurePrepareKraus(xp, (b ^ 0) === 0 ? KET0 : KET1)[0]!, measurePrepareKraus(xm, (b ^ 1) === 0 ? KET0 : KET1)[0]!];
         const sc = makeSwitchedChannel(krausToStinespring(krausA), krausToStinespring(krausB));
         const full = sc.channelFull(kronRho(vecToRho(PLUS), vecToRho(KET0)));
         const { probs } = marginalProbs(full, [2, 2, 2, 2], [2, 3]); // (E_A, E_B) = (x, y)
@@ -348,5 +351,3 @@ export function psuccOCBThroughSwitch(): number {
   }
   return acc;
 }
-
-export { cjMatrix, measurePrepareKraus };

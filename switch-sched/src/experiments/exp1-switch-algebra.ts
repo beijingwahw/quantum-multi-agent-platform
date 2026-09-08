@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import { type CMat, identity, kron, mat, matEq, mDagger, mMul } from '../core/cmat.js';
 import { partialTrace } from '../core/channels.js';
 import { makeRng } from '../core/rng.js';
-import { PLUS, randomStateVec, uniformOrthVec, vecToRho, PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.js';
+import { MINUS, PLUS, basisRho, randomStateVec, uniformOrthVec, vecToRho, PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.js';
 import { traceDistance } from '../core/measures.js';
 import {
   envUnitaryFreedom,
@@ -32,18 +32,6 @@ import { controlDisplacement, kronRho } from '../switch/witnesses.js';
 import { writeReport } from './report.js';
 import { pathToFileURL } from "node:url";
 
-const MINUS = { n: 2, re: Float64Array.from([1, -1].map((x) => x / Math.SQRT2)), im: new Float64Array(2) };
-
-function kron2(a: CMat, b: CMat): CMat {
-  return kron(a, b);
-}
-
-function basisRho(d: number, i: number): CMat {
-  const m = mat(d, d);
-  m.re[i * d + i] = 1;
-  return m;
-}
-
 export function main(): void {
   const lines: string[] = [];
 
@@ -54,8 +42,8 @@ export function main(): void {
   const commPairs: Array<{ name: string; u: CMat; v: CMat; d: number; relation: string; want: 'plus' | 'minus' }> = [
     { name: '(X, Z)', u: PAULI_X, v: PAULI_Z, d: 2, relation: 'XZ = −ZX', want: 'minus' },
     { name: '(Z, Y)', u: PAULI_Z, v: PAULI_Y, d: 2, relation: 'ZY = −YZ', want: 'minus' },
-    { name: '(X⊗I, I⊗X)', u: kron2(PAULI_X, identity(2)), v: kron2(identity(2), PAULI_X), d: 4, relation: 'commute', want: 'plus' },
-    { name: '(Z⊗I, I⊗Z)', u: kron2(PAULI_Z, identity(2)), v: kron2(identity(2), PAULI_Z), d: 4, relation: 'commute', want: 'plus' },
+    { name: '(X⊗I, I⊗X)', u: kron(PAULI_X, identity(2)), v: kron(identity(2), PAULI_X), d: 4, relation: 'commute', want: 'plus' },
+    { name: '(Z⊗I, I⊗Z)', u: kron(PAULI_Z, identity(2)), v: kron(identity(2), PAULI_Z), d: 4, relation: 'commute', want: 'plus' },
   ];
   for (const p of commPairs) {
     const sc = makeSwitchedChannel(krausToStinespring(unitaryKraus(p.u)), krausToStinespring(unitaryKraus(p.v)));
@@ -77,9 +65,9 @@ export function main(): void {
   //   plus:  A = X⊗I, B = I⊗Z   (commute, both involutions)
   // On every basis input the two orders' outputs coincide up to an invisible
   // global phase -> trace distance 0 between the output states.
-  const xI = kron2(PAULI_X, identity(2));
-  const zI = kron2(PAULI_Z, identity(2));
-  const Iz = kron2(identity(2), PAULI_Z);
+  const xI = kron(PAULI_X, identity(2));
+  const zI = kron(PAULI_Z, identity(2));
+  const Iz = kron(identity(2), PAULI_Z);
   const d = 4;
   const basisInputs = [basisRho(d, 0), basisRho(d, 1), basisRho(d, 2), basisRho(d, 3)];
   let worstPlain = 0;
@@ -161,7 +149,9 @@ export function main(): void {
     { name: 'env unitary freedom e^{iθσz}', st: envUnitaryFreedom(ra, rot) },
     { name: 'padded with fresh env qubit (env 4)', st: padDilation(ra, 2) },
   ];
-  const base = makeSwitchedChannel(dilations[0]!.st, dilations[0]!.st).channel(rhoIn2);
+  const first = dilations[0];
+  if (first === undefined) throw new Error('exp1: dilation list came back empty');
+  const base = makeSwitchedChannel(first.st, first.st).channel(rhoIn2);
   lines.push('| dilation | max |ρ_out − ρ_ref| |');
   lines.push('|---|---|');
   for (const dl of dilations) {
