@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 80;
-export const DECLARED_TOTAL_ERRORS = 538;
+export const DECLARED_TOTAL_BATCHES = 81;
+export const DECLARED_TOTAL_ERRORS = 543;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3474,6 +3474,41 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[latent count-drift, convicted at S2's first live run] the R-board's prose claimed 'Nine reasons had gone false ... fifteen were coarse' where the live audit table carries 11 UPGRADED and 33 SHARPENED",
         right: "verdict counts are copies of the audit table: corrected to the live 11/33, and S2's prose-reconciliation re-derives the R-board's numbers from REPAIR_AUDIT on every suite run",
         category: "process",
+      },
+    ],
+  },
+  {
+    batch: 81,
+    repo: "ds_extracted/ds",
+    date: "2026-09-08",
+    context:
+      "the fix-all-errors visit: the local surface re-verified clean (total gate 59 jobs ALL GREEN, lint swept across every repo outside the gate's scope), and the real error surface was REMOTE — GitHub's two red dependabot PRs closed out (PR #8 @types/node 20->26 adopted on main with its single unknown-payload breakage narrowed and the full gate battery green; PR #7 typescript 7.0.2 dispositioned as ecosystem-blocked with the scratch evidence pinned: typecheck AND build pass under TS7, lint crashes on typescript-eslint's own runtime guard with the peer cap <6.1.0 through latest 8.70.0, tracking #10940 — dependabot now ignores >=7.0.0 with the evidence in the config comment): five delivery errors across two classes, born enrolled and born audited on both boards",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十一批" },
+    errors: [
+      {
+        wrong: "the unknown-narrowing edit in subspace-parallel.ts landed prettier-noncompliant — one console.error line past the print width; format:check flagged the file the moment it ran",
+        right: "prettier --write closed it in the same visit and the re-check rides green — an edit's width is checked by the gate, not by the eye composing it (the b75 two-round-iteration family)",
+        category: "toolchain",
+      },
+      {
+        wrong: "the format:check verdict was read through a pipe (`2>&1 | tail -3; echo $?`) — tail's 0 displayed where prettier had FAILED; no verdict was taken from it (the warning text was acted on), and the direct exit code was read later",
+        right: "the exit-code-masking family's eleventh registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6 the ten in-registry before it): a gate command never rides a pipe — output is trimmed on a separate read, the code is read from the command itself",
+        category: "toolchain",
+      },
+      {
+        wrong: "the TS7 scratch lint's verdict was read through the same pipe shape — LINT_EXIT=0 displayed under a CRASHED lint (true exit 2, the typescript-eslint guard stack in plain sight); noticed on reading the trace and re-run unmasked in the same minute",
+        right: "the family's twelfth registered sighting, one visit after the eleventh — the rule is a pre-flight checklist item, not knowledge: masked zeros are display artifacts, never verdicts, and the re-run for the direct code is the only verdict that counts",
+        category: "toolchain",
+      },
+      {
+        wrong: "the @types/node install was issued as a fresh range resolution (^26.4.1 — npm picked 26.5.0) where the PR being reproduced pins 26.4.1 in its lockfile; noticed and re-installed at the exact pin before anything was committed",
+        right: "replicating an external state targets its LOCKFILE, not its semantic range — the pin is the intent, the resolver's freedom is not (zero tree impact: the reinstall preceded the commit)",
+        category: "process",
+      },
+      {
+        wrong: "the package.json version/description edit went through a python HEREDOC on the Bash channel — the sanctioned-channel family's next sighting; verified clean after the fact (JSON valid, both replacements exact), and clean does not absolve (the b79#10 judgment)",
+        right: "file edits ride the Edit tool, never a heredoc — the escape-proof temptation is exactly the danger; the dual-face holds as ever: the act is ungated, a malformed package.json is a parse death at the very next npm invocation",
+        category: "toolchain",
       },
     ],
   },

@@ -4,8 +4,8 @@
 
 ## Census
 
-- batches: 80
-- errors: 538
+- batches: 81
+- errors: 543
 - repos involved: 29
 - categories in use: 10/10
 
@@ -15,8 +15,8 @@
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
+| ds_extracted/ds | 4 | 26 |
 | nonstoq-anneal | 4 | 22 |
-| ds_extracted/ds | 3 | 21 |
 | dsic-noether | 2 | 19 |
 | bqp-map | 2 | 14 |
 | qverify | 1 | 10 |
@@ -43,8 +43,8 @@
 
 | category | errors |
 | --- | --- |
-| process | 177 |
-| toolchain | 85 |
+| process | 178 |
+| toolchain | 89 |
 | wrong-object | 72 |
 | statistics | 46 |
 | machine-overruled | 43 |
@@ -1234,15 +1234,28 @@
 | [latent count-drift, convicted at S2's first live run] the K-board's share clause claimed quantum-mech and qverify 'share four of five' where the live scan says 3 (quantum-mech) and 4 (qverify) of five | a stated share is a copy of the scan: the clause corrected to the live per-repo shares, and S2's tampered-share trial reconciles every 'REPO shares N of M' clause against the live family scan on every suite run | process |
 | [latent count-drift, convicted at S2's first live run] the R-board's prose claimed 'Nine reasons had gone false ... fifteen were coarse' where the live audit table carries 11 UPGRADED and 33 SHARPENED | verdict counts are copies of the audit table: corrected to the live 11/33, and S2's prose-reconciliation re-derives the R-board's numbers from REPAIR_AUDIT on every suite run | process |
 
+### Batch 81 — ds_extracted/ds (2026-09-08)
+
+- context: the fix-all-errors visit: the local surface re-verified clean (total gate 59 jobs ALL GREEN, lint swept across every repo outside the gate's scope), and the real error surface was REMOTE — GitHub's two red dependabot PRs closed out (PR #8 @types/node 20->26 adopted on main with its single unknown-payload breakage narrowed and the full gate battery green; PR #7 typescript 7.0.2 dispositioned as ecosystem-blocked with the scratch evidence pinned: typecheck AND build pass under TS7, lint crashes on typescript-eslint's own runtime guard with the peer cap <6.1.0 through latest 8.70.0, tracking #10940 — dependabot now ignores >=7.0.0 with the evidence in the config comment): five delivery errors across two classes, born enrolled and born audited on both boards
+- source: `memory/2026-09-08.md` @ "关键经验（第八十一批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the unknown-narrowing edit in subspace-parallel.ts landed prettier-noncompliant — one console.error line past the print width; format:check flagged the file the moment it ran | prettier --write closed it in the same visit and the re-check rides green — an edit's width is checked by the gate, not by the eye composing it (the b75 two-round-iteration family) | toolchain |
+| the format:check verdict was read through a pipe (`2>&1 | tail -3; echo $?`) — tail's 0 displayed where prettier had FAILED; no verdict was taken from it (the warning text was acted on), and the direct exit code was read later | the exit-code-masking family's eleventh registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6 the ten in-registry before it): a gate command never rides a pipe — output is trimmed on a separate read, the code is read from the command itself | toolchain |
+| the TS7 scratch lint's verdict was read through the same pipe shape — LINT_EXIT=0 displayed under a CRASHED lint (true exit 2, the typescript-eslint guard stack in plain sight); noticed on reading the trace and re-run unmasked in the same minute | the family's twelfth registered sighting, one visit after the eleventh — the rule is a pre-flight checklist item, not knowledge: masked zeros are display artifacts, never verdicts, and the re-run for the direct code is the only verdict that counts | toolchain |
+| the @types/node install was issued as a fresh range resolution (^26.4.1 — npm picked 26.5.0) where the PR being reproduced pins 26.4.1 in its lockfile; noticed and re-installed at the exact pin before anything was committed | replicating an external state targets its LOCKFILE, not its semantic range — the pin is the intent, the resolver's freedom is not (zero tree impact: the reinstall preceded the commit) | process |
+| the package.json version/description edit went through a python HEREDOC on the Bash channel — the sanctioned-channel family's next sighting; verified clean after the fact (JSON valid, both replacements exact), and clean does not absolve (the b79#10 judgment) | file edits ride the Edit tool, never a heredoc — the escape-proof temptation is exactly the danger; the dual-face holds as ever: the act is ungated, a malformed package.json is a parse death at the very next npm invocation | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..80 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (538 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 538 = repo sum 538)
-- PASS — W-4 declared totals 80 batches / 538 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (57 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (55 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..81 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (543 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 543 = repo sum 543)
+- PASS — W-4 declared totals 81 batches / 543 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (59 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (56 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 538 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 543 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
