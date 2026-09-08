@@ -20,11 +20,30 @@
  * classical data: the column collapses into W3's census, |S| <= 2 (CHSH69's
  * line behind it, executed here by direct table computation).
  */
-import { correlationFromTable, jointTable, wernerPair, type JointTable } from "./state.js";
-import { h2 } from "./tariff.js";
+import { CHSH_AXES, RcError, correlationFromTable, jointTable, wernerPair, type JointTable } from "./state.js";
+import { h2, qberOf } from "./tariff.js";
+
+/** Tsirelson's 2*sqrt(2) — the single source for both W6 closed forms: the
+ *  attacked-CHSH line and the census-crossing tap must ride the same
+ *  constant (W6.B's |S(eta*)| = 2 self-consistency back-stops the coupling).
+ *  Exactly 2 * Math.SQRT2 (a power-of-two rescale of the primitive — exact),
+ *  so every expression that rides it is bit-identical to the literal form. */
+const TSIRELSON = 2 * Math.SQRT2;
+
+/** both rate/visibility parameters live on [0, 1]; anything else (including
+ *  NaN) is priced nonsense and is rejected by name. */
+function requireRate(name: string, code: string, v: number): void {
+  if (!(v >= 0 && v <= 1)) throw new RcError(code, `${name} must lie in [0, 1] (got ${v})`);
+}
+
+/** a BSC crossover lives on [0, 1/2] by the repo convention (same as eps in
+ *  amplify.ts) — beyond 1/2 it is the mirrored channel, never used here. */
+function requireCrossover(name: string, code: string, v: number): void {
+  if (!(v >= 0 && v <= 0.5)) throw new RcError(code, `${name} must lie in [0, 1/2] as a BSC crossover (got ${v})`);
+}
 
 /** convex mixture of a joint table with the fully depolarized table */
-export function mixFlat(honest: JointTable, rate: number): JointTable {
+function mixFlat(honest: JointTable, rate: number): JointTable {
   const mix = (v: number): number => (1 - rate) * v + rate * 0.25;
   return [
     [mix(honest[0][0]), mix(honest[0][1])],
@@ -35,37 +54,38 @@ export function mixFlat(honest: JointTable, rate: number): JointTable {
 /** the withdrawal joint table under an intercept-resend tap at rate eta:
  *  only the wrong-basis half of taps (eta/2) depolarizes — right-basis taps
  *  relay faithfully and reproduce the underlying table. */
-export function attackedTable(honest: JointTable, eta: number): JointTable {
+function attackedTable(honest: JointTable, eta: number): JointTable {
   return mixFlat(honest, eta / 2);
 }
 
 /** QBER under attack, table path (W4 convention: QBER = P(x = y) of the raw
- *  aligned table) vs closed form (1 - eta/2)(1 - p)/2 + eta/4. */
+ * aligned table) vs closed form (1 - eta/2)(1 - p)/2 + eta/4. */
 export function qberUnderAttack(p: number, eta: number): { readonly table: number; readonly closed: number } {
+  requireRate("qberUnderAttack: p", "RC_P_RANGE", p);
+  requireRate("qberUnderAttack: eta", "RC_ETA_RANGE", eta);
   const z = [0, 0, 1];
   const honest = jointTable(wernerPair(p), z, z);
   const t = attackedTable(honest, eta);
-  return { table: t[0][0] + t[1][1], closed: (1 - eta / 2) * ((1 - p) / 2) + eta / 4 };
+  return { table: t[0][0] + t[1][1], closed: (1 - eta / 2) * qberOf(p) + eta / 4 };
 }
 
 /** CHSH of the attacked channel at the standard axes, table path vs the
  *  closed form -(1 - eta/2) * 2*sqrt(2)*p (the standard-axes S of the
  *  singlet family is negative; the cap statement uses |S|). */
 export function chshUnderAttack(p: number, eta: number): { readonly table: number; readonly closed: number } {
+  requireRate("chshUnderAttack: p", "RC_P_RANGE", p);
+  requireRate("chshUnderAttack: eta", "RC_ETA_RANGE", eta);
   const rho = wernerPair(p);
-  const a0 = [1, 0, 0];
-  const a1 = [0, 1, 0];
-  const b0 = [Math.SQRT1_2, Math.SQRT1_2, 0];
-  const b1 = [Math.SQRT1_2, -Math.SQRT1_2, 0];
+  const [a0, a1, b0, b1] = CHSH_AXES;
   const e = (a: readonly number[], b: readonly number[]): number =>
     correlationFromTable(attackedTable(jointTable(rho, a, b), eta));
   const table = e(a0, b0) + e(a0, b1) + e(a1, b0) - e(a1, b1);
-  return { table, closed: -(1 - eta / 2) * 2 * Math.SQRT2 * p };
+  return { table, closed: -(1 - eta / 2) * TSIRELSON * p };
 }
 
 /** Eve's per-sifted-bit information under IR(eta): the eta/2 right-basis
  *  fraction is known exactly, the rest is worth 0 bits. */
-export function eveInfoInterceptResend(eta: number): number {
+function eveInfoInterceptResend(eta: number): number {
   return eta / 2;
 }
 
@@ -73,6 +93,8 @@ export function eveInfoInterceptResend(eta: number): number {
  *  a BSC(nu) copy, worth 1 - h2(nu) bits. Endpoints: nu = 0 full retention,
  *  nu = 1/2 storage wiped. */
 export function eveInfoNoisyStorage(eta: number, nu: number): number {
+  requireRate("eveInfoNoisyStorage: eta", "RC_ETA_RANGE", eta);
+  requireCrossover("eveInfoNoisyStorage: nu", "RC_NU_RANGE", nu);
   return (eta / 2) * (1 - h2(nu));
 }
 
@@ -91,10 +113,12 @@ export interface MutationRow {
 }
 
 export function settingsMutationRow(p: number, mu: number): MutationRow {
+  requireRate("settingsMutationRow: p", "RC_P_RANGE", p);
+  requireRate("settingsMutationRow: mu", "RC_MU_RANGE", mu);
   const z = [0, 0, 1];
   const honest = jointTable(wernerPair(p), z, z);
   const t = mixFlat(honest, mu); // a mutated round keeps a cross-basis pair: flat table
-  const q = (1 - p) / 2;
+  const q = qberOf(p);
   const qEff = (1 - mu) * q + mu / 2;
   return {
     p,
@@ -122,6 +146,8 @@ export interface AttackRow {
 }
 
 export function interceptResendRow(p: number, eta: number): AttackRow {
+  requireRate("interceptResendRow: p", "RC_P_RANGE", p);
+  requireRate("interceptResendRow: eta", "RC_ETA_RANGE", eta);
   const q = qberUnderAttack(p, eta);
   const s = chshUnderAttack(p, eta);
   const eveInfo = eveInfoInterceptResend(eta);
@@ -145,6 +171,7 @@ export function interceptResendRow(p: number, eta: number): AttackRow {
  *  for p > 1/sqrt(2); below that visibility the surplus already starts under
  *  the cap and no tap is needed. */
 export function censusCrossingTap(p: number): number | null {
-  if (2 * Math.SQRT2 * p <= 2) return null;
+  if (!(p > 0 && p <= 1)) throw new RcError("RC_P_RANGE", `censusCrossingTap: visibility p must lie in (0, 1] (got ${p})`);
+  if (TSIRELSON * p <= 2) return null;
   return 2 - Math.SQRT2 / p;
 }

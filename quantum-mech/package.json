@@ -1,6 +1,6 @@
 {
   "name": "quantum-mech",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Quantum mechanism design prototype: which incentive properties (DSIC) survive quantizing the communication channel, what quantization actually buys (no-cloning bid privacy via Wiesner locking, entanglement collateral via monogamy), and where it provably breaks (bit-commitment no-go, approximate solvers inside VCG)",
   "type": "module",
   "engines": {

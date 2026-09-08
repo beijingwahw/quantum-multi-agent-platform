@@ -134,11 +134,14 @@ The CHSH-2-limited classical adversary vs the entangled withdrawal, priced:
 
 ```
 npm ci
-npm test          # 26/26
-npm run repro     # rebuilds out/reports/w1..w6 markdown, seconds
+npm test          # 36/36
+npm run repro     # rebuilds out/reports/w1..w6 markdown; W5's exhaustive census dominates
+                   # the runtime (measured 32s idle to ~11 min on a loaded box)
 ```
 
-TypeScript strict, zero runtime dependencies, NodeNext, node:test.
+TypeScript strict, zero runtime dependencies, NodeNext, node:test. Every
+kernel throw is a named `RcError` with a stable `RC_*` code; every public
+entry rejects illegal input by name (see `test/kernel-hardening.test.ts`).
 
 ## Honest boundaries
 

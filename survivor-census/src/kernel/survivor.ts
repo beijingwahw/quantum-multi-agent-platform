@@ -19,6 +19,8 @@
  * inside a theorem claim.
  */
 
+import { CensusError } from "./errors.js";
+
 export interface KillRow {
   readonly x: number;
   readonly mass: number;
@@ -86,38 +88,58 @@ export function runPriorSorter(
   markedInput: readonly number[],
   phases?: readonly number[],
 ): PriorSorterRun {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new CensusError("SC/BAD-N", "runPriorSorter: n must be a non-negative integer (the address space is 2^n)");
+  }
   const N = 2 ** n;
-  if (counts.length !== N) throw new Error("runPriorSorter: count table must have length 2^n");
+  if (counts.length !== N) {
+    throw new CensusError("SC/BAD-COUNTS", "runPriorSorter: count table must have length 2^n");
+  }
   if (counts.some((c) => c < 0 || !Number.isInteger(c))) {
-    throw new Error("runPriorSorter: counts must be non-negative integers");
+    throw new CensusError("SC/BAD-COUNTS", "runPriorSorter: counts must be non-negative integers");
   }
   const totalC = counts.reduce((a, b) => a + b, 0);
-  if (totalC <= 0) throw new Error("runPriorSorter: total count must be positive");
+  if (totalC <= 0) throw new CensusError("SC/BAD-COUNTS", "runPriorSorter: total count must be positive");
   const marked = [...new Set(markedInput)];
-  if (marked.length === 0) throw new Error("runPriorSorter: at least one marked item required");
-  if (marked.some((x) => x < 0 || x >= N)) throw new Error("runPriorSorter: marked out of range");
+  if (marked.length === 0) {
+    throw new CensusError("SC/BAD-MARKED", "runPriorSorter: at least one marked item required");
+  }
+  if (marked.some((x) => x < 0 || x >= N)) {
+    throw new CensusError("SC/BAD-MARKED", "runPriorSorter: marked out of range");
+  }
   const markedSet = new Set(marked);
 
   const phi = new Float64Array(N);
   if (phases !== undefined) {
-    if (phases.length !== N) throw new Error("runPriorSorter: phase table must have length 2^n");
-    for (let x = 0; x < N; x++) phi[x] = phases[x] as number;
+    if (phases.length !== N) {
+      throw new CensusError("SC/BAD-PHASES", "runPriorSorter: phase table must have length 2^n");
+    }
+    for (let x = 0; x < N; x++) {
+      const p = phases[x]!;
+      if (!Number.isFinite(p)) {
+        throw new CensusError("SC/BAD-PHASES", `runPriorSorter: phase at x=${x} is not finite (angles are real radians)`);
+      }
+      phi[x] = p;
+    }
   }
 
   // zero-norm conditioning is undefined — the P=0 face is a thrown error,
   // not a number: the sorter has no output when nothing funds the optimum
   let keptC = 0;
-  for (const x of marked) keptC += counts[x] as number;
+  for (const x of marked) keptC += counts[x]!;
   if (keptC === 0) {
-    throw new Error("runPriorSorter: zero-branch conditioning undefined — no funded optimum (existence presupposition)");
+    throw new CensusError(
+      "SC/P0-UNDEFINED",
+      "runPriorSorter: zero-branch conditioning undefined — no funded optimum (existence presupposition)",
+    );
   }
 
   const weights = new Float64Array(N);
-  for (let x = 0; x < N; x++) weights[x] = (counts[x] as number) / totalC;
+  for (let x = 0; x < N; x++) weights[x] = counts[x]! / totalC;
 
   // amplitude path: keep = project onto funded marked, renormalize
   let pKeep = 0;
-  for (let x = 0; x < N; x++) if (markedSet.has(x)) pKeep += weights[x] as number;
+  for (let x = 0; x < N; x++) if (markedSet.has(x)) pKeep += weights[x]!;
   const norm = Math.sqrt(pKeep);
   const survivorRe = new Float64Array(N);
   const survivorIm = new Float64Array(N);
@@ -130,23 +152,23 @@ export function runPriorSorter(
   for (let x = 0; x < N; x++) {
     const isMarked = markedSet.has(x);
     if (!isMarked) continue;
-    const w = weights[x] as number;
+    const w = weights[x]!;
     if (w === 0) {
       unfundedOptima.push(x);
       continue;
     }
     tFunded++;
     const amp = Math.sqrt(w) / norm;
-    survivorRe[x] = amp * Math.cos(phi[x] as number);
-    survivorIm[x] = amp * Math.sin(phi[x] as number);
+    survivorRe[x] = amp * Math.cos(phi[x]!);
+    survivorIm[x] = amp * Math.sin(phi[x]!);
     posterior[x] = amp * amp;
-    posteriorInteger[x] = (counts[x] as number) / keptC;
-    const d = Math.abs((posterior[x] as number) - (posteriorInteger[x] as number));
+    posteriorInteger[x] = counts[x]! / keptC;
+    const d = Math.abs(posterior[x]! - posteriorInteger[x]!);
     if (d > posteriorDev) posteriorDev = d;
   }
   for (let x = 0; x < N; x++) {
-    const leak = Math.hypot(survivorRe[x] as number, survivorIm[x] as number);
-    if (!markedSet.has(x) || (weights[x] as number) === 0) {
+    const leak = Math.hypot(survivorRe[x]!, survivorIm[x]!);
+    if (!markedSet.has(x) || weights[x]! === 0) {
       if (leak > offMarkedLeak) offMarkedLeak = leak;
     }
   }
@@ -155,10 +177,10 @@ export function runPriorSorter(
   const killRegister: KillRow[] = [];
   let killedTotal = 0;
   for (let x = 0; x < N; x++) {
-    const isKept = markedSet.has(x) && (weights[x] as number) > 0;
+    const isKept = markedSet.has(x) && weights[x]! > 0;
     if (isKept) continue;
-    const mass = weights[x] as number;
-    killRegister.push({ x, mass, count: counts[x] as number, totalC });
+    const mass = weights[x]!;
+    killRegister.push({ x, mass, count: counts[x]!, totalC });
     killedTotal += mass;
   }
   const killedComplement = 1 - pKeep;
@@ -215,10 +237,10 @@ export function phaseOverlap(
   let re = 0;
   let im = 0;
   for (let x = 0; x < runA.N; x++) {
-    const aRe = runA.survivorRe[x] as number;
-    const aIm = runA.survivorIm[x] as number;
-    const bRe = runB.survivorRe[x] as number;
-    const bIm = runB.survivorIm[x] as number;
+    const aRe = runA.survivorRe[x]!;
+    const aIm = runA.survivorIm[x]!;
+    const bRe = runB.survivorRe[x]!;
+    const bIm = runB.survivorIm[x]!;
     // <A|B> = sum conj(A) B: Re = aRe bRe + aIm bIm, Im = aRe bIm - aIm bRe
     re += aRe * bRe + aIm * bIm;
     im += aRe * bIm - aIm * bRe;
@@ -230,15 +252,15 @@ export function phaseOverlap(
   let keptC = 0;
   for (let x = 0; x < runA.N; x++) {
     if (!markedSet.has(x)) continue;
-    const c = counts[x] as number;
+    const c = counts[x]!;
     if (c === 0) continue;
     keptC += c;
     const w = c / totalC;
-    const d = (phiB[x] as number) - (phiA[x] as number);
+    const d = phiB[x]! - phiA[x]!;
     cRe += (w * Math.cos(d)) / runA.pKeep;
     cIm += (w * Math.sin(d)) / runA.pKeep;
   }
-  if (keptC === 0) throw new Error("phaseOverlap: no funded optimum");
+  if (keptC === 0) throw new CensusError("SC/P0-UNDEFINED", "phaseOverlap: no funded optimum");
   const deviation = Math.max(Math.abs(re - cRe), Math.abs(im - cIm));
   return {
     overlapAmplitude: { re, im },
@@ -272,7 +294,7 @@ export function realizationCheck(
   const N = run.N;
   const rng = new Rng(seed);
   const countsArr = new Int32Array(N);
-  for (let x = 0; x < N; x++) countsArr[x] = counts[x] as number;
+  for (let x = 0; x < N; x++) countsArr[x] = counts[x]!;
   const totalC = countsArr.reduce((a, b) => a + b, 0);
   const markedSet = new Set(marked);
   const keptCounts = new Int32Array(N);
@@ -283,12 +305,12 @@ export function realizationCheck(
       // integer draw from the count table — the prior is discrete by construction
       let pick = Math.floor(rng.next() * totalC);
       let x = 0;
-      while (pick >= (countsArr[x] as number)) {
-        pick -= countsArr[x] as number;
+      while (pick >= countsArr[x]!) {
+        pick -= countsArr[x]!;
         x++;
       }
-      if (markedSet.has(x) && (countsArr[x] as number) > 0) {
-        keptCounts[x] = (keptCounts[x] as number) + 1;
+      if (markedSet.has(x) && countsArr[x]! > 0) {
+        keptCounts[x] = keptCounts[x]! + 1;
         break;
       }
     }
@@ -297,12 +319,12 @@ export function realizationCheck(
   const sigma = Math.sqrt((1 - run.pKeep) / (run.pKeep * run.pKeep)) / Math.sqrt(trials);
   const waitingSigma = Math.abs(meanWaiting - 1 / run.pKeep) / sigma;
   let keptDraws = 0;
-  for (let x = 0; x < N; x++) keptDraws += keptCounts[x] as number;
+  for (let x = 0; x < N; x++) keptDraws += keptCounts[x]!;
   let worst = 0;
   for (let x = 0; x < N; x++) {
-    const p = run.posterior[x] as number;
+    const p = run.posterior[x]!;
     if (p === 0) continue;
-    const freq = (keptCounts[x] as number) / keptDraws;
+    const freq = keptCounts[x]! / keptDraws;
     const s = Math.sqrt((p * (1 - p)) / keptDraws);
     const z = Math.abs(freq - p) / s;
     if (z > worst) worst = z;

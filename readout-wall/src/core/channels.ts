@@ -1,35 +1,17 @@
 /**
- * Channels and measurements on density matrices: Kraus application, partial
- * trace over subsystems, computational-basis readout with classical outcome
- * distributions and post-measurement states.
+ * Channel-layer operations on density matrices: the partial trace over
+ * subsystems, with dimension and index validation at the boundary.
  */
 
-import { type CMat, mat, mMul, mDagger } from './cmat.js';
+import { type CMat, mat } from './cmat.js';
+import { refuse } from './errors.js';
 
 /** Subsystem dimensions must be positive integers — validated once at the
  * channel boundary, never per cell of the hot loops. */
 function checkDims(fn: string, dims: readonly number[]): void {
   for (const d of dims) {
-    if (!Number.isInteger(d) || d <= 0) throw new Error(`${fn}: subsystem dims must be positive integers, got ${d}`);
+    if (!Number.isInteger(d) || d <= 0) refuse('DIMS_POSITIVE_INTEGER', `${fn}: subsystem dims must be positive integers, got ${d}`);
   }
-}
-
-/** Apply a CPTP map given its Kraus operators: Σ K ρ K†. */
-export function applyKraus(rho: CMat, kraus: readonly CMat[]): CMat {
-  const out = mat(rho.rows, rho.cols);
-  for (const k of kraus) {
-    const kr = mMul(mMul(k, rho), mDagger(k));
-    for (let i = 0; i < out.re.length; i++) {
-      out.re[i] = out.re[i]! + kr.re[i]!;
-      out.im[i] = out.im[i]! + kr.im[i]!;
-    }
-  }
-  return out;
-}
-
-/** Apply a single unitary: U ρ U†. */
-export function applyUnitary(rho: CMat, u: CMat): CMat {
-  return mMul(mMul(u, rho), mDagger(u));
 }
 
 /**
@@ -43,9 +25,9 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   // an out-of-range traced-out index would compare undefined !== undefined and
   // silently drop the constraint — refuse it at the boundary instead
   for (const t of traceOut) {
-    if (!Number.isInteger(t) || t < 0 || t >= m) throw new Error(`partialTrace: traced-out subsystem index ${t} out of range for ${m} subsystems`);
+    if (!Number.isInteger(t) || t < 0 || t >= m) refuse('PARTIAL_TRACE_INDEX_RANGE', `partialTrace: traced-out subsystem index ${t} out of range for ${m} subsystems`);
   }
-  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) throw new Error('dims do not match rho');
+  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) refuse('PARTIAL_TRACE_DIMS_MISMATCH', 'dims do not match rho');
   const keep = dims.map((_, i) => i).filter((i) => !traceOut.includes(i));
   const keptDims = keep.map((i) => dims[i]!);
   const dOut = keptDims.reduce((a, b) => a * b, 1);
@@ -90,114 +72,4 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
     }
   }
   return out;
-}
-
-/** Depolarizing channel on dimension d: (1-p)ρ + p I/d. */
-export function depolarize(rho: CMat, p: number): CMat {
-  const d = rho.rows;
-  const out = mat(d, d);
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      const diag = i === j ? 1 / d : 0;
-      out.re[i * d + j] = (1 - p) * rho.re[i * d + j]! + p * diag;
-      out.im[i * d + j] = (1 - p) * rho.im[i * d + j]!;
-    }
-  }
-  return out;
-}
-
-export interface ReadoutOutcome {
-  /** probability of each joint computational-basis outcome on measured registers */
-  probs: number[];
-  /** dimension labels of one measured outcome, for reconstruction */
-  measuredDims: number[];
-}
-
-/**
- * Marginal distribution of the computational-basis readout of the given
- * subsystems. Outcome index is in little-endian order of `measure` as given.
- */
-export function marginalProbs(rho: CMat, dims: readonly number[], measure: readonly number[]): ReadoutOutcome {
-  const m = dims.length;
-  checkDims('marginalProbs', dims);
-  // an out-of-range measured index would contribute nothing and silently
-  // reshape the outcome distribution — refuse it at the boundary
-  for (const i of measure) {
-    if (!Number.isInteger(i) || i < 0 || i >= m) throw new Error(`marginalProbs: measured subsystem index ${i} out of range for ${m} subsystems`);
-  }
-  // measuring the same register twice double-counts its stride and the outcome
-  // index escapes the probs array — refuse it instead of reading/writing past dOut
-  if (new Set(measure).size !== measure.length) {
-    throw new Error('marginalProbs: the same subsystem is listed twice in measure');
-  }
-  const strides: number[] = new Array<number>(m);
-  strides[m - 1] = 1;
-  for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
-  const measuredDims = measure.map((i) => dims[i]!);
-  const dOut = measuredDims.reduce((a, b) => a * b, 1);
-  // strides of the measured subsystems inside the OUTPUT space
-  const outStrides: number[] = new Array<number>(measure.length);
-  outStrides[measure.length - 1] = 1;
-  for (let j = measure.length - 2; j >= 0; j--) outStrides[j] = outStrides[j + 1]! * measuredDims[j + 1]!;
-  const probs = new Array<number>(dOut).fill(0);
-  for (let idx = 0; idx < rho.rows; idx++) {
-    const re = rho.re[idx * rho.rows + idx]!;
-    if (re === 0) continue;
-    let digit = 0;
-    let cur = idx;
-    for (let i = 0; i < m; i++) {
-      const d = Math.floor(cur / strides[i]!);
-      cur %= strides[i]!;
-      const at = measure.indexOf(i);
-      if (at >= 0) digit += d * outStrides[at]!;
-    }
-    probs[digit] = probs[digit]! + re;
-  }
-  return { probs, measuredDims };
-}
-
-/**
- * Projective filter in the computational basis: keep only basis states whose
- * digit on subsystem `sys` equals `digit`. Returns the total probability and
- * the conditional post-measurement state on the same registers.
- */
-export function filterBasisDigit(
-  rho: CMat,
-  dims: readonly number[],
-  sys: number,
-  digit: number,
-): { p: number; conditional: CMat } {
-  const m = dims.length;
-  checkDims('filterBasisDigit', dims);
-  if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
-    throw new Error(`filterBasisDigit: subsystem index ${sys} out of range for ${m} subsystems`);
-  }
-  const dsys = dims[sys]!;
-  // an out-of-range digit would filter out every basis state and silently
-  // return a zero conditional instead of an error
-  if (!Number.isInteger(digit) || digit < 0 || digit >= dsys) {
-    throw new Error(`filterBasisDigit: digit ${digit} out of range for subsystem dimension ${dsys}`);
-  }
-  const strides: number[] = new Array<number>(m);
-  strides[m - 1] = 1;
-  for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
-  const d = rho.rows;
-  const out = mat(d, d);
-  let p = 0;
-  for (let row = 0; row < d; row++) {
-    if (Math.floor(row / strides[sys]!) % dsys !== digit) continue;
-    for (let col = 0; col < d; col++) {
-      if (Math.floor(col / strides[sys]!) % dsys !== digit) continue;
-      out.re[row * d + col] = rho.re[row * d + col]!;
-      out.im[row * d + col] = rho.im[row * d + col]!;
-    }
-    p += rho.re[row * d + row]!;
-  }
-  if (p > 0) {
-    for (let k = 0; k < out.re.length; k++) {
-      out.re[k] = out.re[k]! / p;
-      out.im[k] = out.im[k]! / p;
-    }
-  }
-  return { p, conditional: out };
 }

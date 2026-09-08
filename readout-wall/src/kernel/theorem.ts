@@ -54,7 +54,6 @@ import {
   fDiv,
   fMul,
   fSub,
-  fDecimal,
   fr,
   iAdd,
   iDivPos,
@@ -68,6 +67,7 @@ import {
   PATH_T,
   type LnPath,
 } from "./rational.js";
+import { refuse } from "../core/errors.js";
 
 // --- generic certificate checkers (shared with the smuggling trials) -----------------------
 
@@ -81,6 +81,11 @@ export interface StrictDecrResult {
 
 /** Strictly decreasing, certified: every interval lower bound > next upper bound. */
 export function certifyStrictlyDecreasing(v: readonly Ivl[]): StrictDecrResult {
+  // an empty or single-point curve trivially "passes" every loop — a smuggled
+  // vacuous certificate (the live pipeline always feeds GRID_N+1 >= 2 points)
+  if (v.length < 2) {
+    refuse("CERT_DEGENERATE_CURVE", `certifyStrictlyDecreasing: a curve needs >= 2 enclosures to certify, got ${v.length}`);
+  }
   let minGap: Frac | null = null;
   for (let i = 0; i + 1 < v.length; i++) {
     const gap = fSub(v[i]!.lo, v[i + 1]!.hi);
@@ -100,6 +105,10 @@ export interface ConvexResult {
 
 /** Convex on the grid, certified: every interval second difference has lo > 0. */
 export function certifyConvexGrid(v: readonly Ivl[]): ConvexResult {
+  // same vacuous-pass hole: convexity needs at least one cell, i.e. 3 points
+  if (v.length < 3) {
+    refuse("CERT_DEGENERATE_CURVE", `certifyConvexGrid: a curve needs >= 3 enclosures to certify, got ${v.length}`);
+  }
   let minDD: Frac | null = null;
   for (let i = 1; i + 1 < v.length; i++) {
     const dd = iSub(iAdd(v[i - 1]!, v[i + 1]!), iAdd(v[i]!, v[i]!));
@@ -131,6 +140,12 @@ export interface AntichainResult {
  * is only what is certified, on this census — never a global statement).
  */
 export function certifyAntichain(points: readonly CensusPoint[]): AntichainResult {
+  // a census of 0 or 1 points is vacuously an antichain — the Pareto claim
+  // is about measured points; a census too small to contain any pair certifies
+  // nothing and must not book a PASS (the frontier always feeds 21 points)
+  if (points.length < 2) {
+    refuse("CERT_DEGENERATE_CENSUS", `certifyAntichain: a census needs >= 2 points to certify, got ${points.length}`);
+  }
   for (let a = 0; a < points.length; a++) {
     for (let b = 0; b < points.length; b++) {
       if (a === b) continue;
@@ -261,7 +276,9 @@ function certifyFamily(
   }
   let crossOverlapAll = true;
   const [first, second] = perPath;
-  if (first === undefined || second === undefined) throw new Error("certifyFamily: expected two paths");
+  if (first === undefined || second === undefined) {
+    refuse("CERTIFY_FAMILY_PATHS", "certifyFamily: expected two paths");
+  }
   for (let i = 0; i < first.length; i++) {
     if (fCmp(first[i]!.lo, second[i]!.hi) > 0 || fCmp(second[i]!.lo, first[i]!.hi) > 0) {
       crossOverlapAll = false;
@@ -398,6 +415,3 @@ export function frontierCertificate(): FrontierCert {
   };
   return frontierCache;
 }
-
-/** Decimal helper for reports and quoted constants. */
-export const dec = (a: Frac, digits = 6): string => fDecimal(a, digits);

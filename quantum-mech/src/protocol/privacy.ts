@@ -20,6 +20,9 @@ import { runSealedBidAuction, secondOf, winnerOf } from './auction.js';
  * ensemble over all 2^m payload values as seen by the auctioneer without
  * keys. The hiding quality of the lock family. */
 export function lockedHolevo(m: number, nBases: 2 | 3, mode: LockMode = 'wiesner'): number {
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`PRIV05-bad-m: lockedHolevo needs integer m >= 1 qubit, got ${m}`);
+  }
   const items: EnsembleItem[] = [];
   const count = 2 ** m;
   for (let v = 0; v < count; v++) {
@@ -31,6 +34,9 @@ export function lockedHolevo(m: number, nBases: 2 | 3, mode: LockMode = 'wiesner
 /** Worst-case trace distance between the auctioneer's locked ensembles for
  * two payloads — 0 means the states are literally identical. */
 export function lockedTraceDistance(m: number, nBases: 2 | 3, mode: LockMode = 'wiesner'): { worst: number; pair: [number, number] } {
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`PRIV05-bad-m: lockedTraceDistance needs integer m >= 1 qubit, got ${m}`);
+  }
   let worst = 0;
   let pair: [number, number] = [0, 0];
   const states: CMat[] = [];
@@ -66,6 +72,12 @@ export function interceptExperiment(
   rng: Rng,
   bidders = 2,
 ): InterceptStats {
+  if (!Number.isInteger(trials) || trials < 1) {
+    throw new Error(`PRIV03-bad-trials: interceptExperiment needs integer trials >= 1, got ${trials}`);
+  }
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`PRIV04-bad-m: interceptExperiment needs integer m >= 1 payload qubit, got ${m}`);
+  }
   const k = 2 ** m; // full payload: every qubit carries a checked bit
   let detections = 0;
   let flips = 0;
@@ -102,6 +114,12 @@ export interface TranscriptLeakage {
 /** Enumerate all bid profiles for n bidders and k levels; count which pairs
  * of profiles an auctioneer can distinguish post-auction. */
 export function transcriptLeakage(n: number, k: number): TranscriptLeakage {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`PRIV01-bad-n: transcriptLeakage needs integer n >= 1 bidder, got ${n}`);
+  }
+  if (!Number.isInteger(k) || k < 2) {
+    throw new Error(`PRIV02-bad-k: transcriptLeakage needs integer k >= 2 bid levels, got ${k}`);
+  }
   const profiles: number[] = Array.from({ length: k ** n }, (_, i) => i);
   const decode = (x: number): number[] => {
     const b: number[] = [];

@@ -15,6 +15,8 @@
  * nosignal-tariff v0.2.0's rational kernel, independently re-derived here.)
  */
 
+import { refuse } from "../core/errors.js";
+
 export interface Frac {
   readonly n: bigint;
   readonly d: bigint; // > 0
@@ -23,7 +25,7 @@ export interface Frac {
 export function fr(n: bigint | number, d: bigint | number = 1n): Frac {
   const bn = typeof n === "bigint" ? n : BigInt(n);
   const bd = typeof d === "bigint" ? d : BigInt(d);
-  if (bd === 0n) throw new Error("fr: zero denominator");
+  if (bd === 0n) refuse("FR_ZERO_DENOMINATOR", "fr: zero denominator");
   if (bd < 0n) {
     return { n: -bn, d: -bd };
   }
@@ -38,7 +40,7 @@ export const fAdd = (a: Frac, b: Frac): Frac => ({ n: a.n * b.d + b.n * a.d, d: 
 export const fSub = (a: Frac, b: Frac): Frac => ({ n: a.n * b.d - b.n * a.d, d: a.d * b.d });
 export const fMul = (a: Frac, b: Frac): Frac => ({ n: a.n * b.n, d: a.d * b.d });
 export const fDiv = (a: Frac, b: Frac): Frac => {
-  if (b.n === 0n) throw new Error("fDiv: zero divisor");
+  if (b.n === 0n) refuse("FDIV_ZERO_DIVISOR", "fDiv: zero divisor");
   return b.n < 0n ? { n: -a.n * b.d, d: a.d * -b.n } : { n: a.n * b.d, d: a.d * b.n };
 };
 export const fNeg = (a: Frac): Frac => ({ n: -a.n, d: a.d });
@@ -63,7 +65,11 @@ export function fDecimal(a: Frac, digits: number): string {
     rem %= a.d;
   }
   const s = int.toString() + (frac.length > 0 ? "." + frac : "");
-  return neg && (int !== 0n || rem !== 0n) ? "-" + s : s;
+  // the sign tracks the VALUE, not the remainder: a negative fraction whose
+  // expansion terminates exactly at the digit limit (e.g. -1/8 at 3 digits)
+  // is still negative — the old `int !== 0n || rem !== 0n` guard dropped its
+  // minus (convicted by T4's exact-value anchor, v0.3.0)
+  return neg && a.n !== 0n ? "-" + s : s;
 }
 
 /**
@@ -85,27 +91,28 @@ export interface Ivl {
   readonly hi: Frac;
 }
 
-export const ivl = (lo: Frac, hi: Frac): Ivl => {
-  if (fCmp(lo, hi) > 0) throw new Error("ivl: lo > hi");
-  return { lo, hi };
-};
 export const iOf = (a: Frac): Ivl => ({ lo: a, hi: a });
 export const iAdd = (a: Ivl, b: Ivl): Ivl => ({ lo: fAdd(a.lo, b.lo), hi: fAdd(a.hi, b.hi) });
 export const iSub = (a: Ivl, b: Ivl): Ivl => ({ lo: fSub(a.lo, b.hi), hi: fSub(a.hi, b.lo) });
 export const iNeg = (a: Ivl): Ivl => ({ lo: fNeg(a.hi), hi: fNeg(a.lo) });
 /** Multiply by a NONNEGATIVE rational scalar. */
 export const iScaleNonneg = (a: Ivl, s: Frac): Ivl => {
-  if (fIsNeg(s)) throw new Error("iScaleNonneg: negative scalar");
+  if (fIsNeg(s)) refuse("ISCALE_NEGATIVE_SCALAR", "iScaleNonneg: negative scalar");
   return { lo: fMul(a.lo, s), hi: fMul(a.hi, s) };
 };
 /** Divide by an interval KNOWN to be strictly positive. */
 export const iDivPos = (a: Ivl, b: Ivl): Ivl => {
-  if (fIsNeg(b.lo) || fIsZero(b.lo)) throw new Error("iDivPos: divisor not strictly positive");
+  if (fIsNeg(b.lo) || fIsZero(b.lo)) refuse("IDIV_NONPOSITIVE_DIVISOR", "iDivPos: divisor not strictly positive");
   return { lo: fDiv(a.lo, b.hi), hi: fDiv(a.hi, b.lo) };
 };
 export const iWidth = (a: Ivl): Frac => fSub(a.hi, a.lo);
-/** Exact overlap test: the two enclosures admit a common point. */
-export const iOverlap = (a: Ivl, b: Ivl): boolean => fCmp(a.lo, b.hi) <= 0 && fCmp(b.lo, a.hi) <= 0;
+/**
+ * The enclosure's exact midpoint (lo + hi) / 2 as a rational — display and
+ * quotation only (the certificates themselves compare lo/hi bounds, never
+ * midpoints). Single source: every midpoint quotation in the repo flows
+ * through here.
+ */
+export const iMid = (a: Ivl): Frac => fDiv(fAdd(a.lo, a.hi), fr(2));
 
 // --- ln on two independent series paths ----------------------------------------------------
 
@@ -119,7 +126,7 @@ const LN_TERMS_T = 64;
 
 function negLnMantissaT(m: Frac): Ivl {
   const t = fSub(F_ONE, m);
-  if (fIsNeg(t) || fIsZero(t)) throw new Error("negLnMantissaT: t outside (0,1/2]");
+  if (fIsNeg(t) || fIsZero(t)) refuse("LNT_MANTISSA_RANGE", "negLnMantissaT: t outside (0,1/2]");
   let s = F_ZERO;
   let tk = t;
   for (let k = 1; k <= LN_TERMS_T; k++) {
@@ -152,7 +159,7 @@ const LN_TERMS_A = 32; // w <= 1/3 -> (1/9)^32 ~ 1e-31 before the tail
 
 function negLnMantissaA(m: Frac): Ivl {
   const w = fDiv(fSub(F_ONE, m), fAdd(F_ONE, m));
-  if (fIsNeg(w) || fIsZero(w)) throw new Error("negLnMantissaA: w outside (0,1/3]");
+  if (fIsNeg(w) || fIsZero(w)) refuse("LNA_MANTISSA_RANGE", "negLnMantissaA: w outside (0,1/3]");
   let s = F_ZERO;
   const w2 = fMul(w, w);
   let wk = w; // w^{2k+1} at k = 0
@@ -200,7 +207,7 @@ export const LN_PATHS: readonly LnPath[] = [PATH_T, PATH_A];
  */
 export function negLn(x: Frac, path: LnPath = PATH_T): Ivl {
   if (fCmp(x, F_ZERO) <= 0 || fCmp(x, F_ONE) >= 0) {
-    throw new Error("negLn: x outside (0,1)");
+    refuse("NEGLN_DOMAIN", "negLn: x outside (0,1)");
   }
   let m = x;
   let e = 0;
@@ -228,7 +235,7 @@ export function fTerm(q: Frac, path: LnPath = PATH_T): Ivl {
   if (fIsZero(q)) return iOf(F_ZERO);
   if (fCmp(q, F_ONE) === 0) return iOf(F_ZERO);
   if (fCmp(q, F_ZERO) < 0 || fCmp(q, F_ONE) > 0) {
-    throw new Error(`fTerm: q outside [0,1]`);
+    refuse("FTERM_DOMAIN", `fTerm: q outside [0,1]`);
   }
   return iDivPos(iScaleNonneg(negLn(q, path), q), path.ln2);
 }

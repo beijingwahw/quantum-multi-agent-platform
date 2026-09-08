@@ -15,7 +15,7 @@
  */
 import { bscBlockInfo, collisionCensus, gfMul, inverseCensus, paMeasure, sparseAdversaryInfo } from "../kernel/amplify.js";
 import { auditRateRow, auditUniformityClaim } from "../kernel/audit.js";
-import { h2 } from "../kernel/tariff.js";
+import { h2, qberOf } from "../kernel/tariff.js";
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
@@ -81,7 +81,7 @@ function main(): void {
   lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
   const curve: Array<{ p: number; q: number; line: number; measured: number }> = [];
   for (const p of [1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.55, 0.5]) {
-    const q = (1 - p) / 2;
+    const q = qberOf(p);
     const leak = h2(q);
     const eps = p / 2;
     let best = { k: 8, r: Number.NEGATIVE_INFINITY };
@@ -119,7 +119,7 @@ function main(): void {
       const k = m / 2;
       const pm = paMeasure(m, k, eps);
       const pmId = paMeasure(m, m, eps);
-      const r = (m - pmId.afterMean) / m - h2((1 - p) / 2);
+      const r = (m - pmId.afterMean) / m - h2(qberOf(p));
       lines.push(`| ${m} | ${p} | ${eps} | ${fmt(pm.afterMean, 6)} | ${fmt(pm.tvFamilyMixed, 6)} | ${fmt(r, 9)} |`);
     }
   }

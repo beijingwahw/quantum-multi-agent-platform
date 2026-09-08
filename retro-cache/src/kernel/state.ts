@@ -13,11 +13,25 @@ export interface CMat {
   readonly im: number[][];
 }
 
+/** Named kernel error. Every throw in the kernel carries a stable machine-readable
+ *  code (RC_*) so a rejected input is convicted by name, not by prose alone —
+ *  the caller can branch on `code` and the message always embeds it. */
+export class RcError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(`[${code}] ${message}`);
+    this.code = code;
+    this.name = "RcError";
+  }
+}
+
 export function cmatZero(d: number): CMat {
   return { dim: d, re: Array.from({ length: d }, () => new Array<number>(d).fill(0)), im: Array.from({ length: d }, () => new Array<number>(d).fill(0)) };
 }
 
 export function cmatAdd(a: CMat, b: CMat): CMat {
+  // mismatched dims would read past b's rows (undefined operands) and yield NaN
+  if (a.dim !== b.dim) throw new RcError("RC_DIM_MISMATCH", `cmatAdd: dimension mismatch (${a.dim} vs ${b.dim})`);
   const out = cmatZero(a.dim);
   for (let i = 0; i < a.dim; i++)
     for (let j = 0; j < a.dim; j++) {
@@ -32,6 +46,8 @@ export function cmatScale(a: CMat, s: number): CMat {
 }
 
 export function cmatMul(a: CMat, b: CMat): CMat {
+  // mismatched dims would silently index past b's columns and seed NaN into every cell
+  if (a.dim !== b.dim) throw new RcError("RC_DIM_MISMATCH", `cmatMul: dimension mismatch (${a.dim} vs ${b.dim})`);
   const out = cmatZero(a.dim);
   for (let i = 0; i < a.dim; i++)
     for (let j = 0; j < a.dim; j++) {
@@ -52,7 +68,7 @@ export function cmatMul(a: CMat, b: CMat): CMat {
   return out;
 }
 
-export function trace(a: CMat): { re: number; im: number } {
+function trace(a: CMat): { re: number; im: number } {
   let re = 0;
   let im = 0;
   for (let i = 0; i < a.dim; i++) {
@@ -86,20 +102,20 @@ export const I2: CMat = (() => {
   return m;
 })();
 
-/** Pauli matrices */
-export const PX: CMat = (() => {
+/** Pauli matrices (exported only as the PAULI triple — no individual consumer) */
+const PX: CMat = (() => {
   const m = cmatZero(2);
   m.re[0]![1] = 1;
   m.re[1]![0] = 1;
   return m;
 })();
-export const PY: CMat = (() => {
+const PY: CMat = (() => {
   const m = cmatZero(2);
   m.im[0]![1] = -1;
   m.im[1]![0] = 1;
   return m;
 })();
-export const PZ: CMat = (() => {
+const PZ: CMat = (() => {
   const m = cmatZero(2);
   m.re[0]![0] = 1;
   m.re[1]![1] = -1;
@@ -111,7 +127,7 @@ export const PAULI = [PX, PY, PZ] as const;
 export function projector(axis: readonly number[], sign: 1 | -1): CMat {
   // guard at the boundary: a short axis would otherwise index past its end and
   // silently seed NaN into the matrix (the old `as number` hid exactly that)
-  if (axis.length !== 3) throw new Error(`projector: axis must be a 3-vector, got length ${axis.length}`);
+  if (axis.length !== 3) throw new RcError("RC_AXIS_LEN", `projector: axis must be a 3-vector, got length ${axis.length}`);
   const m = cmatZero(2);
   for (let i = 0; i < 2; i++) m.re[i]![i]! += 0.5;
   for (let p = 0; p < 3; p++) {
@@ -166,6 +182,9 @@ export type JointTable = [[number, number], [number, number]];
 
 /** joint outcome table p(x, y) for projective measurements along a (A) and b (B) */
 export function jointTable(rho: CMat, a: readonly number[], b: readonly number[]): JointTable {
+  // the kron of two single-qubit projectors is 4x4; any other dim would read
+  // past rho's rows in the multiply and silently produce NaN cells
+  if (rho.dim !== 4) throw new RcError("RC_DIM", `jointTable: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
   const out: JointTable = [
     [0, 0],
     [0, 0],
@@ -193,35 +212,38 @@ export function correlationFromTable(t: JointTable): number {
 export function wernerCorrelation(p: number, a: readonly number[], b: readonly number[]): number {
   // guard at the boundary: a short axis would index past its end (undefined
   // operands) and silently turn the closed form into NaN
-  if (a.length !== 3 || b.length !== 3) throw new Error(`wernerCorrelation: axes must be 3-vectors (got ${a.length}, ${b.length})`);
+  if (a.length !== 3 || b.length !== 3) throw new RcError("RC_AXIS_LEN", `wernerCorrelation: axes must be 3-vectors (got ${a.length}, ${b.length})`);
   return -p * (a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!);
 }
 
+/** The standard CHSH axes: a0 = x, a1 = y on A; b0,b1 = the half-diagonals in
+ *  the x-y plane on B — the single source (state.ts and adversary.ts rode the
+ *  same literals before they were converged; W6.A's eta=0 identity back-stops
+ *  the merge). Readonly: a setting, not a scratch buffer. */
+export const CHSH_AXES: readonly [
+  readonly number[],
+  readonly number[],
+  readonly number[],
+  readonly number[],
+] = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [Math.SQRT1_2, Math.SQRT1_2, 0],
+  [Math.SQRT1_2, -Math.SQRT1_2, 0],
+];
+
 /** CHSH value at the standard axes */
 export function chshStandard(rho: CMat): number {
-  const a0 = [1, 0, 0];
-  const a1 = [0, 1, 0];
-  const b0 = [Math.SQRT1_2, Math.SQRT1_2, 0];
-  const b1 = [Math.SQRT1_2, -Math.SQRT1_2, 0];
+  const [a0, a1, b0, b1] = CHSH_AXES;
   const e = (a: readonly number[], b: readonly number[]): number => correlationFromTable(jointTable(rho, a, b));
   return e(a0, b0) + e(a0, b1) + e(a1, b0) - e(a1, b1);
 }
 
-/** partial trace: B half traced out (keep A) */
-export function reduceA(rho: CMat): CMat {
-  if (rho.dim !== 4) throw new Error(`reduceA: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
-  const out = cmatZero(2);
-  for (let i = 0; i < 2; i++)
-    for (let j = 0; j < 2; j++) {
-      out.re[i]![j] = rho.re[i * 2]![j * 2]! + rho.re[i * 2 + 1]![j * 2 + 1]!;
-      out.im[i]![j] = rho.im[i * 2]![j * 2]! + rho.im[i * 2 + 1]![j * 2 + 1]!;
-    }
-  return out;
-}
-
-/** partial trace: A half traced out (keep B) */
+/** partial trace: A half traced out (keep B). (The keep-A mirror was dead code —
+ *  zero references workspace-wide — and the partial-trace capability it
+ *  demonstrated is this function's; deleted after the absorption check.) */
 export function reduceB(rho: CMat): CMat {
-  if (rho.dim !== 4) throw new Error(`reduceB: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
+  if (rho.dim !== 4) throw new RcError("RC_DIM", `reduceB: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
   const out = cmatZero(2);
   out.re[0]![0] = rho.re[0]![0]! + rho.re[2]![2]!;
   out.re[0]![1] = rho.re[0]![1]! + rho.re[2]![3]!;
@@ -237,7 +259,7 @@ export function reduceB(rho: CMat): CMat {
 /** Hilbert-Schmidt distance between two matrices */
 export function hsDistance(a: CMat, b: CMat): number {
   // mismatched dims would read past b's rows and silently yield NaN
-  if (a.dim !== b.dim) throw new Error(`hsDistance: dimension mismatch (${a.dim} vs ${b.dim})`);
+  if (a.dim !== b.dim) throw new RcError("RC_DIM_MISMATCH", `hsDistance: dimension mismatch (${a.dim} vs ${b.dim})`);
   let s = 0;
   for (let i = 0; i < a.dim; i++)
     for (let j = 0; j < a.dim; j++) {
@@ -277,22 +299,30 @@ export class Rng {
 
 export function entropyBits(probs: readonly number[]): number {
   let h = 0;
-  for (const p of probs) if (p > 0) h -= p * Math.log2(p);
+  // a negative or NaN weight is not a probability; skipping it (the old
+  // `p > 0` filter) would silently understate the entropy
+  for (const p of probs) {
+    if (!(p >= 0)) throw new RcError("RC_NEG_PROB", `entropyBits: negative or non-finite weight ${p}`);
+    if (p > 0) h -= p * Math.log2(p);
+  }
   return h;
 }
 
 export function mutualInfoBits(table: ReadonlyArray<readonly number[]>): number {
   // guard at the boundary: an empty table would crash on table[0].length
-  if (table.length === 0) throw new Error("mutualInfoBits: table must have at least one row");
+  if (table.length === 0) throw new RcError("RC_EMPTY_TABLE", "mutualInfoBits: table must have at least one row");
   const n = table.length;
   const m = table[0]!.length;
   const total = table.flat().reduce((a, b) => a + b, 0);
+  // an all-zero (or non-finite) table is not a distribution: normalizing by
+  // total would silently yield NaN entropies and MI = 0
+  if (!(total > 0)) throw new RcError("RC_ZERO_TABLE", `mutualInfoBits: table entries must sum to a positive finite total (got ${total})`);
   const row = new Array<number>(n).fill(0);
   const col = new Array<number>(m).fill(0);
   for (let i = 0; i < n; i++) {
     const rowI = table[i]!;
     // ragged rows would index past their end and silently yield NaN entropy
-    if (rowI.length !== m) throw new Error(`mutualInfoBits: ragged table (row ${i} has length ${rowI.length}, expected ${m})`);
+    if (rowI.length !== m) throw new RcError("RC_RAGGED_TABLE", `mutualInfoBits: ragged table (row ${i} has length ${rowI.length}, expected ${m})`);
     for (let j = 0; j < m; j++) {
       const v = rowI[j]!;
       row[i]! += v;
@@ -307,7 +337,14 @@ export function mutualInfoBits(table: ReadonlyArray<readonly number[]>): number 
 
 /** total variation distance between two finite distributions */
 export function tvDistance(a: readonly number[], b: readonly number[]): number {
+  // unequal lengths would silently truncate (or read undefined and yield NaN)
+  if (a.length !== b.length) throw new RcError("RC_LEN_MISMATCH", `tvDistance: length mismatch (${a.length} vs ${b.length})`);
   let s = 0;
-  for (let i = 0; i < a.length; i++) s += Math.abs((a[i] as number) - (b[i] as number));
+  for (let i = 0; i < a.length; i++) {
+    const av = a.at(i);
+    const bv = b.at(i);
+    if (av === undefined || bv === undefined) throw new RcError("RC_LEN_MISMATCH", `tvDistance: missing element ${i} inside a length-${a.length} pair`);
+    s += Math.abs(av - bv);
+  }
   return s / 2;
 }

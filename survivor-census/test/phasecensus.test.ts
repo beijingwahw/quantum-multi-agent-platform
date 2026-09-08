@@ -1,16 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { runPhaseCensus } from "../src/kernel/phasecensus.js";
-import { randomCounts } from "../src/experiments/instances.js";
+import { buildInstances } from "../src/experiments/instances.js";
+import type { Instance } from "../src/experiments/instances.js";
+import { TOL } from "../src/kernel/tol.js";
 
-const TOL = 1e-12;
-
-function quarterInstance(): { n: number; counts: number[]; marked: number[] } {
-  const n = 4;
-  const counts = randomCounts(n, 201);
-  const marked: number[] = [];
-  for (let x = 0; x < 2 ** n; x += 4) marked.push(x);
-  return { n, counts, marked };
+/**
+ * The quarter-funded instance is taken from the canonical instance family —
+ * the same object the census renders (single source). Before v0.3.0 this
+ * test rebuilt its own copy (randomCounts(4, 201) + stride-4 marked); the
+ * values were identical, but the two constructions could have forked
+ * silently.
+ */
+function quarterInstance(): Instance {
+  const inst = buildInstances().find((i) => i.name === "quarter-funded");
+  assert.ok(inst);
+  return inst;
 }
 
 describe("S7 — the phase-encoding census: the ledger is phase-blind", () => {
@@ -61,10 +66,10 @@ describe("S7 — the state is phase-carrying: the coherence law", () => {
     // quarter the b=1 ramp phases are 1, i, -1, -i, so the sum is
     // (w0 - w8)/P + i(w12 - w4)/P
     const totalC = counts.reduce((a, b) => a + b, 0);
-    const w0 = counts[marked[0] as number] as number;
-    const w4 = counts[marked[1] as number] as number;
-    const w8 = counts[marked[2] as number] as number;
-    const w12 = counts[marked[3] as number] as number;
+    const w0 = counts[marked[0]!]!;
+    const w4 = counts[marked[1]!]!;
+    const w8 = counts[marked[2]!]!;
+    const w12 = counts[marked[3]!]!;
     const re = w0 / totalC / b1.pKeep - w8 / totalC / b1.pKeep;
     const im = w12 / totalC / b1.pKeep - w4 / totalC / b1.pKeep;
     const closedForm = Math.hypot(re, im);

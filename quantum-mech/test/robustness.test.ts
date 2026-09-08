@@ -112,7 +112,7 @@ test('smuggling trial: fake robustness tables are rejected BY NAME', () => {
   // 2. fabricated otp value ("the otp lock leaks 0.3 under dephasing")
   const fakeOtp: RobustnessClaim = { metric: 'chiOtp', m: 2, noise: 'dephase', gamma: 0.25, value: 0.3 };
   const r1 = verifyRobustnessClaim(fakeOtp);
-  assert.equal(r1.ok, false);
+  assert.ok(!r1.ok); // narrows the discriminated verdict for the named checks below
   assert.equal(r1.code, 'REF11-fabricated-value');
   assert.match(r1.detail ?? '', /chiOtp\/dephase\/γ=0\.25: claimed 0\.3, re-measured/);
 
@@ -127,13 +127,13 @@ test('smuggling trial: fake robustness tables are rejected BY NAME', () => {
     value: noiselessWiesner,
   };
   const r2 = verifyRobustnessClaim(fakeStable);
-  assert.equal(r2.ok, false);
+  assert.ok(!r2.ok);
   assert.equal(r2.code, 'REF11-fabricated-value');
 
   // 4. out-of-range gamma on the same metric
   const fakeGamma: RobustnessClaim = { metric: 'chiOtp', m: 2, noise: 'dephase', gamma: 1.5, value: 0 };
   const r3 = verifyRobustnessClaim(fakeGamma);
-  assert.equal(r3.ok, false);
+  assert.ok(!r3.ok);
   assert.equal(r3.code, 'REF10-gamma-range');
 
   // 5. Monte-Carlo metric verifies at fixed seed (deterministic re-run over

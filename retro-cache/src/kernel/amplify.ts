@@ -11,7 +11,7 @@
  * BB84/BBR88/CW79/ILL89, cited not re-proved. The leftover-hash bound is
  * computed and printed even where it is vacuous at toy scale.
  */
-import { entropyBits, mutualInfoBits } from "./state.js";
+import { RcError, entropyBits, mutualInfoBits } from "./state.js";
 import { h2 } from "./tariff.js";
 
 // ---------------------------------------------------------------------------
@@ -20,14 +20,18 @@ import { h2 } from "./tariff.js";
 // machine certificate below: every nonzero element has an inverse.
 // ---------------------------------------------------------------------------
 
-export const FIELD_POLY: Readonly<Record<number, number>> = {
+const FIELD_POLY: Readonly<Record<number, number>> = {
   4: 0b10011,
   8: 0b100011011,
 };
 
 export function gfMul(a: number, b: number, m: number): number {
   const poly = FIELD_POLY[m];
-  if (poly === undefined) throw new Error(`gfMul: no toy field GF(2^${m}) on file`);
+  if (poly === undefined) throw new RcError("RC_NO_FIELD", `gfMul: no toy field GF(2^${m}) on file`);
+  // operands must be field elements; an out-of-range operand would wrap
+  // through the reduction and silently return a non-element
+  if (!(a >= 0 && a < (1 << m) && b >= 0 && b < (1 << m)))
+    throw new RcError("RC_FIELD_ELEM", `gfMul: operands must lie in [0, 2^${m}) (got a=${a}, b=${b})`);
   let x = a >>> 0;
   let y = b >>> 0;
   let acc = 0;
@@ -83,7 +87,7 @@ export interface CollisionCensus {
 }
 
 export function collisionCensus(m: number, k: number): CollisionCensus {
-  if (k < 1 || k > m) throw new Error(`collisionCensus: need 1 <= k <= m (got m=${m}, k=${k})`);
+  if (k < 1 || k > m) throw new RcError("RC_K_RANGE", `collisionCensus: need 1 <= k <= m (got m=${m}, k=${k})`);
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const fam = n - 1;
@@ -93,7 +97,7 @@ export function collisionCensus(m: number, k: number): CollisionCensus {
     for (let a = 1; a < n; a++) if ((gfMul(a, delta, m) & mask) === 0) count++;
     if (collisionsPerDelta === -1) collisionsPerDelta = count;
     else if (count !== collisionsPerDelta)
-      throw new Error(`collisionCensus: delta-dependence at delta=${delta} (${count} vs ${collisionsPerDelta}) — family analysis broken`);
+      throw new RcError("RC_DELTA_DEPENDENCE", `collisionCensus: delta-dependence at delta=${delta} (${count} vs ${collisionsPerDelta}) — family analysis broken`);
   }
   const maxCollisionProb = collisionsPerDelta / fam;
   const uniform2Bound = 2 ** -k;
@@ -108,18 +112,12 @@ export function collisionCensus(m: number, k: number): CollisionCensus {
   };
 }
 
-/** class assignment x -> trunc_k(a (x) x) over all x in GF(2)^m */
-export function hashAssign(m: number, k: number, a: number): number[] {
-  const n = 1 << m;
-  const mask = (1 << k) - 1;
-  const out = new Array<number>(n).fill(0);
-  for (let x = 0; x < n; x++) out[x] = gfMul(a, x, m) & mask;
-  return out;
-}
-
 // ---------------------------------------------------------------------------
 // The smoothed adversary: Z^m = X^m through a per-bit BSC(eps), X uniform.
 // Everything below is exact enumeration on complete tables — no sampling.
+// (A standalone class-assignment exporter lived here — zero references
+//  workspace-wide; the live paMeasure path computes the same trunc_k(a (x) x)
+//  inline, fused with the weight accumulation, so it was deleted outright.)
 // ---------------------------------------------------------------------------
 
 function popcounts(n: number): number[] {
@@ -128,13 +126,27 @@ function popcounts(n: number): number[] {
   return pc;
 }
 
+/** the BSC(d) Hamming-weight probabilities of a uniform m-bit block:
+ *  w[d] = 2^-m (1-eps)^(m-d) eps^d — the single source (bscBlockInfo and
+ *  paMeasure rode identical inline copies before they were converged at
+ *  v0.2.2; the expression is unchanged and moved verbatim, so every table
+ *  it feeds is bit-identical by construction). This is shared model
+ *  infrastructure, NOT a second verification path — the anti-smuggling
+ *  two-path discipline (table vs closed form) stays separate by design. */
+function bscWeights(m: number, eps: number): number[] {
+  const w = new Array<number>(m + 1);
+  for (let d = 0; d <= m; d++) w[d] = 2 ** -m * (1 - eps) ** (m - d) * eps ** d;
+  return w;
+}
+
 /** I(X^m; Z^m) two paths: closed form m(1 - h2(eps)) vs the full 2^m x 2^m
  *  joint table through mutualInfoBits. */
 export function bscBlockInfo(m: number, eps: number): { readonly closed: number; readonly table: number } {
+  if (!(m >= 1 && m <= 16)) throw new RcError("RC_M_RANGE", `bscBlockInfo: m must lie in [1, 16] for exact enumeration (got m=${m})`);
+  if (!(eps >= 0 && eps <= 0.5)) throw new RcError("RC_EPS_RANGE", `bscBlockInfo: BSC crossover eps must lie in [0, 1/2] (got ${eps})`);
   const n = 1 << m;
   const pc = popcounts(n);
-  const w = new Array<number>(m + 1);
-  for (let d = 0; d <= m; d++) w[d] = 2 ** -m * (1 - eps) ** (m - d) * eps ** d;
+  const w = bscWeights(m, eps);
   const joint: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(0));
   for (let x = 0; x < n; x++) for (let z = 0; z < n; z++) joint[x]![z] = w[pc[x ^ z]!]!;
   return { closed: m * (1 - h2(eps)), table: mutualInfoBits(joint) };
@@ -162,13 +174,14 @@ export interface PaMeasure {
 }
 
 export function paMeasure(m: number, k: number, eps: number): PaMeasure {
-  if (k < 1 || k > m) throw new Error(`paMeasure: need 1 <= k <= m (got m=${m}, k=${k})`);
+  if (!(m >= 1 && m <= 16)) throw new RcError("RC_M_RANGE", `paMeasure: m must lie in [1, 16] for exact enumeration (got m=${m})`);
+  if (k < 1 || k > m) throw new RcError("RC_K_RANGE", `paMeasure: need 1 <= k <= m (got m=${m}, k=${k})`);
+  if (!(eps >= 0 && eps <= 0.5)) throw new RcError("RC_EPS_RANGE", `paMeasure: BSC crossover eps must lie in [0, 1/2] (got ${eps})`);
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const fam = n - 1;
   const pc = popcounts(n);
-  const w = new Array<number>(m + 1);
-  for (let d = 0; d <= m; d++) w[d] = 2 ** -m * (1 - eps) ** (m - d) * eps ** d;
+  const w = bscWeights(m, eps);
 
   const before = bscBlockInfo(m, eps);
 
@@ -273,8 +286,9 @@ function combinations(m: number, bits: number): number[] {
 }
 
 export function sparseAdversaryInfo(m: number, k: number, knownBits: number): SparseMeasure {
-  if (k < 1 || k > m) throw new Error(`sparseAdversaryInfo: need 1 <= k <= m`);
-  if (knownBits < 0 || knownBits > m) throw new Error(`sparseAdversaryInfo: 0 <= knownBits <= m`);
+  if (!(m >= 1 && m <= 16)) throw new RcError("RC_M_RANGE", `sparseAdversaryInfo: m must lie in [1, 16] for exact enumeration (got m=${m})`);
+  if (k < 1 || k > m) throw new RcError("RC_K_RANGE", `sparseAdversaryInfo: need 1 <= k <= m (got m=${m}, k=${k})`);
+  if (knownBits < 0 || knownBits > m) throw new RcError("RC_KNOWNBITS_RANGE", `sparseAdversaryInfo: 0 <= knownBits <= m (got knownBits=${knownBits}, m=${m})`);
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const sets = combinations(m, knownBits);

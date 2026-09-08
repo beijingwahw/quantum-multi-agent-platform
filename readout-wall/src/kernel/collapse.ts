@@ -12,8 +12,9 @@
  * control's diagonal — the read-out switch is not a new process, it is the
  * classical mixture of the orders you could have just chosen.
  */
-import { type CMat, kron } from "../core/cmat.js";
+import { type CMat, kron, mat } from "../core/cmat.js";
 import { partialTrace } from "../core/channels.js";
+import { refuse } from "../core/errors.js";
 import type { SwitchedChannel } from "../switch/isometry.js";
 
 /** ρ_c ⊗ ρ_S for density matrices. */
@@ -27,13 +28,13 @@ export function dephase(rho: CMat, dims: readonly number[], sys: number): CMat {
   // an out-of-range sys would make every digit NaN; NaN !== NaN then zeroes the
   // whole matrix silently — refuse it at the boundary instead
   if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
-    throw new Error(`dephase: subsystem index ${sys} out of range for ${m} subsystems`);
+    refuse("DEPHASE_SYS_RANGE", `dephase: subsystem index ${sys} out of range for ${m} subsystems`);
   }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
   const d = rho.rows;
-  const out = { rows: d, cols: d, re: new Float64Array(rho.re), im: new Float64Array(rho.im) } as CMat;
+  const out: CMat = { rows: d, cols: d, re: new Float64Array(rho.re), im: new Float64Array(rho.im) };
   const sysStride = strides[sys]!;
   const dSys = dims[sys]!;
   for (let row = 0; row < d; row++) {
@@ -51,9 +52,9 @@ export function dephase(rho: CMat, dims: readonly number[], sys: number): CMat {
 
 /** Partial dephasing of strength λ ∈ [0,1]: (1−λ)ρ + λ·Δ(ρ) — the weak readout. */
 export function partialDephase(rho: CMat, dims: readonly number[], sys: number, lambda: number): CMat {
-  if (lambda < 0 || lambda > 1) throw new Error("lambda must be in [0,1]");
+  if (lambda < 0 || lambda > 1) refuse("PARTIAL_DEPHASE_LAMBDA", "lambda must be in [0,1]");
   const full = dephase(rho, dims, sys);
-  const out = { rows: rho.rows, cols: rho.cols, re: new Float64Array(rho.re.length), im: new Float64Array(rho.im.length) } as CMat;
+  const out: CMat = { rows: rho.rows, cols: rho.cols, re: new Float64Array(rho.re.length), im: new Float64Array(rho.im.length) };
   for (let k = 0; k < rho.re.length; k++) {
     out.re[k] = (1 - lambda) * rho.re[k]! + lambda * full.re[k]!;
     out.im[k] = (1 - lambda) * rho.im[k]! + lambda * full.im[k]!;
@@ -63,7 +64,7 @@ export function partialDephase(rho: CMat, dims: readonly number[], sys: number, 
 
 /** Diagonal weight p_c of the control input (the readout outcome priors). */
 export function controlDiagonal(rhoC: CMat): number[] {
-  if (rhoC.rows !== rhoC.cols) throw new Error("controlDiagonal: control state must be square");
+  if (rhoC.rows !== rhoC.cols) refuse("CONTROL_DIAGONAL_SHAPE", "controlDiagonal: control state must be square");
   const out: number[] = [];
   for (let i = 0; i < rhoC.rows; i++) out.push(rhoC.re[i * rhoC.cols + i]!);
   return out;
@@ -88,16 +89,16 @@ export function classicalMixture(
   if (rhoC.rows !== 2 || rhoC.cols !== 2) {
     // the order register of the two-box switch is a qubit; a smaller control
     // would read p[1] === undefined and book NaN weights silently
-    throw new Error("classicalMixture: the order register is a qubit — rhoC must be 2x2");
+    refuse("CLASSICAL_MIXTURE_QUBIT", "classicalMixture: the order register is a qubit — rhoC must be 2x2");
   }
   const p = controlDiagonal(rhoC);
   const d = sc.sw.d;
   const blocks = [proj0(rhoS), proj1(rhoS)]; // fixedAB, fixedBA with env traced
-  const out = { rows: 2 * d, cols: 2 * d, re: new Float64Array(4 * d * d), im: new Float64Array(4 * d * d) } as CMat;
+  const out: CMat = mat(2 * d, 2 * d);
   for (let c = 0; c < 2; c++) {
     const blk = blocks[c]!; // blocks is a 2-element literal, c is bounded by the loop
     if (blk.rows !== d || blk.cols !== d) {
-      throw new Error(`classicalMixture: branch block must be ${d}x${d}, got ${blk.rows}x${blk.cols}`);
+      refuse("CLASSICAL_MIXTURE_BLOCK_SHAPE", `classicalMixture: branch block must be ${d}x${d}, got ${blk.rows}x${blk.cols}`);
     }
     const pc = p[c]!;
     for (let i = 0; i < d; i++) {

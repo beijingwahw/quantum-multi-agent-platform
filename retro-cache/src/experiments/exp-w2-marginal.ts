@@ -9,15 +9,17 @@ import {
   hsDistance,
   jointTable,
   mutualInfoBits,
+  RcError,
   reduceB,
   Rng,
   wernerPair,
+  type CMat,
 } from "../kernel/state.js";
 import { cptpOnB, randomUnitary2, unitaryOnA } from "../kernel/tariff.js";
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function bMarginal(rho: Parameters<typeof jointTable>[0], aSetting: readonly number[], bAxis: readonly number[]): number {
+function bMarginal(rho: CMat, aSetting: readonly number[], bAxis: readonly number[]): number {
   const t = jointTable(rho, aSetting, bAxis);
   return (t[0][0]) + (t[1][0]);
 }
@@ -62,8 +64,9 @@ function main(): void {
   for (let i = 0; i < 10; i++) {
     const mapped = cptpOnB(rho, rng);
     const b = rng.axis();
-    const a1 = settings[i] as number[];
-    const a2 = settings[i + 10] as number[];
+    const a1 = settings.at(i);
+    const a2 = settings.at(i + 10);
+    if (a1 === undefined || a2 === undefined) throw new RcError("RC_INTERNAL", `W2: setting draw ${i} missing from the 24-draw grid`);
     const p1 = bMarginal(mapped, a1, b);
     const p2 = bMarginal(mapped, a2, b);
     worstBias = Math.max(worstBias, Math.abs(p1 - 0.5));

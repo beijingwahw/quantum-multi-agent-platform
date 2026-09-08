@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 83
-- errors: 586
+- batches: 84
+- errors: 608
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 11 | 176 |
+| burial-record | 12 | 198 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,15 +43,15 @@
 
 | category | errors |
 | --- | --- |
-| process | 196 |
-| toolchain | 99 |
-| wrong-object | 78 |
-| statistics | 47 |
-| machine-overruled | 46 |
-| dimension-slot | 38 |
+| process | 204 |
+| toolchain | 104 |
+| wrong-object | 81 |
+| statistics | 48 |
+| machine-overruled | 47 |
+| dimension-slot | 40 |
 | conjugation | 29 |
-| citation-drift | 24 |
-| anchor-blindspot | 17 |
+| citation-drift | 25 |
+| anchor-blindspot | 18 |
 | bogus-comparison | 12 |
 
 ## The batches
@@ -1306,15 +1306,45 @@
 | [latent doc defect, convicted at wiring] the README's headline still read 81 batches / 543 errors where the registry carried 82/565 before this batch — the wave-1 wiring's registry edit never re-synced the README face; caught reading the repo before touching it | the headline corrected to the live count (83 batches / 586 errors with this batch) in the same edit — B7/B8 hold contexts and headings, E7 holds the census's description, and the README is none of these: the count is re-derived from the registry at every wiring visit (the b79#6 doc-face line) | process |
 | [wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides), the refusal firing on the wiring agent's own second package.json of the visit hours after the burial package.json's Read-first edit had landed cleanly; nothing damaged landed | the refusal is the guard: Read before Edit is a fixed step PER FILE, regardless of how recently that file or any other was displayed by other means — the second attempt after a real Read landed cleanly (the b48#2/b53#0/b67#4/b82#6/b82#20 line, seventh sighting of the class, third by a wiring agent) | process |
 
+### Batch 84 — burial-record (2026-09-08)
+
+- context: the quality wave's THIRD batch wiring (quantum-mech 0.2.0->0.3.0, survivor-census 0.2.0->0.3.0, retro-cache 0.2.1->0.2.2, readout-wall 0.3.0->0.4.0 — four gates green in each): twenty-two errors across eight classes, born enrolled and born audited on both boards — SIX latent-defect convictions (quantum-mech's package-lock version residual that outlived a whole version; survivor's silently dropped out-of-range markedB, its divide-by-zero mcWaiting NaN and its message-substring rejection chain; retro-cache's NaN printer and its one unguarded public entry) and the anchor-blindspot family's HEAVIEST evidence (the transposed dagger2 subscript breaking Y-basis rotations passed all fifty-six tests green and died only at the repro byte-comparison), with the exit-code-masking family's sixteenth and seventeenth sightings both attempted one delivery apart, the wrong-object marginal face's third booking in a test draft, and the wiring agent's own three slips (a banned-shape -e probe, an enrollment row whose runtime tier was a forged value under a legal compile-time type, and a G2 tier derivation reasoned from the intended category while the machine's own familyOf rule filed the row elsewhere — the census suite convicting the drifted resolution row on its first run) booked in the same batch, with the same-wave version-pin re-verification returning clean
+- source: `memory/2026-09-08.md` @ "关键经验（第八十四批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the dagger2 single-sourcing rewrite transposed the wrong subscript — locking.ts wrote -u.im[2] where the Y-basis conjugation needs -u.im[1], breaking Y-basis rotations — and ALL FIFTY-SIX tests stayed green (the argmax readouts masked the leak: the corrupted rotation still produced the argmax the assertions read); the repro byte-comparison killed it in the same breath (exp7's honest gamma=0 line moved 0.0000 -> 0.0473) | the anchor-blindspot family's heaviest evidence (row eighteen of the class in-registry, grepped before enrolling): a green suite is not a verdict — the fixed code carries the Y-basis U-dagger-U identity anchor on BOTH multiplication sides (H alone is real symmetric and immune; the Y basis's asymmetric imaginary part is the space that can actually fail), and the repro's byte-identity gate is the witness that out-argued fifty-six greens | anchor-blindspot |
+| errors.test's first run convicted its own negative zero: Object.is distinguishes -0 from 0 where the two spellings are one value in this physics | the machine overruled the assertion's discriminant — === where signed zero is one value, with the comment saying why (fix the anchor's comparison, not the machine; the b13#7 law's face) | machine-overruled |
+| deleting the dead transposeConj2 took THREE edits — residue survived two rounds of what was meant to be one removal | a deletion greps its own name before it lands done (grep-then-delete is the rule; the residue class's delete face, closed by the third pass) | process |
+| isUnitary was written BACK into the tree inside the same sweep that was deleting it — the intent inverted mid-edit, caught and reversed on the immediate reread | the read-back after an absorption edit covers intent too — what was to be deleted is checked against what remains (the E-face discipline; the slip never reached a gate) | process |
+| one npm test authentication was piped to trim its output — the exit-code-masking family's sixteenth sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2, b82#3, b83#9, b83#17 the fifteen in-registry before it), an attempted one: no verdict was taken from the pipe and the re-run read the DIRECT exit code | a gate command never rides a pipe — output is trimmed on a separate read, the code is read from the command itself (the family's delivery agents are not immune either; the rule is a pre-flight checklist item, not knowledge) | toolchain |
+| the README's repro duration was first written as ~11 minutes — measured while parallel load slowed the run; the clean-environment run takes 56 seconds | a performance claim is measured in the environment it describes — the honest duration replaced the contaminated one in the same edit (prose answers to the run that earned it, the b79#6 doc-face line) | process |
+| [conviction of a shipped defect, latent through v0.2.0] quantum-mech's package-lock.json carried version 0.1.0 at BOTH version slots (root and packages) — the 0.2.0 wave's gates verified package.json and never the lockfile face, so the stale version survived a whole version bump | both lockfile slots are pinned to the live version (0.3.0) and the census anchor holds them on every run — the version-pin family's own-repo lockfile twin (b80#7 founded it cross-repo on a sibling citation); the lock is grepped after every bump | citation-drift |
+| one npm test ran through a tail pipe — the exit-code-masking family's seventeenth sighting, one delivery after the sixteenth: tail printed the text while eating the verdict; caught immediately, no verdict taken, re-run with no pipe | the display pipe is still a masking pipe — the direct re-run is the only verdict; the family struck twice in one wave and both attempts died on sight | toolchain |
+| the TOL single-sourcing left a TOL_LOCAL_NEVER alias standing at the old call sites — residue of the very dedup the edit was making | a single-sourcing edit greps its own old name before it lands done (the b83#3 alias twin, one wave later) — the alias was cleared inside the same edit | process |
+| [conviction of a shipped defect, v0.2.0] composeStages's intersection filter silently DROPPED an out-of-range markedB and computed on the remainder (markedB=[0,99] filtered to [0], the illegal address vanishing without a name) | SC/BAD-MARKED names the smuggled mark at entry and the trial fires on every suite run — the filter no longer eats the address, the composition refuses it by name | dimension-slot |
+| [conviction of a shipped defect, v0.2.0] mcWaiting(p, 0) divided by zero and returned a silent NaN — a wrong answer shipped as a number where runs=0 has no mean | SC/MC-BAD-INPUTS names the domain at entry and the trial fires on every suite run — the NaN face is dead at the reject | statistics |
+| [conviction of a shipped defect, v0.2.0] the chained-call rejection discriminated by MESSAGE SUBSTRING — an edited message would silently break the P=0 inheritance the chain must preserve (fragile e.message.includes discrimination) | discrimination is by CODE, never by message text: the starvation trial asserts the chained refusal carries its cause's CensusError code (SC/P0-UNDEFINED inside SC/EMPTY-INTERSECTION), so a message edit cannot break the chain — messages stay frozen prose, codes are the identity | wrong-object |
+| the K.H trial's first draft wrote a single-line map literal the checker rejected — TS2345 at the typecheck gate | the gate convicted the draft and the fix rode the same edit — the union is narrowed before the assertion is written | toolchain |
+| the first lint run convicted the new guards' reading shape — no-unnecessary-condition on the index lanes the draft's types could not prove | refactored to .at() reads the type system can see through — two gates (typecheck, lint) caught both draft faces before release, which is the gates doing their job | toolchain |
+| [conviction of a shipped defect, v0.2.1] fmt would typeset a non-finite value as prose — toFixed on NaN/Infinity rendered "NaN"/"Infinity" into the report's sentences with no refusal (a latent silent-corrosion path no current input triggered) | RC_NON_FINITE refuses the non-finite at the formatter and K.G anchors the conviction on every suite run — the printer no longer speaks what is not a number | wrong-object |
+| [conviction of a shipped defect, v0.2.1] postprocessOutcome was the one public entry without a guard — a short row's table read (the [x]![y]! lanes) mixed NaN into the outcome silently | the shape+finiteness guard names the malformed table at entry and K.H anchors the smuggling trials on every suite run — the last unguarded door is closed | dimension-slot |
+| the MMUL rejection trial's draft carried a meaningless ternary — a construction computing the same value either way, caught in self-review and simplified before any run | drafts do not reach the machine with dead structure — the ternary was removed whole (the b82#5 dead-scaffolding face) | process |
+| the T8 draft predicted |Phi+>'s partialTrace marginal as |+><+| by mental arithmetic — the maximally entangled state's marginal is the MAXIMALLY MIXED I/2 (the 1/2 coherences live in the joint off-diagonal, which the trace kills); the wrong-object family's marginal face, third booking (the test's own comment pins the count), this time in a test draft rather than delivery code | machine-overruled before any wrong assertion shipped: the corrected anchor pins BOTH marginals exactly I/2 beside the joint state's surviving off-diagonal — the joint-vs-marginal distinction is now a machine law at the exact-value anchor, not a mental model | wrong-object |
+| the refuse import landed in the wrong position in the file — placement residue caught on self-review and moved in the same minute | imports land where the file's own structure reads them — the read-back covers placement too (the residue class's smallest face) | process |
+| [wiring agent, this batch] the family byte-identity baseline check ran as node --import tsx -e with a relative dynamic import — the runner-path family's banned -e shape (the b14#4/b38#1/b46#1/b49#0/b83#8 line, grepped before enrolling); it succeeded this time and the output was verified present, but silent failure is the family's exact failure mode — success does not change the shape | the in-repo Write-tool probe (run and delete) or the suite's own W-D witness is the honest route — the -e face stays banned for TS-importing one-liners because its failure is invisible | toolchain |
+| [wiring agent, this batch] the b84#13 enrollment row's first landing carried a drafting corruption — a conditional-type cast whose COMPILE-TIME type read as the legal GATE-ENFORCED while its RUNTIME value was the forged string the cast swallowed; a tier that types as one thing and evaluates as another, caught on the immediate reread of the edit and replaced with the plain literal (E6 would have named it at the next run — the vocabulary is closed on the VALUE, not the type) | data rows carry plain literals, never type-system machinery — the reread after every structural edit is the factory check, and the forged-value face is exactly why E6 checks the runtime string against the closed vocabulary | process |
+| [wiring agent, this batch] the G2 family-tier derivation reasoned from the intended CATEGORY instead of the machine's own familyOf assignment — the b84#19 probe text matches the runner-path rule first (first-match-wins), so it files under runner-path and cat:toolchain's LATEST sighting is b84#13's gate-held lint conviction, not the booked probe; the census suite convicted the drifted resolution row on its first run (W-H, G2: 'the row drifted') | the family assignment is computed by the machine's own rules before the resolution row is written — the tier follows the familyOf verdict, never the author's filing intent; the flipped row and its note landed together in the correction and the re-run went green (the companion-edit law, the b82#21 class: the gate convicted an act sent half-derived) | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..83 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (586 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 586 = repo sum 586)
-- PASS — W-4 declared totals 83 batches / 586 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (63 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (58 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..84 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (608 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 608 = repo sum 608)
+- PASS — W-4 declared totals 84 batches / 608 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (65 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (59 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 586 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 608 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

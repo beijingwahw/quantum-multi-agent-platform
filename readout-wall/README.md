@@ -26,6 +26,10 @@ The wall is a price list, not a prohibition. No hardware advance repeals a compl
 
 The renderer refuses to print an illegal ledger; the tests include smuggling trials (one-sided trade, dead witness, illegal tag, dead anchor, duplicate id, out-of-range id, counterfeit monotonicity by inverted pair, float-sorted-but-uncertifiable widths, flattened convexity cell, fake frontier point that dominates the census), each named and rejected by law or by certificate cell. All six witnesses re-derive every EXACT number from the constructed channels — the ledger's digits are compared against physics, never copied into it.
 
+## The refusal surface (v0.3.0, extended in v0.4.0)
+
+Every throw in the kernel, switch, and — since v0.4.0 — core numeric layers (`channels.ts`, `cmat.ts`) carries a named code (the `RefusalError` envelope, `src/core/errors.ts`): the message stays frozen prose, the code is the identity a test can convict (T7 and T8 try each public refusal by name — out-of-range subsystems, non-qubit order registers, zero denominators, domain violations, short channel lists, degenerate curves, shape mismatches in the linalg kernel). Two latent defects died at that wall: a degenerate curve or census (0/1 points) used to *vacuously certify* — `certifyStrictlyDecreasing([])` returned `ok:true` — and `fDecimal` dropped the minus sign of negative fractions whose decimal expansion terminates exactly at the digit limit. The v0.3.0 quality wave also absorbed the dead faces: 24 zero-reference exports deleted from `cmat.ts`, `channels.ts`, `chanlib.ts`, `isometry.ts`, `rational.ts`, `theorem.ts` (grep-verified across the workspace; the canon-identical `states.ts`/`rng.ts`/`measures.ts` are left untouched — their dead exports are the family canon's to shed), and the interval-midpoint quotation is single-sourced (`iMid`). The v0.4.0 wave single-sourced the weak readout itself: the four inline `(1−λ)ρ + λ·Δ(ρ)` compositions in the audit now all flow through `partialDephase` (the named E4 object), proven bit-identical on the showcase fixture at every grid point — the rendered report is byte-identical before and after both waves.
+
 ## Honest boundary
 
 The χ values are binary-ensemble Holevo quantities (capacity lower bounds, the same register switch-sched certified), not optimal capacities — the ESC18 optimisation remains cited there, not reproduced here. E5's coherent triple value is machine-measured with no paper claim attached. The v0.2.0 theorems are statements **on the stated families and the stated grid** (λ = i/20): no claim is made off-grid, for other channel pairs, or across the two frontier currencies (the cross-family exchange-rate ratio is quoted as data only). The closed forms were derived in-repo from the constructed channels and are verified against the simulation at every grid point; they are not imported from any paper.
@@ -34,6 +38,6 @@ The χ values are binary-ensemble Holevo quantities (capacity lower bounds, the 
 
 ```bash
 npm ci
-npm test        # 18/18 — checker, six witnesses, collapse machinery, theorem certificates, smuggling trials, entry guard
+npm test        # 31/31 — checker, six witnesses, collapse machinery, theorem certificates, smuggling trials, entry guard, refusal codes, single-source interchange + linalg exact anchors
 npm run repro   # renders out/reports/the-readout-wall.md (seconds)
 ```

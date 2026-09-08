@@ -33,6 +33,8 @@
 
 import { phaseOverlap, runPriorSorter } from "./survivor.js";
 import { Rng } from "./survivor.js";
+import { expectFound } from "./errors.js";
+import { TOL } from "./tol.js";
 
 export interface PhaseFamily {
   readonly name: string;
@@ -73,7 +75,7 @@ export function buildPhaseFamilies(n: number): PhaseFamily[] {
       note: "seeded uniform phases (reproducible)",
     });
   }
-  const ramp3 = families.find((f) => f.name === "fourier-b3") as PhaseFamily;
+  const ramp3 = expectFound("fourier-b3 family", families.find((f) => f.name === "fourier-b3"));
   const shifted = ramp3.phi.map((p) => p + Math.PI / 9);
   families.push({
     name: "ramp3+const",
@@ -93,7 +95,7 @@ function constantDifferenceOnFunded(
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   for (const x of funded) {
-    let d = (phi[x] as number) - (phiRef[x] as number);
+    let d = phi[x]! - phiRef[x]!;
     d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; // wrap to (-pi, pi]
     if (d < min) min = d;
     if (d > max) max = d;
@@ -139,13 +141,13 @@ export interface PhaseCensus {
 
 export function runPhaseCensus(n: number, counts: readonly number[], marked: readonly number[]): PhaseCensus {
   const families = buildPhaseFamilies(n);
-  const flatPhi = families[0] as PhaseFamily;
+  const flatPhi = expectFound("flat family", families[0]);
   const flatRun = runPriorSorter(n, counts, marked, flatPhi.phi);
   const flatById = new Map<number, number>();
   for (const row of flatRun.killRegister) flatById.set(row.x, row.mass);
   const funded: number[] = [];
   for (let x = 0; x < flatRun.N; x++) {
-    if ((flatRun.posterior[x] as number) > 0) funded.push(x);
+    if (flatRun.posterior[x]! > 0) funded.push(x);
   }
 
   const rows: PhaseCensusRow[] = [];
@@ -156,13 +158,13 @@ export function runPhaseCensus(n: number, counts: readonly number[], marked: rea
     const run = runPriorSorter(n, counts, marked, family.phi);
     let registerDev = 0;
     for (const row of run.killRegister) {
-      const flatMass = flatById.get(row.x) as number;
+      const flatMass = expectFound(`flat kill mass for x=${row.x}`, flatById.get(row.x));
       registerDev = Math.max(registerDev, Math.abs(row.mass - flatMass));
     }
     const ph = phaseOverlap(n, counts, marked, family.phi, flatPhi.phi);
     const phSelf = phaseOverlap(n, counts, marked, family.phi, family.phi);
     selfDev = Math.max(selfDev, Math.abs(phSelf.selfOverlap - 1));
-    const isConstant = constantDifferenceOnFunded(family.phi, flatPhi.phi, funded, 1e-12);
+    const isConstant = constantDifferenceOnFunded(family.phi, flatPhi.phi, funded, TOL);
     rows.push({
       family: family.name,
       note: family.note,
@@ -185,8 +187,8 @@ export function runPhaseCensus(n: number, counts: readonly number[], marked: rea
   }
 
   // the explicit equality case: constant phase difference gives |overlap| = 1
-  const b3 = families.find((f) => f.name === "fourier-b3") as PhaseFamily;
-  const shifted = families.find((f) => f.name === "ramp3+const") as PhaseFamily;
+  const b3 = expectFound("fourier-b3 family", families.find((f) => f.name === "fourier-b3"));
+  const shifted = expectFound("ramp3+const family", families.find((f) => f.name === "ramp3+const"));
   const eq = phaseOverlap(n, counts, marked, b3.phi, shifted.phi);
   const equalityCaseDev = Math.abs(eq.selfOverlap - 1);
 
@@ -198,7 +200,7 @@ export function runPhaseCensus(n: number, counts: readonly number[], marked: rea
   for (const row of rows) {
     if (row.family === "flat") continue;
     if (row.constantDifferenceOnFunded) {
-      if (Math.abs(row.visibilityFlat - 1) > 1e-12) equalityMisclassified = true;
+      if (Math.abs(row.visibilityFlat - 1) > TOL) equalityMisclassified = true;
     } else {
       strictMargin = Math.min(strictMargin, 1 - row.visibilityFlat);
     }
@@ -212,10 +214,10 @@ export function runPhaseCensus(n: number, counts: readonly number[], marked: rea
     equalityCaseDev,
     strictMargin,
     coherenceLawHolds:
-      equalityCaseDev < 1e-12 &&
+      equalityCaseDev < TOL &&
       !equalityMisclassified &&
       Number.isFinite(strictMargin) &&
       strictMargin > 1e-9 &&
-      selfDev < 1e-12,
+      selfDev < TOL,
   };
 }

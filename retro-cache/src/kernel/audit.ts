@@ -5,7 +5,16 @@
  * strictly different value is a named offense, not a rounding note.
  */
 import { collisionCensus } from "./amplify.js";
+import { RcError } from "./state.js";
 import { h2 } from "./tariff.js";
+
+/** every numeric field an audit touches must be finite: a NaN compares false
+ *  against every threshold, so an unguarded NaN row would sail through BOTH
+ *  rejection branches and return ok — the exact hole this guard closes. */
+function requireFinite(entry: string, fields: Record<string, number>): void {
+  for (const [name, v] of Object.entries(fields))
+    if (!Number.isFinite(v)) throw new RcError("RC_NON_FINITE", `${entry}: ${name} must be finite (got ${v}) — a NaN row cannot be audited, only rejected`);
+}
 
 export interface AuditVerdict {
   readonly ok: boolean;
@@ -36,6 +45,7 @@ export interface RateRow {
  *     gap) is a forgery. At p = 1 the honest endpoint r = line = 1 is allowed.
  */
 export function auditRateRow(row: RateRow, machineMeasured: number): AuditVerdict {
+  requireFinite("auditRateRow", { "row.p": row.p, "row.q": row.q, "row.line": row.line, "row.measured": row.measured, machineMeasured });
   if (Math.abs(row.measured - machineMeasured) > 1e-9) {
     return {
       ok: false,
@@ -78,6 +88,7 @@ export interface UniformityClaim {
  * uniform".
  */
 export function auditUniformityClaim(claim: UniformityClaim): AuditVerdict {
+  requireFinite("auditUniformityClaim", { "claim.claimedCollisionProb": claim.claimedCollisionProb });
   const census = collisionCensus(claim.m, claim.k);
   const exact = census.maxCollisionProb;
   if (Math.abs(claim.claimedCollisionProb - exact) > 1e-12) {

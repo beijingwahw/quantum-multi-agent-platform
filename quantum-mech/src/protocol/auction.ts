@@ -18,6 +18,9 @@ import { type Lock, type LockMode, interceptMeasureResend, lockValue, unlockValu
 
 /** Canonical winner: argmax with lowest-index tie-break. */
 export function winnerOf(bids: readonly number[]): number {
+  if (bids.length === 0) {
+    throw new Error('COMP01-empty-bids: winnerOf needs at least one bid, got []');
+  }
   let w = 0;
   for (let i = 1; i < bids.length; i++) {
     if (bids[i]! > bids[w]!) w = i;
@@ -27,7 +30,7 @@ export function winnerOf(bids: readonly number[]): number {
 
 /** Second-highest bid value (highest among non-winner bids). */
 export function secondOf(bids: readonly number[]): number {
-  const w = winnerOf(bids);
+  const w = winnerOf(bids); // also rejects the empty profile (COMP01)
   let s = 0;
   for (let i = 0; i < bids.length; i++) {
     if (i === w) continue;
@@ -38,6 +41,12 @@ export function secondOf(bids: readonly number[]): number {
 
 /** The comparator as an explicit permutation matrix (small n,k only). */
 export function comparatorUnitary(n: number, k: number): CMat {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`COMP02-bad-shape: comparatorUnitary needs integer n >= 1 bidder, got ${n}`);
+  }
+  if (!Number.isInteger(k) || k < 2) {
+    throw new Error(`COMP03-bad-shape: comparatorUnitary needs integer k >= 2 bid levels, got ${k}`);
+  }
   const dim = k ** n * n * k;
   const u = mat(dim, dim);
   const rowUsed = new Uint8Array(dim);
@@ -74,6 +83,9 @@ export function outcomeDistribution(
   agentSlot: number,
   k: number,
 ): Map<string, number> {
+  if (sigma.rows !== k || sigma.cols !== k) {
+    throw new Error(`COMP04-bad-sigma: outcomeDistribution needs a k×k density matrix, got ${sigma.rows}x${sigma.cols} for k=${k}`);
+  }
   const dist = new Map<string, number>();
   for (let r = 0; r < k; r++) {
     const p = sigma.re[r * k + r]!;
@@ -129,6 +141,17 @@ export function runSealedBidAuction(
   nBases: 2 | 3,
   opts?: { intercept?: boolean; mode?: LockMode },
 ): ProtocolRun {
+  if (bids.length === 0) {
+    throw new Error('COMP05-empty-bids: runSealedBidAuction needs at least one bid');
+  }
+  if (!Number.isInteger(k) || k < 2) {
+    throw new Error(`COMP06-bad-k: runSealedBidAuction needs integer k >= 2 bid levels, got ${k}`);
+  }
+  for (const [i, b] of bids.entries()) {
+    if (!Number.isInteger(b) || b < 0 || b >= k) {
+      throw new Error(`COMP07-bad-bid: bid ${b} of agent ${i} outside the level range [0, ${k})`);
+    }
+  }
   const m = Math.ceil(Math.log2(k));
   const mode: LockMode = opts?.mode ?? 'wiesner';
   const locks: Lock[] = bids.map((b) => lockValue(b, m, rng, nBases, mode));
@@ -158,5 +181,6 @@ function popcount(x: number): number {
   }
   return c;
 }
-
-export { lockValue, unlockValue, interceptMeasureResend };
+// The lock/unlock/intercept surface lives in ./locking.js (single source);
+// the re-export that used to live here had zero importers — removed in the
+// v0.3.0 dead-face sweep.

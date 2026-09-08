@@ -2,14 +2,48 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkExchange, runWitnesses } from "../src/kernel/audit.js";
+import { checkExchange, runWitnesses, WITNESS_ROSTER } from "../src/kernel/audit.js";
 import { EXCHANGE, type ExchangeRow } from "../src/kernel/ledger.js";
-import { dephase, partialDephase, readoutSlices } from "../src/kernel/collapse.js";
-import { PLUS, vecToRho } from "../src/core/states.js";
+import { classicalMixture, dephase, partialDephase, readoutSlices } from "../src/kernel/collapse.js";
+import { KET0, KET1, PAULI_Z, PLUS, vecToRho } from "../src/core/states.js";
+import { fidelity, holevo, traceDistance } from "../src/core/measures.js";
+import { RefusalError } from "../src/core/errors.js";
 import { krausToStinespring, makeSwitchedChannel } from "../src/switch/isometry.js";
 import { completelyDepolarizingKraus } from "../src/switch/chanlib.js";
+import { switch3 } from "../src/kernel/kswitch3.js";
+import { partialTrace } from "../src/core/channels.js";
 import type { CMat } from "../src/core/cmat.js";
-import { fAdd, fSub, fToNumber, fr, iOf, negLn, PATH_A, PATH_T } from "../src/kernel/rational.js";
+import {
+  colFrom,
+  eigHermitian,
+  eigVecsFromValues,
+  eigenvaluesHermitian,
+  kron,
+  mAdd,
+  mMul,
+  mScale,
+  mat,
+  vInner,
+  vec,
+} from "../src/core/cmat.js";
+import {
+  F_HALF,
+  F_ONE,
+  F_ZERO,
+  fAdd,
+  fCmp,
+  fDecimal,
+  fDiv,
+  fSub,
+  fTerm,
+  fToNumber,
+  fr,
+  iMid,
+  iOf,
+  negLn,
+  PATH_A,
+  PATH_T,
+} from "../src/kernel/rational.js";
 import {
   certifyAntichain,
   certifyConvexGrid,
@@ -18,6 +52,7 @@ import {
   esc18Chi,
   familyOk,
   frontierCertificate,
+  GRID_N,
   gridPoints,
   k3Certificate,
   replacerCertificate,
@@ -29,6 +64,20 @@ function smuggle(mutate: (rows: ExchangeRow[]) => void): ExchangeRow[] {
   const copy = JSON.parse(JSON.stringify(EXCHANGE)) as ExchangeRow[];
   mutate(copy);
   return copy;
+}
+
+/** Run `fn`, expect a RefusalError, return its code (message stays frozen prose).
+ * Single source for every refusal trial — T7 and T8 share it. */
+function refusalCode(fn: () => unknown): string {
+  try {
+    fn();
+  } catch (e) {
+    assert.ok(e instanceof RefusalError, `expected a RefusalError, got ${String(e)}`);
+    assert.equal(e.name, "RefusalError");
+    assert.ok(e.message.length > 0, "the frozen message surface must stay non-empty");
+    return e.code;
+  }
+  assert.fail("expected a refusal, none was raised");
 }
 
 describe("T1 the exchange balances", () => {
@@ -125,6 +174,35 @@ describe("T4 the interior theorem — exact certificates on the stated families"
     }
   });
 
+  it("the grid is exactly the 21 rational points i/20, endpoints 0 and 1 (v0.3.0 exact anchors)", () => {
+    const pts = gridPoints();
+    assert.equal(pts.length, GRID_N + 1);
+    assert.equal(GRID_N, 20);
+    assert.equal(fCmp(pts[0]!, F_ZERO), 0);
+    assert.equal(fCmp(pts[GRID_N]!, F_ONE), 0);
+    assert.equal(fCmp(pts[10]!, F_HALF), 0);
+  });
+
+  it("exact-value anchors of the rational kernel: iMid, endpoints of fTerm, fr sign normalization", () => {
+    // the enclosure midpoint is the single-sourced quotation formula (v0.3.0's
+    // C face: five former inline copies now all flow through iMid)
+    assert.equal(fCmp(iMid(iOf(fr(1, 4))), fr(1, 4)), 0);
+    assert.equal(fCmp(iMid({ lo: F_ZERO, hi: F_ONE }), F_HALF), 0);
+    // the entropy endpoints contribute exactly nothing
+    assert.equal(fCmp(fTerm(F_ZERO).lo, F_ZERO), 0);
+    assert.equal(fCmp(fTerm(F_ONE, PATH_A).hi, F_ZERO), 0);
+    // negative denominators normalize to the sign of the numerator
+    assert.deepEqual(fr(1, -2), { n: -1n, d: 2n });
+    // exact decimal long division, no rounding of the last digit
+    assert.equal(fDecimal(fr(1, 8), 3), "0.125");
+    // DEFECT ANCHOR (v0.3.0): a negative fraction terminating exactly at the
+    // digit limit used to lose its minus ('0.125' was rendered) — the sign
+    // now tracks the value
+    assert.equal(fDecimal(fr(-1, 8), 3), "-0.125");
+    assert.equal(fDecimal(fr(-1, 3), 3), "-0.333");
+    assert.equal(fDecimal(fr(-3, 2), 4), "-1.5000");
+  });
+
   it("the ln enclosures bracket the true log on both series paths", () => {
     // LN2_T and LN2_A must each contain ln 2
     const ln2 = Math.log(2);
@@ -212,5 +290,191 @@ describe("T6 the renderer refuses to print an illegal ledger", () => {
     await import("../src/experiments/render.js");
     const p = resolve(process.cwd(), "out", "reports", "the-readout-wall.md");
     assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+  });
+});
+
+describe("T7 refusal trials — every public refusal carries a named code (v0.3.0)", () => {
+  const sc = makeSwitchedChannel(
+    krausToStinespring(completelyDepolarizingKraus(2)),
+    krausToStinespring(completelyDepolarizingKraus(2)),
+  );
+  const rho2: CMat = mat(2, 2); // |0⟩⟨0| — trace 1
+  rho2.re[0] = 1;
+
+  it("the readout layer refuses out-of-range subsystems and lambdas by name", () => {
+    assert.equal(refusalCode(() => dephase(rho2, [2, 2], 2)), "DEPHASE_SYS_RANGE");
+    assert.equal(refusalCode(() => dephase(rho2, [2, 2], -1)), "DEPHASE_SYS_RANGE");
+    assert.equal(refusalCode(() => partialDephase(rho2, [2, 2], 0, 1.5)), "PARTIAL_DEPHASE_LAMBDA");
+    assert.equal(refusalCode(() => partialDephase(rho2, [2, 2], 0, -0.25)), "PARTIAL_DEPHASE_LAMBDA");
+  });
+
+  it("classicalMixture refuses a non-qubit order register by name (NaN weights stay impossible)", () => {
+    const control4 = mat(4, 4);
+    control4.re[0] = 0.5;
+    control4.re[5] = 0.5;
+    control4.re[10] = 0.5;
+    control4.re[15] = 0.5;
+    assert.equal(
+      refusalCode(() => classicalMixture(sc, control4, rho2, (r) => sc.fixedAB(r), (r) => sc.fixedBA(r))),
+      "CLASSICAL_MIXTURE_QUBIT",
+    );
+  });
+
+  it("the rational kernel refuses zero denominators and domain violations by name", () => {
+    assert.equal(refusalCode(() => fr(1, 0)), "FR_ZERO_DENOMINATOR");
+    assert.equal(refusalCode(() => fDiv(fr(1), fr(0))), "FDIV_ZERO_DIVISOR");
+    assert.equal(refusalCode(() => negLn(fr(0))), "NEGLN_DOMAIN");
+    assert.equal(refusalCode(() => negLn(fr(2))), "NEGLN_DOMAIN");
+    assert.equal(refusalCode(() => fTerm(fr(5, 4))), "FTERM_DOMAIN");
+    assert.equal(refusalCode(() => fTerm(fr(-1, 4))), "FTERM_DOMAIN");
+  });
+
+  it("the switch builders refuse short channel lists and bad shapes by name", () => {
+    const good = krausToStinespring(completelyDepolarizingKraus(2));
+    assert.equal(refusalCode(() => switch3([good, good])), "SWITCH3_CHANNEL_COUNT");
+    assert.equal(refusalCode(() => krausToStinespring([mat(2, 2), mat(3, 3)])), "KRAUS_SHAPE");
+  });
+
+  it("DEFECT ANCHOR (v0.3.0): degenerate curves and censuses refuse instead of vacuously certifying", () => {
+    // before v0.3.0 these returned ok:true — an empty curve smuggled a PASS
+    // (probe: certifyStrictlyDecreasing([]) === {ok:true}); the live pipeline
+    // always feeds 21 points, so no quoted number moves
+    assert.equal(refusalCode(() => certifyStrictlyDecreasing([])), "CERT_DEGENERATE_CURVE");
+    assert.equal(refusalCode(() => certifyStrictlyDecreasing([iOf(fr(1))])), "CERT_DEGENERATE_CURVE");
+    assert.equal(refusalCode(() => certifyConvexGrid([iOf(fr(1)), iOf(fr(1))])), "CERT_DEGENERATE_CURVE");
+    assert.equal(refusalCode(() => certifyAntichain([{ get: iOf(fr(1)), pay: iOf(fr(1)) }])), "CERT_DEGENERATE_CENSUS");
+  });
+
+  it("the canon core boundary (frozen bytes) still names its refusals in prose", () => {
+    // measures.ts is byte-identical to the family canon — its guards throw
+    // plain Errors with stable messages; the trial pins the message surface
+    assert.throws(() => holevo([{ key: "0", state: rho2, weight: 0.9 }]), /weights must sum to 1/);
+    assert.throws(() => holevo([]), /empty ensemble/);
+  });
+
+  it("legal neighbors of every refused input still pass (the refusals bite only contraband)", () => {
+    // sys in range, lambda at the endpoints, q at the fTerm endpoints, full k=3 list
+    const slices = readoutSlices(sc, vecToRho(PLUS), rho2);
+    assert.ok(mat0(dephase(slices.full, [2, 2], 1)));
+    assert.ok(mat0(partialDephase(slices.full, [2, 2], 0, 0)));
+    assert.equal(fCmp(fTerm(fr(1)).lo, F_ZERO), 0);
+    const good = krausToStinespring(completelyDepolarizingKraus(2));
+    const sw = switch3([good, good, good]);
+    // d=2, envDim=4 each: branch rows 2*4*4*4 = 128, six of them
+    assert.equal(sw.branches.length, 6);
+    assert.equal(sw.d, 2);
+    assert.equal(sw.M.rows, 768);
+  });
+
+  /** a tiny always-true helper asserting the operand is a defined matrix */
+  function mat0(m: CMat | undefined): boolean {
+    assert.ok(m !== undefined);
+    return m.rows > 0;
+  }
+});
+
+describe("T8 the core kernel under the quality wave (v0.4.0)", () => {
+  const sc = makeSwitchedChannel(
+    krausToStinespring(completelyDepolarizingKraus(2)),
+    krausToStinespring(completelyDepolarizingKraus(2)),
+  );
+  const rho2: CMat = mat(2, 2); // |0><0|
+  rho2.re[0] = 1;
+
+  it("single-source anchor: partialDephase IS the weak readout, bit-identical to the retired inline composition at every grid point", () => {
+    // the C face: the four inline (1-l)*rho + l*Delta compositions in the audit
+    // were retired in favor of partialDephase — this trial proves the interchange
+    // on the showcase fixture, entry for entry, on the full 21-point grid
+    const s = readoutSlices(sc, vecToRho(PLUS), rho2);
+    for (let i = 1; i < GRID_N; i++) {
+      const l = i / GRID_N;
+      const inline = mAdd(mScale(s.full, 1 - l), mScale(s.readout, l));
+      const single = partialDephase(s.full, [2, 2], 0, l);
+      assert.deepEqual(Array.from(single.re), Array.from(inline.re), `re mismatch at lambda=${l}`);
+      assert.deepEqual(Array.from(single.im), Array.from(inline.im), `im mismatch at lambda=${l}`);
+    }
+    // endpoints: the retired ternaries returned the slices themselves
+    const p0 = partialDephase(s.full, [2, 2], 0, 0);
+    const p1 = partialDephase(s.full, [2, 2], 0, 1);
+    assert.deepEqual(Array.from(p0.re), Array.from(s.full.re));
+    assert.deepEqual(Array.from(p0.im), Array.from(s.full.im));
+    assert.deepEqual(Array.from(p1.re), Array.from(s.readout.re));
+    assert.deepEqual(Array.from(p1.im), Array.from(s.readout.im));
+  });
+
+  it("the core numeric kernel (channels + cmat) refuses by name — messages frozen prose (v0.4.0)", () => {
+    assert.equal(refusalCode(() => partialTrace(rho2, [2, 0.5], [])), "DIMS_POSITIVE_INTEGER");
+    assert.equal(refusalCode(() => partialTrace(mat(4, 4), [2, 2], [2])), "PARTIAL_TRACE_INDEX_RANGE");
+    assert.equal(refusalCode(() => partialTrace(mat(4, 4), [2, 2, 2], [])), "PARTIAL_TRACE_DIMS_MISMATCH");
+    assert.equal(refusalCode(() => vInner(vec(2), vec(3))), "VINNER_LENGTH_MISMATCH");
+    assert.equal(refusalCode(() => mAdd(mat(2, 2), mat(2, 3))), "MADD_SHAPE_MISMATCH");
+    assert.equal(refusalCode(() => mMul(mat(2, 3), mat(2, 2))), "MMUL_SHAPE_MISMATCH");
+    assert.equal(refusalCode(() => eigenvaluesHermitian(mat(2, 3))), "EIGENVALUES_NOT_SQUARE");
+    assert.equal(refusalCode(() => eigHermitian(mat(2, 3))), "EIG_NOT_SQUARE");
+    assert.equal(refusalCode(() => colFrom([1, 2], [1])), "COLFROM_LENGTH_MISMATCH");
+    assert.equal(refusalCode(() => eigVecsFromValues(new Float64Array(4), 2, new Float64Array(1), 1)), "EIGVECS_VALUE_COUNT");
+    // legal neighbors of every refused shape still pass (the refusals bite only contraband)
+    assert.equal(mAdd(mat(2, 2), mat(2, 2)).rows, 2);
+    assert.equal(mMul(mat(2, 3), mat(3, 2)).rows, 2);
+    assert.equal(partialTrace(mat(4, 4), [2, 2], [1]).rows, 2);
+  });
+
+  it("exact-value anchors of the core linear algebra: kron, partialTrace, eigensolver, trace distance, fidelity", () => {
+    // kron: Z (x) Z = diag(1, -1, -1, 1) — exact products, no tolerance
+    const zz = kron(PAULI_Z, PAULI_Z);
+    const want = [1, -1, -1, 1];
+    for (let k = 0; k < 4; k++) assert.equal(zz.re[k * 4 + k], want[k]);
+    for (let k = 0; k < 16; k++) {
+      if (k % 5 !== 0) assert.equal(zz.re[k], 0);
+    }
+    // partialTrace on the Bell state |Phi+>: BOTH marginals are exactly I/2 —
+    // the 1/2 coherences live in the JOINT off-diagonal (00,11), which the
+    // trace kills; the marginal never carries them (the wrong-object lesson
+    // this workspace has booked three times — here it is pinned by machine)
+    const bell: CMat = mat(4, 4);
+    bell.re[0] = 0.5; // (0,0)
+    bell.re[3] = 0.5; // (0,3)
+    bell.re[12] = 0.5; // (3,0)
+    bell.re[15] = 0.5; // (3,3)
+    const margA = partialTrace(bell, [2, 2], [1]);
+    const margB = partialTrace(bell, [2, 2], [0]);
+    for (const m of [margA, margB]) {
+      assert.deepEqual(Array.from(m.re), [0.5, 0, 0, 0.5]);
+      assert.ok(m.im.every((v) => v === 0));
+    }
+    // the joint state itself keeps its off-diagonal — the coherence is real,
+    // it just never survives into a marginal (E1's whole point)
+    assert.equal(bell.re[3], 0.5);
+    // eigensolver: a diagonal Hermitian comes back with its exact spectrum,
+    // ascending, no arithmetic — and eigHermitian's internal reconstruction
+    // check (1e-8) is itself on trial with every call
+    const diag3: CMat = mat(3, 3);
+    diag3.re[0] = 0.5;
+    diag3.re[4] = 0.25;
+    diag3.re[8] = 0.25;
+    assert.deepEqual(Array.from(eigenvaluesHermitian(diag3)), [0.25, 0.25, 0.5]);
+    assert.deepEqual(Array.from(eigHermitian(diag3).values), [0.25, 0.25, 0.5]);
+    // trace distance and fidelity at orthogonal/known pairs
+    assert.equal(traceDistance(vecToRho(KET0), vecToRho(KET1)), 1);
+    assert.equal(traceDistance(vecToRho(KET0), vecToRho(KET0)), 0);
+    assert.ok(Math.abs(fidelity(vecToRho(KET0), vecToRho(PLUS)) - 0.5) < 1e-12);
+    assert.ok(Math.abs(fidelity(rho2, rho2) - 1) < 1e-12);
+  });
+
+  it("frontier census invariants and the witness roster: lengths structural, endpoints 0 and 1, no dead witness", () => {
+    const fw = frontierCertificate();
+    for (const census of [fw.esc18, fw.replacer]) {
+      assert.equal(census.points.length, GRID_N + 1);
+      assert.equal(census.marginal.length, GRID_N);
+      assert.equal(fCmp(census.points[0]!.get.lo, F_ZERO), 0);
+      assert.equal(fCmp(census.points[GRID_N]!.get.lo, F_ONE), 0);
+    }
+    // the render's trailing marginal dash is structural, not decorative: 21
+    // points price exactly 20 adjacent pairs
+    // no dead witness: every roster id is cited by at least one ledger row
+    const cited = new Set(EXCHANGE.map((r) => r.witness));
+    for (const w of WITNESS_ROSTER) {
+      assert.ok(cited.has(w), `witness ${w} is in the roster but no ledger row cites it`);
+    }
   });
 });

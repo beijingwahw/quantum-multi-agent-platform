@@ -45,6 +45,13 @@ export function welfare(v: ValueMatrix, alloc: readonly number[]): number {
 
 /** Exact max-welfare allocation (brute force over permutations). */
 export function optimalAllocation(v: ValueMatrix): { alloc: number[]; value: number } {
+  if (v.length === 0) {
+    throw new Error('VCG01-empty-matrix: optimalAllocation needs a nonempty value matrix');
+  }
+  const T = v[0]!.length;
+  if (T === 0 || v.some((row) => row.length !== T)) {
+    throw new Error(`VCG02-bad-shape: optimalAllocation needs a rectangular value matrix, got ${v.length}x${v.map((r) => r.length).join('/')}`);
+  }
   const perms = permutations(v.length);
   // permutations() always returns at least the identity permutation
   let best = perms[0]!;
@@ -130,7 +137,7 @@ export function perturbedAllocator(d: number, rng: Rng): Allocator {
  * classical or quantum solver would output on its own. */
 export const greedyAllocator: Allocator = (r) => {
   const T = r[0]!.length;
-  if (r.some((row) => row.length !== T)) throw new Error('greedyAllocator: square value matrix required');
+  if (r.some((row) => row.length !== T)) throw new Error('VCG03-nonsquare: greedyAllocator: square value matrix required');
   const used = new Array<boolean>(T).fill(false);
   const alloc: number[] = [];
   for (const row of r) {
@@ -143,7 +150,7 @@ export const greedyAllocator: Allocator = (r) => {
         best = t;
       }
     }
-    if (best < 0) throw new Error('greedyAllocator: more agents than tasks');
+    if (best < 0) throw new Error('VCG04-more-agents: greedyAllocator: more agents than tasks');
     alloc.push(best);
     used[best] = true;
   }
@@ -157,8 +164,8 @@ export interface GainWitness {
   gain: number;
 }
 
-/** Search for a profitable misreport under a given allocator with
- * Grovs payments computed FROM the allocator's output (the "computationally
+/** Search for a profitable misreport under a given allocator with Groves
+ * payments computed FROM the allocator's output (the "computationally
  * feasible VCG" trap). Reports come from a value grid. */
 export function searchDsicViolation(
   v: ValueMatrix,
@@ -166,7 +173,7 @@ export function searchDsicViolation(
   grid: readonly number[],
 ): GainWitness | null {
   const n = v.length;
-  if (n === 0) throw new Error('searchDsicViolation: value matrix must not be empty');
+  if (n === 0) throw new Error('VCG05-empty-matrix: searchDsicViolation: value matrix must not be empty');
   const T = v[0]!.length;
   const truthfulAlloc = allocator(v);
   const truthfulPay = vcgPayments(v, truthfulAlloc);

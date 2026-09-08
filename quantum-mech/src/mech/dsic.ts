@@ -61,6 +61,14 @@ export function codeword(k: number, r: number): CMat {
   return fromVec(valueKet(k, r));
 }
 
+/** Shared entry check for the deviation searchers: the report register has
+ * k ≥ 2 levels. */
+function requireLevels(k: number): void {
+  if (!Number.isInteger(k) || k < 2) {
+    throw new Error(`DSIC01-bad-k: need integer k >= 2 report levels, got ${k}`);
+  }
+}
+
 /** Max gain over classical pure misreports r in [0, k). */
 export function classicalBestGain(
   kind: AuctionKind,
@@ -69,6 +77,7 @@ export function classicalBestGain(
   agentSlot: number,
   k: number,
 ): { bestGain: number; bestReport: number } {
+  requireLevels(k);
   const uTrue = utilityOf(kind, trueValue, withReport(others, agentSlot, level(trueValue)), agentSlot);
   let bestGain = -Infinity;
   let bestReport = -1;
@@ -106,6 +115,7 @@ export function quantumBestGain(
   rng: Rng,
   nRandom: number,
 ): DeviationResult {
+  requireLevels(k);
   const uFun = makeQuantumUtility(kind, trueValue, others, agentSlot);
   const truth = codeword(k, level(trueValue));
   const truthUtility = uFun(truth);
@@ -150,6 +160,7 @@ export function affineResidual(
   k: number,
   rng: Rng,
 ): number {
+  requireLevels(k);
   const uFun = makeQuantumUtility(kind, trueValue, others, agentSlot);
   const s1 = fromVec(randomPureState(k, rng));
   const s2 = fromVec(randomPureState(k, rng));

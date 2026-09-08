@@ -25,21 +25,22 @@
 import { type CMat, type CVec, basisVec, mDagger, mMul, mat, vAdd, vNormalize } from '../core/cmat.js';
 import { fidelity, traceDistance } from '../core/measures.js';
 import { partialTrace } from '../core/channels.js';
-import { fromVec } from '../core/states.js';
+import { fromVec, maximallyMixed } from '../core/states.js';
 
-const PSI_Z0 = { n: 2, re: Float64Array.of(1, 0), im: new Float64Array(2) };
-const PSI_Z1 = { n: 2, re: Float64Array.of(0, 1), im: new Float64Array(2) };
-const PSI_X0 = { n: 2, re: Float64Array.of(Math.SQRT1_2, Math.SQRT1_2), im: new Float64Array(2) };
-const PSI_X1 = { n: 2, re: Float64Array.of(Math.SQRT1_2, -Math.SQRT1_2), im: new Float64Array(2) };
+/** The HJW demonstration states (closed-form literals — the states.ts
+ * normalized constants differ from these by 1 ulp, so the literals are
+ * deliberately NOT merged; robustness.ts reuses these exact bytes). */
+export const PSI_Z0: CVec = { n: 2, re: Float64Array.of(1, 0), im: new Float64Array(2) };
+export const PSI_Z1: CVec = { n: 2, re: Float64Array.of(0, 1), im: new Float64Array(2) };
+export const PSI_X0: CVec = { n: 2, re: Float64Array.of(Math.SQRT1_2, Math.SQRT1_2), im: new Float64Array(2) };
+export const PSI_X1: CVec = { n: 2, re: Float64Array.of(Math.SQRT1_2, -Math.SQRT1_2), im: new Float64Array(2) };
 const PSI_Y0 = { n: 2, re: Float64Array.of(Math.SQRT1_2, 0), im: Float64Array.of(0, Math.SQRT1_2) };
 const PSI_Y1 = { n: 2, re: Float64Array.of(Math.SQRT1_2, 0), im: Float64Array.of(0, -Math.SQRT1_2) };
 
-const I2 = (() => {
-  const m = mat(2, 2);
-  m.re[0] = 0.5;
-  m.re[3] = 0.5;
-  return m;
-})();
+/** The maximally mixed single-qubit state I/2 — single-sourced in states.ts
+ * (maximallyMixed(2) writes exactly 0.5 = 1/2, bit-identical to the former
+ * local literal). */
+const I2: CMat = maximallyMixed(2);
 
 function projectorOnSys1(v: CVec): CMat {
   const V = fromVec(v);
@@ -96,7 +97,7 @@ export function steeringDemonstration(): SteeringReport {
       const proj = mMul(mMul(P, phiPlus), mDagger(P));
       // proj is 4x4: diagonal entries 0,5,10,15 are defined
       const p = proj.re[0]! + proj.re[5]! + proj.re[10]! + proj.re[15]!;
-      const conditional = { rows: 4, cols: 4, re: proj.re.map((x) => x / p), im: proj.im.map((x) => x / p) } as CMat;
+      const conditional: CMat = { rows: 4, cols: 4, re: proj.re.map((x) => x / p), im: proj.im.map((x) => x / p) };
       const vQubit = partialTrace(conditional, [2, 2], [1]);
       probs[which] = p;
       // steering of |Φ+>: measuring C in basis {v} leaves V in conj(v)
@@ -107,7 +108,10 @@ export function steeringDemonstration(): SteeringReport {
   return { hidingTraceDistance: traceDistance(vMarginal, I2), rows };
 }
 
-function conjVec(v: CVec): CVec {
+/** Complex conjugate of a state vector (amplitudes mirrored) — shared with
+ * protocol/robustness.ts's HJW-under-noise section (formerly conjStateVec,
+ * byte-identical). */
+export function conjVec(v: CVec): CVec {
   return { n: v.n, re: v.re.slice(), im: v.im.map((x) => -x) };
 }
 
@@ -130,7 +134,7 @@ export function naiveCommitAttack(): NaiveCommitAttack {
     const P = projectorOnSys1(psiB);
     const proj = mMul(mMul(P, phiPlus), mDagger(P));
     const p = proj.re[0]! + proj.re[5]! + proj.re[10]! + proj.re[15]!;
-    const conditional = { rows: 4, cols: 4, re: proj.re.map((x) => x / p), im: proj.im.map((x) => x / p) } as CMat;
+    const conditional: CMat = { rows: 4, cols: 4, re: proj.re.map((x) => x / p), im: proj.im.map((x) => x / p) };
     const vQubit = partialTrace(conditional, [2, 2], [1]);
     return { p, f: fidelity(vQubit, fromVec(psiB)) };
   };

@@ -3,6 +3,12 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+// fmt is single-sourced in core/rng.ts (the guarded superset: non-finite
+// inputs stringify identically to toFixed, finite ones are bit-identical) —
+// this module's former private copy produced the same strings and was
+// removed in the v0.3.0 single-sourcing sweep.
+export { fmt } from '../core/rng.js';
+
 export interface ReportContext {
   name: string;
   title: string;
@@ -28,8 +34,4 @@ export function mdTable(headers: readonly string[], rows: ReadonlyArray<readonly
   const sep = `| ${headers.map(() => '---').join(' | ')} |`;
   const body = rows.map((r) => `| ${r.join(' | ')} |`).join('\n');
   return [head, sep, body].join('\n');
-}
-
-export function fmt(x: number, digits = 6): string {
-  return x.toFixed(digits);
 }

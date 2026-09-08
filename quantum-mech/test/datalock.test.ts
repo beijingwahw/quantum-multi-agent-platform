@@ -89,7 +89,7 @@ test('smuggling trial: counterfeit locking certificates are rejected BY NAME', (
   // 2. fabricated pre-unlock accessible information (never measured)
   const fakeChi: LockingCertificate = { ...honest, chiPreUpper: 0.0005 };
   const r1 = verifyLockingCertificate(fakeChi);
-  assert.equal(r1.ok, false);
+  assert.ok(!r1.ok); // narrows the discriminated verdict for the named checks below
   assert.equal(r1.code, 'REF01-fabricated-chi');
   assert.match(r1.detail ?? '', /claimed pre-unlock χ = 0\.0005/);
   assert.match(r1.detail ?? '', /re-derived/);
@@ -97,30 +97,30 @@ test('smuggling trial: counterfeit locking certificates are rejected BY NAME', (
   // 3. post-unlock claim that does not pay the key
   const noKey: LockingCertificate = { ...honest, keyBits: 0 };
   const r2 = verifyLockingCertificate(noKey);
-  assert.equal(r2.ok, false);
+  assert.ok(!r2.ok);
   assert.equal(r2.code, 'REF05-key-size-mismatch');
 
   // 4. fabricated hiding defect
   const fakeDefect: LockingCertificate = { ...honest, worstMixedDefect: 0.0001 };
   const r3 = verifyLockingCertificate(fakeDefect);
-  assert.equal(r3.ok, false);
+  assert.ok(!r3.ok);
   assert.equal(r3.code, 'REF02-fabricated-defect');
 
   // 5. fabricated unlock overlap (claims exact unlock on a broken family)
   const fakeUnlock: LockingCertificate = { ...honest, unlockWorstOverlap: 0.3 };
   const r4 = verifyLockingCertificate(fakeUnlock);
-  assert.equal(r4.ok, false);
+  assert.ok(!r4.ok);
   assert.equal(r4.code, 'REF03-fabricated-unlock');
 
   // 6. post-unlock bits inconsistent with n
   const fakePost: LockingCertificate = { ...honest, postBits: 100 };
   const r5 = verifyLockingCertificate(fakePost);
-  assert.equal(r5.ok, false);
+  assert.ok(!r5.ok);
   assert.equal(r5.code, 'REF04-post-unlock-mismatch');
 
   // 7. out-of-bounds scale
   const fakeScale: LockingCertificate = { ...honest, n: 9 };
   const r6 = verifyLockingCertificate(fakeScale);
-  assert.equal(r6.ok, false);
+  assert.ok(!r6.ok);
   assert.equal(r6.code, 'REF00-bounds');
 });

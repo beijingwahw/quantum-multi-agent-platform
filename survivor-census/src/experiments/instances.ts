@@ -38,7 +38,7 @@ export function buildInstances(): Instance[] {
   for (let x = 0; x < N; x += 4) quarter.push(x);
   const unfunded = [...quarter];
   const unfundedCounts = [...base];
-  unfundedCounts[unfunded[0] as number] = 0;
+  unfundedCounts[unfunded[0]!] = 0;
   const all: number[] = [];
   for (let x = 0; x < N; x++) all.push(x);
 

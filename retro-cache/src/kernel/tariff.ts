@@ -6,15 +6,14 @@ import {
   cmatMul,
   cmatScale,
   cmatZero,
-  correlationFromTable,
   entropyBits,
   I2,
   jointTable,
   kron2,
   PAULI,
   projector,
+  RcError,
   Rng,
-  trace,
   type CMat,
 } from "./state.js";
 
@@ -61,11 +60,11 @@ export function unitaryOnA(rho: CMat, u: CMat): CMat {
   return cmatMul(cmatMul(op, rho), dagger(op));
 }
 
-/** apply a unitary to the B half: rho -> (I (x) U) rho (I (x) U^dagger) */
-export function unitaryOnB(rho: CMat, u: CMat): CMat {
-  const op = kron2(I2, u);
-  return cmatMul(cmatMul(op, rho), dagger(op));
-}
+/** (unitaryOnB — the B-half mirror of unitaryOnA — was deleted at v0.2.2:
+ *  workspace-wide zero references, and the B-side-unitary capability is
+ *  strictly subsumed by cptpOnB's dilation family (v1 = I, u2 = I reduces
+ *  the channel to rho -> u1 rho u1^dagger), so the absorption check priced
+ *  it at zero residual merit.) */
 
 /** structured-random Stinesring CPTP on B: fresh env qubit in |0>, a random
  *  unitary (local (x) local . controlled-local) acts on B (x) env, env is
@@ -75,7 +74,7 @@ export function unitaryOnB(rho: CMat, u: CMat): CMat {
  *  the referee flagged the A-dependence). Family includes entangling
  *  dilations and non-unital maps; not Haar — noted in the README boundary. */
 export function cptpOnB(rho: CMat, rng: Rng): CMat {
-  if (rho.dim !== 4) throw new Error(`cptpOnB: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
+  if (rho.dim !== 4) throw new RcError("RC_DIM", `cptpOnB: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
   const u1 = randomUnitary2(rng);
   const v1 = randomUnitary2(rng);
   const u2 = randomUnitary2(rng);
@@ -105,6 +104,27 @@ export function cptpOnB(rho: CMat, rng: Rng): CMat {
 
 /** classical postprocessing: a stochastic map on the B outcome distribution */
 export function postprocessOutcome(table: ReadonlyArray<readonly number[]>, m: readonly [readonly number[], readonly number[]]): number[][] {
+  // guard at the boundary: the cell loop reads table[x][y] and m[y][y'] for
+  // x, y, y' in {0, 1} — a short row would read undefined operands and
+  // launder NaN into the output column (the K.F laundering family, closed
+  // here too: named rejection, not a silent wrong number)
+  if (table.length !== 2) throw new RcError("RC_TABLE_SHAPE", `postprocessOutcome: expected a 2x2 joint table (got ${table.length} rows)`);
+  for (let x = 0; x < 2; x++) {
+    const row = table[x]!;
+    if (row.length !== 2) throw new RcError("RC_TABLE_SHAPE", `postprocessOutcome: expected a 2x2 joint table (row ${x} has length ${row.length})`);
+    for (let y = 0; y < 2; y++)
+      if (!Number.isFinite(row[y]!)) throw new RcError("RC_NON_FINITE", `postprocessOutcome: table[${x}][${y}] must be finite (got ${row[y]!}) — a NaN cell cannot be postprocessed, only rejected`);
+  }
+  // the map is a 2-tuple by type, so TS callers cannot shorten it — but an
+  // untyped caller can: read via .at() so a missing row is a named rejection
+  // rather than a TypeError (or worse, an undefined read)
+  for (let y = 0; y < 2; y++) {
+    const mr = m.at(y);
+    if (mr === undefined) throw new RcError("RC_MAP_SHAPE", `postprocessOutcome: expected a 2x2 map (row ${y} is missing)`);
+    if (mr.length !== 2) throw new RcError("RC_MAP_SHAPE", `postprocessOutcome: expected a 2x2 map (row ${y} has length ${mr.length})`);
+    for (let y2 = 0; y2 < 2; y2++)
+      if (!Number.isFinite(mr[y2]!)) throw new RcError("RC_NON_FINITE", `postprocessOutcome: map[${y}][${y2}] must be finite (got ${mr[y2]!})`);
+  }
   // new P(x, y') = sum_y P(x,y) M[y][y']
   const out = [
     [0, 0],
@@ -131,8 +151,11 @@ export interface CensusResult {
   readonly argmax: number;
 }
 
-function strategyBits(idx: number): number[] {
-  return [(idx >> 3) & 1, (idx >> 2) & 1, (idx >> 1) & 1, idx & 1].map((b) => (b === 1 ? 1 : -1));
+/** the four response bits of a deterministic strategy as an exact-length tuple
+ *  (bit layout [a0s0, a0s1, a1s0, a1s1] mapped to +/-1) */
+function strategyBits(idx: number): [number, number, number, number] {
+  const bit = (n: number): number => ((idx >> n) & 1) === 1 ? 1 : -1;
+  return [bit(3), bit(2), bit(1), bit(0)];
 }
 
 /** x_A(a, s): bit layout [a0s0, a0s1, a1s0, a1s1] */
@@ -148,8 +171,8 @@ export function classicalCensus(): CensusResult {
         // seed s uniform: E = (1/4) sum_s x(a_i,s) y(b_j,s) -> via table
         let s = 0;
         for (let sd = 0; sd < 2; sd++) {
-          const x = ai === 0 ? (sd === 0 ? (rA[0] as number) : (rA[1] as number)) : sd === 0 ? (rA[2] as number) : (rA[3] as number);
-          const y = bj === 0 ? (sd === 0 ? (rB[0] as number) : (rB[1] as number)) : sd === 0 ? (rB[2] as number) : (rB[3] as number);
+          const x = ai === 0 ? (sd === 0 ? rA[0] : rA[1]) : sd === 0 ? rA[2] : rA[3];
+          const y = bj === 0 ? (sd === 0 ? rB[0] : rB[1]) : sd === 0 ? rB[2] : rB[3];
           s += x * y;
         }
         return s / 2;
@@ -169,10 +192,22 @@ export function classicalCensus(): CensusResult {
 // The withdrawal ledger (W4).
 // ---------------------------------------------------------------------------
 
-/** binary entropy h2(q), base 2 (SHAN48) */
+/** binary entropy h2(q), base 2 (SHAN48). Endpoints q = 0 and q = 1 return 0
+ *  by convention; anything outside [0, 1] (including NaN) is not a probability
+ *  and is rejected by name. */
 export function h2(q: number): number {
+  if (!(q >= 0 && q <= 1)) throw new RcError("RC_Q_RANGE", `h2: q must lie in [0, 1] (got ${q})`);
   if (q <= 0 || q >= 1) return 0;
   return entropyBits([q, 1 - q]);
+}
+
+/** the Werner aligned-axes QBER closed form (1 - p)/2 — the single source.
+ *  tariff (W4), adversary (W6), and the W5 rate curve rode identical inline
+ *  copies before they were converged; each caller's table path stays an
+ *  independent computation by design (anti-smuggling). */
+export function qberOf(p: number): number {
+  if (!(p >= 0 && p <= 1)) throw new RcError("RC_P_RANGE", `qberOf: visibility p must lie in [0, 1] (got ${p})`);
+  return (1 - p) / 2;
 }
 
 export interface WithdrawalRow {
@@ -185,16 +220,19 @@ export interface WithdrawalRow {
   readonly leakFloor: number;
   /** net bits per raw pair: sift 1/2 (two bases) times (1 - h2(q)) */
   readonly netRate: number;
-  /** settings tariff per raw pair on the classical channel (log2 of #bases) */
-  readonly settingsTariff: number;
+  /** settings tariff per raw pair on the classical channel (log2 of #bases) —
+   *  a literal type: two bases make it exactly 1, never a tuned number */
+  readonly settingsTariff: 1;
 }
 
 export function withdrawalRow(rho: CMat, p: number): WithdrawalRow {
+  if (rho.dim !== 4) throw new RcError("RC_DIM", `withdrawalRow: expected a 4x4 two-qubit matrix, got dim ${rho.dim}`);
+  if (!(p >= 0 && p <= 1)) throw new RcError("RC_P_RANGE", `withdrawalRow: visibility p must lie in [0, 1] (got ${p})`);
   const z = [0, 0, 1];
   const table = jointTable(rho, z, z);
   // B flips its bit: agreement becomes the (x, -y) cells; QBER = P(x = y)
   const qberTable = (table[0][0]) + (table[1][1]);
-  const qberClosed = (1 - p) / 2;
+  const qberClosed = qberOf(p);
   const leakFloor = h2(qberClosed);
   return {
     p,
@@ -205,13 +243,3 @@ export function withdrawalRow(rho: CMat, p: number): WithdrawalRow {
     settingsTariff: 1,
   };
 }
-
-export function correlationOf(rho: CMat, a: readonly number[], b: readonly number[]): number {
-  return correlationFromTable(jointTable(rho, a, b));
-}
-
-export function traceReal(m: CMat): number {
-  return trace(m).re;
-}
-
-export { projector, Rng, type CMat };

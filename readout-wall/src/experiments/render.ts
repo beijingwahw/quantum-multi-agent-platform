@@ -7,7 +7,8 @@
 import { pathToFileURL } from "node:url";
 import { EXCHANGE } from "../kernel/ledger.js";
 import { checkExchange, runWitnesses } from "../kernel/audit.js";
-import { fAdd, fDiv, fr, fToNumber, type Ivl } from "../kernel/rational.js";
+import { refuse } from "../core/errors.js";
+import { fr, fToNumber, iMid, type Ivl } from "../kernel/rational.js";
 import {
   esc18Certificate,
   frontierCertificate,
@@ -16,7 +17,7 @@ import {
 } from "../kernel/theorem.js";
 import { writeReport } from "./report.js";
 
-const mid = (iv: Ivl): number => fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+const mid = (iv: Ivl): number => fToNumber(iMid(iv));
 
 function renderTheorem(): string {
   const lines: string[] = [];
@@ -99,7 +100,7 @@ function main(): void {
       ...violations.map((v) => `${v.row} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`READOUT WALL REJECTED — the exchange does not balance:\n${reasons.join("\n")}`);
+    refuse("RENDER_REJECTED", `READOUT WALL REJECTED — the exchange does not balance:\n${reasons.join("\n")}`);
   }
   const path = writeReport("the-readout-wall.md", renderLedger());
   console.log(`readout wall rendered -> ${path}`);

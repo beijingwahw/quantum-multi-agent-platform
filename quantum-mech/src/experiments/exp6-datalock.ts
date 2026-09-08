@@ -69,7 +69,7 @@ function main(): void {
       ['fabricated χ (0.0005, never measured)', verifyLockingCertificate(fabricatedChi)],
       ['full unlock claimed with 0-bit key', verifyLockingCertificate(noKey)],
     ] as Array<[string, ReturnType<typeof verifyLockingCertificate>]>
-  ).map(([label, v]) => [label, v.ok ? 'PASS' : 'REJECT', v.ok ? '—' : `${v.code ?? 'REF??'}: ${v.detail ?? ''}`]);
+  ).map(([label, v]) => [label, v.ok ? 'PASS' : 'REJECT', v.ok ? '—' : `${v.code}: ${v.detail}`]);
 
   const data = { seed, directionRows: rowsA, sweepRows: rowsB, refereeRows };
   const markdown = [

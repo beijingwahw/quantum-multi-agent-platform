@@ -3,8 +3,7 @@ import { describe, it } from "node:test";
 import { phaseOverlap, realizationCheck, runPriorSorter } from "../src/kernel/survivor.js";
 import { buildInstances, p0Probe } from "../src/experiments/instances.js";
 import { Rng } from "../src/kernel/survivor.js";
-
-const TOL = 1e-12;
+import { TOL } from "../src/kernel/tol.js";
 
 describe("S1 — the survivor is the posterior", () => {
   it("posterior matches the integer-ratio path on every instance (max dev < 1e-12)", () => {
@@ -27,9 +26,9 @@ describe("S1 — the survivor is the posterior", () => {
     const inst = buildInstances().find((i) => i.name === "t1-fund");
     assert.ok(inst);
     const run = runPriorSorter(inst.n, inst.counts, inst.marked);
-    const x = inst.marked[0] as number;
+    const x = inst.marked[0]!;
     assert.equal(run.tFunded, 1);
-    assert.ok(Math.abs((run.posterior[x] as number) - 1) < TOL);
+    assert.ok(Math.abs(run.posterior[x]! - 1) < TOL);
   });
 
   it("an unfunded optimum is marked but never comes back (posterior exactly 0 there)", () => {
@@ -38,7 +37,7 @@ describe("S1 — the survivor is the posterior", () => {
     const run = runPriorSorter(inst.n, inst.counts, inst.marked);
     assert.equal(run.unfundedOptima.length, 1);
     assert.equal(run.tFunded, run.tRaw - 1);
-    assert.equal(run.posterior[run.unfundedOptima[0] as number], 0);
+    assert.equal(run.posterior[run.unfundedOptima[0]!], 0);
   });
 });
 

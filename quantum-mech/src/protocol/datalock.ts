@@ -52,7 +52,7 @@ export function basisReferee(basis: readonly CVec[]): number {
 
 /** One random orthonormal basis of C^d from a seeded RNG. */
 export function randomOrthonormalBasis(d: number, rng: Rng): CVec[] {
-  if (!Number.isInteger(d) || d < 1) throw new Error(`randomOrthonormalBasis: need integer d >= 1, got ${d}`);
+  if (!Number.isInteger(d) || d < 1) throw new Error(`DL01-bad-d: randomOrthonormalBasis need integer d >= 1, got ${d}`);
   const out: CVec[] = [];
   for (let i = 0; i < d; i++) {
     let v = randomPureState(d, rng);
@@ -69,7 +69,7 @@ export function randomOrthonormalBasis(d: number, rng: Rng): CVec[] {
         v = w;
       }
       const nrm = Math.sqrt(vInner(v, v).re);
-      if (nrm < 1e-9) throw new Error('randomOrthonormalBasis: degenerate draw');
+      if (nrm < 1e-9) throw new Error('DL02-degenerate: randomOrthonormalBasis degenerate draw');
       v = vScale(v, 1 / nrm);
     }
     out.push(v);
@@ -86,7 +86,7 @@ export interface BasisFamily {
 }
 
 export function makeBasisFamily(d: number, K: number, seed: number): BasisFamily {
-  if (!Number.isInteger(K) || K < 1) throw new Error(`makeBasisFamily: need integer K >= 1, got ${K}`);
+  if (!Number.isInteger(K) || K < 1) throw new Error(`DL03-bad-K: makeBasisFamily need integer K >= 1, got ${K}`);
   const rng = makeRng(seed);
   const basis: CVec[][] = [];
   let referee = 0;
@@ -254,14 +254,14 @@ export interface LockingRow {
 }
 
 export function lockingRow(n: number, K: number, seed: number): LockingRow {
-  if (!Number.isInteger(n) || n < 1 || n > 6) throw new Error(`lockingRow: n must be 1..6 (bounded exact scale), got ${n}`);
+  if (!Number.isInteger(n) || n < 1 || n > 6) throw new Error(`DL04-bad-n: lockingRow n must be 1..6 (bounded exact scale), got ${n}`);
   const d = 2 ** n;
   const family = makeBasisFamily(d, K, seed);
   const rhos = lockedRhos(family);
   const bounds = accessibleBounds(rhos);
   const defect = averageRhoDefect(rhos);
   if (defect > 1e-12) {
-    throw new Error(`lockingRow: average-rho referee failed (|ρ̄ − I/d| = ${defect.toExponential(2)})`);
+    throw new Error(`DL05-rho-referee: lockingRow average-rho referee failed (|ρ̄ − I/d| = ${defect.toExponential(2)})`);
   }
   return {
     n,
@@ -314,12 +314,13 @@ export function certificateFromRow(row: LockingRow, seed: number): LockingCertif
   };
 }
 
-export interface Verification {
-  ok: boolean;
-  /** machine name of the rejection, present iff ok === false */
-  code?: string;
-  detail?: string;
-}
+/**
+ * Referee verdict, discriminated: `ok: false` ALWAYS carries a machine name
+ * and a detail line; `ok: true` never does. Narrowing on `ok` gives the
+ * fields without optionals (v0.3.0 type hardening; construction sites
+ * already satisfied the union).
+ */
+export type Verification = { ok: true } | { ok: false; code: string; detail: string };
 
 /** Re-derive everything the certificate claims; reject with a named code. */
 export function verifyLockingCertificate(cert: LockingCertificate): Verification {

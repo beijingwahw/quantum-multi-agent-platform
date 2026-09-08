@@ -6,12 +6,16 @@
 import { auditCensus } from "../kernel/audit.js";
 import type { Census } from "../kernel/audit.js";
 import { schedule, waitingPrice } from "../kernel/waitprice.js";
+import { CensusError } from "../kernel/errors.js";
 import type { AllOutcomes } from "./run-all.js";
 
 export function renderReport(o: AllOutcomes, census: Census, workspaceRoot: string): string {
   const violations = auditCensus(census, workspaceRoot);
   if (violations.length > 0) {
-    throw new Error(`ILLEGAL CENSUS — refusing to print:\n${violations.map((v) => `  - ${v}`).join("\n")}`);
+    throw new CensusError(
+      "ILLEGAL-CENSUS",
+      `ILLEGAL CENSUS — refusing to print:\n${violations.map((v) => `  - ${v}`).join("\n")}`,
+    );
   }
 
   const lines: string[] = [];

@@ -11,6 +11,8 @@
  * both and reports the difference honestly.
  */
 
+import { CensusError } from "./errors.js";
+
 export interface WaitingPrice {
   readonly p: number;
   /** E[T] = 1/P, closed form */
@@ -23,7 +25,9 @@ export interface WaitingPrice {
 }
 
 export function waitingPrice(p: number): WaitingPrice {
-  if (!(p > 0 && p <= 1)) throw new Error("waitingPrice: p must be in (0, 1]");
+  if (!(p > 0 && p <= 1)) {
+    throw new CensusError("SC/P-DOMAIN", "waitingPrice: p must be in (0, 1]");
+  }
   const q = 1 - p;
   // K with analytic tail ((K+1) q^K)/p below 1e-12 of the mean 1/p,
   // i.e. (K+1) q^K <= 1e-12 — pK = 60 gives K e^{-pK} ~ (60/p) e^{-60}, safe for all p >= 2^-20
@@ -51,6 +55,12 @@ export function waitingPrice(p: number): WaitingPrice {
 
 /** exact geometric tail: Pr[T > k] = (1-P)^k, via exp-log (independent of the Math.pow path in schedule()) */
 export function tailAt(p: number, k: number): number {
+  if (!(p > 0 && p < 1)) {
+    throw new CensusError("SC/P-DOMAIN", "tailAt: p must be in (0,1) — the tail is a survival probability");
+  }
+  if (!Number.isInteger(k) || k < 0) {
+    throw new CensusError("SC/MC-BAD-INPUTS", "tailAt: k must be a non-negative integer trial count");
+  }
   return Math.exp(k * Math.log(1 - p));
 }
 
@@ -68,8 +78,12 @@ export interface SchedulePair {
 }
 
 export function schedule(p: number, delta: number): SchedulePair {
-  if (!(p > 0 && p < 1)) throw new Error("schedule: p must be in (0,1)");
-  if (!(delta > 0 && delta < 1)) throw new Error("schedule: delta must be in (0,1)");
+  if (!(p > 0 && p < 1)) {
+    throw new CensusError("SC/P-DOMAIN", "schedule: p must be in (0,1)");
+  }
+  if (!(delta > 0 && delta < 1)) {
+    throw new CensusError("SC/DELTA-DOMAIN", "schedule: delta must be in (0,1)");
+  }
   // smallest k with k * ln(1-P) <= ln(delta)  (ln(1-P) < 0, so divide flips)
   const kExact = Math.max(1, Math.ceil(Math.log(delta) / Math.log(1 - p)));
   const atK = (1 - p) ** kExact;
@@ -95,6 +109,13 @@ export interface McWaiting {
 
 /** Monte Carlo referee for the geometric waiting law — never a theorem claim. */
 export function mcWaiting(p: number, runs: number, rngNext: () => number): McWaiting {
+  if (!(p > 0 && p <= 1)) {
+    throw new CensusError("SC/P-DOMAIN", "mcWaiting: p must be in (0, 1]");
+  }
+  if (!Number.isInteger(runs) || runs <= 0) {
+    // runs=0 divides by zero and yields silent NaN — named refusal instead
+    throw new CensusError("SC/MC-BAD-INPUTS", "mcWaiting: runs must be a positive integer");
+  }
   let s = 0;
   for (let r = 0; r < runs; r++) {
     let k = 0;

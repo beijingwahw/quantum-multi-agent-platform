@@ -17,6 +17,16 @@ import type { Rng } from '../core/rng.js';
 
 export type Basis = 0 | 1 | 2; // 0 = Z, 1 = X, 2 = Y
 
+/**
+ * Checked narrowing from an untrusted integer (the RNG's draw) to `Basis`.
+ * Replaces blind `as Basis` casts: an out-of-family draw is rejected by name
+ * instead of silently becoming a wrong basis.
+ */
+export function toBasis(n: number): Basis {
+  if (n === 0 || n === 1 || n === 2) return n;
+  throw new Error(`LOCK03-bad-basis: rng draw ${n} is outside the basis family {0,1,2}`);
+}
+
 /** Preparer unitary mapping computational basis to the given basis states. */
 export function basisUnitary(b: Basis): CMat {
   if (b === 0) {
@@ -45,12 +55,12 @@ export interface Qubit {
 export type LockMode = 'wiesner' | 'otp';
 
 export interface Lock {
-  qubits: Qubit[]; // m qubit states as held by the auctioneer
-  bases: Basis[]; // secret key: per-qubit basis
+  qubits: Qubit[]; // m qubit states as held by the auctioneer (mutated in place by the interceptor)
+  readonly bases: Basis[]; // secret key: per-qubit basis
   /** otp mode: per-qubit classical pad bit (payload is XOR-masked) */
-  pads: number[];
-  m: number;
-  mode: LockMode;
+  readonly pads: number[];
+  readonly m: number;
+  readonly mode: LockMode;
 }
 
 const qubit0: Qubit = { a: { re: 1, im: 0 }, b: { re: 0, im: 0 } };
@@ -71,7 +81,10 @@ export function applyGate(q: Qubit, u: CMat): Qubit {
   };
 }
 
-function dagger2(u: CMat): CMat {
+/** Conjugate transpose (dagger) of a 2x2 matrix — the single source for this
+ * operation (previously triplicated here, in contract/wiesner.ts and as
+ * transposeConj2 in protocol/robustness.ts, byte-identical). */
+export function dagger2(u: CMat): CMat {
   const m = mat(2, 2);
   m.re[0] = u.re[0]!;
   m.im[0] = -u.im[0]!;
@@ -89,13 +102,18 @@ function dagger2(u: CMat): CMat {
  * chi > 0 per qubit; 'otp': key = basis + pad bit, chi = 0 exactly — the
  * quantum one-time pad). Returns what the auctioneer holds plus the key. */
 export function lockValue(v: number, m: number, rng: Rng, nBases: 2 | 3, mode: LockMode = 'wiesner'): Lock {
-  if (v < 0 || v >= 2 ** m) throw new Error('value out of range');
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`LOCK02-bad-m: lockValue needs integer m >= 1 qubit, got ${m}`);
+  }
+  if (v < 0 || v >= 2 ** m) {
+    throw new Error(`LOCK01-bad-value: lockValue payload v=${v} out of range [0, 2^m) with m=${m}`);
+  }
   const bases: Basis[] = [];
   const pads: number[] = [];
   const qubits: Qubit[] = [];
   for (let q = 0; q < m; q++) {
     let bit = (v >> q) & 1; // little-endian payload bit
-    const basis = rng.int(nBases) as Basis;
+    const basis = toBasis(rng.int(nBases));
     bases.push(basis);
     let pad = 0;
     if (mode === 'otp') {
@@ -109,9 +127,8 @@ export function lockValue(v: number, m: number, rng: Rng, nBases: 2 | 3, mode: L
 }
 
 /** Unlock with the true key: deterministic readout of the payload for
- * honest states. Returns the payload value (argmax readout). */
-/** Unlock with the true key: deterministic readout of the payload for
- * honest states (otp mode XORs the pads back out). */
+ * honest states (otp mode XORs the pads back out). Returns the payload
+ * value (argmax readout). */
 export function unlockValue(lock: Lock): number {
   let v = 0;
   for (let q = 0; q < lock.m; q++) {
@@ -131,7 +148,7 @@ export function unlockValue(lock: Lock): number {
  * the mutated lock (same key object semantics: only qubits change). */
 export function interceptMeasureResend(lock: Lock, rng: Rng, nBases: 2 | 3): void {
   for (let q = 0; q < lock.m; q++) {
-    const guess = rng.int(nBases) as Basis;
+    const guess = toBasis(rng.int(nBases));
     const u = basisUnitary(guess);
     const rotated = applyGate(lock.qubits[q]!, dagger2(u));
     const p0 = rotated.a.re ** 2 + rotated.a.im ** 2;
@@ -180,7 +197,7 @@ export function lockedEnsemble(v: number, m: number, nBases: 2 | 3, mode: LockMo
       return;
     }
     for (let b = 0; b < nBases; b++) {
-      bases[q] = b as Basis;
+      bases[q] = toBasis(b);
       if (mode === 'otp') {
         pads[q] = 0;
         walk(q + 1);

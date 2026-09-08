@@ -74,8 +74,8 @@ Rubinstein-Zhou 2025 的拍卖量子通信复杂度。本原型的增量是**可
 
 ```bash
 npm install
-npm test          # 52 项测试：引擎锚点、裁判互证、机制、协议、合约、锁定/擦除走私审判
-npm run repro     # ~50s 重建 out/ 七份报告（JSON + Markdown）
+npm test          # 56 项测试：引擎锚点、裁判互证、机制、协议、合约、锁定/擦除走私审判、非法输入点名驳回
+npm run repro     # ~1 分钟重建 out/ 七份报告（JSON + Markdown；机器高负载时 exp3 可膨胀到 10 分钟级）
 npm run exp:dsic      # 单跑某一实验（exp:privacy / exp:escrow / exp:nogo / exp:vcg
                       # / exp:datalock / exp:erasure）
 ```

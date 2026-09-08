@@ -3,8 +3,7 @@ import { describe, it } from "node:test";
 import { auditComposition, claimFromComposition, composeStages } from "../src/kernel/compose.js";
 import type { CompositionClaim } from "../src/kernel/compose.js";
 import { buildStagePairs } from "../src/experiments/instances.js";
-
-const TOL = 1e-12;
+import { TOL } from "../src/kernel/tol.js";
 
 function compositionPairs() {
   return buildStagePairs().filter((p) => p.name !== "starved-intersection");

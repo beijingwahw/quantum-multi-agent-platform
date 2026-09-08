@@ -1,13 +1,14 @@
 /**
- * Named channel families as Kraus sets — the "black boxes" fed to the switch.
- * Each family carries the structural property that decides whether order
- * superposition is a resource (T2/T3 admission logic).
+ * Named channel families — the "black boxes" fed to the switch. The showcase
+ * pair (replacer vs completely depolarizing) carries the structural property
+ * that decides where the switched advantage parks; the random family closes
+ * the anchor blindspot (complex CPTP triples).
  */
 
 import { type CMat, mat } from '../core/cmat.js';
+import { refuse } from '../core/errors.js';
 import type { Rng } from '../core/rng.js';
-import { weyl } from '../core/states.js';
-import { type Stinespring, krausToStinespring } from './isometry.js';
+import { type Stinespring } from './isometry.js';
 
 /**
  * Replacer channel Λ(ρ) = |v⟩⟨v| · Tr ρ for the uniform |v⟩: K_i = |v⟩⟨i|.
@@ -41,40 +42,6 @@ export function completelyDepolarizingKraus(d: number): CMat[] {
     }
   }
   return kraus;
-}
-
-/**
- * Depolarizing channel Λ(ρ) = (1−p)ρ + p·I/d·Tr ρ via the Weyl orbit:
- * Kraus √(1−p(d²−1)/d²)·I plus √(p/d²)·W_{ab} for (a,b) ≠ (0,0).
- * Valid for p ∈ [0, d²/(d²−1)]; p = 1 is the completely depolarizing point.
- */
-export function depolarizingKraus(d: number, p: number): CMat[] {
-  const pMax = (d * d) / (d * d - 1);
-  if (p < 0 || p > pMax + 1e-12) throw new Error(`depolarizing p must be in [0, ${pMax.toFixed(3)}]`);
-  const kraus: CMat[] = [];
-  const K0 = mat(d, d);
-  const c0 = Math.sqrt(Math.max(0, 1 - (p * (d * d - 1)) / (d * d)));
-  for (let i = 0; i < d; i++) K0.re[i * d + i] = c0;
-  kraus.push(K0);
-  const cw = Math.sqrt(p / (d * d));
-  for (let a = 0; a < d; a++) {
-    for (let b = 0; b < d; b++) {
-      if (a === 0 && b === 0) continue;
-      const W = weyl(d, a, b);
-      const K = mat(d, d);
-      for (let k = 0; k < d * d; k++) {
-        K.re[k] = cw * W.re[k]!;
-        K.im[k] = cw * W.im[k]!;
-      }
-      kraus.push(K);
-    }
-  }
-  return kraus;
-}
-
-/** Unitary box: single Kraus operator U (env dim 1). */
-export function unitaryKraus(u: CMat): CMat[] {
-  return [u];
 }
 
 /**
@@ -117,7 +84,7 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
     let nrm = 0;
     for (let k = 0; k < w.re.length; k++) nrm += w.re[k]! * w.re[k]! + w.im[k]! * w.im[k]!;
     nrm = Math.sqrt(nrm);
-    if (nrm < 1e-10) throw new Error('randomChannel: Gram-Schmidt rank collapse');
+    if (nrm < 1e-10) refuse('RANDOM_CHANNEL_RANK', 'randomChannel: Gram-Schmidt rank collapse');
     ortho.push({ re: w.re.map((x) => x / nrm), im: w.im.map((x) => x / nrm) });
   }
   const V = mat(d * envDim, d);
@@ -133,25 +100,3 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
   // isometry certificate happens inside krausToStinespring-equivalent check
   return st;
 }
-
-/** Kraus set of a Stinespring dilation (inverse of krausToStinespring). */
-export function stinespringToKraus(st: Stinespring): CMat[] {
-  // a malformed dilation would read past V's buffers and produce NaN Kraus operators silently
-  if (st.V.rows !== st.d * st.envDim || st.V.cols !== st.d) {
-    throw new Error(`stinespringToKraus: V must be ${st.d * st.envDim}x${st.d}, got ${st.V.rows}x${st.V.cols}`);
-  }
-  const kraus: CMat[] = [];
-  for (let m = 0; m < st.envDim; m++) {
-    const K = mat(st.d, st.d);
-    for (let s = 0; s < st.d; s++) {
-      for (let i = 0; i < st.d; i++) {
-        K.re[s * st.d + i] = st.V.re[(s * st.envDim + m) * st.d + i]!;
-        K.im[s * st.d + i] = st.V.im[(s * st.envDim + m) * st.d + i]!;
-      }
-    }
-    kraus.push(K);
-  }
-  return kraus;
-}
-
-export { krausToStinespring };

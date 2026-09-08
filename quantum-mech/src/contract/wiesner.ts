@@ -11,8 +11,7 @@
  */
 
 import type { Rng } from '../core/rng.js';
-import { type Qubit, applyGate, basisUnitary, type Basis } from '../protocol/locking.js';
-import { mat } from '../core/cmat.js';
+import { type Qubit, applyGate, basisUnitary, type Basis, dagger2, toBasis } from '../protocol/locking.js';
 
 interface BankNote {
   qubits: Qubit[]; // what the holder possesses
@@ -20,26 +19,12 @@ interface BankNote {
   secretBits: number[];
 }
 
-function dagger2(u: ReturnType<typeof basisUnitary>): ReturnType<typeof basisUnitary> {
-  const m = mat(2, 2);
-  // u is a 2x2 matrix: indices 0..3 always defined
-  m.re[0] = u.re[0]!;
-  m.im[0] = -u.im[0]!;
-  m.re[1] = u.re[2]!;
-  m.im[1] = -u.im[2]!;
-  m.re[2] = u.re[1]!;
-  m.im[2] = -u.im[1]!;
-  m.re[3] = u.re[3]!;
-  m.im[3] = -u.im[3]!;
-  return m;
-}
-
 function mint(rng: Rng, m: number, nBases: 2 | 3): BankNote {
   const secretBases: Basis[] = [];
   const secretBits: number[] = [];
   const qubits: Qubit[] = [];
   for (let q = 0; q < m; q++) {
-    const basis = rng.int(nBases) as Basis;
+    const basis = toBasis(rng.int(nBases));
     const bit = rng.int(2);
     secretBases.push(basis);
     secretBits.push(bit);
@@ -73,7 +58,7 @@ function forgeTwoCopies(note: BankNote, rng: Rng, nBases: 2 | 3): [BankNote, Ban
   const measured: Qubit[] = [];
   const secretGuessBits: number[] = [];
   for (const qubit of note.qubits) {
-    const guess = rng.int(nBases) as Basis;
+    const guess = toBasis(rng.int(nBases));
     const u = basisUnitary(guess);
     const rotated = applyGate(qubit, dagger2(u));
     const p0 = rotated.a.re ** 2 + rotated.a.im ** 2;
@@ -106,6 +91,12 @@ export interface WiesnerStats {
 }
 
 export function wiesnerExperiment(rng: Rng, noteQubits: number, trials: number, nBases: 2 | 3 = 2): WiesnerStats {
+  if (!Number.isInteger(noteQubits) || noteQubits < 1) {
+    throw new Error(`WIESNER01-bad-args: noteQubits must be an integer >= 1, got ${noteQubits}`);
+  }
+  if (!Number.isInteger(trials) || trials < 1) {
+    throw new Error(`WIESNER02-bad-args: trials must be an integer >= 1, got ${trials}`);
+  }
   let honest = 0;
   let both = 0;
   let single = 0;

@@ -17,6 +17,8 @@ import { runPhaseCensus } from "../kernel/phasecensus.js";
 import type { PhaseCensus } from "../kernel/phasecensus.js";
 import { buildInstances, buildStagePairs, p0Probe } from "./instances.js";
 import type { Instance, StagePair } from "./instances.js";
+import { CensusError, expectFound } from "../kernel/errors.js";
+import { TOL } from "../kernel/tol.js";
 
 export interface InstanceOutcome {
   readonly instance: Instance;
@@ -63,8 +65,6 @@ export interface AllOutcomes {
   readonly phaseCensus: PhaseCensus;
 }
 
-const TOL = 1e-12;
-
 export function runAll(): AllOutcomes {
   const instances = buildInstances();
   const outcomes: InstanceOutcome[] = instances.map((instance) => ({
@@ -85,7 +85,7 @@ export function runAll(): AllOutcomes {
   }
 
   // the uniform prior degenerates to postselect-sched's flat ground
-  const uniform = outcomes.find((o) => o.instance.name === "uniform-prior") as InstanceOutcome;
+  const uniform = expectFound("uniform-prior outcome", outcomes.find((o) => o.instance.name === "uniform-prior"));
   const { N, tFunded } = uniform.run;
   let flatDev = 0;
   for (const row of uniform.run.killRegister) flatDev = Math.max(flatDev, Math.abs(row.mass - 1 / N));
@@ -96,7 +96,7 @@ export function runAll(): AllOutcomes {
 
   // coherence face: two phase assignments on the quarter-funded instance
   const rng = new Rng(307);
-  const quarter = instances.find((i) => i.name === "quarter-funded") as Instance;
+  const quarter = expectFound("quarter-funded instance", instances.find((i) => i.name === "quarter-funded"));
   const phiA = Array.from({ length: N }, () => 2 * Math.PI * rng.next());
   const phiB = phiA.map((p, x) => p + (x % 2 === 0 ? Math.PI / 5 : -Math.PI / 7));
   const ph = phaseOverlap(quarter.n, quarter.counts, quarter.marked, phiA, phiB);
@@ -135,26 +135,28 @@ export function runAll(): AllOutcomes {
   try {
     runPriorSorter(probe.n, probe.counts, probe.marked);
   } catch (e) {
-    p0Refused = e instanceof Error && e.message.includes("undefined");
+    // the refusal is discriminated by error code, not message text
+    p0Refused = e instanceof CensusError && e.code === "SC/P0-UNDEFINED";
   }
-  const full = outcomes.find((o) => o.instance.name === "full-funding") as InstanceOutcome;
+  const full = expectFound("full-funding outcome", outcomes.find((o) => o.instance.name === "full-funding"));
   const p1EmptyRegister = full.run.killRegister.length === 0 && Math.abs(full.run.killedTotal) < 1e-15;
-  const unfunded = outcomes.find((o) => o.instance.name === "unfunded-optimum") as InstanceOutcome;
+  const unfunded = expectFound("unfunded-optimum outcome", outcomes.find((o) => o.instance.name === "unfunded-optimum"));
+  const unfundedX = expectFound("unfunded optimum index", unfunded.run.unfundedOptima[0]);
   const unfundedNeverReturn =
     unfunded.run.unfundedOptima.length === 1 &&
-    unfunded.run.posterior[unfunded.run.unfundedOptima[0] as number] === 0 &&
+    unfunded.run.posterior[unfundedX] === 0 &&
     unfunded.run.tFunded === unfunded.run.tRaw - 1;
-  const t1 = outcomes.find((o) => o.instance.name === "t1-fund") as InstanceOutcome;
-  const t1X = t1.instance.marked[0] as number;
-  const t1PointMass = Math.abs((t1.run.posterior[t1X] as number) - 1) < TOL && t1.run.tFunded === 1;
+  const t1 = expectFound("t1-fund outcome", outcomes.find((o) => o.instance.name === "t1-fund"));
+  const t1X = expectFound("t1 marked item", t1.instance.marked[0]);
+  const t1PointMass = Math.abs(t1.run.posterior[t1X]! - 1) < TOL && t1.run.tFunded === 1;
 
   // S6 — sequential postselection: the stacked ledgers (the starved pair refuses)
-  const starved = buildStagePairs().find((p) => p.name === "starved-intersection") as StagePair;
+  const starved = expectFound("starved-intersection pair", buildStagePairs().find((p) => p.name === "starved-intersection"));
   let starvedIntersectionRefused = false;
   try {
     composeStages(starved.n, starved.counts, starved.markedA, starved.markedB);
   } catch (e) {
-    starvedIntersectionRefused = e instanceof Error && e.message.includes("undefined");
+    starvedIntersectionRefused = e instanceof CensusError && e.code === "SC/EMPTY-INTERSECTION";
   }
   const compositions: CompositionOutcome[] = [];
   for (const pair of buildStagePairs()) {
@@ -182,12 +184,12 @@ export function runAll(): AllOutcomes {
     compositionOrderMaxDev = Math.max(compositionOrderMaxDev, run.orderDev);
   }
   // structural referees: the identity stage composes to stage A alone; A twice is A
-  const identityCo = compositions.find((c) => c.pair.name === "identity-stage") as CompositionOutcome;
+  const identityCo = expectFound("identity-stage composition", compositions.find((c) => c.pair.name === "identity-stage"));
   const compositionIdentityHolds =
     identityCo.run.killRegister2.length === 0 &&
     Math.abs(identityCo.run.p2 - 1) < TOL &&
     Math.abs(identityCo.run.runAB.pKeep - identityCo.run.runA.pKeep) < TOL;
-  const idemCo = compositions.find((c) => c.pair.name === "idempotent") as CompositionOutcome;
+  const idemCo = expectFound("idempotent composition", compositions.find((c) => c.pair.name === "idempotent"));
   const compositionIdempotentHolds =
     idemCo.run.killRegister2.length === 0 &&
     Math.abs(idemCo.run.p2 - 1) < TOL &&

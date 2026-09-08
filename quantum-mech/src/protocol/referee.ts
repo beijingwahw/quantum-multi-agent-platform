@@ -5,7 +5,7 @@
  * against a full density-matrix computation with arbitrary mixed inputs.
  */
 
-import { type CMat, isUnitary, mat, mMul, mDagger, kronAll, basisVec } from '../core/cmat.js';
+import { type CMat, kron, mMul, mDagger, kronAll, basisVec } from '../core/cmat.js';
 import { fromVec } from '../core/states.js';
 import { marginalProbs, applyUnitary } from '../core/channels.js';
 import { comparatorUnitary, outcomeDistribution, secondOf, winnerOf } from './auction.js';
@@ -64,7 +64,7 @@ export function distributionFormulaError(
 ): number {
   const n = others.length + 1;
   if (!Number.isInteger(agentSlot) || agentSlot < 0 || agentSlot >= n) {
-    throw new Error(`distributionFormulaError: agentSlot ${agentSlot} out of range for ${n} agents`);
+    throw new Error(`REFEREE01-bad-agentslot: distributionFormulaError agentSlot ${agentSlot} out of range for ${n} agents`);
   }
   const dims = [...Array<number>(n).fill(k), n, k];
   // assemble sigma_i ⊗ (others' basis states) ⊗ |0,0><0,0| on W,S
@@ -80,7 +80,7 @@ export function distributionFormulaError(
   let acc: CMat | null = null;
   for (let i = 0; i < n; i++) {
     const piece = i === agentSlot ? sigma : fromVec(kets[i]!);
-    acc = acc === null ? piece : kron2(acc, piece);
+    acc = acc === null ? piece : kron(acc, piece);
   }
   pieces.push(acc!);
   pieces.push(fromVec(zeroW));
@@ -100,26 +100,3 @@ export function distributionFormulaError(
   }
   return err;
 }
-
-function kron2(a: CMat, b: CMat): CMat {
-  const m = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const br = b.re[p * b.cols + q]!;
-          const bi = b.im[p * b.cols + q]!;
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          m.re[ri * m.cols + ci] = m.re[ri * m.cols + ci]! + (ar * br - ai * bi);
-          m.im[ri * m.cols + ci] = m.im[ri * m.cols + ci]! + (ar * bi + ai * br);
-        }
-      }
-    }
-  }
-  return m;
-}
-
-export { isUnitary };

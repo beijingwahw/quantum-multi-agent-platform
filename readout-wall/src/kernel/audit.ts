@@ -28,16 +28,17 @@
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { type CMat, mAdd, mDagger, mMul, mScale } from "../core/cmat.js";
+import { type CMat, mAdd, mDagger, mMul, mScale, mat } from "../core/cmat.js";
 import { partialTrace } from "../core/channels.js";
+import { refuse } from "../core/errors.js";
 import { PLUS, vecToRho, uniformVec, uniformOrthVec } from "../core/states.js";
 import { holevo, traceDistance } from "../core/measures.js";
 import { makeRng } from "../core/rng.js";
-import { krausToStinespring, makeSwitchedChannel } from "../switch/isometry.js";
+import { krausToStinespring, makeSwitchedChannel, type Stinespring } from "../switch/isometry.js";
 import { completelyDepolarizingKraus, replacerKraus, randomChannelStinespring } from "../switch/chanlib.js";
-import { classicalMixture, dephase, kronRho, readoutSlices } from "./collapse.js";
-import { switch3, uniformControl6 } from "./kswitch3.js";
-import { fAdd, fDiv, fr, fToNumber, type Ivl } from "./rational.js";
+import { classicalMixture, dephase, kronRho, partialDephase, readoutSlices } from "./collapse.js";
+import { switch3, uniformControl6, type Switch3 } from "./kswitch3.js";
+import { fr, fToNumber, iMid, type Ivl } from "./rational.js";
 import {
   esc18Certificate,
   esc18Chi,
@@ -70,6 +71,9 @@ export interface Violation {
 }
 
 const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F"];
+/** The witness roster — exported so the no-dead-witness trial reads the truth,
+ * not a test-local copy of it. */
+export const WITNESS_ROSTER: readonly string[] = WITNESS_IDS;
 const EXCHANGE_IDS: readonly string[] = ["E1", "E2", "E3", "E4", "E5", "E6"];
 
 /**
@@ -112,7 +116,7 @@ export function checkExchange(rows: readonly UntrustedExchangeRow[] = EXCHANGE):
 // ---------------------------------------------------------------------------
 
 function basisRho(i: number): CMat {
-  const m = { rows: 2, cols: 2, re: new Float64Array(4), im: new Float64Array(4) } as CMat;
+  const m = mat(2, 2);
   m.re[i * 2 + i] = 1;
   return m;
 }
@@ -142,7 +146,7 @@ export interface WitnessResult {
 /** W-A: dephased switch == classical mixture, second path from the fixed orders. */
 function witnessCollapseIdentity(): WitnessResult {
   const rng = makeRng(20260906);
-  const pairs: Array<[string, ReturnType<typeof krausToStinespring>, ReturnType<typeof krausToStinespring>]> = [
+  const pairs: Array<[string, Stinespring, Stinespring]> = [
     ["depol x depol", krausToStinespring(completelyDepolarizingKraus(2)), krausToStinespring(completelyDepolarizingKraus(2))],
     ["replacer x replacer", krausToStinespring(replacerKraus(2)), krausToStinespring(replacerKraus(2))],
   ];
@@ -173,8 +177,8 @@ function witnessEsc18(): WitnessResult {
   const chiCoh = chiBinary((x) => readoutSlices(sc, PLUS_RHO, basisRho(x)).full);
   const chiRead = chiBinary((x) => readoutSlices(sc, PLUS_RHO, basisRho(x)).readout);
   const blind = Math.max(
-    Math.abs((readoutSlices(sc, PLUS_RHO, basisRho(0)).control.re[0] as number) - 0.5),
-    Math.abs((readoutSlices(sc, PLUS_RHO, basisRho(1)).control.re[0] as number) - 0.5),
+    Math.abs(readoutSlices(sc, PLUS_RHO, basisRho(0)).control.re[0]! - 0.5),
+    Math.abs(readoutSlices(sc, PLUS_RHO, basisRho(1)).control.re[0]! - 0.5),
   );
   const ok =
     Math.abs(tFull - 0.25) < 1e-12 &&
@@ -196,8 +200,8 @@ function witnessComplementarity(): WitnessResult {
   const tBefore = traceDistance(a.control, b.control);
   const zProj = (m: CMat): CMat => {
     // z-readout keeps only the control's diagonal — the 2x2 register this witness reads
-    if (m.rows !== 2 || m.cols !== 2) throw new Error("W-C zProj: expected the 2x2 control block");
-    const z = { rows: 2, cols: 2, re: new Float64Array(4), im: new Float64Array(4) } as CMat;
+    if (m.rows !== 2 || m.cols !== 2) refuse("WC_ZPROJ_SHAPE", "W-C zProj: expected the 2x2 control block");
+    const z = mat(2, 2);
     z.re[0] = m.re[0]!;
     z.re[3] = m.re[3]!;
     return z;
@@ -224,28 +228,25 @@ function witnessInterpolation(): WitnessResult {
   );
   // the v0.1.0 data row stays checked (continuity of the quoted digits) ...
   const grid = [0, 0.25, 0.5, 0.75, 1];
+  // the weak-readout state at strength lambda is partialDephase — the single
+  // source (v0.4.0's C face); every witness below flows through it, never
+  // through a recomposed (1-l)*rho + l*Delta inline
   const vals = grid.map((lambda) =>
-    chiBinary((x) => {
-      const s = readoutSlices(sc, PLUS_RHO, basisRho(x));
-      return lambda === 0 ? s.full : lambda === 1 ? s.readout : mAdd(mScale(s.full, 1 - lambda), mScale(s.readout, lambda));
-    }),
+    chiBinary((x) => partialDephase(readoutSlices(sc, PLUS_RHO, basisRho(x)).full, [2, sc.sw.d], 0, lambda)),
   );
   const quotedOk =
-    Math.abs((vals[0] as number) - QUOTED_ESC18_CHI) < 1e-12 &&
-    (vals[4] as number) < 1e-12 &&
-    QUOTED_CURVE.every((q, i) => Math.abs(q - (vals[i + 1] as number)) < 1e-6);
+    Math.abs(vals[0]! - QUOTED_ESC18_CHI) < 1e-12 &&
+    vals[4]! < 1e-12 &&
+    QUOTED_CURVE.every((q, i) => Math.abs(q - vals[i + 1]!) < 1e-6);
   // ... and v0.2.0 adds the closed form F1, re-derived by the simulation at
   // every grid point lambda = i/20 (never copied from the theorem module)
   let maxDev = 0;
   let worstAt = "";
   for (const lambda of gridPoints()) {
     const l = fToNumber(lambda);
-    const sim = chiBinary((x) => {
-      const s = readoutSlices(sc, PLUS_RHO, basisRho(x));
-      return l === 0 ? s.full : l === 1 ? s.readout : mAdd(mScale(s.full, 1 - l), mScale(s.readout, l));
-    });
+    const sim = chiBinary((x) => partialDephase(readoutSlices(sc, PLUS_RHO, basisRho(x)).full, [2, sc.sw.d], 0, l));
     const iv = esc18Chi(lambda);
-    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    const mid = fToNumber(iMid(iv));
     const dev = Math.abs(sim - mid);
     if (dev > maxDev) {
       maxDev = dev;
@@ -266,6 +267,29 @@ function witnessInterpolation(): WitnessResult {
   };
 }
 
+/**
+ * The uniform six-order classical mixture Σ_π (1/6)·Tr_env[W_π ρ_S W_π†],
+ * block-diagonal in the order register — the second path of the k=3 collapse
+ * identity, always built from the branch isometries themselves (never by
+ * dephasing the switched output). Single source: the depolarizing and the
+ * complex-random trials below share it bit-for-bit.
+ */
+function sixOrderMixture(sw: Switch3, rhoS: CMat, envDims: readonly [number, number, number]): CMat {
+  const dims = [2, envDims[0], envDims[1], envDims[2]];
+  const mix = mat(12, 12);
+  for (let p = 0; p < 6; p++) {
+    const W = sw.branches[p]!; // p < 6 = PERMUTATIONS.length
+    const blk = partialTrace(mMul(mMul(W, rhoS), mDagger(W)), dims, [1, 2, 3]);
+    for (let i = 0; i < 2; i++) {
+      for (let j = 0; j < 2; j++) {
+        mix.re[(p * 2 + i) * 12 + (p * 2 + j)] = blk.re[i * 2 + j]! / 6;
+        mix.im[(p * 2 + i) * 12 + (p * 2 + j)] = blk.im[i * 2 + j]! / 6;
+      }
+    }
+  }
+  return mix;
+}
+
 /** W-E: the k=3 face — six-order mixture identity + the triple's chi. */
 function witnessK3(): WitnessResult {
   const v3 = [
@@ -275,23 +299,13 @@ function witnessK3(): WitnessResult {
   ];
   const sw = switch3(v3);
   const u6 = uniformControl6();
-  const uc = { rows: 6, cols: 6, re: new Float64Array(36), im: new Float64Array(36) } as CMat;
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) uc.re[i * 6 + j] = (u6.re[i] as number) * (u6.re[j] as number);
+  const uc = mat(6, 6);
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) uc.re[i * 6 + j] = u6.re[i]! * u6.re[j]!;
   const joint3 = (x: number): CMat => partialTrace(mMul(mMul(sw.M, kronRho(uc, basisRho(x))), mDagger(sw.M)), [6, 2, 4, 4, 4], [2, 3, 4]);
   const chiCoh = chiBinary(joint3);
   const chiRead = chiBinary((x) => dephase(joint3(x), [6, 2], 0));
   // mixture identity, second path from the six branch isometries
-  const mix = { rows: 12, cols: 12, re: new Float64Array(144), im: new Float64Array(144) } as CMat;
-  for (let p = 0; p < 6; p++) {
-    const W = sw.branches[p] as CMat;
-    const blk = partialTrace(mMul(mMul(W, basisRho(0)), mDagger(W)), [2, 4, 4, 4], [1, 2, 3]);
-    for (let i = 0; i < 2; i++) {
-      for (let j = 0; j < 2; j++) {
-        mix.re[(p * 2 + i) * 12 + (p * 2 + j)] = (blk.re[i * 2 + j] as number) / 6;
-        mix.im[(p * 2 + i) * 12 + (p * 2 + j)] = (blk.im[i * 2 + j] as number) / 6;
-      }
-    }
-  }
+  const mix = sixOrderMixture(sw, basisRho(0), [4, 4, 4]);
   const dev = maxAbs(mAdd(dephase(joint3(0), [6, 2], 0), mScale(mix, -1)));
   // the complex face: random CPTP triples have complex Stinespring factors —
   // a real-only accumulator would pass the depol check above while corrupting
@@ -302,19 +316,9 @@ function witnessK3(): WitnessResult {
     const rc = [randomChannelStinespring(rng, 2, 2), randomChannelStinespring(rng, 2, 2), randomChannelStinespring(rng, 2, 2)];
     const swc = switch3(rc);
     const input = vecToRho(uniformVec(2));
-    const dims = [6, 2, (rc[0] as { envDim: number }).envDim, (rc[1] as { envDim: number }).envDim, (rc[2] as { envDim: number }).envDim];
+    const dims = [6, 2, rc[0]!.envDim, rc[1]!.envDim, rc[2]!.envDim];
     const out = partialTrace(mMul(mMul(swc.M, kronRho(uc, input)), mDagger(swc.M)), dims, [2, 3, 4]);
-    const mixc = { rows: 12, cols: 12, re: new Float64Array(144), im: new Float64Array(144) } as CMat;
-    for (let p = 0; p < 6; p++) {
-      const W = swc.branches[p] as CMat;
-      const blk = partialTrace(mMul(mMul(W, input), mDagger(W)), dims.slice(1), [1, 2, 3]);
-      for (let i = 0; i < 2; i++) {
-        for (let j = 0; j < 2; j++) {
-          mixc.re[(p * 2 + i) * 12 + (p * 2 + j)] = (blk.re[i * 2 + j] as number) / 6;
-          mixc.im[(p * 2 + i) * 12 + (p * 2 + j)] = (blk.im[i * 2 + j] as number) / 6;
-        }
-      }
-    }
+    const mixc = sixOrderMixture(swc, input, [rc[0]!.envDim, rc[1]!.envDim, rc[2]!.envDim]);
     devComplex = Math.max(devComplex, maxAbs(mAdd(dephase(out, [6, 2], 0), mScale(mixc, -1))));
   }
   const ok = Math.abs(chiCoh - QUOTED_K3_CHI) < 1e-12 && chiRead < 1e-12 && dev < 1e-12 && devComplex < 1e-12;
@@ -324,12 +328,9 @@ function witnessK3(): WitnessResult {
   let k3MaxDev = 0;
   for (const lambda of gridPoints()) {
     const l = fToNumber(lambda);
-    const sim = chiBinary((x) => {
-      const full = joint3(x);
-      return l === 0 ? full : l === 1 ? dephase(full, [6, 2], 0) : mAdd(mScale(full, 1 - l), mScale(dephase(full, [6, 2], 0), l));
-    });
+    const sim = chiBinary((x) => partialDephase(joint3(x), [6, 2], 0, l));
     const iv = k3Chi(lambda);
-    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    const mid = fToNumber(iMid(iv));
     k3MaxDev = Math.max(k3MaxDev, Math.abs(sim - mid));
   }
   const k3Cert = k3Certificate();
@@ -355,10 +356,10 @@ function witnessFrontier(): WitnessResult {
     const l = fToNumber(lambda);
     const sim = chiBinary((x) => {
       const s = readoutSlices(sc, PLUS_RHO, vecToRho(x === 0 ? uniformVec(2) : uniformOrthVec(2)));
-      return l === 0 ? s.control : mAdd(mScale(s.control, 1 - l), mScale(dephase(s.control, [2], 0), l));
+      return partialDephase(s.control, [2], 0, l);
     });
     const iv = replacerChi(lambda);
-    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    const mid = fToNumber(iMid(iv));
     maxDev = Math.max(maxDev, Math.abs(sim - mid));
   }
   const replCert = replacerCertificate();
@@ -366,8 +367,8 @@ function witnessFrontier(): WitnessResult {
   // the first marginal price = chi(0) - chi(1/20): quote from the enclosure's
   // midpoint (display only; the pass check compares against the quoted digits)
   const midNum = (iv: Ivl | undefined): number => {
-    if (iv === undefined) throw new Error("W-F: marginal price list is empty");
-    return fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    if (iv === undefined) refuse("WF_MARGINAL_LIST_EMPTY", "W-F: marginal price list is empty");
+    return fToNumber(iMid(iv));
   };
   const escFirst = midNum(fw.esc18.marginal[0]);
   const replFirst = midNum(fw.replacer.marginal[0]);

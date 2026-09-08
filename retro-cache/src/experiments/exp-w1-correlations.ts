@@ -6,6 +6,7 @@ import {
   correlationFromTable,
   jointTable,
   phasePair,
+  RcError,
   Rng,
   wernerCorrelation,
   wernerPair,
@@ -25,8 +26,9 @@ function main(): void {
     const rho = wernerPair(p);
     let worst = 0;
     for (let i = 0; i < 24; i++) {
-      const a = axes[i] as number[];
-      const b = axes[i + 24] as number[];
+      const a = axes.at(i);
+      const b = axes.at(i + 24);
+      if (a === undefined || b === undefined) throw new RcError("RC_INTERNAL", `W1: axis draw ${i} missing from the 48-draw stream`);
       const dev = Math.abs(correlationFromTable(jointTable(rho, a, b)) - wernerCorrelation(p, a, b));
       if (dev > worst) worst = dev;
     }

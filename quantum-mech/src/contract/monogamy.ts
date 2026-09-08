@@ -17,13 +17,16 @@ import { randomPureState } from '../core/states.js';
 /** Spin-flipped state ρ̃ = (σy⊗σy) ρ* (σy⊗σy). */
 function spinFlip(rho: CMat): CMat {
   const d = rho.rows;
-  const conj = { rows: d, cols: d, re: rho.re.slice(), im: rho.im.map((x) => -x) } as CMat;
+  const conj: CMat = { rows: d, cols: d, re: rho.re.slice(), im: rho.im.map((x) => -x) };
   const yy = kron(PAULI_Y, PAULI_Y);
   return mMul(mMul(yy, conj), yy);
 }
 
 /** Wootters concurrence of a 2-qubit (possibly mixed) state. */
 export function concurrence(rho: CMat): number {
+  if (rho.rows !== 4 || rho.cols !== 4) {
+    throw new Error(`MONO01-bad-shape: concurrence needs a 4x4 two-qubit density matrix, got ${rho.rows}x${rho.cols}`);
+  }
   const sq = sqrtPSD(rho);
   const inner = mMul(mMul(sq, spinFlip(rho)), sq);
   const { values } = eigHermitian(inner);
@@ -33,8 +36,10 @@ export function concurrence(rho: CMat): number {
   return Math.max(0, c);
 }
 
-/** Concurrence of qubit A with the rest (2√det ρ_A) for a pure n-qubit state. */
-export function concurrenceWithRest(pureRho: CMat, dims: readonly number[], a: number): number {
+/** Concurrence of qubit A with the rest (2√det ρ_A) for a pure n-qubit state.
+ * Internal machinery of ckw (zero external references — un-exported in the
+ * v0.3.0 dead-face sweep; the CKW report is the public surface). */
+function concurrenceWithRest(pureRho: CMat, dims: readonly number[], a: number): number {
   const rhoA = partialTrace(pureRho, dims, dims.map((_, i) => i).filter((i) => i !== a));
   // rhoA is a 2x2 reduced density matrix
   const det = rhoA.re[0]! * rhoA.re[3]! - rhoA.re[1]! * rhoA.re[2]!;

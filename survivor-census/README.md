@@ -15,6 +15,17 @@
 > **S7 — the phase-encoding census** (the ledger is phase-blind, the state
 > is phase-carrying; the boundary "no claim about optimal phase encodings"
 > is now executable instead of verbal).
+>
+> v0.3.0 is a code-quality wave with **frozen mathematics** — the rendered
+> census is byte-identical. Every kernel refusal now carries a named
+> `CensusError` code (`src/kernel/errors.ts`): the composition refusal
+> chain discriminates by code instead of message text, an out-of-range
+> stage-B mark (previously dropped silently by the intersection filter), a
+> non-finite phase, and a zero-run Monte Carlo (previously a silent NaN)
+> are all named rejections — each conviction carries a regression anchor
+> in `test/errors.test.ts`. Structurally-guaranteed lookups refuse by name
+> (`expectFound`) instead of leaking `undefined`, and the two-path
+> comparison tolerance is single-sourced in `src/kernel/tol.ts`.
 
 ## What existed before (honest demarcation)
 
@@ -168,7 +179,7 @@ stay" has no referent at all. That is this repo.
 
 ```
 npm ci
-npm test          # 43/43
+npm test          # 51/51
 npm run repro     # renders out/reports/the-survivor-census.md, seconds
 ```
 

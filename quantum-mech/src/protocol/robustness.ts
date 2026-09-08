@@ -25,11 +25,12 @@
  * seeded Monte Carlo over exact density matrices (R3/R4).
  */
 
-import { type CMat, kronAll, identity } from '../core/cmat.js';
+import { type CMat, type CVec, kronAll, identity } from '../core/cmat.js';
 import { applyKraus, applyQubitChannel, applyUnitary, amplitudeDampKraus, marginalProbs, partialTrace, phaseFlipKraus } from '../core/channels.js';
 import { holevo, fidelity, traceDistance, type EnsembleItem } from '../core/measures.js';
-import { fromVec, KET0, PLUS, RPLUS, LPLUS } from '../core/states.js';
-import { type LockMode, lockedEnsemble, lockValue, interceptMeasureResend, lockStateVector, basisUnitary } from './locking.js';
+import { fromVec, KET0, PLUS, RPLUS, LPLUS, maximallyMixed } from '../core/states.js';
+import { type LockMode, lockedEnsemble, lockValue, interceptMeasureResend, lockStateVector, basisUnitary, dagger2 } from './locking.js';
+import { conjVec, PSI_Z1, PSI_X1 } from '../contract/hjw.js';
 import { makeRng, type Rng } from '../core/rng.js';
 import { type Verification } from './datalock.js';
 
@@ -95,13 +96,16 @@ export function noisyUnlockErrors(
   rng: Rng,
   intercept: boolean,
 ): number {
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`ROBUST01-bad-m: noisyUnlockErrors needs integer m >= 1, got ${m}`);
+  }
   const v = rng.int(2 ** m);
   const lock = lockValue(v, m, rng, nBases, mode);
   if (intercept) interceptMeasureResend(lock, rng, nBases);
   let rho = fromVec(lockStateVector(lock));
   rho = applyQubitChannel(rho, m, noiseKraus(noise, gamma));
   // rotate the whole register back into the key basis
-  const rot = kronAll(lock.bases.map((b) => basisUnitary(b)).map((u) => transposeConj2(u)));
+  const rot = kronAll(lock.bases.map((b) => basisUnitary(b)).map((u) => dagger2(u)));
   rho = applyUnitary(rho, rot);
   let errors = 0;
   for (let q = 0; q < m; q++) {
@@ -112,19 +116,6 @@ export function noisyUnlockErrors(
     if (bit !== ((v >> q) & 1)) errors++;
   }
   return errors;
-}
-
-function transposeConj2(u: CMat): CMat {
-  const out = { rows: 2, cols: 2, re: new Float64Array(4), im: new Float64Array(4) };
-  out.re[0] = u.re[0]!;
-  out.im[0] = -u.im[0]!;
-  out.re[1] = u.re[2]!;
-  out.im[1] = -u.im[2]!;
-  out.re[2] = u.re[1]!;
-  out.im[2] = -u.im[1]!;
-  out.re[3] = u.re[3]!;
-  out.im[3] = -u.im[3]!;
-  return out;
 }
 
 export interface SeparationStats {
@@ -172,20 +163,11 @@ export interface HjwNoiseReport {
   revealPass: [number, number];
 }
 
+// The R5 demonstration states: Z0/X0 from the states.ts canon, Z1/X1 the
+// hjw.ts closed-form literals (byte-identical to this module's former local
+// copies), Y pair the states.ts RPLUS/LPLUS constants.
 const PSI_Z0 = KET0;
-const PSI_Z1: CVec2 = { n: 2, re: Float64Array.of(0, 1), im: new Float64Array(2) };
 const PSI_X0 = PLUS;
-const PSI_X1: CVec2 = { n: 2, re: Float64Array.of(Math.SQRT1_2, -Math.SQRT1_2), im: new Float64Array(2) };
-
-interface CVec2 {
-  readonly n: number;
-  readonly re: Float64Array;
-  readonly im: Float64Array;
-}
-
-function conjStateVec(v: CVec2): CVec2 {
-  return { n: v.n, re: v.re.slice(), im: v.im.map((x) => -x) };
-}
 
 /** Noise on the verifier's qubit (qubit 0) of |Φ+⟩, then the steering
  * analysis: committer measures qubit 1 in {Z, X, Y}, probabilities shift,
@@ -200,7 +182,7 @@ export function hjwUnderNoise(noise: NoiseName, gamma: number): HjwNoiseReport {
   const embedded = noiseKraus(noise, gamma).map((k) => kronAll([k, I2]));
   const noisy = applyKraus(phiPlus, embedded);
   const vMarginal = partialTrace(noisy, [2, 2], [1]);
-  const Ihalf = { rows: 2, cols: 2, re: Float64Array.of(0.5, 0, 0, 0.5), im: new Float64Array(4) };
+  const Ihalf = maximallyMixed(2);
   const concealment = traceDistance(vMarginal, Ihalf);
 
   const members = [
@@ -218,14 +200,14 @@ export function hjwUnderNoise(noise: NoiseName, gamma: number): HjwNoiseReport {
       const applied = applyKraus(noisy, [proj]);
       const p = applied.re[0]! + applied.re[5]! + applied.re[10]! + applied.re[15]!;
       if (p > 1e-15) {
-        const conditional = {
+        const conditional: CMat = {
           rows: 4,
           cols: 4,
           re: applied.re.map((x) => x / p),
           im: applied.im.map((x) => x / p),
-        } as CMat;
+        };
         const vQubit = partialTrace(conditional, [2, 2], [1]);
-        fidSum += fidelity(vQubit, fromVec(conjStateVec(psi)));
+        fidSum += fidelity(vQubit, fromVec(conjVec(psi)));
         fidCount++;
       }
       probDev = Math.max(probDev, Math.abs(p - 0.5));
@@ -233,7 +215,7 @@ export function hjwUnderNoise(noise: NoiseName, gamma: number): HjwNoiseReport {
   }
   // naive-protocol reveal: honest committer sends |ψ_b⟩, verifier's qubit
   // passes through the channel, reveal measures against ψ_b
-  const passRate = (psi: { n: number; re: Float64Array; im: Float64Array }): number => {
+  const passRate = (psi: CVec): number => {
     const rho = applyKraus(fromVec(psi), noiseKraus(noise, gamma));
     const proj = fromVec(psi);
     const applied = applyKraus(rho, [proj]);

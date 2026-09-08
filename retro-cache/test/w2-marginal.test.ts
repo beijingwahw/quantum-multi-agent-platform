@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cmatZero, hsDistance, jointTable, mutualInfoBits, reduceB, Rng, wernerPair } from "../src/kernel/state.js";
-import { cptpOnB, randomUnitary2, unitaryOnA } from "../src/kernel/tariff.js";
+import { cmatZero, hsDistance, jointTable, mutualInfoBits, reduceB, Rng, wernerPair, type CMat } from "../src/kernel/state.js";
+import { cptpOnB, postprocessOutcome, randomUnitary2, unitaryOnA } from "../src/kernel/tariff.js";
 
-function bMarginal(rho: ReturnType<typeof wernerPair>, a: readonly number[], b: readonly number[]): number {
+function bMarginal(rho: CMat, a: readonly number[], b: readonly number[]): number {
   const t = jointTable(rho, a, b);
   return (t[0][0]) + (t[1][0]);
 }
@@ -63,4 +63,47 @@ test("W2.D the bit is real and lives in the |a.b| alignment", () => {
   const x = [1, 0, 0];
   const t2 = jointTable(rho, z, x);
   assert.ok(mutualInfoBits(t2) < 1e-14, "perpendicular axes: outcomes uncorrelated, MI = 0 — the bit lives in the alignment, never in B's row alone");
+});
+
+test("W2.E classical postprocessing on B's column: the tariff holds (the description's third map family, wired)", () => {
+  // the package description prices the marginal tariff under "any local map
+  // (random unitary, Stinespring CPTP, classical postprocessing)" — this leg
+  // executes that third family on exact tables (it previously had no machine
+  // behind it: postprocessOutcome was exported and never called).
+  const rho = wernerPair(1);
+  const rng = new Rng(4242);
+  const tables: Array<[[number, number], [number, number]]> = [];
+  for (let i = 0; i < 6; i++) tables.push(jointTable(rho, rng.axis(), rng.axis()));
+  // (i) a doubly stochastic map keeps B's row exactly (1/2, 1/2)
+  const flip: readonly [readonly number[], readonly number[]] = [[0, 1], [1, 0]];
+  const identity: readonly [readonly number[], readonly number[]] = [[1, 0], [0, 1]];
+  for (const t of tables)
+    for (const m of [flip, identity]) {
+      const out = postprocessOutcome(t, m);
+      assert.ok(Math.abs(out[0]![0]! + out[1]![0]! - 0.5) < 1e-15, "doubly stochastic: B marginal exactly 1/2");
+    }
+  // (ii) a merely stochastic map may tilt B's own coin (the W2.C split), but
+  // injects ZERO A-dependence: the y'-column is the same under every A-side
+  // table that shares B's axis
+  const tilted: readonly [readonly number[], readonly number[]] = [[1, 0], [0.5, 0.5]];
+  const bFixed = [0.6, 0.64, 0.48]; // |b|^2 = 0.36+0.4096+0.2304 = 1 exactly
+  const aVariants = [
+    [0, 0, 1],
+    [1, 0, 0],
+    [Math.SQRT1_2, Math.SQRT1_2, 0],
+    [Math.SQRT1_2, -Math.SQRT1_2, 0],
+  ];
+  // the OBJECT is B's y'-column marginal sum_x P(x, y') — the joint cells
+  // carry A's correlation by design and must NOT be asserted flat
+  const column = (t: ReadonlyArray<readonly number[]>): readonly number[] => [t[0]![0]! + t[1]![0]!, t[0]![1]! + t[1]![1]!];
+  const ref = column(postprocessOutcome(jointTable(rho, aVariants[0]!, bFixed), tilted));
+  for (const a of aVariants) {
+    const out = column(postprocessOutcome(jointTable(rho, a, bFixed), tilted));
+    assert.ok(Math.abs(out[0]! - ref[0]!) < 1e-14, "stochastic postprocess: no A-dependence in B's column");
+    assert.ok(Math.abs(out[1]! - ref[1]!) < 1e-14, "stochastic postprocess: no A-dependence in B's column");
+  }
+  // (iii) data processing on the observed side cannot create information:
+  // MI(A answer; postprocessed B) = 0 wherever the raw MI is 0
+  const perp = postprocessOutcome(jointTable(rho, [0, 0, 1], [1, 0, 0]), tilted);
+  assert.ok(mutualInfoBits(perp) < 1e-14, "postprocessing a zero-information column leaves zero information");
 });

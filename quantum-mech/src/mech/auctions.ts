@@ -10,11 +10,12 @@ export type AuctionKind = 'first' | 'second';
 export interface AuctionOutcome {
   winner: number;
   price: number;
-  /** utility of each agent given their TRUE values */
-  utilities: number[];
 }
 
 function argmaxLow(bids: readonly number[]): number {
+  if (bids.length === 0) {
+    throw new Error('AUCT01-empty-bids: argmaxLow needs at least one bid, got []');
+  }
   let best = 0;
   for (let i = 1; i < bids.length; i++) {
     if (bids[i]! > bids[best]!) best = i;
@@ -34,9 +35,9 @@ function secondHighest(bids: readonly number[]): number {
 
 /** Resolve the auction given submitted bids. */
 export function resolveAuction(bids: readonly number[], kind: AuctionKind): AuctionOutcome {
-  const winner = argmaxLow(bids);
+  const winner = argmaxLow(bids); // rejects the empty profile (AUCT01)
   const price = kind === 'first' ? bids[winner]! : secondHighest(bids);
-  return { winner, price, utilities: [] };
+  return { winner, price };
 }
 
 /** Quasi-linear utility of `agent` with true value `trueValue` when the

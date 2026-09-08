@@ -20,6 +20,7 @@ import {
   vec,
   type CVec,
 } from "../core/cmat.js";
+import { refuse } from "../core/errors.js";
 import type { Stinespring } from "../switch/isometry.js";
 
 export const PERMUTATIONS: ReadonlyArray<[number, number, number]> = [
@@ -42,7 +43,7 @@ function permuteSlots(
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
-  const newDims = perm.map((p) => dims[p] as number);
+  const newDims = perm.map((p) => dims[p]!);
   const newStrides: number[] = new Array<number>(m);
   newStrides[m - 1] = 1;
   // strides of the PERMUTED registers must come from newDims, not dims — with
@@ -55,13 +56,13 @@ function permuteSlots(
     let rest = idx;
     const digits: number[] = new Array<number>(m);
     for (let i = 0; i < m; i++) {
-      digits[i] = Math.floor(rest / (strides[i] as number));
-      rest %= strides[i] as number;
+      digits[i] = Math.floor(rest / strides[i]!);
+      rest %= strides[i]!;
     }
     let newIdx = 0;
-    for (let k = 0; k < m; k++) newIdx += (digits[perm[k] as number] as number) * (newStrides[k] as number);
-    outRe[newIdx] = re[idx] as number;
-    outIm[newIdx] = im[idx] as number;
+    for (let k = 0; k < m; k++) newIdx += digits[perm[k]!]! * newStrides[k]!;
+    outRe[newIdx] = re[idx]!;
+    outIm[newIdx] = im[idx]!;
   }
   return { re: outRe, im: outIm, dims: newDims };
 }
@@ -75,10 +76,10 @@ function permuteSlots(
  */
 export function branchIsometry3(vs: readonly Stinespring[], pi: readonly [number, number, number]): CMat {
   // fewer than three channels would crash on vs[0]/vs[k] with a raw TypeError
-  if (vs.length < 3) throw new Error("branchIsometry3: the k=3 switch needs exactly three channels");
-  const d = (vs[0] as Stinespring).d;
+  if (vs.length < 3) refuse("SWITCH3_CHANNEL_COUNT", "branchIsometry3: the k=3 switch needs exactly three channels");
+  const d = vs[0]!.d; // length checked directly above
   const eEnv = vs.map((v) => v.envDim);
-  const canonical = [d, eEnv[0] as number, eEnv[1] as number, eEnv[2] as number];
+  const canonical = [d, eEnv[0]!, eEnv[1]!, eEnv[2]!];
   const rows = canonical.reduce((a, b) => a * b, 1);
   const W = mat(rows, d);
   for (let i = 0; i < d; i++) {
@@ -87,7 +88,7 @@ export function branchIsometry3(vs: readonly Stinespring[], pi: readonly [number
     let im = new Float64Array(d);
     re[i] = 1;
     for (const k of pi) {
-      const st = vs[k] as Stinespring;
+      const st = vs[k]!; // k in {0,1,2}, length checked at entry
       const e = st.envDim;
       const newDims = [d, e, ...dims.slice(1)];
       const size = newDims.reduce((a, b) => a * b, 1);
@@ -102,11 +103,11 @@ export function branchIsometry3(vs: readonly Stinespring[], pi: readonly [number
             let accIm = 0;
             const rowIdx = ((s * e + m) * d);
             for (let j = 0; j < d; j++) {
-              const ar = re[j * liveStride + rest] as number;
-              const ai = im[j * liveStride + rest] as number;
+              const ar = re[j * liveStride + rest]!;
+              const ai = im[j * liveStride + rest]!;
               if (ar === 0 && ai === 0) continue;
-              const vr = st.V.re[(rowIdx + j)] as number;
-              const vi = st.V.im[(rowIdx + j)] as number;
+              const vr = st.V.re[(rowIdx + j)]!;
+              const vi = st.V.im[(rowIdx + j)]!;
               accRe += vr * ar - vi * ai;
               accIm += vr * ai + vi * ar;
             }
@@ -125,18 +126,18 @@ export function branchIsometry3(vs: readonly Stinespring[], pi: readonly [number
     const perm: number[] = [0];
     for (let c = 0; c < 3; c++) {
       for (let t = 0; t < 3; t++) {
-        if ((pi[t] as number) === c) {
+        if (pi[t]! === c) {
           perm.push(3 - t);
           break;
         }
       }
     }
-    if (perm.length !== 4) throw new Error("slot permutation failed — pi is not a permutation");
+    if (perm.length !== 4) refuse("SWITCH3_SLOT_PERM", "slot permutation failed — pi is not a permutation");
     const fixed = permuteSlots(re, im, dims, perm);
-    if (fixed.re.length !== rows) throw new Error("slot permutation changed dimension");
+    if (fixed.re.length !== rows) refuse("SWITCH3_SLOT_PERM_DIM", "slot permutation changed dimension");
     for (let r = 0; r < rows; r++) {
-      W.re[r * d + i] = fixed.re[r] as number;
-      W.im[r * d + i] = fixed.im[r] as number;
+      W.re[r * d + i] = fixed.re[r]!;
+      W.im[r * d + i] = fixed.im[r]!;
     }
   }
   return W;
@@ -151,26 +152,26 @@ export interface Switch3 {
 }
 
 export function switch3(vs: readonly Stinespring[]): Switch3 {
-  if (vs.length < 3) throw new Error("switch3: the k=3 switch needs exactly three channels");
-  const d = (vs[0] as Stinespring).d;
+  if (vs.length < 3) refuse("SWITCH3_CHANNEL_COUNT", "switch3: the k=3 switch needs exactly three channels");
+  const d = vs[0]!.d; // length checked directly above
   const branches = PERMUTATIONS.map((pi) => branchIsometry3(vs, pi));
-  const branchRows = (branches[0] as CMat).rows;
+  const branchRows = branches[0]!.rows; // PERMUTATIONS has six entries, branches is its map
   const rows = 6 * branchRows;
   const cols = 6 * d;
   const M = mat(rows, cols);
   for (let p = 0; p < 6; p++) {
-    const W = branches[p] as CMat;
+    const W = branches[p]!; // p < 6 = PERMUTATIONS.length
     for (let col = p * d; col < (p + 1) * d; col++) {
       for (let row = 0; row < branchRows; row++) {
         const target = (p * branchRows + row) * cols + col;
         const source = row * d + (col - p * d);
-        M.re[target] = W.re[source] as number;
-        M.im[target] = W.im[source] as number;
+        M.re[target] = W.re[source]!;
+        M.im[target] = W.im[source]!;
       }
     }
   }
   if (!matEq(mMul(mDagger(M), M), identity(cols), 1e-12)) {
-    throw new Error("k=3 switch isometry failed M†M = I — construction bug");
+    refuse("SWITCH3_ISOMETRY", "k=3 switch isometry failed M†M = I — construction bug");
   }
   return { M, d, branches };
 }

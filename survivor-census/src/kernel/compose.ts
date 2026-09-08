@@ -28,6 +28,7 @@
 
 import { runPriorSorter } from "./survivor.js";
 import type { KillRow, PriorSorterRun } from "./survivor.js";
+import { CensusError } from "./errors.js";
 
 export interface CompositionRun {
   readonly n: number;
@@ -74,11 +75,23 @@ export function composeStages(
   phases?: readonly number[],
 ): CompositionRun {
   const N = 2 ** n;
-  if (counts.length !== N) throw new Error("composeStages: count table must have length 2^n");
+  if (counts.length !== N) {
+    throw new CensusError("SC/BAD-COUNTS", "composeStages: count table must have length 2^n");
+  }
+  // both marked sets are validated BEFORE the intersection is taken: an
+  // out-of-range stage-B mark used to be silently dropped by the filter
+  // below (a smuggled address never named) — it is named now
+  if (markedA.length === 0 || markedB.length === 0) {
+    throw new CensusError("SC/BAD-MARKED", "composeStages: both stages must mark at least one item");
+  }
+  if (markedA.some((x) => x < 0 || x >= N) || markedB.some((x) => x < 0 || x >= N)) {
+    throw new CensusError("SC/BAD-MARKED", "composeStages: marked out of range");
+  }
   const totalC = counts.reduce((a, b) => a + b, 0);
   const markedAB = [...markedA].filter((x) => markedB.includes(x));
   if (markedAB.length === 0) {
-    throw new Error(
+    throw new CensusError(
+      "SC/EMPTY-INTERSECTION",
       "composeStages: composed conditioning undefined — the intersection is empty (stage B starves stage A's survivor)",
     );
   }
@@ -90,8 +103,11 @@ export function composeStages(
   try {
     runAB = runPriorSorter(n, counts, markedAB, phases);
   } catch (e) {
-    if (e instanceof Error && e.message.includes("undefined")) {
-      throw new Error(
+    // discriminate by error CODE, not by message substring — a message edit
+    // must not silently break the refusal chain (the v0.2.0 hazard, closed)
+    if (e instanceof CensusError && e.code === "SC/P0-UNDEFINED") {
+      throw new CensusError(
+        "SC/EMPTY-INTERSECTION",
         "composeStages: composed conditioning undefined — the intersection holds no funded optimum (stage B starves stage A's survivor)",
         { cause: e },
       );
@@ -102,7 +118,7 @@ export function composeStages(
   // stage-2 keep, measured INSIDE the A-survivor frame: posterior_A mass on funded(A∩B)
   let p2 = 0;
   for (let x = 0; x < N; x++) {
-    if (runAB.posterior[x] as number > 0) p2 += runA.posterior[x] as number;
+    if (runAB.posterior[x]! > 0) p2 += runA.posterior[x]!;
   }
   const p1 = runA.pKeep;
 
@@ -111,9 +127,9 @@ export function composeStages(
   // runs over survivors only) and direct reading 0 — the two 0s agree
   let posteriorComposeDev = 0;
   for (let x = 0; x < N; x++) {
-    const keptAB = (runAB.posterior[x] as number) > 0;
-    const staged = keptAB ? (runA.posterior[x] as number) / p2 : 0;
-    const dev = Math.abs(staged - (runAB.posterior[x] as number));
+    const keptAB = runAB.posterior[x]! > 0;
+    const staged = keptAB ? runA.posterior[x]! / p2 : 0;
+    const dev = Math.abs(staged - runAB.posterior[x]!);
     if (dev > posteriorComposeDev) posteriorComposeDev = dev;
   }
 
@@ -121,17 +137,17 @@ export function composeStages(
   // the projection zeroes exactly what stage B killed
   let projNorm = 0;
   for (let x = 0; x < N; x++) {
-    const amp = Math.hypot(runA.survivorRe[x] as number, runA.survivorIm[x] as number);
-    if ((runAB.posterior[x] as number) > 0) projNorm += amp * amp;
+    const amp = Math.hypot(runA.survivorRe[x]!, runA.survivorIm[x]!);
+    if (runAB.posterior[x]! > 0) projNorm += amp * amp;
   }
   const projScale = 1 / Math.sqrt(projNorm);
   let survivorComposeDev = 0;
   for (let x = 0; x < N; x++) {
-    const keptAB = (runAB.posterior[x] as number) > 0;
-    const aRe = keptAB ? (runA.survivorRe[x] as number) * projScale : 0;
-    const aIm = keptAB ? (runA.survivorIm[x] as number) * projScale : 0;
-    const bRe = runAB.survivorRe[x] as number;
-    const bIm = runAB.survivorIm[x] as number;
+    const keptAB = runAB.posterior[x]! > 0;
+    const aRe = keptAB ? runA.survivorRe[x]! * projScale : 0;
+    const aIm = keptAB ? runA.survivorIm[x]! * projScale : 0;
+    const bRe = runAB.survivorRe[x]!;
+    const bIm = runAB.survivorIm[x]!;
     const dev = Math.max(Math.abs(aRe - bRe), Math.abs(aIm - bIm));
     if (dev > survivorComposeDev) survivorComposeDev = dev;
   }
@@ -151,10 +167,10 @@ export function composeStages(
     if (dev > registerComposeDev) registerComposeDev = dev;
   }
   for (let x = 0; x < N; x++) {
-    const keptByA = (runA.posterior[x] as number) > 0;
-    const keptByAB = (runAB.posterior[x] as number) > 0;
+    const keptByA = runA.posterior[x]! > 0;
+    const keptByAB = runAB.posterior[x]! > 0;
     if (keptByA && !keptByAB) {
-      killRegister2.push({ x, mass: (counts[x] as number) / totalC, count: counts[x] as number, totalC });
+      killRegister2.push({ x, mass: counts[x]! / totalC, count: counts[x]!, totalC });
     }
   }
   let sum2 = 0;
@@ -182,7 +198,7 @@ export function composeStages(
   const reversed = composeOneSide(n, counts, markedB, markedA, phases);
   let orderDev = 0;
   for (let x = 0; x < N; x++) {
-    const dev = Math.abs((runAB.posterior[x] as number) - (reversed.posterior[x] as number));
+    const dev = Math.abs(runAB.posterior[x]! - reversed.posterior[x]!);
     if (dev > orderDev) orderDev = dev;
   }
 

@@ -38,11 +38,14 @@ test("W6.B the census depreciation line: |S| under the classical cap at eta=1, c
     assert.ok(Math.abs(Math.abs(s.closed) - Math.SQRT2 * p) < 1e-14, `p=${p}: eta=1 gives |S| = sqrt(2)*p`);
     assert.ok(Math.abs(s.closed) <= 2, `p=${p}: the fully mediated column is inside the census`);
   }
-  assert.ok(Math.abs((censusCrossingTap(1) as number) - (2 - Math.SQRT2)) < 1e-14, "eta*(1) = 2 - sqrt(2)");
+  const etaOne = censusCrossingTap(1);
+  assert.ok(etaOne !== null, "eta*(1) is defined (the singlet starts above the cap)");
+  assert.ok(Math.abs(etaOne - (2 - Math.SQRT2)) < 1e-14, "eta*(1) = 2 - sqrt(2)");
   assert.equal(censusCrossingTap(1 / Math.SQRT2 + 1e-6) !== null, true);
   assert.equal(censusCrossingTap(0.7), null, "below p = 1/sqrt(2) the surplus already starts under the cap");
   // crossing self-consistency: at eta*, |S| = 2 to machine precision
-  const etaStar = censusCrossingTap(1) as number;
+  const etaStar = censusCrossingTap(1);
+  assert.ok(etaStar !== null);
   const atCrossing = chshUnderAttack(1, etaStar);
   assert.ok(Math.abs(Math.abs(atCrossing.closed) - 2) < 1e-12, "|S(eta*)| = 2");
 });

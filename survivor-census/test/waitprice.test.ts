@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { mcWaiting, schedule, tailAt, waitingPrice } from "../src/kernel/waitprice.js";
 import { Rng } from "../src/kernel/survivor.js";
+import { TOL } from "../src/kernel/tol.js";
 
 describe("S3 — the waiting price, exact", () => {
   it("E[T] = 1/P on two paths (closed form vs closed-form partial sum; loop referee at moderate P)", () => {
@@ -22,7 +23,7 @@ describe("S3 — the waiting price, exact", () => {
         assert.ok(s.overcharge >= 0);
         assert.ok(s.kBound >= s.kExact);
         // exp-log cross-path against Math.pow
-        assert.ok(Math.abs(tailAt(p, s.kExact) - (1 - p) ** s.kExact) < 1e-12);
+        assert.ok(Math.abs(tailAt(p, s.kExact) - (1 - p) ** s.kExact) < TOL);
       }
     }
   });
@@ -31,7 +32,7 @@ describe("S3 — the waiting price, exact", () => {
     const s = schedule(0.5, 1e-6);
     assert.equal(s.kExact, 20);
     assert.equal(s.kBound, 28);
-    assert.ok(Math.abs(s.overcharge - 0.4) < 1e-12);
+    assert.ok(Math.abs(s.overcharge - 0.4) < TOL);
   });
 
   it("MC referee for the geometric law lands inside 5 sigma (DATA)", () => {
