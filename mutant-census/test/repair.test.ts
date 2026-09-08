@@ -19,13 +19,13 @@ test("the repair state: thirteen upgrades (b67#6, b70#3, b78#13 and b85#35 flipp
   const byVerdict = (v: string): number => REPAIR_AUDIT.filter((r) => r.verdict === v).length;
   assert.equal(byVerdict("UPGRADED"), 13);
   assert.equal(byVerdict("SHARPENED"), 62);
-  assert.equal(byVerdict("HELD"), 197);
-  assert.equal(REPAIR_AUDIT.length, 272);
+  assert.equal(byVerdict("HELD"), 199);
+  assert.equal(REPAIR_AUDIT.length, 274);
   // the tier census after the repair is arithmetic on the enrollment, not memory
   const gate = ENROLLMENT.filter((r) => r.tier === "GATE-ENFORCED").length;
   const booked = ENROLLMENT.filter((r) => r.tier === "BOOKED-UNENFORCEABLE").length;
   assert.equal(gate, 341);
-  assert.equal(booked, 259);
+  assert.equal(booked, 261);
   // the audit population is exactly the booked population plus the upgraded
   const audited = new Set(REPAIR_AUDIT.map((r) => r.key));
   const upgraded = new Set(REPAIR_AUDIT.filter((r) => r.verdict === "UPGRADED").map((r) => r.key));

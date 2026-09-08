@@ -127,13 +127,13 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 717 errors across 89 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 719 errors across 89 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 341 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 259 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 261 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
@@ -145,7 +145,7 @@ The registry is imported LIVE on every run: 717 errors across 89 batches, each w
 | machine-overruled | 0 | 47 | 0 |
 | process | 0 | 69 | 171 |
 | statistics | 25 | 32 | 4 |
-| toolchain | 0 | 66 | 66 |
+| toolchain | 0 | 66 | 68 |
 | wrong-object | 44 | 38 | 8 |
 
 | live gate anchor | errors held | categories |
@@ -619,6 +619,8 @@ The registry is imported LIVE on every run: 717 errors across 89 batches, each w
 - b89#5 [statistics] — the count-drift family's own face inside a delivery: per-file line counts published into a rebuilt file tree were staled by parallel siblings' in-flight edits within minutes — a count written beside living code is a data copy that must be re-derived at the merge point; withdrawn to a structure-only tree, the closeout re-syncing suite counts from the final full-suite run. Booked: the act face (counts are taken last, from the machine, once)
 - b89#9 [process] — coordination act face: the shared-surface non-overlap map carried one mutable file (src/utils/errors.ts) in two agents' territories — concurrent append rights; the re-read-before-edit discipline held (the second writer found the first's class and appended beside it, no overwrite), but the map should have named the file serial. Booked: the act face
 - b89#11 [citation-drift] — the count-drift family's sibling-prose face, found by the sweep the pin repair owed: bqp-map's atlas notes carried the platform's retired numbers ('5/5 vs 0/5' — the half-ledger artifact the platform's own v1.11 erratum corrected — and '292/292 tests'), riding unenforced atlas prose no scheduled gate parses against the sibling's live numbers; corrected at the citing tree (bqp-map v0.2.1) with the volatile counts handed back to the platform's own machine audit, never quoted. Booked: the prose face (the sweep discipline is the guard)
+- b89#13 [toolchain] — the heredoc channel family's next canonical act (the README diagram task): generate.py's first patch batch applied through a python heredoc piped through the shell — a repo code file through the banned channel, content landing clean; every later edit through the Edit tool. Booked: the channel-act face only (clean does not absolve)
+- b89#14 [toolchain] — pre-machine face: the diagram generator's first drafts carried escape-level slips that crashed it on first run (a single-backslash \r in a non-raw Python string degenerating mathtext's \rangle into a carriage return; the \le alias matplotlib's mathtext does not know) — both caught by the generator's own crash, fixed in the same breath; the shipped set self-checks to zero missing-glyph warnings and zero box overflows. Booked: the draft face
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -839,13 +841,13 @@ The E-board made every error answer for its enforcement; the A-board made every 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
 | cat:process | 208 | b1 | b89#9 | BOOKED-UNENFORCEABLE |
-| cat:toolchain | 105 | b1 | b89#7 | GATE-ENFORCED |
+| cat:toolchain | 106 | b1 | b89#14 | BOOKED-UNENFORCEABLE |
 | cat:wrong-object | 85 | b2 | b89#12 | GATE-ENFORCED |
 | cat:statistics | 60 | b3 | b89#5 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
 | cat:machine-overruled | 43 | b4 | b84#1 | GATE-ENFORCED |
 | cat:citation-drift | 33 | b6 | b89#11 | BOOKED-UNENFORCEABLE |
-| shell-template-heredoc | 30 | b10 | b85#4 | BOOKED-UNENFORCEABLE |
+| shell-template-heredoc | 31 | b10 | b89#13 | BOOKED-UNENFORCEABLE |
 | cat:conjugation | 28 | b4 | b79#3 | GATE-ENFORCED |
 | runner-path | 26 | b14 | b89#4 | BOOKED-UNENFORCEABLE |
 | cat:anchor-blindspot | 16 | b9 | b87#18 | GATE-ENFORCED |
@@ -855,7 +857,7 @@ The E-board made every error answer for its enforcement; the A-board made every 
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 | tautological-witness | 1 | b79 | b79#16 | GATE-ENFORCED |
 
-The catch census: gate 123 / author 546 / numbers 47 / visitor 1 over 717 errors — the gate fraction rose from 1% (batches 1-22) to 25% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 123 / author 548 / numbers 47 / visitor 1 over 719 errors — the gate fraction rose from 1% (batches 1-22) to 25% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -991,7 +993,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 197 | the reason is true as written; the basis states the ungated face |
+| HELD | 199 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1267,6 +1269,8 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b89#5 — the count-drift family's delivery-act face: per-file line counts staled by parallel siblings' in-flight edits within minutes — withdrawn to a structure-only tree with the closeout re-syncing from the final full-suite run; a doc draft's freshness against its own writers is author-side sequencing no scheduled gate audits
 - **HELD** b89#9 — coordination act face: the non-overlap map carried one mutable shared file in two agents' territories — the re-read-before-edit discipline held (concurrent appends coexisted without an overwrite); the serialization should have been named in the map itself, which no scheduled gate audits
 - **HELD** b89#11 — sibling-prose face: the atlas notes' retired numbers rode prose no scheduled gate parses against the sibling's live state — corrected at the citing tree with the volatile counts handed to the platform's own machine audit; the recurrence guard is the sweep discipline (any conviction that rewrites a shared file's content owes a workspace needle sweep), author-side
+- **HELD** b89#13 — channel-act face: a python heredoc through the shell edited a repo code file — the banned channel's next canonical act, content landing clean; no scheduled gate audits which channel wrote a file's bytes, the Edit-tool discipline the only enforcement
+- **HELD** b89#14 — pre-machine face: escape-level draft slips that crashed the generator on its own first run — the crash loop IS the factory check here (no scheduled gate renders diagrams); the shipped set carries its own machine self-check (zero missing-glyph warnings, zero box overflows) inside the generator itself
 
 ## T-board — the total gate
 
@@ -1279,11 +1283,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (13 file-pairs byte-identical to the canon; 41 registered divergences live (41 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: probe.ts) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (717 errors enrolled LIVE against a registry of 89 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 341, BOOKED-UNENFORCEABLE 259, every booked row printed on the report)
+- PASS — W-F enrollment census (719 errors enrolled LIVE against a registry of 89 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 341, BOOKED-UNENFORCEABLE 261, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 717 errors (15 recurring, all resolved); catch census gate 123 / author 546 / numbers 47 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 719 errors (15 recurring, all resolved); catch census gate 123 / author 548 / numbers 47 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (272 booked-population rows audited LIVE (of the 259 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 197 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (274 booked-population rows audited LIVE (of the 261 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 199 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries
