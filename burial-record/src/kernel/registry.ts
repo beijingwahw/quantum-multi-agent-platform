@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 73;
-export const DECLARED_TOTAL_ERRORS = 411;
+export const DECLARED_TOTAL_BATCHES = 74;
+export const DECLARED_TOTAL_ERRORS = 431;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -2769,6 +2769,116 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "the visit number and batch number were taken without resync — the parallel sessions had advanced to visit 76 / batch 72 by the time this visit enrolled; the first draft assumed 72/67",
         right: "in a multi-session workspace the visit/batch counters are shared state — grep the registry and the daily file BEFORE numbering anything (the b65 resync law, executed pre-emptively this time)",
         category: "process",
+      },
+    ],
+  },
+  {
+    batch: 74,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the four-repo delivery wave's registry wiring (ent-sched 0.1.0->0.2.0, phase-law 0.4.0->0.5.0, switch-sched 0.1.0->0.2.0, nonstoq-anneal 0.1.0->0.2.0 — all four gates green in each) plus visit 78's two priced items fulfilled here: twenty delivery errors across seven classes, born enrolled and born audited on both boards — three of them latent v0.1.0 defects that survived two gate generations and died only at the new smuggling-trial anchors",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（本访两处待入册" },
+    errors: [
+      {
+        wrong: "the knip verdict was read off a chained pipe — `npm run knip 2>&1 | tail -5` — where tail's exit 0 masked knip's exit 1, and a forty-visit-old note ('the only unused file is legacy') stood in for the green light; CI convicted the red cell on the spot (priced at visit 78 as pending enrollment, fulfilled in this batch — the exit-code-masking family's sixth registered sighting, after b4#3, b37#6, b43#2, b64#1, b71#0)",
+        right: "a gate's green is its EXIT CODE, never memory of its history — read the code directly (PIPESTATUS, or no pipe at all); in a chain the verdict belongs to the gate, not to the tail",
+        category: "toolchain",
+      },
+      {
+        wrong: "the CI probe script was written into /tmp with import specifiers relative to the repo root — outside the tree the resolution dies on first run (the second of visit 78's two priced items)",
+        right: "a scratch script that leaves the tree imports by absolute specifiers — or stays in the repo; the outside-tree face is ungatable by construction, so the rule is the guard",
+        category: "process",
+      },
+      {
+        wrong: "the MAIN SESSION re-committed the masking the same day: `npm test 2>&1 | tail -3; echo exit=$?` printed TAIL's exit 0 while the suite had failed — the exit-code-masking family's seventh registered sighting (five before this batch, b74#0 the sixth), with the family's in-registry count grepped BEFORE this row was written so the ordinal could not drift",
+        right: "$? after a pipe is the LAST command's code — check PIPESTATUS[0] or drop the pipe; a same-day recurrence after the lesson is the family's signature, not an exception to it",
+        category: "toolchain",
+      },
+      {
+        wrong: "the ent-sched delivery agent ran a read-only `git status` against the workspace's standing ban on agent git use — harmless output, banned channel",
+        right: "the ban is unconditional: agents never touch git, read-only included — the deliverable's state is read from the files, not from the index",
+        category: "process",
+      },
+      {
+        wrong: "one of the ent-sched lint repairs was a no-op edit — the change shipped nothing and was caught on the post-edit reread",
+        right: "every edit carries its own review: a no-op patch is residue with a green face — the reread is the factory check",
+        category: "process",
+      },
+      {
+        wrong: "ent-sched's citations file shipped an unverified bibliographic claim — 'decision transformer' — written from memory and deleted on the spot",
+        right: "citations are double-sourced against the publishers' records, never memory — an unverified claim is deleted, not shipped (the b55#3 ritual)",
+        category: "citation-drift",
+      },
+      {
+        wrong: "the interrupted first wave left half-finished state in the trees — ent-sched and phase-law carried half-done code, a stale README, missing report tables, and three lint errors until the successor agents closed the delivery",
+        right: "an interruption is a checkpoint, not an exit: the tree either passes its gates or the work is explicitly marked unfinished — the successors' lint/typecheck/test runs convicted the code residue, the hygiene faces (README, report tables) were closed by hand",
+        category: "process",
+      },
+      {
+        wrong: "three phase-law test assertions were written fragile — regex and index coupled to layout that a re-run of the suite itself broke",
+        right: "assertions pin semantic content, not layout: match on values and named fields — the suite's own re-run is the fragility detector, and it convicted all three",
+        category: "process",
+      },
+      {
+        wrong: "the render's verdict borrowed ALL-SIZES statistics for a claim stated 'at 6×8' — every number was real, the named population was not (the claim-object mismatch family)",
+        right: "a claim's numbers come from the population it names — the 6×8 verdict now cites the 6×8 census; superset statistics under a subset label is a labeling crime even when every number is exact",
+        category: "wrong-object",
+      },
+      {
+        wrong: "switch-sched's ESM tree called require() where a dynamic import belonged — caught and rewritten on the spot before any run",
+        right: "CommonJS idioms never enter an ESM tree: require() is a loader death the moment it lands — dynamic import() is the only lazy form; the act face was pre-machine, the landing face is typecheck's",
+        category: "toolchain",
+      },
+      {
+        wrong: "a bad unitary matrix in a switch-sched scratch led the debugging astray — a wrong 'transpose is the fix' conclusion was posted, then withdrawn after variant enumeration arbitrated (the scratch arbitration intercepted the smuggled fix)",
+        right: "a diagnosis from an unverified scratch input is a hypothesis, not a fix — enumerate the variants before believing the rescue; the arbitration is the author's probe, and it fired",
+        category: "process",
+      },
+      {
+        wrong: "an apostrophe inside a single-quoted string broke the parse in switch-sched — one syntax error, caught before the machine",
+        right: "string literals with apostrophes take quoting discipline (escape or double-quote); a parser death is the cheapest error in the tree — the pre-machine catch is still the booked face",
+        category: "toolchain",
+      },
+      {
+        wrong: "a batch of lint convictions in switch-sched — void expressions standing in for fixes, array types written loose",
+        right: "lint reds are fixed, never voided: the void idiom suppresses instead of removing and an array type says what it means — the lint gate convicted every one",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent from v0.1.0] the CJ convention was wrong — the identity channel did not map to SWAP under complex Kraus; the defect survived the v0.1.0 gates and died only when the new process layer's circuit anchors fired",
+        right: "the CJ isomorphism maps the identity channel to SWAP — pinned by circuit-vs-process agreement over complex random instances (2.2e-16); the new anchor catches the class on every suite run",
+        category: "conjugation",
+      },
+      {
+        wrong: "[latent from v0.1.0] every value in the process layer was halved — a double-counted ½ that survived the v0.1.0 gates until the exact-eigenvalue anchors fired",
+        right: "W_OCB's eigenvalues are exactly {0, ½} (8-fold each) with trace 4 — a global ½ factor dies at the first exact-eigenvalue assertion",
+        category: "statistics",
+      },
+      {
+        wrong: "[latent from v0.1.0] the classical census size was fabricated at 20480 where the true definite-order census is 8192 vertices (4096 per order) — a fake number that lived a full version until the census anchor fired",
+        right: "8192 deterministic strategies across both orders cap exactly at ¾ with 256 achievers — the census asserts its own size, and a fabricated size dies there",
+        category: "statistics",
+      },
+      {
+        wrong: "nonstoq-anneal's orphan-module closed form overestimated max on multilateral graphs — formula vs dense referee disagreed by a full 1.0 until neighbor grouping was written",
+        right: "the dense referee arbitrates every closed form and the multi-edge face now lives in the randomized referee suite — a formula's domain ends where the referee says it does",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the ground-state projection iterated unshifted −Hv and converged to the extreme-|λ| state — the readout said P = 0.30 where the κ < 2Γ theorem forces P = 1",
+        right: "power iteration on −H without a Gershgorin shift lands on the extreme-magnitude eigenstate, not the ground state — the shift ships and the analytic anchor asserts P = 1 exactly at the κ_c = 2Γ transition",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "the first 'angle-stealing' smuggling sample was in fact a LEGAL certificate — the enforcer rejected it and the checker refuted the enforcer: the wrong object was convicted",
+        right: "an over-strict judge is its own defect class: the honest-certificate referee now runs beside the rejection trials — the same stolen-angle rotation that is contraband on one Hamiltonian is the true certificate on another, and the checker says which",
+        category: "wrong-object",
+      },
+      {
+        wrong: "a batch of typecheck/lint convictions in nonstoq-anneal — unused parameters, an unexported main, a push into a readonly array",
+        right: "the compiler and linter name each one: parameters used or underscored, main exported where the entry needs it, readonly honored by copy-on-write — the gates convicted the batch",
+        category: "toolchain",
       },
     ],
   },

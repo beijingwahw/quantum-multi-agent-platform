@@ -4,8 +4,8 @@
 
 ## Census
 
-- batches: 73
-- errors: 411
+- batches: 74
+- errors: 431
 - repos involved: 29
 - categories in use: 10/10
 
@@ -14,6 +14,7 @@
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
+| burial-record | 3 | 26 |
 | nonstoq-anneal | 4 | 22 |
 | ds_extracted/ds | 3 | 21 |
 | dsic-noether | 2 | 19 |
@@ -29,7 +30,6 @@
 | choice-lang | 1 | 7 |
 | causal-ineq | 1 | 6 |
 | postselect-sched | 1 | 6 |
-| burial-record | 2 | 6 |
 | survivor-census | 1 | 6 |
 | ent-clearing | 1 | 6 |
 | ft-qaoa | 1 | 5 |
@@ -43,15 +43,15 @@
 
 | category | errors |
 | --- | --- |
-| process | 149 |
-| wrong-object | 57 |
-| toolchain | 52 |
-| machine-overruled | 33 |
+| process | 155 |
+| wrong-object | 60 |
+| toolchain | 58 |
+| machine-overruled | 34 |
+| statistics | 30 |
 | dimension-slot | 29 |
-| statistics | 28 |
-| conjugation | 22 |
+| conjugation | 23 |
 | anchor-blindspot | 16 |
-| citation-drift | 14 |
+| citation-drift | 15 |
 | bogus-comparison | 11 |
 
 ## The batches
@@ -1051,15 +1051,43 @@
 | the W-Y witness letter went on the board before the WITNESSES table carried it — checkBoard convicted 'EXACT cites unknown witness' twice (TC44/TC45) and the count assertion (23) lagged one behind the data | the witness alphabet is a registered namespace: letter on the board, WITNESSES entry, and count assertion change in the SAME edit (the b53#5 law's letter-shaped sibling) | process |
 | the visit number and batch number were taken without resync — the parallel sessions had advanced to visit 76 / batch 72 by the time this visit enrolled; the first draft assumed 72/67 | in a multi-session workspace the visit/batch counters are shared state — grep the registry and the daily file BEFORE numbering anything (the b65 resync law, executed pre-emptively this time) | process |
 
+### Batch 74 — burial-record (2026-09-08)
+
+- context: the four-repo delivery wave's registry wiring (ent-sched 0.1.0->0.2.0, phase-law 0.4.0->0.5.0, switch-sched 0.1.0->0.2.0, nonstoq-anneal 0.1.0->0.2.0 — all four gates green in each) plus visit 78's two priced items fulfilled here: twenty delivery errors across seven classes, born enrolled and born audited on both boards — three of them latent v0.1.0 defects that survived two gate generations and died only at the new smuggling-trial anchors
+- source: `memory/2026-09-08.md` @ "关键经验（本访两处待入册"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the knip verdict was read off a chained pipe — `npm run knip 2>&1 | tail -5` — where tail's exit 0 masked knip's exit 1, and a forty-visit-old note ('the only unused file is legacy') stood in for the green light; CI convicted the red cell on the spot (priced at visit 78 as pending enrollment, fulfilled in this batch — the exit-code-masking family's sixth registered sighting, after b4#3, b37#6, b43#2, b64#1, b71#0) | a gate's green is its EXIT CODE, never memory of its history — read the code directly (PIPESTATUS, or no pipe at all); in a chain the verdict belongs to the gate, not to the tail | toolchain |
+| the CI probe script was written into /tmp with import specifiers relative to the repo root — outside the tree the resolution dies on first run (the second of visit 78's two priced items) | a scratch script that leaves the tree imports by absolute specifiers — or stays in the repo; the outside-tree face is ungatable by construction, so the rule is the guard | process |
+| the MAIN SESSION re-committed the masking the same day: `npm test 2>&1 | tail -3; echo exit=$?` printed TAIL's exit 0 while the suite had failed — the exit-code-masking family's seventh registered sighting (five before this batch, b74#0 the sixth), with the family's in-registry count grepped BEFORE this row was written so the ordinal could not drift | $? after a pipe is the LAST command's code — check PIPESTATUS[0] or drop the pipe; a same-day recurrence after the lesson is the family's signature, not an exception to it | toolchain |
+| the ent-sched delivery agent ran a read-only `git status` against the workspace's standing ban on agent git use — harmless output, banned channel | the ban is unconditional: agents never touch git, read-only included — the deliverable's state is read from the files, not from the index | process |
+| one of the ent-sched lint repairs was a no-op edit — the change shipped nothing and was caught on the post-edit reread | every edit carries its own review: a no-op patch is residue with a green face — the reread is the factory check | process |
+| ent-sched's citations file shipped an unverified bibliographic claim — 'decision transformer' — written from memory and deleted on the spot | citations are double-sourced against the publishers' records, never memory — an unverified claim is deleted, not shipped (the b55#3 ritual) | citation-drift |
+| the interrupted first wave left half-finished state in the trees — ent-sched and phase-law carried half-done code, a stale README, missing report tables, and three lint errors until the successor agents closed the delivery | an interruption is a checkpoint, not an exit: the tree either passes its gates or the work is explicitly marked unfinished — the successors' lint/typecheck/test runs convicted the code residue, the hygiene faces (README, report tables) were closed by hand | process |
+| three phase-law test assertions were written fragile — regex and index coupled to layout that a re-run of the suite itself broke | assertions pin semantic content, not layout: match on values and named fields — the suite's own re-run is the fragility detector, and it convicted all three | process |
+| the render's verdict borrowed ALL-SIZES statistics for a claim stated 'at 6×8' — every number was real, the named population was not (the claim-object mismatch family) | a claim's numbers come from the population it names — the 6×8 verdict now cites the 6×8 census; superset statistics under a subset label is a labeling crime even when every number is exact | wrong-object |
+| switch-sched's ESM tree called require() where a dynamic import belonged — caught and rewritten on the spot before any run | CommonJS idioms never enter an ESM tree: require() is a loader death the moment it lands — dynamic import() is the only lazy form; the act face was pre-machine, the landing face is typecheck's | toolchain |
+| a bad unitary matrix in a switch-sched scratch led the debugging astray — a wrong 'transpose is the fix' conclusion was posted, then withdrawn after variant enumeration arbitrated (the scratch arbitration intercepted the smuggled fix) | a diagnosis from an unverified scratch input is a hypothesis, not a fix — enumerate the variants before believing the rescue; the arbitration is the author's probe, and it fired | process |
+| an apostrophe inside a single-quoted string broke the parse in switch-sched — one syntax error, caught before the machine | string literals with apostrophes take quoting discipline (escape or double-quote); a parser death is the cheapest error in the tree — the pre-machine catch is still the booked face | toolchain |
+| a batch of lint convictions in switch-sched — void expressions standing in for fixes, array types written loose | lint reds are fixed, never voided: the void idiom suppresses instead of removing and an array type says what it means — the lint gate convicted every one | toolchain |
+| [latent from v0.1.0] the CJ convention was wrong — the identity channel did not map to SWAP under complex Kraus; the defect survived the v0.1.0 gates and died only when the new process layer's circuit anchors fired | the CJ isomorphism maps the identity channel to SWAP — pinned by circuit-vs-process agreement over complex random instances (2.2e-16); the new anchor catches the class on every suite run | conjugation |
+| [latent from v0.1.0] every value in the process layer was halved — a double-counted ½ that survived the v0.1.0 gates until the exact-eigenvalue anchors fired | W_OCB's eigenvalues are exactly {0, ½} (8-fold each) with trace 4 — a global ½ factor dies at the first exact-eigenvalue assertion | statistics |
+| [latent from v0.1.0] the classical census size was fabricated at 20480 where the true definite-order census is 8192 vertices (4096 per order) — a fake number that lived a full version until the census anchor fired | 8192 deterministic strategies across both orders cap exactly at ¾ with 256 achievers — the census asserts its own size, and a fabricated size dies there | statistics |
+| nonstoq-anneal's orphan-module closed form overestimated max on multilateral graphs — formula vs dense referee disagreed by a full 1.0 until neighbor grouping was written | the dense referee arbitrates every closed form and the multi-edge face now lives in the randomized referee suite — a formula's domain ends where the referee says it does | wrong-object |
+| the ground-state projection iterated unshifted −Hv and converged to the extreme-|λ| state — the readout said P = 0.30 where the κ < 2Γ theorem forces P = 1 | power iteration on −H without a Gershgorin shift lands on the extreme-magnitude eigenstate, not the ground state — the shift ships and the analytic anchor asserts P = 1 exactly at the κ_c = 2Γ transition | machine-overruled |
+| the first 'angle-stealing' smuggling sample was in fact a LEGAL certificate — the enforcer rejected it and the checker refuted the enforcer: the wrong object was convicted | an over-strict judge is its own defect class: the honest-certificate referee now runs beside the rejection trials — the same stolen-angle rotation that is contraband on one Hamiltonian is the true certificate on another, and the checker says which | wrong-object |
+| a batch of typecheck/lint convictions in nonstoq-anneal — unused parameters, an unexported main, a push into a readonly array | the compiler and linter name each one: parameters used or underscored, main exported where the entry needs it, readonly honored by copy-on-write — the gates convicted the batch | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..73 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (411 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 411 = repo sum 411)
-- PASS — W-4 declared totals 73 batches / 411 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (43 statements) (every stated count is the data's count)
+- PASS — W-1 numbering is 1..74 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (431 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 431 = repo sum 431)
+- PASS — W-4 declared totals 74 batches / 431 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (45 statements) (every stated count is the data's count)
 - PASS — W-6 stated lesson-heading counts equal carried counts (49 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 411 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 431 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

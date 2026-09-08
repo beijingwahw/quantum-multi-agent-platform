@@ -21,6 +21,7 @@
 import { Rng } from "../core/rng.js";
 import { type BellVec, werner } from "../physics/bell.js";
 import { agePair, keyFraction, purify2to1, swapBell } from "../physics/ops.js";
+import { type SensorPlan, triangularNoise } from "./sensors.js";
 import { Topology, type NetSpec } from "./topology.js";
 
 export type { NetSpec } from "./topology.js";
@@ -72,8 +73,13 @@ export interface EngineView {
   /** Pairs anchored (holding a live qubit) at (link, node). */
   anchoredAt(linkId: string, node: string): Pair[];
   pairsOf(owner: string): Pair[];
-  /** Exact Bell vector of a pair at `round` (fresh decoherence evaluation). */
+  /**
+   * Bell vector of a pair at `round` as the SCHEDULER may know it: the exact
+   * physical vector in oracle mode, the belief mirror under a SensorPlan.
+   */
   currentVec(pair: Pair, round: number): BellVec;
+  /** Believed fidelity of a fresh pair on `linkId` (true f0 in oracle mode). */
+  believedF0(linkId: string): number;
   /** Running delivered-pair count (good + below-threshold) per request. */
   deliveredCount(owner: string): number;
 }
@@ -128,6 +134,10 @@ export interface SimReport {
     readonly purifyFails: number;
     readonly cutoffs: number;
     readonly discards: number;
+    /** Pairs destructively measured for estimator calibration (sensor mode). */
+    readonly calibrated: number;
+    /** Last round with ≥ 1 attempt; ≪ rounds ⇒ the run froze (deadlock census). */
+    readonly lastAttemptRound: number;
     readonly good: number;
     readonly bad: number;
   };
@@ -140,6 +150,13 @@ export interface SimConfig {
   readonly seed: number;
   readonly rounds: number;
   readonly warmupRounds?: number;
+  /**
+   * Sensor plan (v0.2): when present, policies see a BELIEF MIRROR instead of
+   * physical truth, calibration tomography feeds the estimator bank, and (if
+   * `ledger` is given) every delivery is appended for QoS audit. Oracle mode
+   * (undefined) is bit-identical to v0.1 — all v0.1 reports reproduce.
+   */
+  readonly sensors?: SensorPlan;
 }
 
 interface Acc {
@@ -166,6 +183,13 @@ export function runSim(cfg: SimConfig): SimReport {
 
   let nextPairId = 1;
   let pairs: Pair[] = [];
+  const sensors = cfg.sensors;
+  const t2Belief = sensors
+    ? (sensors.t2Belief ?? net.t2 ?? Number.POSITIVE_INFINITY)
+    : Number.NaN;
+  // Belief mirror: per-pair Bell vector propagated from ESTIMATES. The physics
+  // keeps truth in `pair.vec`; only the sensor layer ever reads this map.
+  const beliefs = new Map<number, BellVec>();
   const counters = {
     attempts: 0,
     generated: 0,
@@ -175,6 +199,8 @@ export function runSim(cfg: SimConfig): SimReport {
     purifyFails: 0,
     cutoffs: 0,
     discards: 0,
+    calibrated: 0,
+    lastAttemptRound: -1,
   };
   const acc = new Map<string, Acc>();
   for (const r of requests) acc.set(r.id, { good: 0, bad: 0, fSum: 0, keyBits: 0, spans: [] });
@@ -187,6 +213,15 @@ export function runSim(cfg: SimConfig): SimReport {
 
   const currentVec = (pair: Pair, round: number): BellVec =>
     agePair(pair.vec, round - pair.tA - pair.sA, round - pair.tB - pair.sB, net.t2 ?? Number.POSITIVE_INFINITY);
+
+  const beliefVec = (pair: Pair, round: number): BellVec => {
+    const bv = beliefs.get(pair.id);
+    if (bv === undefined) throw new Error(`sensor layer: no belief vector for pair ${pair.id}`);
+    return agePair(bv, round - pair.tA - pair.sA, round - pair.tB - pair.sB, t2Belief);
+  };
+
+  /** What policies may read: physical truth in oracle mode, belief otherwise. */
+  const viewVec = sensors ? beliefVec : currentVec;
 
   const buildView = (round: number): EngineView => {
     const occupancy = new Map<string, Pair[]>();
@@ -217,7 +252,11 @@ export function runSim(cfg: SimConfig): SimReport {
       pairsOf(owner: string): Pair[] {
         return pairs.filter((p) => p.owner === owner);
       },
-      currentVec,
+      currentVec: viewVec,
+      believedF0(linkId: string): number {
+        if (!sensors) return topo.linkById.get(linkId)?.f0 ?? 1;
+        return sensors.bank.estimate(linkId).hatF;
+      },
       deliveredCount(owner: string): number {
         return delivered.get(owner) ?? 0;
       },
@@ -226,6 +265,7 @@ export function runSim(cfg: SimConfig): SimReport {
 
   const removePairs = (ids: Set<number>): void => {
     pairs = pairs.filter((p) => !ids.has(p.id));
+    if (sensors) for (const id of ids) beliefs.delete(id);
   };
 
   /** Creation round of the qubit sitting at `node` end of the pair. */
@@ -268,8 +308,14 @@ export function runSim(cfg: SimConfig): SimReport {
         sB: round - timeAt(right, otherR),
         bornAt: Math.min(left.bornAt, right.bornAt),
       };
+      // belief mirror: propagate the merge with believed inputs BEFORE the
+      // source beliefs are removed alongside their pairs
+      const mergedBelief = sensors
+        ? swapBell(beliefVec(left, round), beliefVec(right, round))
+        : undefined;
       removePairs(new Set([left.id, right.id]));
       pairs.push(merged);
+      if (mergedBelief) beliefs.set(merged.id, mergedBelief);
     } else {
       counters.swapFails++;
       removePairs(new Set([left.id, right.id]));
@@ -281,9 +327,13 @@ export function runSim(cfg: SimConfig): SimReport {
     counters.purifies++;
     const { p, out } = purify2to1(currentVec(keep, round), currentVec(sac, round));
     if (rng.bernoulli(p)) {
+      const outBelief = sensors
+        ? purify2to1(beliefVec(keep, round), beliefVec(sac, round)).out
+        : undefined;
       keep.vec = out;
       keep.sA = round - keep.tA;
       keep.sB = round - keep.tB;
+      if (outBelief) beliefs.set(keep.id, outBelief);
       removePairs(new Set([sac.id]));
     } else {
       counters.purifyFails++;
@@ -296,6 +346,12 @@ export function runSim(cfg: SimConfig): SimReport {
     if (!r) return;
     const vec = currentVec(pair, round);
     const f = vec[0]!; // Bell vectors are length 4 by construction
+    if (sensors?.ledger) {
+      // release audit: belief at release vs physics truth — the certificate
+      // every QoS claim has to survive (auditQosClaims)
+      const claimedF = beliefVec(pair, round)[0]!;
+      sensors.ledger.push({ owner: r.id, round, claimedF, trueF: f });
+    }
     const a = acc.get(r.id)!;
     delivered.set(r.id, (delivered.get(r.id) ?? 0) + 1);
     if (f >= r.fMin) totalGood++;
@@ -332,21 +388,36 @@ export function runSim(cfg: SimConfig): SimReport {
       const owners = (allocations.get(l.id) ?? []).slice(0, attemptView.freeSlots(l.id));
       for (const owner of owners) {
         counters.attempts++;
+        counters.lastAttemptRound = round;
         if (rng.bernoulli(l.p)) {
           counters.generated++;
-          pairs.push({
-            id: nextPairId++,
-            owner,
-            links: [l.id],
-            endA: l.a,
-            endB: l.b,
-            vec: werner(l.f0),
-            tA: round,
-            tB: round,
-            sA: 0,
-            sB: 0,
-            bornAt: round,
-          });
+          if (sensors && rng.bernoulli(sensors.calibRate)) {
+            // destructive calibration: the pair is measured for the estimator
+            // bank and never enters the pool — estimation has a real cost
+            counters.calibrated++;
+            sensors.bank.recordSample(
+              sensors.bank.freshToken(),
+              l.id,
+              round,
+              l.f0 + (sensors.tomoBias ?? 0) + triangularNoise(rng, sensors.tomoSigma)
+            );
+          } else {
+            const id = nextPairId++;
+            pairs.push({
+              id,
+              owner,
+              links: [l.id],
+              endA: l.a,
+              endB: l.b,
+              vec: werner(l.f0),
+              tA: round,
+              tB: round,
+              sA: 0,
+              sB: 0,
+              bornAt: round,
+            });
+            if (sensors) beliefs.set(id, werner(sensors.bank.estimate(l.id).hatF));
+          }
         }
       }
     }
@@ -384,7 +455,10 @@ export function runSim(cfg: SimConfig): SimReport {
     }
 
     // 6. deliveries: complete pairs above fMin are delivered; below-threshold
-    // ones are delivered unless the policy asks to hold them (purification)
+    // ones are delivered unless the policy asks to hold them (purification).
+    // Under a sensor plan the GATE runs on the belief mirror — the physics
+    // referee keeps accounting on true fidelity, so belief errors surface as
+    // bad deliveries that passed the believed gate (QoS violations).
     const done: Pair[] = [];
     for (const pr of pairs) {
       const r = byId.get(pr.owner);
@@ -393,7 +467,8 @@ export function runSim(cfg: SimConfig): SimReport {
         (pr.endA === r.src && pr.endB === r.dst) ||
         (pr.endA === r.dst && pr.endB === r.src);
       if (!complete) continue;
-      if (currentVec(pr, round)[0]! >= r.fMin) done.push(pr);
+      const gateF = (sensors ? beliefVec(pr, round) : currentVec(pr, round))[0]!;
+      if (gateF >= r.fMin) done.push(pr);
       else if (policy.onComplete?.(buildView(round), pr) !== "hold") done.push(pr);
     }
     if (done.length > 0) {

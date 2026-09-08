@@ -7,17 +7,21 @@ order itself becomes an optional resource.*
 
 What exists in the literature: the supermap theorems (Chiribella et al. 2013),
 the zero+zero→positive capacity theorem (Ebler-Salek-Chiribella 2018), photonic
-demonstrations (Procopio 2015, Rubino 2017, Goswami 2018). What did **not**
-exist — and what this repo delivers — is the certificate layer: nobody had
-machine-verified the switch's theorem statements, and nobody had mapped when
-order-superposition actually helps scheduling primitives.
+demonstrations (Procopio 2015, Rubino 2017, Goswami 2018), the causal
+inequality and its process-matrix violation (Oreshkov-Costa-Brukner 2012), and
+the 2023–2026 device-independent turn (van der Lugt 2023; Guo et al. 2025;
+Richter et al. 2025). What did **not** exist — and what this repo delivers —
+is the certificate layer: nobody had machine-verified the switch's theorem
+statements, nobody had mapped when order-superposition actually helps
+scheduling primitives, and the OCB causal witness itself had no executable
+certificate (v0.2.0 adds it: T5).
 
 **Engineering:** TypeScript strict mode (exactOptionalPropertyTypes), zero
 runtime dependencies, NodeNext, `node:test`. `npm run repro` rebuilds every
 report in seconds. Every number in `reports/` is exact linear algebra — no
 sampling anywhere in a theorem claim.
 
-## The four layers
+## The five layers
 
 **T1 — switch algebra** (`src/experiments/exp1-switch-algebra.ts`)
 - The switch as an executable isometry with certificate M†M = I (a valid
@@ -66,31 +70,64 @@ machine register (the scheduling-relevant one).
   docs/theory.md.
 
 **T4 — the mechanism wall** (`src/experiments/exp4-mechanism.ts`)
-Toy posted-price mechanism, deviation family R_y(θ), exact arithmetic:
-- Definite order: DSIC holds (max gain ≤ 0).
-- Switched order, measurement-style allocation: utility is EXACTLY
-  ½(U_def + U_raw) — deviation gains halve, never flip sign. IC preserved.
-- Switched order, coherent (CNOT) allocation: the mixture law survives
-  exactly (machine's surprise verdict): cross-branch coherences cancel out of
-  the payoff marginal. For this mechanism family, order indefiniteness
-  rescales the incentive landscape; it does not invert it. Echoes quantum-mech
-  T1 (affine utility = conservation beats deviation).
+- Toy posted-price mechanism, deviation family R_y(θ), exact arithmetic:
+  - Definite order: DSIC holds (max gain ≤ 0).
+  - Switched order, measurement-style allocation: utility is EXACTLY
+    ½(U_def + U_raw) — deviation gains halve, never flip sign. IC preserved.
+  - Switched order, coherent (CNOT) allocation: the mixture law survives
+    exactly (machine's surprise verdict): cross-branch coherences cancel out of
+    the payoff marginal. For this mechanism family, order indefiniteness
+    rescales the incentive landscape; it does not invert it. Echoes quantum-mech
+    T1 (affine utility = conservation beats deviation).
+
+**T5 — the process-witness face** (`src/experiments/exp5-process-witness.ts`,
+new in v0.2.0) — the causally-separable comparison class, machine-checked
+at d = 2 per wire (the OCB 2012 layer that v0.1.0 could only cite):
+- The "guess your partner's input" game as a linear functional S_game on
+  process space; causal witness S = (3/16)𝟙 − S_game with
+  Tr[S W] = ¾ − p_succ(W) on every valid process (Tr W = 4).
+- Exhaustive classical census: ALL 8192 deterministic strategies of BOTH
+  definite orders cap at exactly ¾ (256 achievers) — shared randomness
+  cannot lift a vertex cap.
+- The OCB process matrix W = ¼[𝟙 + (σ_z^{A2}σ_z^{B1} +
+  σ_z^{A1}σ_x^{B1}σ_z^{B2})/√2]: eigenvalues exactly {0, ½} (8-fold each),
+  normalization ≤ 2.2e-16, term types {∅, A2B1, A1B1B2} (both causal
+  directions present); game value (2+√2)/4 by TWO independent computations
+  (functional; from-scratch Born loop); witness −(√2−1)/4.
+- Isotropic robustness: W(ν) = νW_OCB + (1−ν)𝟙/4 is valid for all ν and
+  violates iff ν > 1/√2 (bisected to 2.2e-16 of the closed form).
+- The switch contrast: the T1 quantum switch plays the SAME game at exactly
+  5/8 < ¾ — order indefiniteness is NOT causal-inequality violation
+  (machine echo of van der Lugt et al. 2023; see also the 2025–2026
+  experimental line: Guo et al. arXiv:2506.20516 / Sci. Adv. aee2912;
+  Richter et al. arXiv:2506.16949 — anchored, not reproduced).
+- Convention debt paid: v0.1.0's half-built process layer had the wrong CJ
+  convention on complex Kraus, a double-counted ½, and a fabricated census
+  size; all caught and fixed by new circuit-vs-process anchors (agreement
+  2.2e-16 over complex random instances).
 
 ## Verdict on the Epoch-2 claim
 
 - **Proven and now machine-certified:** order is a real resource — zero+zero
   channels transmit through it (T2); the switch does things no fixed-order
-  circuit does with the same box uses (T1).
+  circuit does with the same box uses (T1); the general-class comparison now
+  has a machine-checked instance — the OCB process beats EVERY classical
+  causal strategy (census-exhaustive) at (2+√2)/4 vs 3/4 (T5).
 - **Walls, each with numbers:** the scheduler's product is a classical
   decision; reading it is a measurement that collapses the order (T3: the
   machine register never gains, and on the realistic pair strictly loses);
   known switch advantages are structural (erasing-channel admission), not
   generic (0/40 random pairs); mechanism-design incentives survive switching
-  in this toy with gains halved (T4) — the DSIC direction is order-free here.
+  in this toy with gains halved (T4) — the DSIC direction is order-free here;
+  and the switch itself does NOT violate the causal inequality it is
+  superficially closest to — 5/8 < 3/4 (T5): order indefiniteness and
+  causal-order violation are different claims, and this repo now separates
+  them with numbers.
 - **Open (stated as open):** incentive constraints under genuinely coherent
-  allocation with quantum types; multi-party causal games; the general
-  causally-separable comparison class (process witnesses, OCB 2012 /
-  Goswami 2018 — cited, not machine-checked here).
+  allocation with quantum types; multi-party causal games; beyond the OCB
+  witness instance — other causal inequalities, higher dimensions, the full
+  quantum separable classification, device-independent variants (2023–2026
+  experimental line cited, anchored, not machine-checked).
 
 ## Layout
 
@@ -98,8 +135,12 @@ Toy posted-price mechanism, deviation family R_y(θ), exact arithmetic:
 src/core/        complex LA, channels (partial trace), measures (T, F, S, χ), rng
 src/switch/      Stinespring machinery, branch/switch isometries, chanlib,
                  witnesses, capacity helpers
-src/experiments/ exp1..exp4 + run-all (npm run repro)
-test/            anchor suite (closed forms vs machine, judges)
+src/process/     OCB process layer: CJ convention (pinned by circuit anchors),
+                 the guess-your-partner's-input game + census + switch game,
+                 term-type judge, W_OCB + witness certificates (gypi/cj/
+                 termtype/wocb)
+src/experiments/ exp1..exp5 + run-all (npm run repro)
+test/            anchor suite (closed forms vs machine, judges, smuggling trials)
 docs/            theory.md (derivations), citations.md (web-verified register)
 reports/         generated markdown, one per experiment
 ```
@@ -117,3 +158,13 @@ reports/         generated markdown, one per experiment
    not a classification.
 5. T4 is one toy mechanism and one deviation family: an executable probe, not
    a theorem about mechanism design without causal order.
+6. T5 machine-checks ONE causal inequality (OCB's) at d = 2 per wire. The
+   classical cap is census-exhaustive (8192 vertices, shared randomness
+   included by linearity); the QUANTUM causally-separable side is a sampled
+   battery (120 definite-order processes + shared Bell) plus OCB's cited
+   theorem — not an exhaustive classification of the separable set. The
+   switch-plays-the-game number (5/8) covers the canonical instruments and
+   one target preparation: a computed instance, not a claim over all switch
+   strategies (the all-strategies statement is van der Lugt et al.'s,
+   cited). Device-independent and multi-party variants are cited anchors
+   only.

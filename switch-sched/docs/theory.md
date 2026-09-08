@@ -113,7 +113,8 @@ Machine register M ∈ {idle, busyA, busyB}, task register T; receiver reads M.
   ≈ +0.14 — but the joint readout includes the control, an output register
   no plain definite-order use possesses; we report it as a caveat, not as
   order advantage (the right general comparison class is the causally
-  separable strategies of the process-matrix framework, cited).
+  separable strategies of the process-matrix framework — §8 of this file
+  machine-checks the OCB witness instance of exactly that comparison).
 
 ## 7. Mechanism toy — the halving law
 
@@ -131,12 +132,73 @@ cancel from the P marginal in this family. Deviation gains halve, never flip:
 IC direction is order-free here; the landscape rescales. Scope: one toy, one
 deviation family, exact arithmetic — a probe, not a theorem.
 
-## 8. What would falsify / extend this layer
+## 8. The process-witness face — the OCB causal inequality, machine-checked
+
+The comparison class T1–T4 lacked: the causally separable processes as a
+whole. This layer (v0.2.0) machine-checks the canonical instance at d = 2
+per wire. Register layout (A1, A2, B1, B2); OCB CJ convention
+M = [I ⊗ Λ(|ϕ+⟩⟨ϕ+|)]^{T} — the transpose is what makes the identity
+channel map to SWAP (eigenvalues {1,1,1,−1}: the CJ in THIS convention is
+not PSD; positivity lives in the probabilities Tr[W(M⊗M)], guaranteed by
+the term-type structure of W).
+
+The game: p_succ = ½P(x=b|b′=0) + ½P(y=a|b′=1) with inputs (a,b,b′)
+uniform; as a linear functional S_game = Σ (1/8)·score·ξ⊗η over the OCB
+strategies (Alice z-measures/prepares, Bob z-or-x-measures by b′), so
+p_succ(W) = Tr[W·S_game] for every W. The (1/8) absorbs the input
+distribution and both task weights (the v0.1.0 half-built layer carried an
+extra ½ — every value halved; caught by the W_OCB anchor).
+
+The witness S = (3/16)𝟙 − S_game. For every VALID process Tr W = d_{A2}d_{B2}
+= 4 (OCB Methods), so Tr[S W] = ¾ − p_succ(W): nonnegative on the causally
+separable set (OCB's theorem, cited; machine-supported by the exhaustive
+classical census below and a sampled quantum battery), negative ⇔ causal
+inequality violation. S is NOT PSD (min eig −0.0259) — the bound is
+structural, not a positivity artifact.
+
+The process (OCB Eq. (7), extracted from ar5iv + nature.com, both fetched
+2026-09-08): W = ¼[𝟙 + (σ_z^{A2}σ_z^{B1} + σ_z^{A1}σ_x^{B1}σ_z^{B2})/√2].
+The two correction terms anticommute, so the spectrum is exactly {0, ½}
+(8-fold each) — PSD by construction, normalization error ≤ 2.2e-16 on the
+CPTP battery, term types {∅, A2B1, A1B1B2}: one term from each causal
+direction — the structural signature that no definite order generates W.
+
+Machine results, all exact (asserted at 1e-12 in test/, rendered in
+reports/exp5-process-witness.md):
+
+- Exhaustive census: 8192 deterministic vertices (4096 per order) cap at
+  exactly ¾ (256 achievers, both orders); shared randomness is convex, the
+  functional linear — the vertex cap caps every mixture.
+- W_OCB game value (2+√2)/4 via BOTH the functional and a from-scratch
+  Born-rule loop over all 32 joint outcomes; witness −(√2−1)/4.
+- Isotropic family W(ν) = νW_OCB + (1−ν)𝟙/4: valid for every ν; the
+  witness closes at ν* bisected to 0.707106781187 = 1/√2 (deviation
+  2.2e-16). Linear algebra: p_succ(ν) = ½ + ν(√2−1)/2, so ν* = 1/√2.
+- The T1 quantum switch plays the SAME game at exactly 5/8 < ¾ (canonical
+  instruments, control |+⟩, target |0⟩): machine echo of van der Lugt et
+  al. 2023 — the isolated switch, causally nonseparable as an ORDER
+  structure, does not violate the causal inequality. The OCB process and
+  the switch are different objects.
+
+Conventions were not free: the v0.1.0 process layer had (i) the wrong CJ
+convention for complex Kraus (conjugated output block; identity channel did
+not map to SWAP), (ii) the double-counted ½ in the functional, (iii) a
+fabricated census size (20480 vs the true 8192). All three were caught by
+the anchors this build adds — the convention is pinned end-to-end by
+circuit-vs-process agreement at 2.2e-16 over complex random instances.
+
+## 9. What would falsify / extend this layer
 
 - A channel pair where the system-register receiver strictly beats the best
   definite order (would refute the admission criterion as stated — none found
   in the enumerated families, 0/40 random).
 - A mechanism family where the halving law breaks with positive deviation
   gain (would reopen the mechanism wall; CNOT allocation here does not).
-- Multi-box switches (n > 2) and the causally-separable comparison class:
-  natural next layer, not covered.
+- Multi-box switches (n > 2): natural next layer, not covered.
+- A causally separable W with Tr[S W] < 0 would refute OCB Eq. (2) itself —
+  none in the exhaustive classical census, none in the sampled quantum
+  battery (120 definite-order + shared-Bell); a full classification of the
+  quantum separable set at d = 2 remains open.
+- Other causal inequalities (LA, 3-party), higher wire dimensions, and the
+  device-independent variants of the 2023–2026 experimental line (Guo et
+  al. 2025, Richter et al. 2025 — cited as anchors, not machine-checked).

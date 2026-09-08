@@ -6,6 +6,7 @@ async function main(): Promise<void> {
   await import('./exp2-capacity.js');
   await import('./exp3-sched-contact.js');
   await import('./exp4-mechanism.js');
+  await import('./exp5-process-witness.js');
   console.log(`\nrepro complete in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 

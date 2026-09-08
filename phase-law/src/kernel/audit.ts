@@ -41,11 +41,14 @@ import {
   welfareOf,
 } from "./law.js";
 import { campaign, census, envelopeCheck, islandCampaign, thresholds } from "./census.js";
+import { densityCampaign } from "./density.js";
+import { makeNuInstance, nuAllKDeviation, nuEnvelopeDeviation, nuInAllKRegime, nuOptimum, nuRay, nuRayDescentCount, nuSubsetEnvelope } from "./nonuniform.js";
+import { staircaseArgmaxMismatch, staircaseCell, staircaseCheck, staircaseFlipDeviation } from "./staircase.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
 const FACES: readonly Face[] = ["envelope", "accord", "landscape", "census", "face-quote"];
-const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"] as const;
+const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H", "W-I", "W-J", "W-K"] as const;
 
 export interface Violation {
   readonly row: string;
@@ -281,6 +284,127 @@ export function runWitnesses(): WitnessResult[] {
       witness: "W-H",
       ok: compat && worstStep === 0 && worstMismatch === 0 && worstFace === 0 && faceCells >= 1,
       detail: `k=1 compatibility ${compat}; monotone step ${worstStep}, argmax mismatch ${worstMismatch}; all-k face dev ${worstFace.toExponential(2)} over ${faceCells} cells`,
+    });
+  }
+
+  // W-I — the SA density census (full 20-seed rerun, directional)
+  {
+    const cells = densityCampaign(
+      [
+        [5, 7],
+        [6, 8],
+      ],
+      [1, 2, 3],
+      20,
+      undefined,
+      ["anneal"],
+    );
+    const at = (m: number, k: number) => cells.find((c) => c.m === m && c.k === k)!;
+    const zeroInvariant = [5, 6].every((m) => {
+      const rates = new Set([1, 2, 3].map((k) => at(m, k).rateAtZero));
+      return rates.size === 1;
+    });
+    const floors = [1, 2, 3].map((k) => at(6, k).rateAtMax);
+    const floorCollapses = floors[0]! > floors[1]! && floors[1]! > floors[2]! && floors[2]! === 0;
+    const noRelief = [1, 2, 3].every((k) => at(6, k).upCross < 0);
+    const sat = at(5, 3);
+    const saturatedNeverFalls = sat.minRate >= 0.5 && sat.downCross < 0;
+    out.push({
+      witness: "W-I",
+      ok: zeroInvariant && floorCollapses && noRelief && saturatedNeverFalls,
+      detail: `λ=0 columns identical across k at both sizes: ${zeroInvariant}; 6×8 floor collapse ${floors.map((f) => f.toFixed(2)).join(" → ")}: ${floorCollapses}; no SA up-cross by λ=8 at any k (6×8): ${noRelief}; saturated corner 5×7 k=3 min ${sat.minRate.toFixed(2)} ≥ 0.5, never crosses down: ${saturatedNeverFalls}`,
+    });
+  }
+
+  // W-J — non-uniform per-pair bonuses: identity exact, right face exact, count breaks
+  {
+    let worstEnv = 0;
+    for (let s = 1; s <= 4; s++) {
+      for (const lam of [
+        [0.3, 0.9],
+        [0.9, 0.3],
+        [1.5, 0.2, 0.7],
+        [0.1, 1.9, 1.1],
+      ]) {
+        worstEnv = Math.max(worstEnv, nuEnvelopeDeviation(makeNuInstance(4, 6, 500 * s, lam)));
+      }
+    }
+    const a = makeInstance(3, 5, 500, 0.7);
+    const nu = makeNuInstance(3, 5, 500, [0.7]);
+    const compat =
+      JSON.stringify(a.weights) === JSON.stringify(nu.weights) &&
+      Math.abs(nuOptimum(nu).welfare - optimumOf(a).welfare) < 1e-12;
+    const ts = Array.from({ length: 61 }, (_, i) => i * 0.1);
+    const zero2 = nuRayDescentCount(
+      4,
+      6,
+      2,
+      [
+        [2, 1],
+        [3, 1],
+        [1.5, 0.5],
+      ],
+      500,
+      520,
+      ts,
+    );
+    // the descent witness, exact crossing recomputed from the subset envelope
+    const { d } = nuSubsetEnvelope(makeNuInstance(4, 6, 519, [0, 0, 0]));
+    const tStar = (d[6]! - d[1]!) / (2.5 - 1.2);
+    const ray = nuRay(4, 6, 519, [2.5, 0.6, 0.6], [tStar - 1e-6, tStar + 1e-6, 8]);
+    const descent = ray[0]!.count === 2 && ray[1]!.count === 1 && ray[2]!.count === 2;
+    let worstFace = 0;
+    let faceCells = 0;
+    for (let s = 1; s <= 4; s++) {
+      for (const lam of [
+        [4, 2],
+        [6, 6, 6],
+        [8, 4, 2],
+      ]) {
+        const inst = makeNuInstance(5, 7, 500 * s, lam);
+        if (nuInAllKRegime(inst)) {
+          worstFace = Math.max(worstFace, nuAllKDeviation(inst));
+          faceCells++;
+        }
+      }
+    }
+    out.push({
+      witness: "W-J",
+      ok: worstEnv === 0 && compat && zero2 === 0 && descent && worstFace === 0 && faceCells >= 3,
+      detail: `subset-envelope dev ${worstEnv.toExponential(2)}; k=1 compat ${compat}; k=2 descents ${zero2} (3 μ-patterns × 21 seeds); k=3 descent at 4×6 seed 519, t* = ${tStar.toFixed(6)}: 2 → 1 → 2: ${descent}; all-k face dev ${worstFace.toExponential(2)} over ${faceCells} regime-verified cells`,
+    });
+  }
+
+  // W-K — the staircase breakpoints: exact flips, tie-aware argmax identity
+  {
+    const probeGrid = [0, 0.001, 0.01, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1, 1.5, 2, 3, 4, 6, 8];
+    let worstFlip = 0;
+    let worstArgmax = 0;
+    let ties = 0;
+    let checked = 0;
+    let forged = 0;
+    for (const [m, n] of [
+      [4, 6],
+      [5, 7],
+      [6, 8],
+    ] as const) {
+      const kMax = m >= 6 ? 3 : 2;
+      for (let k = 1; k <= kMax; k++) {
+        for (let s = 1; s <= 5; s++) {
+          const cell = staircaseCell(m, n, 500 * s, k);
+          forged += staircaseCheck(cell).length;
+          worstFlip = Math.max(worstFlip, staircaseFlipDeviation(cell));
+          const r = staircaseArgmaxMismatch(m, n, 500 * s, k, probeGrid);
+          worstArgmax = Math.max(worstArgmax, r.worst);
+          ties += r.ties;
+          checked++;
+        }
+      }
+    }
+    out.push({
+      witness: "W-K",
+      ok: worstFlip === 0 && worstArgmax === 0 && forged === 0,
+      detail: `flip dev ${worstFlip}, tie-aware argmax mismatch ${worstArgmax} (${ties} tie probes, all set-consistent) over ${checked} cells; no forged staircase survived its own check (${forged} violations)`,
     });
   }
 

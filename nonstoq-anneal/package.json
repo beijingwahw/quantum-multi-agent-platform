@@ -1,7 +1,7 @@
 {
   "name": "nonstoq-anneal",
-  "version": "0.1.0",
-  "description": "Non-stoquastic annealing route prototype: programmable XX-driver engines (real-time anneal + imaginary-time ground states), stoquasticity verifier, and the sign-structure barrier metric P = sum(psi)/sum(|psi|)",
+  "version": "0.2.0",
+  "description": "Non-stoquastic annealing route prototype: programmable XX-driver engines (real-time anneal + imaginary-time ground states), stoquasticity verifier, sign-structure barrier metric P = sum(psi)/sum(|psi|), and the element-level de-signing decider (certified YES/NO/UNRESOLVED)",
   "type": "module",
   "engines": {
     "node": ">=22.11.0"
@@ -16,6 +16,7 @@
     "exp:sign-sse": "tsx src/experiments/exp3-sse-sign.ts",
     "exp:catalyst": "tsx src/experiments/exp4-catalyst.ts",
     "exp:scale": "tsx src/experiments/exp5-scale.ts",
+    "exp:designability": "tsx src/experiments/exp6-designability.ts",
     "lint": "eslint ."
   },
   "keywords": [

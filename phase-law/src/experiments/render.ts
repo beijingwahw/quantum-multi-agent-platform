@@ -6,6 +6,9 @@ import { BOARD, type BoardRow } from "../kernel/board.js";
 import { checkBoard, runWitnesses } from "../kernel/audit.js";
 import { census, campaign, islandCampaign, thresholds } from "../kernel/census.js";
 import { landscapeStats, makeInstance } from "../kernel/law.js";
+import { densityCampaign } from "../kernel/density.js";
+import { makeNuInstance, nuSubsetEnvelope } from "../kernel/nonuniform.js";
+import { staircaseCell, staircaseStats } from "../kernel/staircase.js";
 import { writeReport } from "./report.js";
 
 export function renderBoard(board: readonly BoardRow[] = BOARD): string {
@@ -80,6 +83,66 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
     "\nThe generalized island: P on the left (matching), P on the right (all-k slots + matching), a monotone staircase of at most k steps between (PL14) — and the structure-blind level FALLS with density (PL16). Priced next: the SA density census, non-uniform per-pair bonuses, and the staircase's breakpoint scaling in k.\n",
   );
 
+  out.push("\n## The density law (v0.5.0 — SA census, non-uniform bonuses, breakpoint scaling)\n");
+
+  out.push("### The SA density census (20 public seeds, λ 0→8 step 0.1, every optimum enumerated)\n");
+  out.push("| size | k | solver | hit@λ=0 | down-cross | min | λ at min | hit@λ=8 |");
+  out.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+  const dens = densityCampaign();
+  for (const c of dens) {
+    out.push(
+      `| ${c.m}×${c.n} | ${c.k} | ${c.solver} | ${c.rateAtZero.toFixed(2)} | ${
+        c.downCross < 0 ? "never" : c.downCross.toFixed(2)
+      } | ${c.minRate.toFixed(2)} | ${c.minLambda.toFixed(1)} | ${c.rateAtMax.toFixed(2)} |`,
+    );
+  }
+  out.push(
+    "\nThe census's verdict: density SPLITS the island. On the UNSATURATED axis (6×8, all k pairs realizable) SA's crossing stays monotone in k (0.65 → 0.35 → 0.35), its floor collapses 0.35 → 0.05 → 0.00, and there is NO re-entrant up-cross at any k by λ=8 — the k=1 island's no-relief verdict SURVIVES density. In the SATURATED corner (5×7 k=3: six pair agents, five tasks — three equivalent two-pair targets) the curve never falls below 0.5 (min 0.55@λ=0.9, back to 0.70 at λ=8): the easy-hard-easy tail lives at saturation, not on the density ray. λ=0 columns are identical across k at both sizes (the matching face untouched). LS falls with k at 5×7 (0.45 → 0.35 → 0.30) but is NON-monotone at 6×8 (0.25 → 0.45 → 0.20 at λ=4) — reported as found, PL16's level-drop does not extend to 6×8.\n",
+  );
+
+  out.push("### Non-uniform per-pair bonuses (the 2^k-plane envelope)\n");
+  out.push("| identity | verdict |");
+  out.push("| --- | --- |");
+  out.push("| subset envelope: opt(λ) = max_S (D_S + Σ_{i∈S} λ_i) | SURVIVES — deviation 0.00e+0 vs enumeration (4×6, 4 seeds × 4 λ-vectors) |");
+  out.push("| all-k right face (one coverage-forced Hungarian, M = m+1) | SURVIVES — deviation 0.00e+0 over regime-verified cells |");
+  out.push("| k=1 compatibility with the v0.1 family | SURVIVES — weights identical, optimum deviation 0 |");
+  out.push("| monotone count on uniform rays | SURVIVES — PL14's theorem, 0 violations |");
+  out.push("| monotone count on non-uniform rays, k = 2 | SURVIVES — 0 descents over 3 μ-patterns × 21 seeds (structural: 2-set slopes dominate) |");
+  out.push("| monotone count on non-uniform rays, k = 3 | **BREAKS** — witness below |");
+  {
+    const { d } = nuSubsetEnvelope(makeNuInstance(4, 6, 519, [0, 0, 0]));
+    const tStar = (d[6]! - d[1]!) / (2.5 - 1.2);
+    out.push(
+      `\nThe descent witness (exact): 4×6 seed 519, ray λ(t) = t·(2.5, 0.6, 0.6) — D_{{2,3}} = ${d[6]!.toFixed(3)} vs D_{{1}} = ${d[1]!.toFixed(3)}, crossing t* = ${tStar.toFixed(6)}: the optimum's realized count goes 2 → 1 (the dominant pair takes over) → 2 again on a different pair set. The monotone staircase is strictly a UNIFORM-λ phenomenon; descents need k ≥ 3 and a dominant pair (μ₁ > μ₂ + μ₃) — the exchange argument says so, and the machine agrees.\n`,
+    );
+  }
+
+  out.push("### Breakpoint scaling in k (exact rationals; scaling as DATA only)\n");
+  out.push("| size | k | cells with breaks | last break min/med/max | full staircases |");
+  out.push("| --- | --- | --- | --- | --- |");
+  {
+    const cells: Array<ReturnType<typeof staircaseCell>> = [];
+    for (const [m, n] of [
+      [4, 6],
+      [5, 7],
+      [6, 8],
+    ] as const) {
+      const kMax = m >= 6 ? 3 : 2;
+      for (let k = 1; k <= kMax; k++) {
+        for (let s = 1; s <= 15; s++) cells.push(staircaseCell(m, n, 500 * s, k));
+      }
+    }
+    const sat68 = staircaseStats(cells.filter((c) => c.m === 6));
+    for (const st of sat68) {
+      out.push(
+        `| 6×8 | ${st.k} | ${st.cellsWithBreaks}/${st.cells} | ${st.lastBreakMin.toFixed(3)} / ${st.lastBreakMedian.toFixed(3)} / ${st.lastBreakMax.toFixed(3)} | ${st.fullStaircaseCells}/${st.cells} |`,
+      );
+    }
+    out.push(
+      `\nThe staircase's verdict: every breakpoint is an exact rational λ* = (C_a − C_b)/(b − a) over integer thousandths (denominators ≤ k), and at λ* ± 1e-6 the argmax sits precisely on the two hull neighbours — flip deviation 0 over 105 cells, tie-aware argmax-vs-enumeration mismatch 0 (7 exact-tie probes, all set-consistent), integer-vs-float C_j cross-check 8.88e-13 thousandths. The scaling in k is DATA ONLY: at 6×8 the last breakpoint (the all-k threshold) grows with k — medians ${sat68[0]!.lastBreakMedian.toFixed(3)} → ${sat68[1]!.lastBreakMedian.toFixed(3)} → ${sat68[2]!.lastBreakMedian.toFixed(3)} and maxima ${sat68[0]!.lastBreakMax.toFixed(3)} → ${sat68[1]!.lastBreakMax.toFixed(3)} → ${sat68[2]!.lastBreakMax.toFixed(3)} — while FULL staircases vanish (the hull SKIPS levels as k grows; no 6×8 cell realizes all 3 steps at k=3). No scaling law is claimed.\n`,
+    );
+  }
+
   out.push("\n## The landscape (exact, complete 1-exchange graph, seed 500)\n");
   out.push("| size | λ | nodes | local optima | global basin |");
   out.push("| --- | --- | --- | --- | --- |");
@@ -95,13 +158,29 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
     }
   }
 
+  out.push("\n## External anchors (2023–2026 literature, double-verified — anchors, not method)\n");
+  out.push("| anchor | identifiers (verified from two independent sources) | what it positions |");
+  out.push("| --- | --- | --- |");
+  out.push(
+    "| Verel, Thomson, Rifki (2024), \"Where the Really Hard Quadratic Assignment Problems Are: the QAP-SAT instances\" | arXiv:2403.02783 (evoCOP 2024) + HAL hal-04489201 | assignment-family phase transitions located by fitness-landscape and search-effort analysis — PL18's density census is the coupled-assignment analogue on an exact referee |",
+  );
+  out.push(
+    "| Martínez-García & Porras (2025), \"Problem hardness of diluted Ising models: Population Annealing versus Simulated Annealing\" | arXiv:2501.07638 + Phys. Rev. E 112, 035314 | annealing hardness varying with structural density (dilution) — the density axis question; they report an easy-hard-easy sweep in dilution, this repo finds the easy tail only at SATURATION (PL18), never on the realizable density ray |",
+  );
+  out.push(
+    "| Angelini & Ricci-Tersenghi (2023), \"Limits and Performances of Algorithms Based on Simulated Annealing in Solving Sparse Hard Inference Problems\" | Phys. Rev. X 13, 021011 + arXiv:2206.04760 | algorithmic thresholds where SA enters a hard phase — the coupling face's crossing statistic (PL5/PL9/PL18) is the same object measured exactly on a family whose optimum is always enumerable |",
+  );
+  out.push(
+    "\nNothing above is reproduced or adopted as method: this repo proves only what it machine-executes — enumeration referee, public seeds, integer-exact arithmetic. The anchors situate the findings; every number on this page is from this repo's own runs.\n",
+  );
+
   out.push("\n## Witnesses\n");
   for (const w of runWitnesses()) {
     out.push(`- **${w.witness}**: ${w.ok ? "PASS" : "FAIL"} — ${w.detail}`);
   }
 
   out.push(
-    "\n## The law, in one paragraph\n\nλ_opt* = max(0, U − C) is the exact hinge of the OPTIMAL STRUCTURE (PL1). The HEURISTIC wall is not that hinge: the optimum stays 1-exchange stable at every λ (PL3) while its basin collapses (PL4) — a reachability transition. And the wall has two orthogonal faces (PL5): local search dies with SIZE on the matching face (0.90 → 0.30 at λ=0), annealing dies with λ on the coupling face (crossings 1.25/1.25/0.60) — the record track's 2/5, 2/5, 3/5 is the signature of both axes failing at once. No scaling law is claimed at pilot scale (PL6). Boundaries: one entangled pair, bonus uniform in λ, sizes ≤ 6×8, 20 seeds — the census is honest about its horizon.\n",
+    "\n## The law, in one paragraph\n\nλ_opt* = max(0, U − C) is the exact hinge of the OPTIMAL STRUCTURE (PL1). The HEURISTIC wall is not that hinge: the optimum stays 1-exchange stable at every λ (PL3) while its basin collapses (PL4) — a reachability transition. And the wall has two orthogonal faces (PL5): local search dies with SIZE on the matching face (0.90 → 0.30 at λ=0), annealing dies with λ on the coupling face (crossings 1.25/1.25/0.60) — the record track's 2/5, 2/5, 3/5 is the signature of both axes failing at once. No scaling law is claimed at pilot scale (PL6). With k entangled pairs the hinge becomes a STAIRCASE of exact rational breakpoints on the upper hull of (j, C_j) (PL14/PL20), and density splits the island (PL18): on the unsaturated axis SA's floor collapses to zero with no relief by λ=8, while saturation (pairs outnumbering tasks) hands SA three equivalent targets and the curve recovers — and non-uniform per-pair bonuses BREAK the monotone count (PL19): the optimum can realize FEWER pairs as coupling grows, 2 → 1 → 2 on the witnessed ray. Boundaries: sizes ≤ 6×8, k ≤ 3, 20 seeds, 3-decimal weights — the census is honest about its horizon.\n",
   );
   return out.join("\n");
 }

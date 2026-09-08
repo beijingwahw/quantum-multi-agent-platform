@@ -222,7 +222,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     certs: [
       { kind: "machine-stoq", ref: "src/witness/stoq.ts", note: "dichotomy: +κ exact anchor vs −Γ" },
       { kind: "citation", ref: "KKR06", note: "2-local QMA-completeness covers XX terms" },
-      { kind: "cross-prototype", ref: "nonstoq-anneal", note: "sign barrier at n=64 + de-signing irreducibility" },
+      { kind: "cross-prototype", ref: "nonstoq-anneal", note: "sign barrier at n=64 + de-signing irreducibility; v0.2.0 de-signing decider: bounded O(2^n) single-qubit basis-change decidability with exact formulas arbitrated by a dense Kronecker referee — the two-qubit uniform-field phase diagram (40 cells) splits 27 non-trivial YES / 5 vacuous-only / 6 certified NO (Lipschitz margins 0.024–0.335, relaxation infeasibility ⇒ global infeasibility at theorem grade) / 2 UNRESOLVED reported as gaps; the closed dichotomy: non-trivial de-signing exists iff κ ≤ Γ; an n=64 chain decided YES in 4.1 s on the formula path; global stoquasticity stays coNP-hard — cited (Ioannou et al. arXiv:2007.11964), never reproduced" },
     ],
   },
   {
@@ -420,7 +420,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     rationale:
       "The epoch-2 flagship, split honestly: the switch's communication advantage is a certified theorem awaiting hardware (CDP13's supermap, ESC18's activation — both machine-verified in switch-sched); the 'scheduler no longer orders' half is walled three ways (measurement, advantage catalog, mechanism). Order is a superposable resource, not an abolishable variable — enrolled with its admission criterion.",
     certs: [
-      { kind: "cross-prototype", ref: "switch-sched", note: "T1-T4: isometry certificate, capacity laws, scheduling contact surface, mechanism wall" },
+      { kind: "cross-prototype", ref: "switch-sched", note: "T1-T4: isometry certificate, capacity laws, scheduling contact surface, mechanism wall; T5 (v0.2.0) the process-witness face: the OCB causal inequality machine-checked at d = 2 per wire — the exhaustive classical census (8192 deterministic vertices, 4096 per order) caps at exactly ¾ with 256 achievers, the OCB process matrix W_OCB carries eigenvalues exactly {0, ½} (8-fold each) with the causal witness −(√2−1)/4, the isotropic family W(ν) violates iff ν > 1/√2 (bisected to 2.2e-16 of the closed form), and 120 random definite-order processes show no violation — the boundary 'process witnesses cited, not machine-checked' is now EXECUTED at bounded scope (one inequality, d=2, census-exhaustive on the classical side)" },
       { kind: "cross-prototype", ref: "causal-ineq", note: "the causal inequality executed: 8,192-strategy exhaustive 3/4 cap, W* violation exactly cos^2(pi/8), validity checker with derived pattern rules" },
       { kind: "cross-prototype", ref: "k-switch", note: "the 3-switch executed: parity-orthogonality readout fidelity 1 exact, structural plain-order blindness, six-order scheduling contact law D(fixed)/sqrt(2)" },
       { kind: "cross-prototype", ref: "readout-wall", note: "the FIRST wall executed as its own object: the readout exchange ledger — ESC18 chi 0.048794940695399 lives entirely in the off-blocks and dies to exactly 0 under order readout, the bought order bit is input-blind (P=1/2), the dephased switch IS the fixed-order mixture (identity to 1e-15, second path), complementarity at the replacer pair, weak-readout curve as data, k=3 face included" },
@@ -439,7 +439,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     rationale:
       "The letter's epoch-1 'quantum networking' enrolled as engineering: scheduling entanglement itself (purification ladders, deficit arbitration, aging chains) is real and measured against Markov and exact-DTMC referees — throughput claims are sized, reproducible, and carry no complexity-class movement.",
     certs: [
-      { kind: "cross-prototype", ref: "ent-sched", note: "32/32 tests; round engine vs independent density-matrix and DTMC referees" },
+      { kind: "cross-prototype", ref: "ent-sched", note: "round engine vs independent density-matrix and DTMC referees; v0.2.0 estimator+robustness layer: destructive-calibration tomography feeds per-link Welford estimator banks, the scheduler acts ONLY on the belief mirror while the physics referee books true values — robustness priced: systematic bias δ=+0.02 tears QoS (655.9 violations/1000 deliveries, worst true F 0.9395 < 0.95) and LCB z=2 does NOT protect (777.7/1000 — statistical margins shrink 1/√n and cannot absorb systematic bias); T₂ misbelief is asymmetric (optimistic ×2 → 90.0/1000 violations, pessimistic ÷2 → zero violations but throughput collapses to 0.114×); the freeze family pinned exactly (hops=6 ∧ slots=2 ∧ qSwap ≥ 0.8), release unfreezes it" },
     ],
   },
   {

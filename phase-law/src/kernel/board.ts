@@ -207,4 +207,37 @@ export const BOARD: readonly BoardRow[] = [
     witness: "W-H",
     anchors: [],
   },
+  {
+    id: "PL18",
+    claim:
+      "the SA DENSITY CENSUS: density SPLITS the island — on the unsaturated axis (6×8, all k pairs realizable) SA's crossing stays monotone in k and its floor collapses to ZERO with no re-entrant up-cross at any k; in the SATURATED corner (5×7 k=3, pair agents outnumber task capacity) the curve never falls below 0.5 and recovers — the easy-hard-easy tail lives at saturation, not on the density ray",
+    face: "census",
+    price:
+      "DATA, horizon 2 sizes × k ∈ {1,2,3} × 81 λ (step 0.1, to 8.0) × 20 public seeds (500·s), every optimum enumerated (one enumeration per cell, reused across the whole λ grid): 6×8 anneal down-crossings 0.65 → 0.35 → 0.35 with rates@λ=8 of 0.35 → 0.05 → 0.00 and NO up-cross at any k — the k=1 island's no-relief verdict SURVIVES realizable density; 5×7 anneal 1.35 → 0.65 → never-below-0.5 (min 0.55@λ=0.9, 0.70 at λ=8) — six pair agents for five tasks leave three equivalent two-pair targets, and SA finds one; λ=0 columns identical across k at both sizes (anneal 0.95/0.70, LS 0.40/0.30 — the matching face untouched by density); LS falls with k at 5×7 (0.45 → 0.35 → 0.30) but is NON-monotone at 6×8 (0.25 → 0.45 → 0.20 at λ=4) — PL16's 'level drops with k' does not extend to 6×8, reported as found; density k=1 对拍: hit rates identical to the v0.1 census and greedy/LS/SA tours bit-identical",
+    exactness: "DATA",
+    witness: "W-I",
+    anchors: [],
+  },
+  {
+    id: "PL19",
+    claim:
+      "the NON-UNIFORM ENVELOPE: per-pair bonuses λ_ij turn the k+1-line envelope into 2^k PLANES — opt(λ) = max_S (D_S + Σ_{i∈S} λ_i) survives EXACTLY and the all-k right face survives EXACTLY (one coverage-forced Hungarian), but the MONOTONE-COUNT staircase BREAKS: on a non-uniform ray λ(t) = t·μ the realized count can DESCEND — the exchange argument confines descents to k ≥ 3 with a dominant pair (μ₁ > μ₂ + μ₃), and the machine finds one",
+    face: "envelope",
+    price:
+      "subset-envelope identity worst deviation 0.00e+0 (4×6 × 4 public seeds × 4 non-uniform λ-vectors, enumeration the referee); all-k face worst deviation 0.00e+0 over regime-verified cells at 5×7 with non-uniform vectors, m > 2k handled by ONE Hungarian whose slot edges are augmented by M = m+1 (coverage forced, M subtracted back); k=1 compatibility: weights identical to the v0.1 family, optimum deviation 0; k=2 ray descents 0 over 3 μ-patterns × 21 public seeds (structural: every 2-set slope dominates every 1-set — descent needs a dominant pair); k=3 DESCENT WITNESS: 4×6 seed 519, μ = (2.5, 0.6, 0.6) — D_{{2,3}} = 2.818 vs D_{{1}} = 2.597, exact crossing t* = 0.170000: count 2 → 1 (the dominant pair takes over) → 2 again on a different pair set — the staircase under non-uniform bonuses descends AND re-ascends",
+    exactness: "EXACT",
+    witness: "W-J",
+    anchors: [],
+  },
+  {
+    id: "PL20",
+    claim:
+      "the BREAKPOINT THEOREM (exact in k): the staircase's argmax flips at the EXACT RATIONAL breakpoints of the upper convex hull of (j, C_j) — λ* = (C_a − C_b)/(b − a), C computed in integer thousandths, denominators ≤ k — and at λ* ± 1e-6 the argmax sits precisely on the two hull neighbours; the breakpoints' scaling in k is DATA, no law claimed",
+    face: "envelope",
+    price:
+      "105 cells ((4,6) and (5,7) × k ≤ 2, (6,8) × k ≤ 3, 15 public seeds each): worst flip deviation 0, tie-aware argmax-vs-enumeration mismatch 0 (7 tie probes — the 3-decimal weights make exact ties real — every one set-consistent), integer-vs-float C_j cross-check 8.88e-13 thousandths; the k-scaling as DATA at 6×8: last-breakpoint (all-k threshold) medians 0.022 → 0.065 → 0.181 and maxima 0.055 → 0.218 → 0.435 for k = 1 → 2 → 3, while FULL staircases vanish (3/15 → 1/15 → 0/15 cells realize all k steps — the hull SKIPS levels as k grows)",
+    exactness: "EXACT",
+    witness: "W-K",
+    anchors: [],
+  },
 ];

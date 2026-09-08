@@ -9,6 +9,7 @@ const exps = [
   "exp3-network.ts",
   "exp4-purify.ts",
   "exp5-scaling.ts",
+  "exp6-robustness.ts",
 ];
 
 const t0 = Date.now();

@@ -12,7 +12,7 @@
 import type { RequestSpec } from "../net/engine.js";
 import type { NetSpec } from "../net/topology.js";
 import { ersPolicy, swapLatePolicy } from "../net/policies.js";
-import { fmt, fmtInt, mdTable, runMultiSeed, writeReport } from "./common.js";
+import { SEEDS, fmt, fmtInt, mdTable, runMultiSeed, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
 // batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
 if (import.meta.url !== pathToFileURL(process.argv[1] ?? "").href) {
@@ -89,7 +89,44 @@ for (const f0 of [0.95, 0.92, 0.9]) {
   ]);
 }
 
-const payload = { partA, partB, partC };
+// ---- Part D (v0.2): slot-count × fidelity phase boundary -------------------
+// Where is the deliverable wall of the mixed ladder as F₀ improves? Each cell
+// is mean ERS goodput over 3 seeds; boundary = smallest slots with goodput
+// > 1e-3/round (the mixed-ladder saturation below target delivers exactly 0).
+const censusSeeds = SEEDS.slice(0, 3); // [11, 23, 37]
+const dRounds = 30_000;
+const f0Grid = [0.8, 0.82, 0.84, 0.86, 0.88, 0.9] as const;
+const slotGrid = [2, 3, 4, 5] as const;
+const goodputD = new Map<string, number>();
+for (const f0 of f0Grid) {
+  for (const slots of slotGrid) {
+    const net: NetSpec = {
+      nodes: ["A", "B"],
+      links: [{ id: "l", a: "A", b: "B", p: 0.9, slots, f0 }],
+      qSwap: 0.9,
+    };
+    const reqs: RequestSpec[] = [{ id: "r", src: "A", dst: "B", fMin: 0.95 }];
+    const res = runMultiSeed({
+      net,
+      requests: reqs,
+      policyFactory: (t) => ersPolicy(t, reqs),
+      rounds: dRounds,
+      seeds: censusSeeds,
+    });
+    goodputD.set(`${f0}|${slots}`, res.goodput);
+  }
+}
+const partD: string[][] = f0Grid.map((f0) => {
+  const cells = slotGrid.map((s) => goodputD.get(`${f0}|${s}`)!);
+  const minSlots = slotGrid.find((_, i) => cells[i]! > 1e-3);
+  return [
+    fmt(f0, 2),
+    ...cells.map((g) => (g > 1e-3 ? fmt(g, 5) : "0.00000")),
+    minSlots === undefined ? ">5" : String(minSlots),
+  ];
+});
+
+const payload = { partA, partB, partC, partD: { rounds: dRounds, seeds: censusSeeds, grid: [...goodputD.entries()] } };
 
 const md = `# exp4 — 纯化阶梯经济学（${fmtInt(rounds)} 轮 × 5 种子）
 
@@ -113,6 +150,17 @@ ${mdTable(["F₀", "late goodput", "late F̄", "ERS goodput", "ERS F̄", "ERS ke
 
 交换本身就把 F 压到 F₀²+(1−F₀)²/3 以下（F₀=0.92 → 0.849），无纯化时
 fMin=0.93 不可达；ERS 在链上建阶梯后端到端达标。
+
+## D. 槽位 × 保真度相位边界（v0.2，${fmtInt(dRounds)} 轮 × 3 种子）
+
+0.9497 饱和墙的推广：F₀ → fMin=0.95 的混合阶梯在 (F₀, slots) 平面上的
+可交付边界（"下限" = 最小可交付 slots；0.00000 = 饱和于目标之下、交付
+恰好为零——不是噪声）。
+
+${mdTable(["F₀", "slots=2", "slots=3", "slots=4", "slots=5", "下限 slots"], partD)}
+
+（读法：BBPSSW 爬到 0.95 所需的阶梯级数随 F₀ 下降而上升，每多一级
+要求冠军之外再多一份 2^k 原料库存——下限列即"硬件需求曲线"。）
 `;
 
 writeReport("exp4-purify", payload, md);

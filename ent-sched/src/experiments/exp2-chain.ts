@@ -115,6 +115,47 @@ for (const qSwap of [1.0, 0.9, 0.7]) {
   }
 }
 
+// ---- Part D (v0.2): asap-freeze census — which family freezes, and does a
+// release primitive (network cutoff = discard by age) unfreeze every cell? ---
+const censusSeeds = SEEDS.slice(0, 3); // [11, 23, 37]
+const censusRounds = 20_000;
+const censusThreshold = censusRounds / 2; // frozen ⟺ attempts stopped before half-run
+const partD: string[][] = [];
+for (const hops of [4, 6] as const) {
+  for (const slots of [1, 2] as const) {
+    for (const qSwap of [1.0, 0.9, 0.8, 0.7, 0.5] as const) {
+      const reqD: RequestSpec = { id: "r", src: "n0", dst: `n${hops}`, fMin: 0.9 };
+      const runVariant = (cutOff?: number) => {
+        const base = chainNet(hops, { p: 0.5, slots, t2: 400, qSwap });
+        const net = cutOff === undefined ? base : { ...base, cutOff };
+        const reps = censusSeeds.map((seed) =>
+          runSim({
+            net,
+            requests: [reqD],
+            policy: swapAsapPolicy(new Topology(net), [reqD]),
+            seed,
+            rounds: censusRounds,
+          })
+        );
+        const frozen = reps.filter((r) => r.counters.lastAttemptRound < censusThreshold).length;
+        const goodput = reps.reduce((s, r) => s + r.aggregate.goodput, 0) / reps.length;
+        return { frozen, goodput };
+      };
+      const bare = runVariant(undefined);
+      const released = runVariant(10);
+      partD.push([
+        String(hops),
+        String(slots),
+        fmt(qSwap, 2),
+        `${bare.frozen}/3`,
+        fmt(bare.goodput, 5),
+        `${released.frozen}/3`,
+        fmt(released.goodput, 5),
+      ]);
+    }
+  }
+}
+
 const payload = {
   referee: {
     ageless: { engine: engineRate(engAgeless), chain: refAgeless.deliveryRate, meanFengine: meanF(engAgeless), meanFchain: refAgeless.meanFidelity, states: refAgeless.stateCount },
@@ -122,6 +163,7 @@ const payload = {
   },
   partB,
   partC,
+  partD: { rounds: censusRounds, seeds: censusSeeds, threshold: censusThreshold, rows: partD },
 };
 
 const relA = Math.abs(engineRate(engAgeless) - refAgeless.deliveryRate) / refAgeless.deliveryRate;
@@ -171,6 +213,16 @@ ${mdTable(["qSwap", "策略", "goodput", "F̄", "span P95", "交换失败率"], 
 合并产生的陈旧重叠段占满全部锚点，asap 无释放/丢弃机制；低 qSwap 时交换
 失败反而充当被动清道夫（销毁旧段、释放槽位），故 qSwap=0.7 行非零。
 late 的铺贴门 + DP 精确覆盖天然不产生重叠段，无此病理。
+
+## D. asap 冻结死锁普查（v0.2，机器判定：lastAttemptRound < 半程 ⇒ 冻结）
+
+每格 3 种子 × ${fmtInt(censusRounds)} 轮，asap，p=0.5，T₂=400。"冻结 x/3" =
+该格 3 种子里尝试永久停止的种子数。右侧两列为同一网格加上**释放原语**
+（网络截止=10，即按年龄丢弃）后的结果。
+
+${mdTable(["hops", "slots", "qSwap", "冻结(裸 asap)", "goodput(裸)", "冻结(+释放)", "goodput(+释放)"], partD)}
+
+（普查结论见 README 与 theory §8：死锁家族的边界 + 释放原语的普适解冻。）
 `;
 
 writeReport("exp2-chain", payload, md);

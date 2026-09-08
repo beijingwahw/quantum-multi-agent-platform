@@ -107,6 +107,77 @@ s=1 谱 = sorted −C；全空间 k=dim 对稠密 Jacobi 精确（n=4）。**简
 我们 exp1/exp3 证明对经典采样封闭（符号壁垒）。两面结论：**壁垒证据硬，
 收益在可验证尺度是方向性趋势 + 如实负结果**。
 
+### 1.7 元素级 de-signing 可判定性（0.2.0：决策层）
+
+**决策问题**（README 0.1.x 开放问题的精确化）。给定
+
+```
+H = Σ_i g_i·X_i + Σ_i p_i·Z_i + Σ_{(u,v)} (κ_uv·X_uX_v + w_uv·Z_uZ_v)
+```
+
+是否存在单比特实正交基变换 U = ⊗_i U_i（U_i ∈ O(2)），使 U†HU 的
+**每一个**非对角矩阵元 ≤ 0？`designing.ts` 的对角规范（ψ ∈ {0,π}，
+即轴对齐 π 旋转层）是本问题在测量受挫环意义上的子集；元素级允许
+求和抵消与连续角度。单比特共轭表（X_i → a_iX_i + b_iZ_i，
+Z_i → d_i(a_iZ_i − b_iX_i)，(a_i,b_i) 单位圆、d_i ∈ {±1}；与稠密
+Kronecker 共轭随机化互证）给出非对角元的闭式：
+
+```
+A_i(z) = g_i·a_i − d_i·p_i·b_i + Σ_{邻居 o} z_o·(κ_io·a_i·b_o − d_i·d_o·w_io·b_i·a_o)
+D_uv   = κ_uv·a_u·a_v + d_u·d_v·w_uv·b_u·b_v        （z = 构型位 ±1）
+```
+
+max_z A_i(z) = 基项 + Σ_o |每邻居贡献|（**同邻居的多重边先按 (κ,w)
+求和**——共享同一 z_o；逐边取 |·| 会高估，2026-09-08 由公式 vs 稠密
+裁判的随机化对照抓获并修复）。判定 = O(n+|E|) 精确扫描 + 多起点坐标
+下降搜索 + 两侧证书。
+
+**定理（两比特均匀横场族的封闭二分法）**。H = −Γ(X_u+X_v) + κ·X_uX_v
+（κ, Γ > 0，w = p = 0）：存在**非平凡**（非 vacuous，至少一条活的
+非对角通道）de-signing ⟺ κ ≤ Γ；且 κ > Γ 时任何 de-signing 必有
+a_u = a_v = 0（全部非对角元恰为零 = 驱动器被断开的 vacuous 逃逸）。
+
+证明：非对角元只剩 A_u(z_v) = a_u(−Γ + z_vκb_v)、A_v(z_u) =
+a_v(−Γ + z_uκb_u)、D = κa_ua_v。(i) a_u < 0 时取 z_v = −sign(b_v)
+得 A_u = a_u(−Γ − κ|b_v|) > 0，矛盾 ⟹ a_u, a_v ≥ 0；(ii) D ≤ 0
+与二者非负 ⟹ a_u = 0 或 a_v = 0；(iii) 设 a_v = 0（|b_v| = 1）：
+A_u 在 z_v = sign(b_v) 处 = a_u(−Γ + κ) ≤ 0——若 a_u > 0 则 κ ≤ Γ；
+若 a_u = 0 则 A_u ≡ A_v ≡ D ≡ 0（vacuous）。故 κ > Γ 时唯一可行点
+全 vacuous。充分性（κ ≤ Γ）：显式证书 ψ_u = 0、ψ_v = π/2——u 行
+= −Γ + κ·z_v ≤ −Γ + κ ≤ 0，v 行 ≡ 0，D = 0，u 行在 κ < Γ 时严格
+负（活通道）。∎（`uniformPairDichotomy` 给证书，`dichotomyGridCheck`
+在 (ψ_u,ψ_v)×d 全网格上机器复核 NO 侧：可行点的 |a| 逃逸 ≤ 1e-3。）
+
+**命题（单边可去性：ZZ 通道）**。w ≠ 0、p = 0 时，任意大的 κ 都可去：
+取 ψ_u = ψ_v = π/2、d_ud_v = −sign(w)——旋转后非对角只剩
+−|w|·X_uX_v ≤ 0（活），单翻转行 ≡ 0。**+κ 壁垒在单条边上只是
+w = 0、p = 0 切片的伪影**；真正的阻碍需要 Z 场钉（d_ub_u 符号被
+p_i 钉死）与 ZZ 边规范需求（d_ud_v·sign(w) = −1）形成受挫的带符号
+2-染色——这正是相图中认证 NO 区的机制（exp6 Part A：6 个认证 NO
+胞全在 p ≠ 0 区，边际 0.024–0.335）。
+
+**松弛可靠性引理（NO 证书的定理级性）**。孤立对子系统是全问题的
+松弛：对任意旋转，max_z A_u^全 = 基项 + Σ_o|t_uo| ≥ 基项 + |t_uv| =
+max_z A_u^子（每行的 max 恰是绝对值之和，去掉邻居只会变小）⟹
+全可行 ⟹ 子可行；逆否即子不可行 ⟹ 全不可行。子问题在二维角度 ×
+4 规范号空间上网格化，Lipschitz 余量（|∂/∂ψ| ≤ |g|+|p|+|κ|+|w|）
+给出不依赖搜索运气的边际。对偶观察：**星形（单点邻域）松弛永远
+可行**——每条邻边贡献 t = α·b_v + β·a_v 对邻居角度线性，邻居圆上
+总可取正交方向把 t 归零（除非 (α,β)=(0,0)）——所以 NO 证明至少需要
+对级张力（双翻转约束同时钉住两端角度）。NO 证书另由
+`verifyNoGoCertificate` 独立重推（防伪造，走私审判 #3）。
+
+**诚实边界**：YES/NO 之间保留 UNRESOLVED（exp6：奇环 n=7、K4 混号、
+exp1 随机 3 度族 n=6 在 κ=0.05/0.5、相图 2 个边界胞）。这与复杂度
+文献一致：一般情形的治愈判定 NP-完全（Marvian-Lidar-Hen），全局
+stoquasticity 判定 coNP-难（Ioannou et al.）——我们只机器执行
+证书化了的判定，前沿定理作锚不作声称。Perron-Frobenius 是单向的：
+stoquastic ⟹ P = 1，但非 stoquastic 基态仍可非负（exp6 Part A 的
+κ=0.5/w=0.3 胞即如此）；P(comp) ≈ 0 才是壁垒读数（exp1 口径）。
+de-signing 证书 ⟹ 旋转基内 P = 1（严格负证书精确成立，零边界证书
+受简并限制到 0.997+）——把符号结构挪出硬件读出基，不是在原基消除它。
+
+
 ## 2. 引擎模型
 
 ### 2.1 X 基对角演化
@@ -161,3 +232,20 @@ s=1 谱 = sorted −C；全空间 k=dim 对稠密 Jacobi 精确（n=4）。**简
 - [Vinci & Lidar, npj QI 3, 38 (2017)](https://www.nature.com/articles/s41534-017-0037-z)
 - [Crosson & Deng, Quantum 4, 334 (2020)](https://quantum-journal.org/papers/q-2020-09-24-334/)
 - [Novo et al. (2019)](https://arxiv.org/abs/1909.06333)
+
+de-signing 可判定性（2026-09 双源核验：arXiv 摘要页 + 出版方页面/引用方）：
+
+- [Marvian, Lidar, Hen, "On the computational complexity of curing non-stoquastic
+  Hamiltonians", Nat. Commun. 10, 1571 (2019)](https://www.nature.com/articles/s41467-019-09501-6)
+  （arXiv:1802.03408）——受限乃至任意单比特正交变换下的治愈判定 NP-完全。
+- [Klassen, Terhal, "Two-local qubit Hamiltonians: when are they stoquastic?",
+  Quantum 3, 139 (2019)](https://quantum-journal.org/papers/q-2019-05-06-139/)
+  （arXiv:1806.05405）——两局域项可 stoquastic 化的逐项刻画。
+- [Ioannou, Piddock, Marvian, Klassen, Terhal, "Termwise versus globally stoquastic
+  local Hamiltonians: questions of complexity and sign-curing",
+  arXiv:2007.11964 (2020)](https://arxiv.org/abs/2007.11964)——全局
+  stoquasticity 判定 coNP-难；1D XYZ 反例不能被单比特酉治愈。
+- [Karakashian, Hen, "Dismantling the Stoquastic Dichotomy",
+  arXiv:2607.18596 (2026)](https://arxiv.org/abs/2607.18596)——以消失
+  几何相位（VGP）替代 stoquastic 二分的提议；VGP 识别 PSPACE-完全。
+  前沿提议，锚不作声称。

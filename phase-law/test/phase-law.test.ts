@@ -22,6 +22,34 @@ import {
   welfareOf,
 } from "../src/kernel/law.js";
 import { campaign, census, envelopeCheck, islandCampaign, thresholds } from "../src/kernel/census.js";
+import {
+  checkSaLog,
+  densityCampaign,
+  densityTableViolations,
+  kPairAnneal,
+  kPairGreedy,
+  kPairLocalSearch,
+  kPairWelfareOf,
+  type DensityCell,
+} from "../src/kernel/density.js";
+import {
+  makeNuInstance,
+  nuAllKDeviation,
+  nuAllKOptimum,
+  nuEnvelopeDeviation,
+  nuInAllKRegime,
+  nuOptimum,
+  nuRay,
+  nuRayDescentCount,
+  nuSubsetEnvelope,
+} from "../src/kernel/nonuniform.js";
+import {
+  staircaseArgmaxMismatch,
+  staircaseCell,
+  staircaseCheck,
+  staircaseFlipDeviation,
+  type StaircaseCell,
+} from "../src/kernel/staircase.js";
 import { BOARD, type BoardRow } from "../src/kernel/board.js";
 import { checkBoard, runWitnesses } from "../src/kernel/audit.js";
 
@@ -241,6 +269,121 @@ describe("v0.4.0 — the density axis", () => {
   });
 });
 
+describe("v0.5.0 — the density law", () => {
+  it("PL18 对拍: at k=1 the density solvers ARE the v0.1 solvers (bit-identical tours)", () => {
+    for (let s = 1; s <= 4; s++) {
+      for (const lambda of [0, 0.7, 2.5]) {
+        const a = makeInstance(5, 7, 500 * s, lambda);
+        const b = makeKPairInstance(5, 7, 500 * s, lambda, 1);
+        assert.deepEqual(a.weights, b.weights);
+        assert.deepEqual(greedy(a), kPairGreedy(b));
+        assert.deepEqual(localSearch(a, greedy(a)), kPairLocalSearch(b, kPairGreedy(b)));
+        assert.deepEqual(anneal(a, 42), kPairAnneal(b, 42));
+        assert.ok(Math.abs(welfareOf(a, anneal(a, 42)) - kPairWelfareOf(b, kPairAnneal(b, 42))) < 1e-12);
+      }
+    }
+  });
+
+  it("PL18: LS/SA never lose to greedy and never beat the enumerated optimum under the k-pair welfare", () => {
+    for (const k of [1, 2, 3]) {
+      const inst = makeKPairInstance(4, 6, 300, 0.9, k);
+      const g = kPairWelfareOf(inst, kPairGreedy(inst));
+      const ls = kPairWelfareOf(inst, kPairLocalSearch(inst, kPairGreedy(inst)));
+      const sa = kPairWelfareOf(inst, kPairAnneal(inst, 42));
+      const opt = kPairOptimum(inst).welfare;
+      assert.ok(ls >= g - 1e-12, "LS starts at greedy, never loses");
+      assert.ok(sa >= g - 1e-12, "SA best-ever never loses to greedy");
+      assert.ok(ls <= opt + 1e-12 && sa <= opt + 1e-12);
+    }
+  });
+
+  it("PL18: λ=0 columns identical across k; the 6×8 anneal floor collapses with k (compact census)", () => {
+    const cells = densityCampaign([[6, 8]], [1, 2, 3], 10, [0, 1, 2, 4, 8]);
+    for (const solver of ["anneal", "local-search"] as const) {
+      const zeros = new Set(cells.filter((c) => c.solver === solver).map((c) => c.rateAtZero));
+      assert.equal(zeros.size, 1, `${solver}: λ=0 hit rate must not depend on k (the matching face is untouched)`);
+    }
+    const floors = [1, 2, 3].map((k) => cells.find((c) => c.k === k && c.solver === "anneal")!.rateAtMax);
+    assert.ok(floors[1]! < floors[0]! && floors[2]! < floors[0]!, `floor by k ${floors.join(" → ")} must collapse`);
+    assert.equal(floors[2]!, 0, "SA is dead at λ=8 at k=3 (10 seeds)");
+    // where the curve DOES cross down (k ≥ 2), it must never come back up
+    for (const c of cells.filter((x) => x.solver === "anneal" && x.downCross >= 0)) {
+      assert.equal(c.upCross, -1, `6×8 k=${c.k}: a re-entrant up-cross appeared on the unsaturated axis`);
+    }
+  });
+
+  it("PL18: the saturated corner — 5×7 k=3 never falls below 0.5 (compact rerun)", () => {
+    const cells = densityCampaign([[5, 7]], [3], 10, [0, 0.5, 0.9, 1.5, 4, 8], ["anneal"]);
+    const c = cells[0]!;
+    assert.ok(c.minRate >= 0.5, `saturated min ${c.minRate}`);
+    assert.equal(c.downCross, -1);
+  });
+
+  it("PL19: the subset-envelope identity is exact; k=1 is the v0.1 family; the all-k face is exact and guarded", () => {
+    let worst = 0;
+    for (let s = 1; s <= 3; s++) {
+      for (const lam of [
+        [0.3, 0.9],
+        [1.5, 0.2, 0.7],
+      ]) {
+        worst = Math.max(worst, nuEnvelopeDeviation(makeNuInstance(4, 6, 500 * s, lam)));
+      }
+    }
+    assert.equal(worst, 0);
+    const a = makeInstance(3, 5, 500, 0.7);
+    const nu = makeNuInstance(3, 5, 500, [0.7]);
+    assert.deepEqual(a.weights, nu.weights);
+    assert.ok(Math.abs(nuOptimum(nu).welfare - optimumOf(a).welfare) < 1e-12);
+    const allK = makeNuInstance(5, 7, 500, [6, 6]);
+    assert.ok(nuInAllKRegime(allK));
+    assert.equal(nuAllKDeviation(allK), 0);
+    assert.throws(() => nuAllKDeviation(makeNuInstance(5, 7, 500, [0.01, 0.01])), /not in the all-k regime/);
+    assert.throws(() => nuAllKOptimum(makeNuInstance(4, 6, 500, [1, 1, 1])), /m ≥ 2k/);
+  });
+
+  it("PL19: monotone count on non-uniform rays — k=2 finds ZERO descents; k=3 descends exactly at t* = 0.170", () => {
+    const ts = Array.from({ length: 31 }, (_, i) => i * 0.1);
+    assert.equal(nuRayDescentCount(4, 6, 2, [[2, 1], [3, 1]], 500, 510, ts), 0);
+    const { d } = nuSubsetEnvelope(makeNuInstance(4, 6, 519, [0, 0, 0]));
+    const tStar = (d[6]! - d[1]!) / (2.5 - 1.2);
+    assert.ok(Math.abs(tStar - 0.17) < 1e-9, `t* ${tStar}`);
+    const ray = nuRay(4, 6, 519, [2.5, 0.6, 0.6], [0, tStar - 1e-6, tStar + 1e-6, 8]);
+    assert.equal(ray[0]!.count, 2);
+    assert.equal(ray[1]!.count, 2);
+    assert.equal(ray[2]!.count, 1, "the dominant pair takes over — the count DESCENDS");
+    assert.equal(ray[3]!.count, 2, "and re-ascends on a different pair set");
+  });
+
+  it("PL20: exact rational breakpoints — flips sharp at ±1e-6, argmax === enumerated count, check clean", () => {
+    let worstFlip = 0;
+    let worstArgmax = 0;
+    for (const [m, n, k] of [
+      [4, 6, 2],
+      [5, 7, 2],
+      [6, 8, 3],
+    ] as const) {
+      const cell = staircaseCell(m, n, 500, k);
+      assert.deepEqual(staircaseCheck(cell), []);
+      for (const b of cell.breaks) assert.ok(b > 0 && Number.isFinite(b));
+      worstFlip = Math.max(worstFlip, staircaseFlipDeviation(cell));
+      worstArgmax = Math.max(
+        worstArgmax,
+        staircaseArgmaxMismatch(m, n, 500, k, [0, 0.001, 0.05, 0.1, 0.2, 0.5, 1, 2, 4, 8]).worst,
+      );
+    }
+    assert.equal(worstFlip, 0);
+    assert.equal(worstArgmax, 0);
+  });
+
+  it("PL20: exact ties are real on this family and the identity is tie-aware (seed 1500: C_1 === C_2)", () => {
+    const cell = staircaseCell(5, 7, 1500, 2);
+    assert.equal(cell.cThou[1], cell.cThou[2], "the known exact C-tie");
+    const r = staircaseArgmaxMismatch(5, 7, 1500, 2, [0]);
+    assert.ok(r.ties >= 1, "λ=0 must be scored as a tie");
+    assert.equal(r.worst, 0, "and the enumerated count must lie in the tied set");
+  });
+});
+
 describe("the board and the witnesses", () => {
   it("board legal (L1-L4)", () => {
     assert.deepEqual(checkBoard(), []);
@@ -288,6 +431,70 @@ describe("smuggling trials — every law bites", () => {
   it("the renderer refuses an illegal board, naming the law", async () => {
     const { renderBoard } = await import("../src/experiments/render.js");
     assert.throws(() => renderBoard([forged({ id: "SM9", face: "poetry" as never })]), /SM9 \[L1\]/);
+  });
+
+  it("v0.5.0 SM10: a forged breakpoint table is named and rejected by its own C-vector", () => {
+    const real = staircaseCell(6, 8, 500, 3);
+    assert.deepEqual(staircaseCheck(real), []);
+    // counterfeit 1: nudge one breakpoint
+    const nudged: StaircaseCell = {
+      ...real,
+      breaks: real.breaks.map((b, i) => (i === 0 ? b + 0.5 : b)),
+    };
+    const v1 = staircaseCheck(nudged);
+    assert.ok(v1.some((x) => x.includes("counterfeit breakpoint") && x.includes("6×8") && x.includes("k=3")), v1.join("; "));
+    // counterfeit 2: drop a level (hide a step of the staircase)
+    const clipped: StaircaseCell = { ...real, levels: real.levels.slice(0, -1), breaks: real.breaks.slice(0, -1) };
+    const v2 = staircaseCheck(clipped);
+    assert.ok(v2.some((x) => x.includes("counterfeit levels")), v2.join("; "));
+    // counterfeit 3: descending levels — a staircase that cannot exist (the
+    // hull-consistency branch catches it first: an inverted list is never the
+    // hull — either way it is named and rejected)
+    const inverted: StaircaseCell = { ...real, levels: [...real.levels].reverse(), breaks: [...real.breaks].reverse() };
+    const v3 = staircaseCheck(inverted);
+    assert.ok(v3.length > 0 && v3.every((x) => x.includes("6×8") && x.includes("k=3")), v3.join("; "));
+    assert.ok(v3.some((x) => x.includes("counterfeit levels") || x.includes("not strictly ascending")), v3.join("; "));
+  });
+
+  it("v0.5.0 SM11: an SA log claiming a tour it never validated is named and rejected", () => {
+    const inst = makeKPairInstance(4, 6, 500, 0.9, 2);
+    const honest = kPairAnneal(inst, 42);
+    assert.equal(checkSaLog(inst, { tour: honest, claimedWelfare: kPairWelfareOf(inst, honest) }), null);
+    // counterfeit 1: a tour that reuses an agent
+    const reuse = [...honest];
+    reuse[1] = reuse[0]!;
+    const v1 = checkSaLog(inst, { tour: reuse, claimedWelfare: 99 });
+    assert.ok(v1?.includes("counterfeit tour") && v1?.includes("reused"), String(v1));
+    // counterfeit 2: an agent index outside the instance
+    const invented = [...honest];
+    invented[2] = 42;
+    const v2 = checkSaLog(inst, { tour: invented, claimedWelfare: 99 });
+    assert.ok(v2?.includes("out of range"), String(v2));
+    // counterfeit 3: an honest tour with an INFLATED claimed welfare
+    const v3 = checkSaLog(inst, { tour: honest, claimedWelfare: kPairWelfareOf(inst, honest) + 0.5 });
+    assert.ok(v3?.includes("welfare inflation"), String(v3));
+    // and the scorer itself refuses to score a counterfeit tour (naming the agent)
+    assert.throws(() => kPairWelfareOf(inst, reuse), /counterfeit tour rejected: agent \d+ reused/);
+  });
+
+  it("v0.5.0 SM12: a counterfeit density census row is named and rejected against its own rates", () => {
+    const honest = densityCampaign([[5, 7]], [1, 2], 6, [0, 1, 2, 4]);
+    assert.deepEqual(densityTableViolations(honest, [0, 1, 2, 4]), []);
+    const base = honest.find((c) => c.k === 2 && c.solver === "anneal")!;
+    // counterfeit 1: claim an up-cross the rates never produce
+    const fakeUp: DensityCell = { ...base, upCross: 3.0 };
+    const v1 = densityTableViolations([fakeUp], [0, 1, 2, 4]);
+    assert.ok(v1.some((x) => x.includes("5×7 k=2 anneal") && x.includes("up-cross")), v1.join("; "));
+    // counterfeit 2: bury the minimum (claim the min is as good as λ=0 and
+    // sits at the last column — the table disagrees wherever its true min is)
+    const fakeMin: DensityCell = { ...base, minRate: 1, minLambda: 4 };
+    const v2 = densityTableViolations([fakeMin], [0, 1, 2, 4]);
+    assert.ok(v2.length > 0 && v2.every((x) => x.includes("5×7 k=2 anneal")), v2.join("; "));
+    assert.ok(v2.some((x) => x.includes("claimed min") || x.includes("λ at min")), v2.join("; "));
+    // counterfeit 3: a rate that no seed count could ever quantize to
+    const fakeRate: DensityCell = { ...base, hitRates: [0.33, ...base.hitRates.slice(1)] };
+    const v3 = densityTableViolations([fakeRate], [0, 1, 2, 4]);
+    assert.ok(v3.some((x) => x.includes("not quantized")), v3.join("; "));
   });
 });
 

@@ -7,3 +7,6 @@ All numbers regenerate from `npm run repro` (fixed seeds, deterministic RNG).
 - exp3-sse-sign.md — direct QMC average-sign measurement (SSE) with exact-enumeration referee
 - exp4-catalyst.md — AF XX catalyst testbed on the p-spin first-order family (honest two-sided result)
 - exp5-tensor-scale.md — DMRG scaling to n=64 with sampled sign metric
+- exp6-designability.md — element-level de-signing decidability: two-qubit phase diagram
+  with certified YES/NO dichotomy, graph-family verdicts vs diagonal gauge, PF re-verified
+  through the decision layer

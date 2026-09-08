@@ -1,8 +1,10 @@
 /**
  * Scheduling policies. Everything here answers the same question: who owns
  * each entanglement-generation attempt slot, and when do pairs get swapped,
- * purified, or held. The policies see exactly what the engine sees (oracle
- * ages); on real hardware these become estimates (see docs/theory.md).
+ * purified, or held. The policies see only what the engine's view exposes: in
+ * oracle mode that is physical truth; under a SensorPlan (v0.2) the same
+ * accessors return the belief mirror maintained from calibration estimates
+ * (src/net/sensors.ts) — the policies are estimator-agnostic by construction.
  *
  *  - SwapAsapPolicy : classic nested repeater — merge adjacent segments the
  *                     moment they exist (minimum latency, maximum swap-failure
@@ -377,7 +379,8 @@ export function ersPolicy(
           const onSeg = [...uniq.values()].filter((p) => sameSegment(p));
           const fOf = (p: Pair): number => st.currentVec(p, st.round)[0]!;
           const fSeg = fOf(seg);
-          const f0 = st.net.links.find((l) => l.id === segFirst)?.f0 ?? 1;
+          // believed (oracle mode: true) fresh level — the stale-rung threshold
+          const f0 = st.believedF0(segFirst);
           const slotsFull = st.freeSlots(segFirst) === 0 || st.freeSlots(segLast) === 0;
           let improved = false;
           for (let i = 0; i < onSeg.length; i++)
