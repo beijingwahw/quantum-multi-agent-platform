@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ToolError } from '../utils/errors.js';
 
 /** subagent 调用参数 */
 export interface SubagentParams {
@@ -19,6 +20,17 @@ export interface SubagentResult {
 }
 
 export function subagent(params: SubagentParams): Promise<SubagentResult> {
+  // 空描述/空提示此前会产出 "Subagent task completed: " 这类空转结果——
+  // mock 也必须有输入下界，垃圾参数在入口拒绝。以 unknown 视图校验
+  // （类型标注对 JS 调用方不构成约束），非空字符串通过后才放行。
+  const raw = params as { description?: unknown; prompt?: unknown } | null | undefined;
+  const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+  if (raw === null || raw === undefined || !isNonEmptyString(raw.description)) {
+    throw new ToolError("subagent requires a non-empty 'description' parameter");
+  }
+  if (!isNonEmptyString(raw.prompt)) {
+    throw new ToolError("subagent requires a non-empty 'prompt' parameter");
+  }
   // 这里可以集成真实的subagent调用
   // 目前返回模拟结果（status='mock' 标记，调用方可据此区分真伪）
   return Promise.resolve({

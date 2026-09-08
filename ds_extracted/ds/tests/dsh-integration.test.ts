@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { DSHIntegration } from '../src/dsh/dsh-integration.js';
+import { ToolError } from '../src/utils/errors.js';
 
 describe('DSHIntegration', () => {
   it('初始化后注册默认工具与工作流', async () => {
@@ -102,5 +103,47 @@ describe('DSHIntegration', () => {
 
     dsh.unmapAgent('quantum-1');
     assert.equal(dsh.getMappedAgent('quantum-1'), undefined);
+  });
+
+  it('负对照：subagent 空 description/prompt 抛 ToolError，不再产出空转 mock 结果', async () => {
+    const dsh = new DSHIntegration({});
+    await dsh.initialize();
+
+    await assert.rejects(
+      () => dsh.executeTool('subagent', { description: '', prompt: 'p' }),
+      (error: unknown) =>
+        error instanceof ToolError && /non-empty 'description'/.test(error.message),
+    );
+    await assert.rejects(
+      () => dsh.executeTool('subagent', { description: 'd', prompt: '' }),
+      /non-empty 'prompt'/,
+    );
+
+    // 边界：合法参数的 mock 结果契约不变（status='mock'）
+    const result = (await dsh.executeTool('subagent', {
+      description: 'analyze',
+      prompt: 'do it',
+    })) as { status: string; description: string };
+    assert.equal(result.status, 'mock');
+    assert.equal(result.description, 'analyze');
+  });
+
+  it('负对照：web_search 空/非字符串查询抛 ToolError，不再产出空查询占位', async () => {
+    const dsh = new DSHIntegration({});
+    await dsh.initialize();
+
+    await assert.rejects(
+      () => dsh.executeTool('web_search', { query: '' }),
+      (error: unknown) =>
+        error instanceof ToolError && /non-empty query string/.test(error.message),
+    );
+    await assert.rejects(
+      () => dsh.executeTool('web_search', { query: '   ' }),
+      /non-empty query string/,
+    );
+
+    // 边界：合法查询的占位结果契约不变
+    const out = (await dsh.executeTool('web_search', { query: 'quantum scheduling' })) as string;
+    assert.match(out, /\[mock\] Search results for "quantum scheduling"/);
   });
 });

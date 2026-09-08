@@ -102,7 +102,7 @@ export const FRONTIER: readonly FrontierRow[] = [
     priorVerdict: "HEURISTIC",
     note: "held — class unmoved; physical verification awaiting granted hours only",
     settler: null,
-    pointers: [{ repo: "ds_extracted/ds", file: "README.md", needle: "tests-292%2F292" }],
+    pointers: [{ repo: "ds_extracted/ds", file: "README.md", needle: "tests-520" }],
   },
   {
     claimId: "#04",

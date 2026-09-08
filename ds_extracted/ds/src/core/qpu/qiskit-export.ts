@@ -23,7 +23,12 @@
  */
 
 import type { AssignmentProblem } from '../quantum-optimizer.js';
-import { toIsing, computeEnergies, decodeAssignment } from '../quantum-optimizer.js';
+import {
+  toIsing,
+  computeEnergies,
+  decodeAssignment,
+  decodeCouplingKey,
+} from '../quantum-optimizer.js';
 import { QuantumEngineError } from '../../utils/errors.js';
 
 export interface QiskitExportOptions {
@@ -79,7 +84,8 @@ export function toQiskitProgram(
   const couplings: Array<[number, number, number]> = [];
   for (const [key, value] of ising.J) {
     if (value !== 0) {
-      couplings.push([Math.floor(key / nqubits), key % nqubits, +(value * invSpan).toFixed(6)]);
+      const { q1, q2 } = decodeCouplingKey(key, nqubits);
+      couplings.push([q1, q2, +(value * invSpan).toFixed(6)]);
     }
   }
   const linear = ising.h

@@ -20,10 +20,10 @@ test("A1-A3: the anchor registry is legal, symmetric and fully evidenced (live)"
   assert.deepEqual(v, []);
   const byKind = new Map<string, number>();
   for (const r of ANCHOR_REGISTRY) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
-  assert.equal(ANCHOR_REGISTRY.length, 205);
+  assert.equal(ANCHOR_REGISTRY.length, 207);
   assert.equal(byKind.get("FIRING-INJECT"), 141);
   assert.equal(byKind.get("FIRING-LIVE"), 9);
-  assert.equal(byKind.get("RESOLVED"), 55);
+  assert.equal(byKind.get("RESOLVED"), 57);
 });
 
 test("A-fire B4: a forged batch with a dead source anchor is convicted by burial-record's own checker", async () => {
@@ -192,6 +192,26 @@ test("A4 reads the gate's OWN format (v0.31.0): the artifact's BOLD `**FAIL**` c
   const boldPass =
     "# THE TOTAL GATE\n\n| repo | test | typecheck |\n| --- | --- | --- |\n| dtc-clock | **PASS (1.0s)** | PASS (1.0s) |\n";
   assert.deepEqual(checkArtifactFiring(boldPass, ANCHOR_REGISTRY), []);
+});
+
+test("A4 self-reference exemption (b89#12): the census's own red cell books nothing — the adjudicator may not sit in its own docket", async () => {
+  // a red census-test cell in the last recorded run convicted the census's own
+  // anchor, and clearing the conviction required a green run which required
+  // the conviction cleared — an unrecoverable state first reached when the
+  // platform's timing-flap red made the NEXT census run red through the very
+  // artifact it was reading. The census's own red cell already fails the
+  // census suite directly and red-cells the gate on its own; A4 books it never.
+  const censusRed =
+    "# THE TOTAL GATE\n\n| repo | test | typecheck |\n| --- | --- | --- |\n| mutant-census | **FAIL (2.0s)** | PASS (1.0s) |\n";
+  assert.deepEqual(checkArtifactFiring(censusRed, ANCHOR_REGISTRY), []);
+  // a sibling's red cell still convicts — the exemption is self-scoped only
+  const siblingRedToo = censusRed.replace(
+    /\|\n$/,
+    "\n| dtc-clock | PASS (1.0s) | **FAIL (1.0s)** |\n",
+  );
+  const hit = checkArtifactFiring(siblingRedToo, ANCHOR_REGISTRY).find((v) => v.law === "A4");
+  assert.ok(hit, "the sibling's red cell was NOT convicted — the exemption overreached");
+  assert.equal(hit.anchor, "dtc-clock/package.json :: typecheck");
 });
 
 test("the renderer refuses to print an illegal anchor registry", async () => {

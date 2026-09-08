@@ -1,3 +1,5 @@
+import { NumericDomainError } from './errors.js';
+
 /**
  * 全平台默认随机种子（调度/优化引擎共用，保证给定 seed 的行为完全可复现）。
  *
@@ -28,10 +30,22 @@ export const DEFAULT_SEED = 42;
  * 实现保持与原始各副本逐位一致（含种子推进次序），替换不改变任何数值序列。
  */
 
+/**
+ * 种子域校验：NaN/Infinity 经 `>>> 0` 会被静默位转换成 0（与 seed=0 同流、
+ * 无任何提示——复现性承诺被无声击穿），在构造/换种入口即拒绝。
+ * 有限种子（含负数/小数）合法：`>>> 0` 的 32 位位转换语义是公开契约。
+ */
+function assertFiniteSeed(seed: number): void {
+  if (!Number.isFinite(seed)) {
+    throw new NumericDomainError(`RNG seed must be a finite number, got ${String(seed)}`);
+  }
+}
+
 export class Mulberry32 {
   private state: number;
 
   constructor(seed: number) {
+    assertFiniteSeed(seed);
     this.state = seed >>> 0;
   }
 
@@ -46,6 +60,7 @@ export class Mulberry32 {
 
   /** reseed：重置到新种子（保持对象身份，便于持有方热替换） */
   reseed(seed: number): void {
+    assertFiniteSeed(seed);
     this.state = seed >>> 0;
   }
 }

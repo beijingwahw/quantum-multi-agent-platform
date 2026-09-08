@@ -10,6 +10,7 @@ import type { RawData } from 'ws';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { logInfo, logWarn } from '../utils/logger.js';
+import { ConfigurationError, MessageValidationError } from '../utils/errors.js';
 
 export interface WebSocketConnection {
   id: string;
@@ -134,6 +135,62 @@ type IncomingClientMessage =
   | { type: 'console_command'; action: string; payload?: unknown }
   | QuantumMessage;
 
+/**
+ * 构造期限额校验：这些配置键的垃圾值不是「行为退化」而是「静默损坏」——
+ * maxQueuedMessages<0 会让丢最旧消息的 while 循环在空队列上无限空转
+ * （挂死整个事件循环）；maxSubscriptions<0 使容量判断恒 false、上限被
+ * 静默绕过；maxConnections<1 / maxMessageSize<1 / 心跳间隔≤0 让总线
+ * 构造上就不可用。全部在构造时显式拒绝（非法配置不是运行时才暴露的
+ * 事故，而是调用方的编程错误）。
+ */
+function validateBusLimits(config: QuantumBusConfig): void {
+  const c = config.communication;
+  if (!c) return;
+  const integer = (value: number): boolean => Number.isInteger(value);
+  if (
+    c.maxQueuedMessages !== undefined &&
+    (!integer(c.maxQueuedMessages) || c.maxQueuedMessages < 0)
+  ) {
+    throw new ConfigurationError(
+      `communication.maxQueuedMessages must be a non-negative integer, got ${String(c.maxQueuedMessages)}`,
+    );
+  }
+  if (
+    c.maxSubscriptions !== undefined &&
+    (!integer(c.maxSubscriptions) || c.maxSubscriptions < 0)
+  ) {
+    throw new ConfigurationError(
+      `communication.maxSubscriptions must be a non-negative integer, got ${String(c.maxSubscriptions)}`,
+    );
+  }
+  if (c.maxConnections !== undefined && (!integer(c.maxConnections) || c.maxConnections < 1)) {
+    throw new ConfigurationError(
+      `communication.maxConnections must be a positive integer, got ${String(c.maxConnections)}`,
+    );
+  }
+  if (c.maxMessageSize !== undefined && (!integer(c.maxMessageSize) || c.maxMessageSize < 1)) {
+    throw new ConfigurationError(
+      `communication.maxMessageSize must be a positive integer, got ${String(c.maxMessageSize)}`,
+    );
+  }
+  if (
+    c.heartbeatIntervalMs !== undefined &&
+    (!integer(c.heartbeatIntervalMs) || c.heartbeatIntervalMs < 1)
+  ) {
+    throw new ConfigurationError(
+      `communication.heartbeatIntervalMs must be a positive integer, got ${String(c.heartbeatIntervalMs)}`,
+    );
+  }
+  if (
+    c.heartbeatTimeoutMs !== undefined &&
+    (!integer(c.heartbeatTimeoutMs) || c.heartbeatTimeoutMs < 1)
+  ) {
+    throw new ConfigurationError(
+      `communication.heartbeatTimeoutMs must be a positive integer, got ${String(c.heartbeatTimeoutMs)}`,
+    );
+  }
+}
+
 export class QuantumBus extends EventEmitter {
   private messageQueue = new Map<string, QuantumMessage[]>();
   private connections = new Map<string, WebSocketConnection>();
@@ -160,6 +217,7 @@ export class QuantumBus extends EventEmitter {
 
   constructor(config: QuantumBusConfig) {
     super();
+    validateBusLimits(config);
     this.config = config;
   }
 
@@ -663,17 +721,15 @@ export class QuantumBus extends EventEmitter {
     }
   }
 
+  /**
+   * 订阅相关性：只在 subscriptions.length > 0 时被 broadcastMessage 调用
+   * （「无订阅=接收全部广播」在调用点判定，曾在此重复一份恒假回退分支，
+   * 已按死代码清偿删除）。
+   */
   private isRelevantForConnection(
     message: QuantumMessage,
     connection: WebSocketConnection,
   ): boolean {
-    // 这里可以根据消息类型和连接的订阅来判断相关性
-    // 简化实现：如果连接没有特定订阅，则接收所有消息
-    if (connection.subscriptions.length === 0) {
-      return true;
-    }
-
-    // 检查消息类型是否在订阅列表中
     return connection.subscriptions.includes(message.type);
   }
 
@@ -686,6 +742,34 @@ export class QuantumBus extends EventEmitter {
     targetAgentIds?: string[],
     priority: MessagePriority = 'medium',
   ): QuantumMessage {
+    // 出站构造 fail-fast（负对照契约）：入站 socket 畸形消息按 F05/F10
+    // warn+丢弃，但进程内调用方传垃圾参数是编程错误——
+    // - 空 source 此前构造出的消息会在 validateMessage 被静默丢弃，
+    //   调用方却拿到「已创建」的消息对象；
+    // - 单播/组播目标并存时 targetAgentIds 此后被静默忽略；
+    // - 空目标数组此前走 forEach 零投递，静默无人收到。
+    if (typeof sourceAgentId !== 'string' || sourceAgentId.length === 0) {
+      throw new MessageValidationError('createMessage(): sourceAgentId must be a non-empty string');
+    }
+    if (targetAgentId !== undefined && targetAgentIds !== undefined) {
+      throw new MessageValidationError(
+        'createMessage(): targetAgentId and targetAgentIds are mutually exclusive',
+      );
+    }
+    if (targetAgentIds !== undefined) {
+      if (!Array.isArray(targetAgentIds) || targetAgentIds.length === 0) {
+        throw new MessageValidationError(
+          'createMessage(): targetAgentIds must be a non-empty array of agent ids',
+        );
+      }
+      for (const id of targetAgentIds) {
+        if (typeof id !== 'string' || id.length === 0) {
+          throw new MessageValidationError(
+            'createMessage(): targetAgentIds entries must be non-empty strings',
+          );
+        }
+      }
+    }
     const message: QuantumMessage = {
       id: randomUUID(),
       type,
@@ -705,8 +789,12 @@ export class QuantumBus extends EventEmitter {
 
   // 消息重发队列处理
   processQueuedMessages(agentId: string): number {
+    // 空桶防御检查已删除（死代码清偿）：恒假分支——桶经
+    // queueMessageForAgent 创建（maxQueuedMessages=0 时会残留空桶），
+    // 但空桶进入下方循环天然零投递、零剩余、删桶返回 0，与原检查逐点
+    // 同义，删除断言零行为差异。
     const queuedMessages = this.messageQueue.get(agentId);
-    if (!queuedMessages || queuedMessages.length === 0) return 0;
+    if (!queuedMessages) return 0;
 
     // 该 agent 的候选连接快照（一次 O(C)，替代每消息一次的全表扫描）。
     // 快照按 connections 插入序 == 原 find 的扫描序；逐消息仍重新校验

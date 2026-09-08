@@ -79,7 +79,7 @@ plugin.on('action_completed', (exec) => {
 
 ```typescript
 import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
-import { allPresetRules } from 'dsh-proactive-intelligence/rules';
+import { allPresetRules } from 'quantum-multi-agent-platform/dist/proactive-intelligence/rules.js';
 
 const plugin = new ProactiveIntelligencePlugin();
 
@@ -461,9 +461,9 @@ saveToDatabase(history);
 ## 下一步
 
 - 📖 阅读[完整文档](./README.md)
-- 🎯 查看[更多示例](./examples.ts)
+- 🎯 查看[更多示例](../../examples/proactive-intelligence-demo.ts)
 - 🔧 了解[预设规则](./rules.ts)
-- 🚀 探索[DSH集成](../deepseek-harness-plugin-guide.md)
+- 🚀 探索[DSH集成](../../deepseek-harness-plugin-guide.md)
 
 ## 获取帮助
 

@@ -6,6 +6,7 @@
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
 import type { MonitorEvent } from './types.js';
+import { ConfigurationError } from '../utils/errors.js';
 
 /** 状态监控器配置 */
 export interface StateMonitorConfig {
@@ -28,6 +29,9 @@ export interface MonitorStatistics {
   /** critical 严重度事件数（活跃窗口口径 = live） */
   critical: number;
 }
+
+/** 事件严重度枚举（observe 入口域校验用，模块级避免热路径重复构建） */
+const VALID_SEVERITIES = new Set(['info', 'warning', 'error', 'critical']);
 
 export class StateMonitor extends EventEmitter {
   private eventBuffer: MonitorEvent[] = [];
@@ -69,6 +73,19 @@ export class StateMonitor extends EventEmitter {
 
   /** 监控事件 */
   observe(event: Omit<MonitorEvent, 'id' | 'timestamp'>): MonitorEvent {
+    // 事件域守卫（负对照契约）：畸形 severity 此前会以任意字符串键静默
+    // 沉淀进 bySeverity 统计表（聚合口径被垃圾键污染）；空 type 的事件
+    // 永远无法被 'type.field' 规则匹配却照常计入总数。两者都在入口拒绝。
+    if (!VALID_SEVERITIES.has(event.severity)) {
+      throw new ConfigurationError(
+        `Invalid event severity '${String(event.severity)}' ` +
+          '(expected one of: info, warning, error, critical)',
+      );
+    }
+    if (typeof event.type !== 'string' || event.type.length === 0) {
+      throw new ConfigurationError('Event type must be a non-empty string');
+    }
+
     const monitorEvent: MonitorEvent = {
       id: randomUUID(),
       timestamp: new Date(),

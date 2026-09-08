@@ -255,6 +255,10 @@ interface Action {
 - `auto-scale-down`: 自动缩容
 - `backup-reminder`: 定期备份提醒
 
+### 增长市场（Brain 联动）
+
+- `market-underperforming`: 市场表现退化检测（已结算任务 ≥ 20 且全窗口成功率 < 40% 时告警并触发诊断工作流）
+
 使用预设规则：
 
 ```typescript
@@ -459,7 +463,7 @@ plugin.on('action_failed', (execution) => {
 ### 1. 运行示例
 
 ```bash
-npm run example:proactive
+npx tsx examples/proactive-intelligence-demo.ts
 ```
 
 ### 2. 安全模式测试

@@ -73,3 +73,21 @@ export class FtqcDeferredError extends PlatformError {
 
 /** 工具执行错误：DSH 工具/工作流参数校验失败、沙箱违规、命令非法 */
 export class ToolError extends PlatformError {}
+
+/** 基准报告完整性拒绝：run 对象违反反挑选法律（删行/重复格）时拒绝渲染与写盘 */
+export class BenchReportError extends PlatformError {}
+
+/**
+ * 数值域非法：公开数值工具/PRNG/基准入口收到 NaN/Infinity 或非法数值参数。
+ * 此前 round* 会把 NaN 静默「舍入」成 NaN 继续流向报表，mulberry32 会把
+ * NaN 种子位转换成 0（与 seed=0 同流且无任何提示）——垃圾值必须在入口
+ * 被拒绝，而不是被「加工」后继续流毒。
+ */
+export class NumericDomainError extends PlatformError {}
+
+/**
+ * 总线消息构造非法：空 sourceAgentId、单播/组播目标并存、目标列表为空
+ * 或含非法项。入站（socket）畸形消息仍按 F05/F10 契约 warn+丢弃不抛错；
+ * 本类只用于进程内 createMessage 出站构造的 fail-fast。
+ */
+export class MessageValidationError extends PlatformError {}

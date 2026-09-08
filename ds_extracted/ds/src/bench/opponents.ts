@@ -15,6 +15,7 @@ import type { AssignmentProblem } from '../core/quantum-optimizer.js';
 import { hungarianAssignment, localSearchAssignment } from '../core/classical-baselines.js';
 import { annealSolve, bruteForceOptimum, qaoaSolve } from '../core/quantum-optimizer.js';
 import { annealSolveSubspace, buildSubspaceModel } from '../core/subspace-optimizer.js';
+import { QuantumEngineError } from '../utils/errors.js';
 import { benchRng } from './generator.js';
 
 export interface BenchSolution {
@@ -163,7 +164,7 @@ export const subspaceExactSolver: BenchSolver = {
   solve: (p) => {
     const model = buildSubspaceModel(p);
     if (model === null)
-      throw new Error('subspace model build failed — instance over the dimension cap');
+      throw new QuantumEngineError('subspace model build failed — instance over the dimension cap');
     return { assignment: annealSolveSubspace(model, { seed: 42 }).assignment, ms: 0 };
   },
 };

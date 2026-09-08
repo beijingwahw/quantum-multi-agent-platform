@@ -2,10 +2,10 @@
 
 # Quantum Multi-Agent Development & Scheduling Platform
 
-![version](https://img.shields.io/badge/version-1.10.0-blue)
-![tests](https://img.shields.io/badge/tests-292%2F292-brightgreen)
+![version](https://img.shields.io/badge/version-1.12.0-blue)
+![tests](https://img.shields.io/badge/tests-520-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
-![node](https://img.shields.io/badge/node-%3E%3D20-green)
+![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **中文**｜一个把**真实量子算法**（QAOA / 绝热量子退火 / Born 测量坍缩）作为调度决策引擎的多Agent平台：任务分配被编码为哈密顿量，在约束子空间上精确演化——联合调度规模达**等效 80 量子比特**（全空间模拟需 10¹⁵ TB 内存，宇宙尺度不可行），且在 NP-hard 耦合赛道上 **5/5 精确命中最优**（最强经典对手 3/5；`npm run bench` 一键复现，v1.11 统一记账勘误见基线节）。
@@ -281,6 +281,8 @@ flowchart LR
 
 ### 4️⃣ 平台热路径性能 | Hot-Path Performance（经典 hybrid 模式）
 
+`npm run performance` 一键复现（实测环境：Node.js v24 / Windows / 2026-08；绝对吞吐随机器与热状态浮动，相对优化倍数是稳定口径）：
+
 | 指标 | 吞吐 | 优化倍数 |
 |---|---|---|
 | Agent 注册 | 28,500 ops/s | 4.7× |
@@ -297,7 +299,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 全部用例通过 | all tests pass
+npm test                # 520 用例 · 0 失败 | 520 tests · 0 failures
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/控制台协议）
@@ -347,14 +349,24 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 | 套件 | 用例 | 覆盖 |
 |---|---|---|
-| `quantum-optimizer.test.ts` | 18 | 解析振幅 · 幺正性 · Born 分布 · Ising 导出逐点一致 |
+| `quantum-optimizer.test.ts` | 20 | 解析振幅 · 幺正性 · Born 分布 · Ising 导出逐点一致 |
 | `subspace-optimizer.test.ts` | 10 | 维度 = P(n,m) · 纤维可逆性(机器精度) · 双引擎交叉验证 |
-| `subspace-parallel.test.ts` | 7 | **并行=串行逐位一致** · 跨运行确定性 · 大维度最优 · 禁用回退 |
+| `subspace-parallel.test.ts` | 11 | **并行=串行逐位一致** · 跨运行确定性 · 大维度最优 · 禁用回退 |
 | `classical-baselines.test.ts` | 5 | **量子×匈牙利逐点一致** · 多轮调度 · 超维回退 |
 | `qpu-backend.test.ts` | 12 | D-Wave 客户端**真实 HTTP 往返**(stub) · 双格式解析 · 轮询 · 调度器异步入口 |
-| `security-hardening.test.ts` | 21 | 命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归 |
-| 调度/管理/通信/集成 | 24+12 | 平台全链路回归 · 插件冒烟 |
-| 市场机制（CompoundBrain/VCG/相变） | 89 | DSIC · 校准 · 定律验证 |
+| qiskit-selfcheck · qpu-crossval-smoke | 5 | Qiskit 导出自检 · QPU 跨验证冒烟 |
+| CVaR / ma-QAOA（v1.9/v1.10） | 22 | CVaR 数学性质 · ma-QAOA 支配定理 · 位级等价 |
+| execution-tier（v1.11 FTQC） | 14 | 资源估算数值内核 · 三态路由 · 接缝行为 |
+| twin-convergence（v1.12 单源化） | 13 | 孪生收敛对拍 · 引擎级位同构回放 · 独立算法互证 |
+| `security-hardening.test.ts` | 23 | 命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归 |
+| 调度/管理/通信/平台/控制台 | 50 | 平台全链路回归 · 控制台协议端到端 |
+| DSH / 主动智能 | 35 | DSH 集成 · 插件全量 + 冒烟 |
+| 市场机制（CompoundBrain/VCG/增长市场/相变） | 62 | DSIC · 校准 · 定律验证 |
+| 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils） | 202 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 |
+| tests/ 子目录（bench·mutation·sched-bench） | 36 | 基准诚实性 · 变异杀死 · 基准错误面负对照 |
+| **全套** | **520** | **48 个测试文件 / 152 个套件 · 0 失败 · 1 项性能灵敏度用例按测量环境守卫自跳过** |
+
+（表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
 ```bash
 npm run build     # TypeScript 严格模式 + noUncheckedIndexedAccess，0 错误
@@ -362,9 +374,9 @@ npm run typecheck # src+tests+examples 全仓类型检查
 npm run lint      # ESLint 0 错误（类型感知 strict 集:no-floating-promises/
                   #   no-unnecessary-condition/prefer-nullish-coalescing/
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
-npm run coverage  # c8 覆盖率 93% 语句 / 83% 分支,含 92/82/92/92 防回归门槛
+npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支,含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖 0 发现
-npm test          # 全部通过 ✅
+npm test          # 520 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -376,8 +388,6 @@ noUncheckedIndexedAccess 下是热内核的既定约定，有意不禁。测试�
 describe/it 的 Promise 语义与"断言验证不可能不变量"按测试本质豁免
 （配置内注明理由）。依赖面：运行时依赖收敛为 `ws` 一项（uuid 以原生
 `crypto.randomUUID()` 取代，0 供应链告警）。
-
-CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑全部门禁。
 
 ### 🔐 安全基线 | Security Baseline
 
@@ -403,11 +413,15 @@ CI（`.github/workflows/ci.yml`）在 Ubuntu/Windows × Node 20/22 矩阵上跑�
 │   │   ├── fiber-kernel.ts           # ⚡ v1.6 纯内核（串行/并行同一份源码）
 │   │   ├── subspace-parallel.ts      # ⚡ v1.6 确定性并行演化（Worker+Atomics）
 │   │   ├── classical-baselines.ts    # 🏆 v1.3 匈牙利 + 局部搜索基线
-│   │   ├── qpu/                      # 🔌 v1.4 真 QPU 后端层（D-Wave/Qiskit/本地）
+│   │   ├── qpu/                      # 🔌 v1.4 真 QPU 后端 + v1.11 FTQC 执行分级
+│   │   │   └── （dwave/qiskit/execution-tier/ft-estimate 等）
 │   │   ├── quantum-scheduler.ts      # 调度器（单任务坍缩 + 批量联合 + 多轮）
+│   │   ├── agent-manager.ts          # Agent 生命周期 · 纠缠网络 · 健康检查
 │   │   ├── compound-brain.ts         # 🧠 增长复利大脑（DSIC）
 │   │   ├── batch-vcg-scheduler.ts    # 批量 VCG 三层机制
 │   │   └── growth-market-scheduler.ts# 增长市场调度器
+│   │       （core/ 另含 constants/solver-common/min-cost-flow/
+│   │         market-estimation/task-lifecycle）
 │   ├── communication/quantum-bus.ts  # WebSocket 通信总线
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）

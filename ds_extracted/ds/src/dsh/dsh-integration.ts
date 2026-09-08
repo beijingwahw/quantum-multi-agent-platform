@@ -404,11 +404,11 @@ export class DSHIntegration extends EventEmitter {
     steps.forEach((step) => {
       if (step.dependsOn) {
         step.dependsOn.forEach((depId) => {
-          const deps = graph.get(depId);
-          if (!deps) {
-            throw new ToolError(`Workflow step '${step.id}' depends on unknown step '${depId}'`);
-          }
-          deps.add(step.id);
+          // 「未知依赖」守卫已按死代码清偿删除：workflows 的全部写入路径
+          // （默认模板/createWorkflow/updateWorkflow）都先过
+          // validateWorkflowSteps（依赖 ⊆ 步骤 id），存储态不可能含悬空
+          // 依赖——此处的重复检查不可达，校验唯一活路径在创建/更新期。
+          graph.get(depId)!.add(step.id);
           inDegree.set(step.id, (inDegree.get(step.id) ?? 0) + 1);
         });
       }
@@ -425,9 +425,9 @@ export class DSHIntegration extends EventEmitter {
     const stepById = new Map(steps.map((s) => [s.id, s]));
     while (queue.length > 0) {
       const stepId = queue.shift()!;
-      const step = stepById.get(stepId);
-      if (!step) throw new ToolError(`Workflow references unknown step '${stepId}'`);
-      result.push(step);
+      // 「未知步骤」守卫同样不可达（queue 种子与邻居全部来自 steps 自身的
+      // id 集合，stepById 按 steps 构建），按死代码清偿删除。
+      result.push(stepById.get(stepId)!);
 
       graph.get(stepId)!.forEach((neighborId) => {
         inDegree.set(neighborId, inDegree.get(neighborId)! - 1);

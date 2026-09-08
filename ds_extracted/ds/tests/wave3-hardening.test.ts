@@ -25,7 +25,7 @@ import {
 import { read_file, setFsSandboxRoot } from '../src/tools/fs-tools.js';
 import { DSHIntegration } from '../src/dsh/dsh-integration.js';
 import { QuantumBenchmark } from '../src/performance/benchmark.js';
-import { ToolError } from '../src/utils/errors.js';
+import { NumericDomainError, ToolError } from '../src/utils/errors.js';
 
 describe('Wave 3 收尾 · 命令闸门等号形式与 git -c 提权', () => {
   it('--eval=<code> 等号形式与裸旗标同样被拒绝', async () => {
@@ -280,6 +280,42 @@ describe('Wave 3 收尾 · benchmark 指标诚实性', () => {
       assert.equal(res.errors.length, 1);
       assert.match(res.errors[0]!, /could not be completed/);
       assert.equal(res.metrics.tasksCompleted, 1);
+    } finally {
+      await bench.cleanup();
+    }
+  });
+
+  it('负对照：负数/非整数 count 抛 NumericDomainError，不再产出负吞吐指标', async () => {
+    const bench = new QuantumBenchmark({ communication: { port: 0 } });
+    await bench.initialize();
+    try {
+      // units 此前直接取 count 原值：count=-5 → throughput=-5/s 的垃圾指标
+      await assert.rejects(
+        () => bench.benchmarkTaskSubmission(-5),
+        (error: unknown) =>
+          error instanceof NumericDomainError &&
+          /benchmarkTaskSubmission\(\): count must be a non-negative integer/.test(error.message),
+      );
+      // 同步返回 Promise 的方法以 async 包装：sync throw 转为 rejection 后断言
+      await assert.rejects(
+        async () => bench.benchmarkAgentRegistration(2.5),
+        /non-negative integer/,
+      );
+      await assert.rejects(async () => bench.benchmarkCommunication(-1), /non-negative integer/);
+      await assert.rejects(async () => bench.benchmarkDSHIntegration(-1), /non-negative integer/);
+      await assert.rejects(
+        async () => bench.benchmarkSchedulerThroughput(-2, 10),
+        /non-negative integer/,
+      );
+      await assert.rejects(
+        async () => bench.benchmarkSchedulerThroughput(10, 0.5),
+        /non-negative integer/,
+      );
+
+      // 边界：count=0 是合法退化（空转零错误），合法计数行为不变
+      const zero = await bench.benchmarkAgentRegistration(0);
+      assert.equal(zero.metrics.units, 0);
+      assert.deepEqual(zero.errors, []);
     } finally {
       await bench.cleanup();
     }

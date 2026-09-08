@@ -43,6 +43,7 @@ import {
   cvarExpectationOrdered,
   cvarOrder,
   denormalizeExpectation,
+  expandLayerAnglesToMulti,
   expectationValueInto,
   normalizedEnergies as normalizedEnergiesOf,
   optimizeAnglesByCoordinateDescent,
@@ -425,8 +426,7 @@ function computeEnergiesUncached(problem: AssignmentProblem): ProblemEnergies {
     }
     // 二次耦合（纠缠加成）
     for (const [key, j] of couplings) {
-      const q1 = Math.floor(key / nqubits);
-      const q2 = key % nqubits;
+      const { q1, q2 } = decodeCouplingKey(key, nqubits);
       if (q1 < q2 && (k & (1 << q1)) !== 0 && (k & (1 << q2)) !== 0) {
         welfare += j;
       }
@@ -473,6 +473,20 @@ export function couplingKey(q1: number, q2: number, nqubits: number): number {
   const lo = Math.min(q1, q2);
   const hi = Math.max(q1, q2);
   return lo * nqubits + hi;
+}
+
+/**
+ * 耦合键解码（couplingKey 的精确逆）：key = lo·nqubits + hi → {q1, q2}。
+ * 此前同一两行整数解码在五处内联（computeEnergies / welfareOf /
+ * toIsing ×2 / buildSubspaceModel 展平）——键布局的单点真相在此与
+ * 编码侧相邻。Math.floor(key/nqubits) 与 key%nqubits 是精确整数运算，
+ * 收敛不改任何下游浮点结果；三路径位同构对拍锚定见
+ * tests/twin-convergence.test.ts。消费方均为构建期/逐调用路径
+ * （computeEnergies 有按问题实例的记忆化），返回小对象与这些循环
+ * 既有的 Map 条目解构分配同级。
+ */
+export function decodeCouplingKey(key: number, nqubits: number): { q1: number; q2: number } {
+  return { q1: Math.floor(key / nqubits), q2: key % nqubits };
 }
 
 /** 解码基态 → 分配（assignment[t] = agent 索引；违约记 -1） */
@@ -524,8 +538,7 @@ export function welfareOf(problem: AssignmentProblem, assignment: number[]): num
     if (a != null && a >= 0) welfare += problem.weights[t]![a]!;
   }
   for (const [key, j] of problem.couplings) {
-    const q1 = Math.floor(key / nqubits);
-    const q2 = key % nqubits;
+    const { q1, q2 } = decodeCouplingKey(key, nqubits);
     const t1 = Math.floor(q1 / n),
       a1 = q1 % n;
     const t2 = Math.floor(q2 / n),
@@ -670,15 +683,9 @@ function optimizeQaoaAngles(
  * ma-QAOA 角度布局：[γ_1..γ_p, β_{p,q}（层主序 × 量子比特）]。
  * 全部 β_{p,·} 取 layer 角 β_p 时，multi 电路与 layer 电路产生
  * 逐位相同的态（applyMixerAngles 与 applyMixer 同循环序同运算）。
+ * 展开构造单源于 solver-common.expandLayerAnglesToMulti（两引擎同一
+ * 构造，位同构对拍见 tests/twin-convergence.test.ts）。
  */
-function expandToMultiAngles(layerAngles: number[], layers: number, nqubits: number): number[] {
-  const out: number[] = layerAngles.slice(0, layers);
-  for (let p = 0; p < layers; p++) {
-    const beta = layerAngles[layers + p]!;
-    for (let q = 0; q < nqubits; q++) out.push(beta);
-  }
-  return out;
-}
 
 function runQaoaCircuitMulti(
   angles: number[],
@@ -713,7 +720,7 @@ function refineQaoaAnglesMulti(
   layerEvaluations: number,
   descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
-  const seed = expandToMultiAngles(layerAngles, layers, nqubits);
+  const seed = expandLayerAnglesToMulti(layerAngles, layers, nqubits);
   const angleCount = layers + layers * nqubits;
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
@@ -915,21 +922,23 @@ function selectSolution(
   };
 }
 
-/** 非法分配修复：违约任务贪心转给剩余最优合法 agent */
-function repairAssignment(problem: AssignmentProblem, assignment: number[]): number[] {
+/**
+ * 贪心填充：按任务序为每个未分配（< 0）的任务选择权重最高且未被占用
+ * 的合格 agent（并列取先到——严格大于才替换），原地写入 assignment 并
+ * 登记 used。全空间 repairAssignment 的兜底阶段与 classical-baselines
+ * 的 greedyStart（局部搜索初始解）此前各持一份逐语句相同的循环，收敛
+ * 于此；对全 -1 输入即纯贪心初始解，位同构对拍锚定见
+ * tests/twin-convergence.test.ts。
+ */
+export function greedyAssignRemaining(
+  problem: AssignmentProblem,
+  assignment: number[],
+  used: Set<number>,
+): void {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
-  const used = new Set<number>();
-  const repaired = new Array<number>(m).fill(-1);
   for (let t = 0; t < m; t++) {
-    const a = assignment[t];
-    if (a != null && a >= 0 && !problem.ineligible[t]![a]! && !used.has(a)) {
-      repaired[t] = a;
-      used.add(a);
-    }
-  }
-  for (let t = 0; t < m; t++) {
-    if (repaired[t]! >= 0) continue;
+    if (assignment[t]! >= 0) continue;
     let best = -1;
     let bestW = -Infinity;
     for (let a = 0; a < n; a++) {
@@ -940,10 +949,25 @@ function repairAssignment(problem: AssignmentProblem, assignment: number[]): num
       }
     }
     if (best >= 0) {
-      repaired[t] = best;
+      assignment[t] = best;
       used.add(best);
     }
   }
+}
+
+/** 非法分配修复：违约任务贪心转给剩余最优合法 agent */
+function repairAssignment(problem: AssignmentProblem, assignment: number[]): number[] {
+  const m = problem.taskIds.length;
+  const used = new Set<number>();
+  const repaired = new Array<number>(m).fill(-1);
+  for (let t = 0; t < m; t++) {
+    const a = assignment[t];
+    if (a != null && a >= 0 && !problem.ineligible[t]![a]! && !used.has(a)) {
+      repaired[t] = a;
+      used.add(a);
+    }
+  }
+  greedyAssignRemaining(problem, repaired, used);
   return repaired;
 }
 
@@ -1163,8 +1187,7 @@ export function toIsing(problem: AssignmentProblem): IsingModel {
   }
   // 纠缠耦合：福利加成 J → 能量 -J
   for (const [key, j] of problem.couplings) {
-    const q1 = Math.floor(key / nqubits);
-    const q2 = key % nqubits;
+    const { q1, q2 } = decodeCouplingKey(key, nqubits);
     addQ(q1, q2, -j);
   }
 
@@ -1177,8 +1200,7 @@ export function toIsing(problem: AssignmentProblem): IsingModel {
     isingOffset += c[q]! / 2;
   }
   for (const [key, v] of Q) {
-    const q1 = Math.floor(key / nqubits);
-    const q2 = key % nqubits;
+    const { q1, q2 } = decodeCouplingKey(key, nqubits);
     J.set(key, v / 4);
     h[q1]! -= v / 4;
     h[q2]! -= v / 4;

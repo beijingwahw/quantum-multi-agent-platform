@@ -129,10 +129,9 @@ export class GrowthSchedulerBrain implements MarketBrain<BrainState, GrowthAgent
     };
   }
 
-  /** 模拟结算（实验/演示用）：分配 → 随机成败 → 结算一步完成 */
-  simulateTask(capability: string) {
-    return this.scheduler.simulateTask(capability);
-  }
+  // simulateTask 包装已按死代码清偿删除：全仓零调用点（实验与示例直接
+  // 使用 GrowthMarketScheduler.simulateTask），且它绕过 openTasks 记账，
+  // 经 Brain 模拟反而会造成在途口径失真。真实闭环走 submitTask+settleTask。
 }
 
 export type { GrowthSchedulerConfig, GrowthAgentSpec, TaskAssignment, AgentSnapshot };

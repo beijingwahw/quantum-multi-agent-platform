@@ -16,6 +16,7 @@
 
 import type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './quantum-backend.js';
 import { registerBackend } from './quantum-backend.js';
+import { decodeCouplingKey } from '../quantum-optimizer.js';
 import { BackendError } from '../../utils/errors.js';
 
 export interface DWaveConfig {
@@ -305,8 +306,7 @@ function denseLinear(h: number[]): Array<[number, number]> {
 function sparseQuadratic(j: Map<number, number>, nqubits: number): Array<[number, number, number]> {
   const out: Array<[number, number, number]> = [];
   for (const [key, value] of j) {
-    const q1 = Math.floor(key / nqubits);
-    const q2 = key % nqubits;
+    const { q1, q2 } = decodeCouplingKey(key, nqubits);
     out.push([q1, q2, value]);
   }
   return out;
@@ -314,7 +314,8 @@ function sparseQuadratic(j: Map<number, number>, nqubits: number): Array<[number
 
 /** 耦合 Map 键 → "q1,q2"（经典 ising 字典格式） */
 function couplingLabel(key: number, nqubits: number): string {
-  return `${Math.floor(key / nqubits)},${key % nqubits}`;
+  const { q1, q2 } = decodeCouplingKey(key, nqubits);
+  return `${q1},${q2}`;
 }
 
 // ----------------------------------------------------------------------------

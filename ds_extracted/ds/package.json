@@ -1,7 +1,7 @@
 {
   "name": "quantum-multi-agent-platform",
-  "version": "1.11.0",
-  "description": "Quantum-inspired multi-agent scheduling platform: QAOA kernel, subspace annealing, VCG mechanism market, proactive intelligence, WebSocket bus (v1.10: ma-QAOA constructive dominance + baseline calibration)",
+  "version": "1.12.0",
+  "description": "Quantum-inspired multi-agent scheduling platform: QAOA kernel, subspace annealing, VCG mechanism market, proactive intelligence, WebSocket bus (v1.12: quality wave — typed error surface, single-sourcing twin convergence, silent-garbage guards, doc reconciliation)",
   "main": "dist/index.js",
   "type": "module",
   "sideEffects": false,

@@ -92,6 +92,8 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "mutant-census/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files — the gate has something to run" },
   { anchor: "mutant-census/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the project the gate compiles" },
   { anchor: "ds_extracted/ds/package.json :: format:check", kind: "RESOLVED", evidence: "prettier in devDependencies — the formatter the gate invokes is installed" },
+  { anchor: "ds_extracted/ds/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired (registered the moment b89#7 first sat on it)" },
+  { anchor: "letter-audit/src/kernel/frontier.ts :: tests-520", kind: "RESOLVED", evidence: "the needle is on disk in the citing tree and the frontier checker fires it against the sibling's README on every letter-audit suite run (registered the moment b89#10 first sat on it)" },
   { anchor: "ds_extracted/ds/package.json :: test", kind: "RESOLVED", evidence: "the tests/ tree exists and carries test files" },
   { anchor: "ds_extracted/ds/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
   { anchor: "ds_extracted/ds/tsconfig.json :: exactOptionalPropertyTypes", kind: "RESOLVED", evidence: "the flag itself is the machinery (content already E3-verified); compile-level firing would re-run tsc per census run — the cost is booked here, the check stays content-level" },
@@ -388,6 +390,16 @@ export function resolveAnchor(reg: AnchorRegistration): { ok: boolean; detail: s
       ? { ok: true, detail: "the job spec constructs typecheck jobs for every epoch repo" }
       : { ok: false, detail: "the T-board script no longer constructs typecheck jobs" };
   }
+  if (reg.anchor === "letter-audit/src/kernel/frontier.ts :: tests-520") {
+    // a cross-repo pin resolves only when BOTH sides agree (the b89#10
+    // lesson, the b80#7 family's prose-pin face): the citing needle is on
+    // disk AND the sibling's README still carries the text it pins
+    const cited = readFileSync(root, "utf8").includes('"tests-520"');
+    const target = readFileSync(resolve(WORKSPACE_ROOT, "ds_extracted/ds", "README.md"), "utf8").includes("tests-520");
+    return cited && target
+      ? { ok: true, detail: "both sides of the pin agree: the frontier needle and the platform README badge" }
+      : { ok: false, detail: "the cross-repo pin disagrees — the needle or the README badge it pins is missing" };
+  }
   return { ok: false, detail: `no resolution rule for anchor "${reg.anchor}"` };
 }
 
@@ -486,6 +498,15 @@ export function checkArtifactFiring(artifactText: string | null, registry: reado
     if (reg.kind !== "RESOLVED") continue;
     if (!/ :: (test|typecheck)$/.test(reg.anchor)) continue; // lint/repro/format fire at delivery, not in the total gate
     const repo = repoOf(reg.anchor);
+    // A4 SELF-REFERENCE EXEMPTION (b89#12): convicting the census's own row
+    // on the last recorded run is an unrecoverable state, not a signal — the
+    // census suite reads the artifact the run in progress will overwrite, so
+    // a red census cell convicts the census's own anchor, and clearing the
+    // conviction requires a green run which requires the conviction cleared.
+    // The census's own red cell already fails the census suite directly and
+    // red-cells the gate on its own; A4 is the adjudicator and may not sit
+    // in its own docket.
+    if (repo === "mutant-census") continue;
     const needle = reg.anchor.split(" :: ")[1] as "test" | "typecheck";
     const row = cells.get(repo);
     if (!row) continue; // not recorded in this artifact's table — the machinery face stands on its own

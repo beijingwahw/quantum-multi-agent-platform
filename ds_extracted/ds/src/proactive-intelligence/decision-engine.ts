@@ -10,6 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { ConfigurationError } from '../utils/errors.js';
 import type {
   Action,
   ActionExecution,
@@ -104,6 +105,21 @@ export class DecisionEngine extends EventEmitter {
 
   /** 添加规则（深拷贝入库，见类头「规则所有权契约」） */
   addRule(rule: Rule): void {
+    // 规则域守卫（负对照契约）：空 id 会以 '' 为键静默入库（按 id 的
+    // 查询/删除语义全部失效）；非有限或负的 cooldown 会让
+    // `elapsed < cooldown` 恒假——冷却被静默解除，规则每轮决策都触发。
+    // 以 unknown 视图校验：类型标注对 JS 调用方不构成约束。
+    const raw = rule as { id?: unknown; cooldown?: unknown } | null;
+    if (raw === null || typeof raw.id !== 'string' || raw.id.length === 0) {
+      throw new ConfigurationError(
+        `Rule id must be a non-empty string, got ${String(raw === null ? raw : raw.id)}`,
+      );
+    }
+    if (typeof raw.cooldown !== 'number' || !Number.isFinite(raw.cooldown) || raw.cooldown < 0) {
+      throw new ConfigurationError(
+        `Rule '${raw.id}' cooldown must be a finite non-negative number, got ${String(raw.cooldown)}`,
+      );
+    }
     this.rules.set(rule.id, cloneRule(rule));
     // lastExecuted 旁路表：显式携带则以调用方为准，否则沿用引擎侧
     // 既有记录；两侧皆无 → 不设条目（absence 即「从未执行」，
@@ -466,8 +482,16 @@ export class DecisionEngine extends EventEmitter {
 
   /** 获取决策历史 */
   getDecisionHistory(limit?: number): DecisionRecord[] {
-    if (limit) {
-      return this.decisionHistory.slice(-limit);
+    // limit 域守卫（负对照契约）：此前的 falsy 判定让 limit=0 返回「全部」
+    // 历史（0 被理解为无限制）；负数经 slice(-limit) 反而丢弃头部若干条。
+    // 0 的正确语义是「取最近 0 条」（空数组），非法值显式拒绝。
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+      throw new ConfigurationError(
+        `getDecisionHistory() limit must be a non-negative integer, got ${String(limit)}`,
+      );
+    }
+    if (limit !== undefined) {
+      return this.decisionHistory.slice(Math.max(0, this.decisionHistory.length - limit));
     }
     return [...this.decisionHistory];
   }

@@ -6,6 +6,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { BenchReportError } from '../utils/errors.js';
 import { checkRun, type BenchRun, type BenchRow } from './runner.js';
 
 export function renderJson(run: BenchRun): string {
@@ -52,7 +53,7 @@ export function summarize(run: BenchRun): SummaryCell[] {
 export function renderMarkdown(run: BenchRun): string {
   const problems = checkRun(run);
   if (problems.length > 0) {
-    throw new Error(`refusing to render an illegal run:\n${problems.join('\n')}`);
+    throw new BenchReportError(`refusing to render an illegal run:\n${problems.join('\n')}`);
   }
   const lines: string[] = [];
   lines.push('# QuantumSched-Bench — the reproducible battle record');
@@ -117,7 +118,7 @@ export function writeReports(
 ): { json: string; md: string } {
   const problems = checkRun(run);
   if (problems.length > 0) {
-    throw new Error(`refusing to write an illegal run:\n${problems.join('\n')}`);
+    throw new BenchReportError(`refusing to write an illegal run:\n${problems.join('\n')}`);
   }
   mkdirSync(dir, { recursive: true });
   const json = resolve(dir, 'bench-report.json');

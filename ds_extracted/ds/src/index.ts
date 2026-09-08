@@ -738,6 +738,8 @@ export {
   ToolError,
   FtqcDeferredError,
   QuantumEstimateError,
+  NumericDomainError,
+  MessageValidationError,
 } from './utils/errors.js';
 export { QuantumBus } from './communication/quantum-bus.js';
 export { DSHIntegration } from './dsh/dsh-integration.js';

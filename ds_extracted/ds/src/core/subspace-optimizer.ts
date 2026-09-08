@@ -66,12 +66,14 @@ import type {
   CollapseMode,
   SolverSolution,
 } from './quantum-optimizer.js';
-import { welfareOf } from './quantum-optimizer.js';
+import { welfareOf, decodeCouplingKey } from './quantum-optimizer.js';
 import { mulberry32 } from '../utils/rng.js';
 import {
   ComplexAmplitudes,
+  argmaxProbabilityIndex,
   cvarExpectationOrdered,
   cvarOrder,
+  expandLayerAnglesToMulti,
   expectationValueInto,
   throwIfAborted,
   minMaxOf,
@@ -305,8 +307,7 @@ export function buildSubspaceModel(
     const nqubits = m * n;
     let ci = 0;
     for (const [key, j] of problem.couplings) {
-      const q1 = Math.floor(key / nqubits);
-      const q2 = key % nqubits;
+      const { q1, q2 } = decodeCouplingKey(key, nqubits);
       cplT1[ci] = Math.floor(q1 / n);
       cplA1[ci] = q1 % n;
       cplT2[ci] = Math.floor(q2 / n);
@@ -507,20 +508,10 @@ function optimizeSubspaceQaoaAngles(
 /**
  * ma-QAOA 角度布局（子空间形态）：[γ_1..γ_p, β_{p,g}（层主序 × 纤维组）]。
  * 全部 β_{p,·} 取 layer 角 β_p 时，multi 电路与 layer 电路逐位相同
- * （applyFiberMixer 按组施加，同组序同运算）。
+ * （applyFiberMixer 按组施加，同组序同运算）。展开构造单源于
+ * solver-common.expandLayerAnglesToMulti（两引擎同一构造，位同构对拍见
+ * tests/twin-convergence.test.ts）。
  */
-function expandToMultiAnglesSubspace(
-  layerAngles: number[],
-  layers: number,
-  groups: number,
-): number[] {
-  const out: number[] = layerAngles.slice(0, layers);
-  for (let p = 0; p < layers; p++) {
-    const beta = layerAngles[layers + p]!;
-    for (let g = 0; g < groups; g++) out.push(beta);
-  }
-  return out;
-}
 
 function runSubspaceQaoaCircuitMulti(
   angles: number[],
@@ -553,7 +544,7 @@ function refineSubspaceQaoaAnglesMulti(
   descentOpts: DescentOptions = {},
 ): { angles: number[]; expectation: number; evaluations: number } {
   const G = model.mixers.length;
-  const seed = expandToMultiAnglesSubspace(layerAngles, layers, G);
+  const seed = expandLayerAnglesToMulti(layerAngles, layers, G);
   const angleCount = layers + layers * G;
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
@@ -606,7 +597,9 @@ function collapseSubspace(
   validMass: number;
 } {
   const { m, energies } = model;
-  let chosen = -1;
+  // born / shots-best / argmax-valid 三分支都对 chosen 无条件赋值
+  //（argmaxProbabilityIndex 空数组返回 -1，下游按「无基态」兜底）
+  let chosen: number;
 
   // 幺正性护栏（08#27）：演化保范数，Σ|ψ|² 显著偏离 1 即数值发散——
   // 此时 Born 概率的「置信度」语义已经破产，先暴露再继续（结果仍返回，
@@ -634,23 +627,11 @@ function collapseSubspace(
       // 取概率最大的基态（argmax）。此前回退到第 0 号基态（DFS 字典序
       // 最小解，无任何最优语义），两引擎同场景不同回退策略且子空间
       // 质量显著更差。
-      let bestProb = -1;
-      for (let s = 0; s < probs.length; s++) {
-        if (probs[s]! > bestProb) {
-          bestProb = probs[s]!;
-          chosen = s;
-        }
-      }
+      chosen = argmaxProbabilityIndex(probs);
     }
   } else {
     // argmax-valid → 子空间内即 argmax
-    let bestProb = -1;
-    for (let s = 0; s < probs.length; s++) {
-      if (probs[s]! > bestProb) {
-        bestProb = probs[s]!;
-        chosen = s;
-      }
-    }
+    chosen = argmaxProbabilityIndex(probs);
   }
 
   const assignment: number[] = [];

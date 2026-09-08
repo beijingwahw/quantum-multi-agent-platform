@@ -13,6 +13,7 @@ import {
   QuantumEngineError,
   BackendError,
   ToolError,
+  NumericDomainError,
 } from '../src/utils/errors.js';
 
 describe('utils/rng（全平台唯一 PRNG）', () => {
@@ -128,6 +129,64 @@ describe('utils/numeric（舍入约定）', () => {
     assert.equal(round9(0.123456789123), 0.123456789);
     assert.equal(round2(2.675), 2.68);
     assert.equal(round2(-2.675), -2.67); // -2.675×100 的浮点表示是 -267.49999…，向 +∞ 取整
+  });
+
+  it('负对照：NaN/Infinity 输入抛 NumericDomainError，不再静默透传垃圾值', () => {
+    for (const fn of [round2, round3, round9]) {
+      for (const bad of [NaN, Infinity, -Infinity]) {
+        assert.throws(
+          () => fn(bad),
+          (error: unknown) =>
+            error instanceof NumericDomainError &&
+            error instanceof PlatformError &&
+            /must be a finite number/.test(error.message),
+          `${fn.name}(${bad}) 应抛 NumericDomainError`,
+        );
+      }
+    }
+  });
+
+  it('负对照：量级溢出（round9(1e300)，x*1e9→Infinity）抛错而非产出 Infinity', () => {
+    assert.throws(
+      () => round9(1e300),
+      (error: unknown) =>
+        error instanceof NumericDomainError &&
+        /overflows to a non-finite value/.test(error.message),
+    );
+    // round2 的放大系数只有 100，同量级输入不溢出——合法结果不变
+    assert.equal(round2(1e300), 1e300);
+  });
+
+  it('边界值：合法输入的舍入结果保持不变', () => {
+    assert.equal(round2(0), 0);
+    assert.ok(round3(-0.0004) === 0); // Math.round(-0.4)/1000 = -0；宽松相等下与 0 同值
+    assert.equal(round9(0.0000000014), 1e-9); // 进位到 1e-9
+    assert.equal(round9(-0.0000000014), -1e-9);
+  });
+});
+
+describe('utils/rng（种子域负对照）', () => {
+  it('NaN/Infinity 种子抛 NumericDomainError，不再静默位转换成 seed 0', () => {
+    assert.throws(
+      () => new Mulberry32(NaN),
+      (error: unknown) =>
+        error instanceof NumericDomainError && /seed must be a finite number/.test(error.message),
+    );
+    assert.throws(() => mulberry32(Infinity), NumericDomainError);
+    assert.throws(() => {
+      const m = new Mulberry32(1);
+      m.reseed(-Infinity);
+    }, NumericDomainError);
+  });
+
+  it('边界值：负数/小数种子按 >>> 0 位语义保持既有流（合法行为不变）', () => {
+    // -1 >>> 0 = 4294967295：位转换是公开契约，守卫不得收窄它
+    const a = new Mulberry32(-1);
+    const b = new Mulberry32(4294967295);
+    assert.equal(a.next(), b.next());
+    assert.equal(a.next(), b.next());
+    // mulberry32(42) 首值与既有完全可复现契约一致
+    assert.equal(mulberry32(42)(), mulberry32(42)());
   });
 });
 

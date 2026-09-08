@@ -13,19 +13,19 @@ test("W-Y the repair audit census: the whole booked population audited, live", a
   assert.ok(w.pass, w.detail);
 });
 
-test("the repair state: thirteen upgrades (b67#6, b70#3, b78#13 and b85#35 flipped under R1), sixty-one sharpenings, the rest held", async () => {
+test("the repair state: thirteen upgrades (b67#6, b70#3, b78#13 and b85#35 flipped under R1), sixty-two sharpenings, the rest held", async () => {
   const registry = await loadLiveRegistry();
   assert.equal(checkRepairAudit(REPAIR_AUDIT, ENROLLMENT, registry).length, 0);
   const byVerdict = (v: string): number => REPAIR_AUDIT.filter((r) => r.verdict === v).length;
   assert.equal(byVerdict("UPGRADED"), 13);
-  assert.equal(byVerdict("SHARPENED"), 61);
-  assert.equal(byVerdict("HELD"), 190);
-  assert.equal(REPAIR_AUDIT.length, 264);
+  assert.equal(byVerdict("SHARPENED"), 62);
+  assert.equal(byVerdict("HELD"), 197);
+  assert.equal(REPAIR_AUDIT.length, 272);
   // the tier census after the repair is arithmetic on the enrollment, not memory
   const gate = ENROLLMENT.filter((r) => r.tier === "GATE-ENFORCED").length;
   const booked = ENROLLMENT.filter((r) => r.tier === "BOOKED-UNENFORCEABLE").length;
-  assert.equal(gate, 336);
-  assert.equal(booked, 251);
+  assert.equal(gate, 341);
+  assert.equal(booked, 259);
   // the audit population is exactly the booked population plus the upgraded
   const audited = new Set(REPAIR_AUDIT.map((r) => r.key));
   const upgraded = new Set(REPAIR_AUDIT.filter((r) => r.verdict === "UPGRADED").map((r) => r.key));

@@ -1,7 +1,89 @@
 # Changelog
 
-本仓库遵循语义化版本。每轮变更前先全量回归（245 用例含位级数值基准），
+本仓库遵循语义化版本。每轮变更前先全量回归（520 用例含位级数值基准），
 覆盖率与死代码门禁随质量收益同步棘轮上调。
+
+## v1.12.0 — 本体仓入质量交付波（2026-09-09）
+
+> 八十一访质量波的专门延伸访（彼时边界如实记明「本体仓不入交付波，质量面
+> 留待专门访」——本访即该专门访）。主张冻结律全程生效：数学/物理断言与
+> 既有测试期望值零改动，一切收敛以位同构对拍先行证明。测试 488→520
+> （+32），四门禁 + 覆盖率 + knip + prettier 全绿。
+
+### 错误面收敛（B 面）
+
+- src 内最后 3 处裸 `throw new Error` 清偿：bench/report.ts 两处反挑选
+  拒绝 → 新增 `BenchReportError`；opponents.ts 维度上限 → 复用
+  `QuantumEngineError`。错误消息原文逐字保留，只换类型面。errors.ts
+  家族 12→14 类（另见下面 MessageValidationError）。
+- 负对照审判 5 例：删行 run（反挑选法律）、写盘前拦截、重复格、缺
+  expectedCells、subspace 维度上限——每例断言 instanceof PlatformError
+  与消息关键片段。
+
+### 单源化孪生收敛（C 面，位同构对拍先行）
+
+四组重复实现收敛为单一导出，收敛前先落 `tests/twin-convergence.test.ts`
+（13 用例）证单源 ≡ 原内联副本、引擎级 multi 路径 ≋ 独立重建管线
+（Object.is 逐位相等），收敛后保留为永久回归：
+
+- ma-QAOA 角度布局展开（quantum-optimizer × subspace-optimizer 两副本
+  → solver-common.expandLayerAnglesToMulti）
+- 耦合键解码 floor(key/nq), key%nq（8 处内联 → decodeCouplingKey，与
+  编码侧相邻＝键布局单点真相）
+- 贪心填充循环（repairAssignment 兜底 × classical-baselines.greedyStart
+  → greedyAssignRemaining；对角占优实例上与匈牙利精确解互证）
+- 概率 argmax 循环（subspace-optimizer 两份相同循环 →
+  solver-common.argmaxProbabilityIndex）
+
+边界（如实）：全空间 argmax-valid 扫描集是合法基态子集，与全数组
+argmax 真实语义差——不收敛；散落数值容差常量语义各异，不并入
+constants.ts 制造假等价；二分中点在 CDF 采样与 fiber 区间查找中不变量
+不同——不收敛。
+
+### 静默垃圾路径守卫（D 面，11 处，全部负对照）
+
+- numeric round2/3/9：NaN 透传与 ×1e9 溢出 → `NumericDomainError`
+- rng 种子：NaN/±Inf 经 >>>0 静默变 seed 0 流（复现性承诺无声击穿）→
+  `NumericDomainError`
+- quantum-bus 构造期限额：maxQueuedMessages<0 使丢旧循环在空队列上
+  无限空转挂死事件循环 → `ConfigurationError`；createMessage 空标识/
+  单播组播并存 → 新增 `MessageValidationError`
+- 主动智能：未知规则场景静默返回全部 13 条（拼写错误注入无关规则集）→
+  `ConfigurationError`；NaN/负 cooldown 静默解除冷却 → 拒绝
+- benchmark 计数：负 count 产出负吞吐 → `NumericDomainError`
+- （其余：agent-tools/web-tools 空参数、monitor 畸形 severity、
+  decision-history limit 非法值——合计 11 处，见测试）
+
+### 死代码清偿（E 面，吸收律）
+
+纯删 5 处（恒假分支 ×2、不可达重复校验、零调用包装、零读者字段/方法，
+均附读码证据）；锚定保留 2 处（monitor 计数哨兵、topologicalSort 回归
+绊线——删除会使算法回归从显式 ToolError 退化为静默乱序）。
+
+### 文档-机器对账（F 面，21 处定罪）
+
+- README 徽章 tests 292→520（漂移 196）、version 1.10→1.12、node
+  >=20→>=22；测试套件表逐文件重建；CI 工作流幽灵声明删除
+- CHANGELOG 头部流程计数 245→520
+- PROJECT_SUMMARY/QUANTUM-SCHEDULING 套件计数同步；QUANTUM-SCHEDULING
+  耦合表勘误补记（经典 0/5 系半账 Artifact，统一记账 2/5——v1.11 勘误
+  未传播到该文档，本访补齐）
+- PROACTIVE 双文档：幽灵命令（npm run example 不存在）、幽灵 uuid 导入
+  （无此依赖——复制即崩）、失效绝对路径与逃逸链接修复；文件树对齐实盘
+
+## v1.11.0 — QuantumSched-Bench 可复现基准（2026-09，补记）
+
+> 补记条目：v1.11.0 发布时 CHANGELOG 未同步留档，本访补齐（Genesis
+> 目标 A/B 落地记录，数字以 `npm run bench` 工件为准）。
+
+- 目标 A：`npm run bench` 一条命令 50 实例 × 7 求解器对照报告
+  （JSON+MD 双格式，`bench:regenerate` 公开种子重建）；反挑选法律
+  （expectedCells 铸入 run 对象，删行即定罪）
+- 目标 B：`experiments/qpu-cross-validation/` 并入（wukong 正典拷贝 +
+  冒烟测试）
+- 勘误：示例脚本「贪心/LS 0/5」系经典侧不含耦合加成的半账 Artifact；
+  统一记账 2/5。量子 5/5 与线性逐点一致原样复现，胜负结论不变
+  （5/5 vs 最强经典 3/5）
 
 ## v1.10.0 — ma-QAOA 构造性支配 + 基准诚实校正（2026-09）
 

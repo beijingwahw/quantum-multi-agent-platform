@@ -517,6 +517,29 @@ export function optimizeAnglesByCoordinateDescentSeeded(
   return { angles: bestAngles, expectation: bestExpectation, evaluations };
 }
 
+/**
+ * ma-QAOA 角度布局展开（两引擎同一构造，单源收敛）：layer 角
+ * [γ_1..γ_p, β_1..β_p] → multi 角 [γ_1..γ_p, β_{p,·}（层主序 × 混合
+ * 目标数）]——全空间的混合目标是量子比特数，子空间是纤维组数，构造
+ * 本身相同（两处原内联副本逐语句一致，纯数组搬运无浮点运算）。
+ * 全部 β_{p,·} 取 layer 角 β_p 时，multi 电路与 layer 电路产生逐位
+ * 相同的态（applyMixerAngles/applyFiberMixer 按同组序同运算）——这是
+ * ma-QAOA ≥ QAOA 支配性种子的位级前提。位同构对拍锚定见
+ * tests/twin-convergence.test.ts。
+ */
+export function expandLayerAnglesToMulti(
+  layerAngles: readonly number[],
+  layers: number,
+  mixerTargets: number,
+): number[] {
+  const out: number[] = layerAngles.slice(0, layers);
+  for (let p = 0; p < layers; p++) {
+    const beta = layerAngles[layers + p]!;
+    for (let q = 0; q < mixerTargets; q++) out.push(beta);
+  }
+  return out;
+}
+
 // ----------------------------------------------------------------------------
 // 测量坍缩采样（Born 规则的忠实实现）
 // ----------------------------------------------------------------------------
@@ -586,4 +609,24 @@ export function sampleBestIndexByShots(
     }
   }
   return chosen;
+}
+
+/**
+ * 概率数组的 argmax 基态索引（并列取最小索引——严格大于才替换）。
+ * 子空间坍缩的 shots-best 全不合格回退与 argmax-valid 模式此前各持
+ * 一份相同循环，收敛于此；bestProb 自 -1 起步保证零概率态也可被选中
+ * （全零分布返回 0），空数组返回 -1（调用方据此走下游兜底）。
+ * 全空间引擎 selectSolution 的同形循环只扫合法基态子集（validStates），
+ * 扫描集不同——刻意不复用（见 tests/twin-convergence.test.ts 边界注记）。
+ */
+export function argmaxProbabilityIndex(probs: Float64Array): number {
+  let best = -1;
+  let bestProb = -1;
+  for (let s = 0; s < probs.length; s++) {
+    if (probs[s]! > bestProb) {
+      bestProb = probs[s]!;
+      best = s;
+    }
+  }
+  return best;
 }

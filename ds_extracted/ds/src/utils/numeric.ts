@@ -4,19 +4,46 @@
  * 因此集中在此，禁止在业务代码里再写 `Math.round(x * 1e9) / 1e9` 之类。
  */
 
+import { NumericDomainError } from './errors.js';
+
+/**
+ * 统一舍入实现：非法输入在入口拒绝（负对照契约）。
+ * - NaN/Infinity 输入此前会被「舍入」成自身继续流毒（round2(NaN)===NaN）；
+ * - 有限但量级过大的输入（如 round9(1e300)，x*1e9 溢出为 Infinity）此前
+ *   静默产出 Infinity——货币/福利口径下两者都是垃圾值，一律抛
+ *   NumericDomainError 而非继续传播。
+ */
+function roundToScale(
+  x: number,
+  scale: number,
+  name: 'round9' | 'round2' | 'round3',
+  precision: string,
+): number {
+  if (!Number.isFinite(x)) {
+    throw new NumericDomainError(`${name}(): input must be a finite number, got ${String(x)}`);
+  }
+  const rounded = Math.round(x * scale) / scale;
+  if (!Number.isFinite(rounded)) {
+    throw new NumericDomainError(
+      `${name}(): rounding ${String(x)} overflows to a non-finite value at ${precision} precision`,
+    );
+  }
+  return rounded;
+}
+
 /** 机制支付/福利的核算精度（1e-9） */
 export function round9(x: number): number {
-  return Math.round(x * 1e9) / 1e9;
+  return roundToScale(x, 1e9, 'round9', '1e-9');
 }
 
 /** 货币口径（分） */
 export function round2(x: number): number {
-  return Math.round(x * 100) / 100;
+  return roundToScale(x, 100, 'round2', '0.01');
 }
 
 /** 比率口径（千分位） */
 export function round3(x: number): number {
-  return Math.round(x * 1000) / 1000;
+  return roundToScale(x, 1000, 'round3', '0.001');
 }
 
 /**

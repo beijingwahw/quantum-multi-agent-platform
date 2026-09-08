@@ -1,6 +1,6 @@
 {
   "name": "bqp-map",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Machine verification of the BQP x NP complexity atlas for scheduling: executable many-one reductions carrying NP-hardness certificates (Partition->P2||Cmax weak, 3-Partition->P||Cmax strong, FPTAS dichotomy), exact Grover/Durr-Hoyer upper bounds with per-query certificates, finite exhaustive verification of the classical q/N search wall (all deterministic decision trees) and of the BBBV hybrid argument ((2q+1)^2/N quantum cap, exact state-vector distances), NP-witness vs QMA-witness verification asymmetry (Hoeffding sampling law), the stoquastic/StoqMA vs non-stoquastic/QMA dichotomy on annealing Hamiltonians, and a typed atlas registry where every verdict tag must carry a machine certificate or a verified citation — claims without certificates do not ship; plus the genealogy family — far-future claims enrolled under the same discipline: the postselection depreciation ledger (certainty in-branch, classical-random rates out-of-branch, counting-ratio readout per PostBQP=PP) and the no-signaling withdrawal clause (marginal invariance under arbitrary local unitary/CPTP maps, singlet correlation-without-signature anchors)",
   "type": "module",
   "engines": {

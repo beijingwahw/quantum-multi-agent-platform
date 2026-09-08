@@ -15,13 +15,17 @@
 
 ```
 src/proactive-intelligence/
-├── index.ts              # 核心实现（700+行）
-├── rules.ts              # 预设规则库（400+行）
-├── examples.ts           # 使用示例（600+行）
-├── README.md             # 完整文档
-├── QUICKSTART.md         # 快速入门
-├── package.json          # 包配置
-└── cordis.patch.yml      # Cordis集成配置
+├── plugin.ts              # ProactiveIntelligencePlugin 主类
+├── monitor.ts             # 状态监控器 StateMonitor
+├── decision-engine.ts     # 决策引擎 DecisionEngine
+├── executor.ts            # 动作执行器 ActionExecutor
+├── rules.ts               # 预设规则库（13 条预设规则）
+├── brain.ts               # GrowthSchedulerBrain 桥接
+├── types.ts               # 共享类型
+├── index.ts               # 公共 API 导出桶
+├── cordis.patch.yml       # Cordis 集成配置
+├── README.md              # 完整文档
+└── QUICKSTART.md          # 快速入门
 ```
 
 ## 🏗️ 核心架构
@@ -227,7 +231,13 @@ interface Action {
    - 条件: 17:00 且工作日
    - 动作: 发送提醒 + 创建增量备份
 
-**总计: 12条预设规则**
+### 增长市场 (1条规则，Brain 联动)
+
+1. **市场表现退化检测** (`market-underperforming`)
+   - 条件: 已结算任务 ≥ 20 且全窗口成功率 < 40%
+   - 动作: 发送告警 + 触发市场诊断工作流
+
+**总计: 13条预设规则**
 
 ## 🔌 DSH集成
 
@@ -434,7 +444,7 @@ const plugin = new ProactiveIntelligencePlugin({
 ### 运行示例
 
 ```bash
-npm run example
+npx tsx examples/proactive-intelligence-demo.ts
 ```
 
 ### 安全模式测试
@@ -478,10 +488,10 @@ console.log({
 
 ## 📚 文档导航
 
-- **[完整文档](./README.md)**: 详细的API文档和功能说明
-- **[快速入门](./QUICKSTART.md)**: 5-30分钟快速上手指南
-- **[预设规则](./rules.ts)**: 12条开箱即用的规则
-- **[使用示例](./examples.ts)**: 6个完整的示例场景
+- **[完整文档](./src/proactive-intelligence/README.md)**: 详细的API文档和功能说明
+- **[快速入门](./src/proactive-intelligence/QUICKSTART.md)**: 5-30分钟快速上手指南
+- **[预设规则](./src/proactive-intelligence/rules.ts)**: 13条开箱即用的规则
+- **[使用示例](./examples/proactive-intelligence-demo.ts)**: 可运行演示脚本（`npx tsx` 执行）
 
 ## 🔧 开发指南
 
@@ -563,8 +573,8 @@ A: 检查：规则是否启用、条件是否满足、是否在冷却期内
 ## 🔗 相关资源
 
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-- [DSH插件开发指南](../deepseek-harness-plugin-guide.md)
-- [量子多Agent平台](../README.md)
+- [DSH插件开发指南](./deepseek-harness-plugin-guide.md)
+- [量子多Agent平台](./README.md)
 - [DSH官方文档](https://github.com/deepseek-ai/deepseek-harness)
 
 ## 📄 许可证

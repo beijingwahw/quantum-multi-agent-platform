@@ -5,6 +5,7 @@
  */
 
 import type { Rule } from './index.js';
+import { ConfigurationError } from '../utils/errors.js';
 
 // ============================================================================
 // 系统健康监控规则
@@ -661,7 +662,10 @@ export const allPresetRules: Rule[] = [
 ];
 
 /**
- * 按场景获取规则
+ * 按场景获取规则。
+ * 未知场景此前静默落入 default 返回全部规则——拼写错误（如 'secruity'）
+ * 会让插件收到 13 条无关规则而非报错，属静默垃圾路径，改为显式拒绝；
+ * 'all' 保持「显式取全部」的合法语义。
  */
 export function getRulesByScenario(scenario: string): Rule[] {
   switch (scenario) {
@@ -678,7 +682,11 @@ export function getRulesByScenario(scenario: string): Rule[] {
     case 'market':
       return growthMarketRules;
     case 'all':
-    default:
       return allPresetRules;
+    default:
+      throw new ConfigurationError(
+        `Unknown rules scenario '${scenario}' ` +
+          '(expected one of: system, agent, task, security, business, market, all)',
+      );
   }
 }

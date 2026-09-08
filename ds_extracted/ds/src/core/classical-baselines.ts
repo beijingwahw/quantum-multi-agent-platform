@@ -16,7 +16,7 @@
  */
 
 import type { AssignmentProblem } from './quantum-optimizer.js';
-import { welfareOf } from './quantum-optimizer.js';
+import { welfareOf, greedyAssignRemaining } from './quantum-optimizer.js';
 import { InfeasibleProblemError, QuantumEngineError } from '../utils/errors.js';
 
 // 不可行格子的虚拟代价：从实际权重尺度推导（01#22）——固定 1e9 在
@@ -120,27 +120,12 @@ export function hungarianAssignment(weights: number[][], ineligible: boolean[][]
   return assignment;
 }
 
-/** 贪心初始解：按任务序取亲和度最高的空闲agent */
+/** 贪心初始解：按任务序取亲和度最高的空闲agent。填充循环单源于
+ * quantum-optimizer.greedyAssignRemaining——与全空间 repairAssignment
+ * 兜底阶段同一构造，位同构对拍见 tests/twin-convergence.test.ts */
 function greedyStart(problem: AssignmentProblem): number[] {
-  const m = problem.taskIds.length;
-  const n = problem.agentIds.length;
-  const used = new Set<number>();
-  const assignment = new Array<number>(m).fill(-1);
-  for (let t = 0; t < m; t++) {
-    let best = -1;
-    let bestW = -Infinity;
-    for (let a = 0; a < n; a++) {
-      if (problem.ineligible[t]![a]! || used.has(a)) continue;
-      if (problem.weights[t]![a]! > bestW) {
-        bestW = problem.weights[t]![a]!;
-        best = a;
-      }
-    }
-    if (best >= 0) {
-      assignment[t] = best;
-      used.add(best);
-    }
-  }
+  const assignment = new Array<number>(problem.taskIds.length).fill(-1);
+  greedyAssignRemaining(problem, assignment, new Set<number>());
   return assignment;
 }
 

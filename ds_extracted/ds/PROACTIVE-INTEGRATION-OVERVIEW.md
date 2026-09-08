@@ -3,13 +3,13 @@
 ## 📍 插件在项目中的位置
 
 ```
-D:\Data\Documents\deepseek harness\ds\
+quantum-multi-agent-platform/
 ├── src/
 │   ├── core/                          # 核心模块
 │   │   ├── agent-manager.ts           # Agent管理器
 │   │   ├── quantum-scheduler.ts       # 量子调度器
+│   │   └── （quantum/subspace 优化器等，见 README.md 目录结构）
 
-│   │
 │   ├── tools/                         # 工具集成
 │   │   └── agent-tools.ts             # Agent工具
 │   │
@@ -20,18 +20,22 @@ D:\Data\Documents\deepseek harness\ds\
 │   │   └── quantum-bus.ts
 │   │
 │   └── proactive-intelligence/        # 🆕 主动智能插件
-│       ├── index.ts                   # 核心实现 (700+行)
-│       ├── rules.ts                   # 预设规则库 (400+行)
-│       ├── examples.ts                # 使用示例 (600+行)
-│       ├── test.ts                    # 测试文件
+│       ├── plugin.ts                  # ProactiveIntelligencePlugin 主类
+│       ├── monitor.ts                 # 状态监控器 StateMonitor
+│       ├── decision-engine.ts         # 决策引擎 DecisionEngine
+│       ├── executor.ts                # 执行器 ActionExecutor
+│       ├── rules.ts                   # 预设规则库（13 条预设规则）
+│       ├── brain.ts                   # GrowthSchedulerBrain 桥接
+│       ├── types.ts                   # 共享类型
+│       ├── index.ts                   # 公共 API 导出桶
+│       ├── cordis.patch.yml           # Cordis集成
 │       ├── README.md                  # 完整文档
-│       ├── QUICKSTART.md              # 快速入门
-│       ├── package.json               # 包配置
-│       └── cordis.patch.yml           # Cordis集成
+│       └── QUICKSTART.md              # 快速入门
 │
+├── scripts/                           # bench / 性能测试 / DSH 安装脚本
+│   └── dsh-proactive-install-to-dsh.mjs
 ├── deepseek-harness-plugin-guide.md   # DSH插件开发指南
 ├── PROACTIVE-INTELLIGENCE.md          # 主动智能插件完整文档
-├── dsh-proactive-install-to-dsh.mjs   # DSH Proactive安装脚本
 ├── README.md                          # 项目主文档
 └── package.json                       # 项目包配置
 ```
@@ -295,7 +299,7 @@ import {
 } from './types/quantum-types';
 
 // 工具
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'events';
 ```
 
@@ -356,8 +360,7 @@ dsh plugin add ./dsh-proactive-1.0.0.tgz --profile web
 ### 自动安装
 
 ```bash
-# 使用安装脚本（参考 dsh-proactive-install-to-dsh.mjs）
-cd dsh-proactive
+# 使用安装脚本（本仓 scripts/dsh-proactive-install-to-dsh.mjs，仓根执行）
 npm install
 node scripts/dsh-proactive-install-to-dsh.mjs
 ```

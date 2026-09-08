@@ -7,6 +7,8 @@ import {
   type MonitorEvent,
 } from '../src/proactive-intelligence/index.js';
 import { GrowthSchedulerBrain } from '../src/proactive-intelligence/brain.js';
+import { allPresetRules, getRulesByScenario } from '../src/proactive-intelligence/rules.js';
+import { ConfigurationError, PlatformError } from '../src/utils/errors.js';
 
 /** 仅等待事件循环排空（不涉及插件决策队列的同步路径等待） */
 function tick(times = 2): Promise<void> {
@@ -178,6 +180,104 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     // 幂等：超时后同 ID 不重复入列
     await execPromise;
     assert.equal(history.filter((e) => e.id === running[0]!.id).length, 1);
+  });
+});
+
+describe('proactive-intelligence · 入口负对照（静默垃圾路径拒绝）', () => {
+  it('observe：畸形 severity/空 type 抛 ConfigurationError，不再污染统计表', () => {
+    const plugin = new ProactiveIntelligencePlugin();
+    const observe = (severity: unknown, type = 't'): void => {
+      plugin.observe({
+        type,
+        source: 's',
+        data: {},
+        severity: severity as MonitorEvent['severity'],
+      });
+    };
+
+    // 畸形 severity 此前以任意字符串键沉淀进 bySeverity 统计
+    assert.throws(
+      () => observe('catastrophic'),
+      (error: unknown) =>
+        error instanceof ConfigurationError &&
+        error instanceof PlatformError &&
+        /Invalid event severity 'catastrophic'/.test(error.message),
+    );
+    // 空 type 的事件无法被任何 'type.field' 规则匹配却照常计数
+    assert.throws(() => observe('info', ''), /Event type must be a non-empty string/);
+
+    // 边界：四档合法 severity 全部可观察，统计无垃圾键
+    for (const severity of ['info', 'warning', 'error', 'critical'] as const) {
+      observe(severity);
+    }
+    const stats = plugin.getMonitor().getStatistics();
+    assert.equal(stats.total, 4);
+    assert.deepEqual(Object.keys(stats.bySeverity).sort(), [
+      'critical',
+      'error',
+      'info',
+      'warning',
+    ]);
+  });
+
+  it('addRule：空 id 与非法 cooldown 抛 ConfigurationError（冷却不得被静默解除）', () => {
+    const engine = new DecisionEngine();
+    assert.throws(
+      () => engine.addRule(notificationRule('', [])),
+      /Rule id must be a non-empty string/,
+    );
+    // NaN cooldown：`elapsed < NaN` 恒假 → 此前规则每轮决策都触发
+    assert.throws(
+      () => engine.addRule({ ...notificationRule('bad-cooldown', []), cooldown: NaN }),
+      (error: unknown) =>
+        error instanceof ConfigurationError &&
+        /cooldown must be a finite non-negative/.test(error.message),
+    );
+    assert.throws(
+      () => engine.addRule({ ...notificationRule('neg-cooldown', []), cooldown: -1 }),
+      /cooldown/,
+    );
+
+    // 边界：cooldown=0（无冷却）是合法退化，合法规则照常入库触发
+    engine.addRule(
+      notificationRule('zero-cooldown', [
+        { type: 'state', operator: 'equals', field: 'a', value: 1 },
+      ]),
+    );
+    assert.ok(engine.getRule('zero-cooldown') !== undefined);
+  });
+
+  it('getDecisionHistory：limit=0 返回空（不再被 falsy 判定放大成全量），负数拒绝', async () => {
+    const engine = new DecisionEngine();
+    const ctx = {
+      events: [] as MonitorEvent[],
+      currentState: {},
+      history: [],
+      rules: [] as Rule[],
+    };
+    await engine.makeDecision(ctx);
+    await engine.makeDecision(ctx);
+
+    assert.equal(engine.getDecisionHistory(0).length, 0);
+    assert.equal(engine.getDecisionHistory(1).length, 1);
+    assert.equal(engine.getDecisionHistory().length, 2);
+    assert.throws(() => engine.getDecisionHistory(-3), /limit must be a non-negative integer/);
+  });
+
+  it('getRulesByScenario：未知场景拒绝，不再静默返回全部规则', () => {
+    // 拼写错误此前落入 default 返回 13 条预设规则（静默垃圾路径）
+    assert.throws(
+      () => getRulesByScenario('secruity'),
+      (error: unknown) =>
+        error instanceof ConfigurationError &&
+        /Unknown rules scenario 'secruity'/.test(error.message),
+    );
+
+    // 边界：全部合法场景名（含 'all'）返回不变
+    for (const scenario of ['system', 'agent', 'task', 'security', 'business', 'market', 'all']) {
+      assert.ok(getRulesByScenario(scenario).length > 0, scenario);
+    }
+    assert.deepEqual(getRulesByScenario('all'), allPresetRules);
   });
 });
 
