@@ -4,8 +4,8 @@
 
 ## Census
 
-- batches: 88
-- errors: 704
+- batches: 89
+- errors: 719
 - repos involved: 29
 - categories in use: 10/10
 
@@ -14,8 +14,8 @@
 | burial-record | 16 | 294 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
+| ds_extracted/ds | 5 | 41 |
 | stable-world | 5 | 39 |
-| ds_extracted/ds | 4 | 26 |
 | nonstoq-anneal | 4 | 22 |
 | dsic-noether | 2 | 19 |
 | bqp-map | 2 | 14 |
@@ -43,13 +43,13 @@
 
 | category | errors |
 | --- | --- |
-| process | 236 |
-| toolchain | 129 |
-| wrong-object | 87 |
-| statistics | 60 |
+| process | 240 |
+| toolchain | 134 |
+| wrong-object | 90 |
+| statistics | 61 |
 | dimension-slot | 51 |
 | machine-overruled | 47 |
-| citation-drift | 33 |
+| citation-drift | 35 |
 | conjugation | 29 |
 | anchor-blindspot | 19 |
 | bogus-comparison | 13 |
@@ -1464,15 +1464,38 @@
 | [conviction of a shipped prose defect, found at the batch-87 wiring] exp3's rendered prose hardcoded the joint count 36/40 — the count prose carried the digits of the retired defective draw after the double-draw fix had re-drawn the sample to 34/40 beneath it | the prose now interpolates the machine's own counts at the render line — a recurrence that re-hardcodes digits removes the needle and E3 convicts on every census run; the count-prose law's render face | statistics |
 | [wiring agent, this batch] the census suite's first authentication of the new derivation tests was run piped through tail — the exit-code-masking family's twenty-sixth attempt, one batch after the orchestrator's three PIPESTATUS variants: the pipe displays the tail while the runner's verdict rides behind it; re-issued pipeless in the same breath, every later gate pipeless | the direct exit code the only verdict — the twenty-sixth attempt booked by the same agent that built the visit's derive guard, one command after writing the tool's own tests for the class | toolchain |
 
+### Batch 89 — ds_extracted/ds (2026-09-09)
+
+- context: the base repo ENTERS the delivery wave (the visit-81 boundary's promised dedicated visit — the platform's own code quality face, four parallel delivery agents over non-overlapping territories plus this wiring): fifteen errors across five classes, born enrolled and born audited on both boards — the orchestrator's opening gates ran piped through tail (the exit-code-masking family's twenty-seventh attempt, caught by the banner's own repo name before any verdict was taken), the shell's persistent cwd drifted the visit's first typecheck into a sibling repo's tree, a compound inventory chain broke at grep's legitimate no-match exit, and a root-relative git ls-files issued from inside the sub-repo returned a false zero on tracked files; the doc agent published per-file line counts that parallel siblings' in-flight edits staled within minutes (the count-drift family's own face — a count is a data copy; withdrawn to a structure-only tree) and drafted one nav link that escaped the repository; the delivery agents' first-draft assertions mis-shape three times (a duplicate-cell regex that missed the message's id::solver form, a convergence-orphaned dead assignment, a -0-vs-0 Object.is boundary) — every one caught by its own gate in the same breath; the append-only shared file errors.ts took two agents' concurrent appends, coexisting on re-read without an overwrite; and the wave's own doc conviction broke a cross-repo pin — the b80#7 version-pin family's FOURTH firing: letter-audit's #03 frontier certificate needle held the platform README's OLD test badge (tests-292%2F292), the reconciliation's badge conviction (292->520) broke it, and the total gate's red cell named it — the orchestrator had not swept the workspace for needles into the changed file after the convictions landed; repaired in-wave at the citing tree, the frontier checker green on the repair; and the sweep that repair owed found ONE more prose face — bqp-map's atlas notes carried the platform's RETIRED numbers ('NP-hard track 5/5 vs 0/5' — the half-ledger artifact the platform's own v1.11 erratum corrected to 2/5 — and '292/292 tests', both count-drift's prose face in a sibling no needle enforces), corrected at the citing tree with the counts handed back to the platform's own machine audit; and the flap itself exposed a CENSUS-SIDE latent defect: A4's positive face convicted the census's OWN anchor on the last recorded run's red cell — an unrecoverable state, since clearing the conviction required a green run which required the conviction cleared (the platform's timing-flap red in one run made the next census run red through the very artifact it read); the census's own row is now exempt in the positive face — the adjudicator may not sit in its own docket — needle-held by the forged census-red regression trial
+- source: `memory/2026-09-09.md` @ "关键经验（第八十九批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| [orchestrator self-report] the visit's first ds typecheck and lint ran piped through tail with the exit code echoed from the pipeline's last stage — the exit-code-masking family's twenty-seventh attempt; both gates were green and the banner betrayed the repo, but the verdict echoed was the pipe's, not the gate's | the redirect-to-file + direct $? pattern re-established from the format baseline onward and held for every later gate of the visit — display truncation is not a verdict; the pipe's shape is banned regardless of what it displayed | toolchain |
+| [orchestrator self-report] the visit's first ds typecheck launched from the mutant-census cwd — the persistent shell's working directory had been left by a prior cd, and the gate ran a sibling repo's typecheck to green under the visit's name | the banner's repo name caught it in the output's first line and the command re-issued with its absolute cd — the registered lesson (shell cwd drifts; prefix the absolute path) re-offended and re-learned in one breath | process |
+| [orchestrator self-report] the debt-inventory compound command chained on && through a grep that legitimately exits 1 on zero matches — the whole inventory aborted at the first clean finding (zero any-casts) instead of reporting it | re-issued tolerant — a zero-match grep is a FINDING in a debt inventory, not a failure; the chain's shape was wrong for the question it asked | toolchain |
+| [orchestrator self-report] git ls-files was issued from inside ds with a root-relative pathspec and returned 0 tracked files — the false negative nearly concluded the platform was untracked in the workspace repo | re-issued from the workspace root: 143 tracked files — a pathspec is interpreted relative to the cwd, and a wrong-cwd ls is a silent lie that reads like an audit finding | process |
+| [doc agent, this batch] the PROACTIVE-INTELLIGENCE.md navigation link was drafted as ../../examples/... — a relative path that escapes the repository root entirely | self-caught and rewritten root-relative before any gate ran — doc links get the same grep-the-target discipline as citation anchors | process |
+| [doc agent, this batch] per-file line counts (470/228/474...) were published into the rebuilt file tree minutes before parallel siblings' in-flight edits staled them — the count-drift family's face: a count written beside living code is a data copy with a merge point it did not survive | withdrawn same-session to a structure-only tree, and the closeout re-synced the suite counts from the final full-suite run — counts are taken last, from the machine, once, after all parallel writers have landed | statistics |
+| [bench agent, this batch] the duplicate-cell negative-control's regex expected the solver name directly after 'duplicate cell ' — the actual conviction message carries <instanceId>::<solver>; the first scoped run went red on the shape | the precise includes(dupKey) assertion kept, the loose regex dropped in the same breath — message-shaped assertions are written against the message, not the memory of it; the suite's first breath is the guard | wrong-object |
+| [core agent, this batch] the G3 convergence left collapseSubspace's let chosen = -1 initialization dead — all three branches assign unconditionally after the twin merge; eslint's no-useless-assignment named it on the first run | let chosen: number with a carrying comment, re-linted clean — a convergence re-reads every line it orphaned; the lint gate's first breath is the guard | toolchain |
+| [periphery agent, this batch] the roundToScale boundary assertion compared -0 and 0 under Object.is semantics — node:assert/strict's deepStrictEqual holds them unequal and the first run convicted the guard's own boundary test | loose equality on the zero boundary (the guard's contract is finiteness, not sign-bit) — the negative-control suite caught its own draft in the same breath | wrong-object |
+| [two delivery agents, this batch] the shared-surface non-overlap map carried one mutable file in two territories — src/utils/errors.ts held concurrent append rights for the bench and periphery agents; the second append landed on a stale read of the first | the re-read-before-edit discipline held: the second writer re-read, found the first's class, and appended beside it without an overwrite — append-only coexistence, but the map should have named the file serial from the start | process |
+| [orchestrator, this batch] the wave's doc convictions landed without a cross-repo needle sweep — letter-audit's #03 frontier certificate pinned the platform README's OLD test badge (tests-292%2F292), and the badge conviction (292->520) broke the sibling's needle; the total gate's red cell named it (the b80#7 version-pin cross-repo family's FOURTH firing) | repaired in-wave at the citing tree (frontier.ts needle -> tests-520, the frontier checker green on the repair) — after any conviction that rewrites a shared file's content, sweep the workspace for needles pointing INTO that file; a needle is a data copy of someone else's prose | citation-drift |
+| [conviction of shipped prose defects, found by the sweep the pin repair owed] bqp-map's atlas notes carried the platform's retired numbers — 'NP-hard track 5/5 vs 0/5' (the half-ledger artifact the platform's own v1.11 erratum corrected to 2/5, best classical 3/5) and '292/292 tests' (the count-drift family's prose face in a sibling), both riding unenforced atlas prose no needle parses | corrected at the citing tree (bqp-map v0.2.1): the verdict restated against best classical 3/5 with the erratum named, and the volatile test count handed back to the platform's own machine audit (npm test) rather than quoted — the same never-quoted-here discipline the row's burial-record sibling already carried | citation-drift |
+| [conviction of a shipped census defect, exposed by the visit's timing flap] A4's positive face convicted the census's OWN anchor when the last recorded total-gate run carried a red census-test cell — an unrecoverable state: clearing the conviction required a green run, and the green run required the conviction cleared (the census suite reads the artifact the run in progress will overwrite; the platform's ds flap in one run made the NEXT census run red through the very artifact it was reading) | the census's own repo row is exempt in A4's positive face — the adjudicator may not sit in its own docket: the census's own red cell already fails the census suite directly and red-cells the gate on its own; the exemption is needle-held by the forged census-red-artifact regression trial, while a sibling's red cell in the same forged artifact still convicts | wrong-object |
+| [orchestrator, this batch — the README diagram task] generate.py's first patch batch was applied through a python heredoc piped through the shell — a repo code file edited through the banned channel (the family's next canonical act), the content landing clean but the channel itself the offense | every later generate.py edit went through the Edit tool — the channel rule has no 'clean content' exception; a repo code file is a repo code file even when it is a docs generator | toolchain |
+| [orchestrator, this batch] the diagram generator's first drafts carried two escape-level slips that crashed it on first run — a single-backslash \r inside a non-raw Python string (mathtext \rangle degenerating into a carriage return) and the \le alias matplotlib's mathtext does not know — both caught by the generator's own crash, fixed in the same breath | mathtext in double-quoted Python strings doubles its backslashes (or takes a raw string), and symbols are spelled the renderer knows (\leq not \le) — the generator's own crash loop is the factory check; the shipped set renders with ZERO missing-glyph warnings and ZERO box overflows by its own machine self-check | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..88 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (704 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 704 = repo sum 704)
-- PASS — W-4 declared totals 88 batches / 704 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (73 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (63 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..89 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (719 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 719 = repo sum 719)
+- PASS — W-4 declared totals 89 batches / 719 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (75 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (64 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 704 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 719 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
