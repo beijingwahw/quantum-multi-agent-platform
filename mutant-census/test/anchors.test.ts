@@ -20,10 +20,10 @@ test("A1-A3: the anchor registry is legal, symmetric and fully evidenced (live)"
   assert.deepEqual(v, []);
   const byKind = new Map<string, number>();
   for (const r of ANCHOR_REGISTRY) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
-  assert.equal(ANCHOR_REGISTRY.length, 201);
-  assert.equal(byKind.get("FIRING-INJECT"), 138);
+  assert.equal(ANCHOR_REGISTRY.length, 205);
+  assert.equal(byKind.get("FIRING-INJECT"), 141);
   assert.equal(byKind.get("FIRING-LIVE"), 9);
-  assert.equal(byKind.get("RESOLVED"), 54);
+  assert.equal(byKind.get("RESOLVED"), 55);
 });
 
 test("A-fire B4: a forged batch with a dead source anchor is convicted by burial-record's own checker", async () => {
@@ -176,6 +176,22 @@ test("A4 artifact firing: a RESOLVED anchor whose repo cell is RED in the last r
   assert.equal(hit.anchor, "dtc-clock/package.json :: typecheck");
   // and a missing artifact books nothing — the T-board contract stands
   assert.deepEqual(checkArtifactFiring(null, ANCHOR_REGISTRY), []);
+});
+
+test("A4 reads the gate's OWN format (v0.31.0): the artifact's BOLD `**FAIL**` cell is convicted — the b80#4 class, the ammo reads the checker's output", async () => {
+  // the total gate bolds its FAIL cells (`**FAIL (1.2s)**`); the v0.30.0
+  // parser accepted only bare FAIL, so a REAL red run's rows never parsed
+  // and A4 could not fire on its own object — the forged demo passed on a
+  // format the artifact never prints. The regression: bold red, convicted.
+  const boldRed =
+    "# THE TOTAL GATE\n\n| repo | test | typecheck |\n| --- | --- | --- |\n| dtc-clock | PASS (1.0s) | **FAIL (2.2s)** |\n";
+  const hit = checkArtifactFiring(boldRed, ANCHOR_REGISTRY).find((v) => v.law === "A4");
+  assert.ok(hit, "the BOLD red cell was NOT convicted — A4 is blind to the artifact's own FAIL format");
+  assert.equal(hit.anchor, "dtc-clock/package.json :: typecheck");
+  // the bold PASS cell still parses green (no false conviction)
+  const boldPass =
+    "# THE TOTAL GATE\n\n| repo | test | typecheck |\n| --- | --- | --- |\n| dtc-clock | **PASS (1.0s)** | PASS (1.0s) |\n";
+  assert.deepEqual(checkArtifactFiring(boldPass, ANCHOR_REGISTRY), []);
 });
 
 test("the renderer refuses to print an illegal anchor registry", async () => {

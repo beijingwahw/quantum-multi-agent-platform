@@ -49,7 +49,7 @@ import { identity, kron, mat, mMul, mScale, vInner as coreVInner, vScale, type C
 import { vecToRho as coreVecToRho } from "../core/states.js";
 import { applyKraus as coreApplyKraus, filterBasisDigit } from "../core/channels.js";
 import { GAMMA, lawKraus } from "./law.js";
-import { canonicalFamily, mutantFamily, MUTANTS, type Family, type MutantSpec } from "./family.js";
+import { canonicalFamily, mutantFamily, MUTANTS, type Family } from "./family.js";
 import { runBattery, PROPERTY_IDS, type PropResult } from "./battery.js";
 import { ENROLLMENT, type EnrollmentRow } from "./enrollment.js";
 
@@ -453,7 +453,10 @@ export interface PerErrorCensusRow {
 }
 
 function protoPrint(id: string): BatteryPrint {
-  const spec = MUTANTS.find((m) => m.id === id) as MutantSpec;
+  const spec = MUTANTS.find((m) => m.id === id);
+  if (spec === undefined) {
+    throw new Error(`protoPrint: unknown prototype id "${id}" — a PER_ERROR row's prototype must name a declared mutant (b84#21's law: the filing follows the machine's table, never the intent)`);
+  }
   return batteryPrint(mutantFamily(spec));
 }
 

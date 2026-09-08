@@ -279,8 +279,8 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "ft-qaoa/test/errors.test.ts :: decoder scheduler names degenerate scenario inputs", kind: "FIRING-INJECT", demoFile: "ft-qaoa/test/errors.test.ts", demoName: "smuggling trial: decoder scheduler names degenerate scenario inputs", evidence: "the scenario-shape guard: zero latencies, empty arrays and mismatched tables flowed into division and indexing that answered garbage — the scheduler's full shape contract is named at entry and the degenerate-scenario trial fires on every suite run" },
   { anchor: "ft-qaoa/test/errors.test.ts :: ENERGY_TABLE_EMPTY", kind: "FIRING-INJECT", demoFile: "ft-qaoa/test/errors.test.ts", demoName: "smuggling trial: bruteForce refuses an empty energy table by name (ENERGY_TABLE_EMPTY)", evidence: "the empty-table guard: bruteForce answered an EMPTY energy table with a fabricated optimum — a confident best-value where no row exists (the qram GROVER_EMPTY_SCORES twin); the refusal is named and the trial fires on every suite run" },
   { anchor: "ft-qaoa/package-lock.json :: 0.3.0", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the lockfile-sync guard: both of ft-qaoa's package-lock.json version slots are pinned to the live 0.3.0 — the 0.1.0 residual survived the whole 0.2.0 wave AND the whole 0.3.0 wave because every gate verified package.json only (the b84#6 own-repo lockfile twin one wave later, convicted at this wiring visit); a recurrence removes the needle and E3 convicts on every census run, with the full-workspace lock sweep priced (fifteen sibling residuals standing)" },
-  { anchor: "mutant-census/package-lock.json :: 0.30.0", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the registrar's own lockfile-sync guard: both of the census's own package-lock.json version slots are pinned to the live version (0.28.0 at the b85 conviction, the needle following every bump since — 0.30.0 at batch 87) — the 0.9.0 residual stood nineteen version bumps behind in the very repo that enrolled the version-pin family; a recurrence removes the needle and E3 convicts on every census run" },
-  { anchor: "burial-record/package-lock.json :: 0.5.0", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the registry's own lockfile-sync guard: both of burial-record's package-lock.json version slots are pinned to the live 0.5.0 — the 0.4.0 residual survived the morning's 0.5.0 bump because the delivery verified package.json only; a recurrence removes the needle and E3 convicts on every census run (the lock is grepped after every bump, no exceptions for the registry's own repo)" },
+  { anchor: "mutant-census/package-lock.json :: 0.31.0", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the registrar's own lockfile-sync guard: both of the census's own package-lock.json version slots are pinned to the live version (0.28.0 at the b85 conviction, the needle following every bump since — 0.31.0 at batch 88) — the 0.9.0 residual stood nineteen version bumps behind in the very repo that enrolled the version-pin family; a recurrence removes the needle and E3 convicts on every census run" },
+  { anchor: "burial-record/package-lock.json :: 0.6.0", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the registry's own lockfile-sync guard: both of burial-record's package-lock.json version slots are pinned to the live 0.6.0 — the 0.4.0 residual survived the morning's 0.5.0 bump because the delivery verified package.json only; the needle follows every bump since (repointed 0.5.0->0.6.0 at batch 88, the old needle having sat ACCIDENTALLY GREEN through @types/node ^20.5.0's substring — a needle must quote its target's own digits, not a dependency's); a recurrence removes the needle and E3 convicts on every census run (the lock is grepped after every bump, no exceptions for the registry's own repo)" },
   // ---- batch 86 (the quality wave's fifth batch's conviction sites — the two
   // lockfile-drift convictions each held by its own repo's new permanent
   // books-agree regression guard, plus the qverify test-gate row, registered
@@ -310,6 +310,15 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "vacuum-compiler/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the gate that convicted the import cleanup's amputation (TS2304, cvecInner deleted while spectralEvolve still used it) at the draft's first breath" },
   { anchor: "wukong-crossval/package.json :: test", kind: "RESOLVED", evidence: "the test tree exists and carries test files — the gate that convicted the first quboValue guard's over-strictness at the planted-optimum fixture (the trailing-blank ?? 0 convention legal) and holds the shell-range and hand-anchor trials" },
   { anchor: "wukong-crossval/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the gate that convicted the test's wrong-home import (TS2305, depolShellMass sought in robust.js where it lives in discriminate.js)" },
+  // ---- batch 88 (the visit's FINAL wiring: the census's own quality face's
+  // conviction sites — the derive command's pre-write guard registered on its
+  // own board, the malformed-appeal error-face conviction, and the exp3
+  // count-prose interpolation needle — plus the bqp-map typecheck gate,
+  // registered the moment the rows first sat on them) ----
+  { anchor: "depreciation-ledger/test/ledger.test.ts :: L5 error face: a malformed appeal package.json is BOOKED as a violation, never a crash", kind: "FIRING-INJECT", demoFile: "depreciation-ledger/test/ledger.test.ts", demoName: "L5 error face: a malformed appeal package.json is BOOKED as a violation, never a crash", evidence: "the error-face guard: a malformed appeal package.json is BOOKED as a violation by name where the shipped audit CRASHED on it — the error face answers a booked row, never a stack trace; the trial fires on every suite run" },
+  { anchor: "switch-sched/src/experiments/exp3-sched-contact.ts :: ${positiveJoint}/${N}", kind: "FIRING-INJECT", demoFile: "mutant-census/test/enrollment.test.ts", demoName: "smuggle E3", evidence: "the count-prose interpolation guard (the b87#21 conviction's prose twin, caught at the batch-87 wiring): the rendered prose interpolates the machine's own counts — a recurrence that re-hardcodes digits (the retired 36/40 of the defective double-draw standing after the re-drawn sample carried 34/40) removes the needle and E3 convicts on every census run; the seed-pinned anchor beside it holds the numbers themselves" },
+  { anchor: "mutant-census/package.json :: derive", kind: "FIRING-INJECT", demoFile: "mutant-census/test/genealogy.test.ts", demoName: "the derive command is wired and single-sourced", evidence: "the pre-write derivation guard (v0.31.0, the b84#21/b85#35 class closed): the derive command prints the machine's own family filing and tier derivation from the live registry BEFORE any G-board row is drafted — the suite convicts an unwired command, a second literal family-rule table in the script, and any drift between the skeleton's statuses and G2's live verdicts on every run" },
+  { anchor: "bqp-map/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the gate that convicted the map literal's TS7053 at the draft's first breath (the as-const fix landing with it)" },
 ];
 
 export interface AnchorViolation {
@@ -459,12 +468,17 @@ export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; 
 
 /** A4: the artifact-firing law — RESOLVED test/typecheck anchors must be
  * green in the LAST RECORDED total-gate run (the artifact on disk). Pure
- * over the artifact text so the firing range can inject a forged red cell. */
+ * over the artifact text so the firing range can inject a forged red cell.
+ * The cell parser reads the TOTAL GATE'S OWN format (v0.31.0, the b80#4
+ * class caught in the wild): the artifact bolds its FAIL cells
+ * (`**FAIL (1.2s)**`), and a parser that only accepted bare FAIL could
+ * never fire on a real red run — the ammunition must read the checker's
+ * output as it is actually printed. */
 export function checkArtifactFiring(artifactText: string | null, registry: readonly AnchorRegistration[]): AnchorViolation[] {
   if (artifactText === null) return [];
   const cells = new Map<string, { test: string | undefined; typecheck: string | undefined }>();
   for (const line of artifactText.split("\n")) {
-    const m = /^\|\s*([^|]+?)\s*\|\s*(PASS|FAIL|—)[^|]*\|\s*(PASS|FAIL|—)/.exec(line);
+    const m = /^\|\s*([^|]+?)\s*\|\s*\*{0,2}(PASS|FAIL|—)[^|]*\|\s*\*{0,2}(PASS|FAIL|—)/.exec(line);
     if (m) cells.set(m[1]!.trim(), { test: m[2], typecheck: m[3] });
   }
   const v: AnchorViolation[] = [];

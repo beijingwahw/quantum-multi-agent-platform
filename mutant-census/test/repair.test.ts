@@ -13,19 +13,19 @@ test("W-Y the repair audit census: the whole booked population audited, live", a
   assert.ok(w.pass, w.detail);
 });
 
-test("the repair state: twelve upgrades (b67#6, b70#3 and b78#13 flipped under R1), fifty-seven sharpenings, the rest held", async () => {
+test("the repair state: thirteen upgrades (b67#6, b70#3, b78#13 and b85#35 flipped under R1), sixty-one sharpenings, the rest held", async () => {
   const registry = await loadLiveRegistry();
   assert.equal(checkRepairAudit(REPAIR_AUDIT, ENROLLMENT, registry).length, 0);
   const byVerdict = (v: string): number => REPAIR_AUDIT.filter((r) => r.verdict === v).length;
-  assert.equal(byVerdict("UPGRADED"), 12);
-  assert.equal(byVerdict("SHARPENED"), 57);
-  assert.equal(byVerdict("HELD"), 188);
-  assert.equal(REPAIR_AUDIT.length, 257);
+  assert.equal(byVerdict("UPGRADED"), 13);
+  assert.equal(byVerdict("SHARPENED"), 61);
+  assert.equal(byVerdict("HELD"), 190);
+  assert.equal(REPAIR_AUDIT.length, 264);
   // the tier census after the repair is arithmetic on the enrollment, not memory
   const gate = ENROLLMENT.filter((r) => r.tier === "GATE-ENFORCED").length;
   const booked = ENROLLMENT.filter((r) => r.tier === "BOOKED-UNENFORCEABLE").length;
-  assert.equal(gate, 330);
-  assert.equal(booked, 245);
+  assert.equal(gate, 336);
+  assert.equal(booked, 251);
   // the audit population is exactly the booked population plus the upgraded
   const audited = new Set(REPAIR_AUDIT.map((r) => r.key));
   const upgraded = new Set(REPAIR_AUDIT.filter((r) => r.verdict === "UPGRADED").map((r) => r.key));
@@ -45,6 +45,7 @@ test("the nine upgrades sit on their exact falsifying anchors", async () => {
     "b56#8": "stable-world/package.json :: test",
     "b57#3": "stable-world/package.json :: typecheck",
     "b59#0": "stable-world/package.json :: typecheck",
+    "b85#35": "mutant-census/package.json :: derive",
   };
   for (const [key, anchor] of Object.entries(expect)) {
     const row = byKey.get(key)!;

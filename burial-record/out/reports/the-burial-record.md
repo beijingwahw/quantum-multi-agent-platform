@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 87
-- errors: 692
+- batches: 88
+- errors: 704
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 15 | 282 |
+| burial-record | 16 | 294 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,10 +43,10 @@
 
 | category | errors |
 | --- | --- |
-| process | 233 |
-| toolchain | 122 |
-| wrong-object | 86 |
-| statistics | 59 |
+| process | 236 |
+| toolchain | 129 |
+| wrong-object | 87 |
+| statistics | 60 |
 | dimension-slot | 51 |
 | machine-overruled | 47 |
 | citation-drift | 33 |
@@ -1444,15 +1444,35 @@
 | [wiring agent, this batch] the repair-state total was first written 252 against the 255 the board carries (twelve upgrades, fifty-seven sharpenings, one hundred eighty-six held) — the census suite's own assertion convicted the drift on the spot, the b86#13 count face recurring one batch later | 255 landed with the re-count in the same fix — a hard figure is recomputed from the board it names before it is written, never assembled from a remembered subtotal (the count-prose law's test face, twice consecutive now) | process |
 | [wiring agent, this batch] the census lint re-run's log was redirected to the system temp (/tmp) — outside the workspace tree where no scheduled gate scans, the b80#3 placement face recurring; deleted one command later, which does not unmake the placement | the in-repo scratch log is the route and every other log of the visit landed there — temp files live in the repo or die at once, and this one did die at once, booked anyway | process |
 
+### Batch 88 — burial-record (2026-09-08)
+
+- context: the quality wave's SEVENTH batch and the visit's FINAL wiring (the wave-8 terminal agent: the census's own code quality face + this registration + the full-workspace lockfile sweep): twelve errors across four classes, born enrolled and born audited on both boards — the census's own quality face swept with the b84#21/b85#35 familyOf-derivation class closed by a PRE-WRITE command (npm run derive re-derives every family's latest sighting and its tier from the live registry before any G-board row is drafted, the suite asserting the tool's statuses agree with G2's verdicts); the total gate's error face hardened (a crashed spawn now resolves an honest red cell instead of hanging the whole gate forever, and the timeout is disclosed in the artifact by name); and A4's artifact parser repaired to read the gate's own BOLD FAIL cells — the b80#4 class caught in the wild, the forged demo having passed for thirty batches on a format the artifact never prints; the exit-code-masking family's twenty-third through twenty-fifth attempts — the ORCHESTRATOR's own three PIPESTATUS variants from the wave-6 closeout and the wave-7 red-cell handling, self-reported at the wave's end — booked on the shell-act face, with the twenty-sixth the terminal agent's own first-suite display pipe one breath later; two conviction sites registered the moment the rows first sat on them (depreciation-ledger's malformed-appeal crash convicted at its L5 error-face trial — a violation BOOKED, never a crash; and switch-sched's exp3 prose carrying the retired 36/40 as literals, the count-prose class caught at the batch-87 wiring and fixed to machine-derived interpolation in the same hour); the lockfile drift family's full-workspace sweep EXECUTED: eight residual repos pinned at both slots (causal-ineq, ent-sched, k-switch, nonstoq-anneal, qram-sched, readout-wall, retro-cache, survivor-census — the b85 pricing's fifteen-minus-seven remainder), the family's repayment closed at ZERO standing drift across all twenty-nine repos; the burial-record E3 needle repointed 0.5.0->0.6.0, the old needle having sat accidentally green through @types/node ^20.5.0's substring
+- source: `memory/2026-09-08.md` @ "关键经验（第八十八批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the bqp-map package.json Edit was issued before the file had been Read — the tool refused it; the version bump waited for the Read it should have opened with | the Read landed first and the Edit went through on the current read-state — the refusal is the guard (the b48#2/b53#0/b67#4/b83#20/b86#6 line); Read before Edit, no exception for a one-line version bump | process |
+| TS7053 convicted the map literal at the typecheck gate — the element access needed its as-const typing; the fix landed in the same breath | as const landed on the map in the same fix — the typecheck gate did its job at the draft's first breath | toolchain |
+| a redundant Read of an already-current file was issued and refused mid-flight — the inverse face of the bqp-map refusal: Read before Edit, but Read what you are about to Edit | the Read issued only for the file about to be Edited — the discipline is Read-before-Edit, not Read-everything | process |
+| the depreciation-ledger test carried an extraneous cast the wave's own lint discipline forbids — self-caught on review and deleted before any gate ran | the cast deleted before boarding — self-review is the pre-machine factory check; drafts land finished or not at all | process |
+| an extraneous as-cast survived into the route-price lint run — the no-unnecessary-type-assertion rule named it and the cast came out in the same fix | the cast removed in the same fix — the lint gate's own rule applied to the wave's own delivery, the precedent set one repo before burial-record's five | toolchain |
+| the burial-record visit's first lint run carried FIVE errors at once — unused imports and casts landing ahead of the gate instead of ahead of the pen; all five fixed on the spot | all five fixed before the visit closed — the gate's first breath is the guard; five at once is the batch's own lesson booked whole | toolchain |
+| [orchestrator self-report, wave-6 closeout] the switch-sched suite was run piped through tail with the exit code echoed from PIPESTATUS — the exit-code-masking family's twenty-third attempt and its first PIPESTATUS variant: output-truncation temptation, the true code taken afterwards from the echo, content undamaged — the shape is the banned one regardless | the verdict-taking is the pipe's whole offense — a PIPESTATUS echo is verdict-by-proxy and the no-pipe re-issue with the direct code the only verdict; self-reported at the wave's close and booked with the family's count | toolchain |
+| [orchestrator self-report, wave-7 red-cell handling] the vacuum-compiler suite was run piped through grep with the exit code echoed from PIPESTATUS — the family's twenty-fourth attempt, second PIPESTATUS variant; no verdict was taken from the pipe itself | same face, same rule: re-issued pipeless, the direct exit code the only verdict taken — the red cell was real and read in full on the re-run | toolchain |
+| [orchestrator self-report, wave-7] the same repo's repro was run piped through tail under a PIPESTATUS echo — the family's twenty-fifth attempt, the third PIPESTATUS variant in two waves of orchestration; every later command ran pipeless | same face, third variant — the orchestrator's three booked together at the wave's end; display truncation is not a verdict, the re-run's direct code is | toolchain |
+| [conviction of a shipped defect] a malformed appeal package.json CRASHED the audit instead of being BOOKED as a violation — the error face answered a crash where the ledger's law demands a booked row | L5 holds the error face at the ledger's own gate — a malformed appeal package.json is BOOKED as a violation, never a crash; the trial fires on every suite run | wrong-object |
+| [conviction of a shipped prose defect, found at the batch-87 wiring] exp3's rendered prose hardcoded the joint count 36/40 — the count prose carried the digits of the retired defective draw after the double-draw fix had re-drawn the sample to 34/40 beneath it | the prose now interpolates the machine's own counts at the render line — a recurrence that re-hardcodes digits removes the needle and E3 convicts on every census run; the count-prose law's render face | statistics |
+| [wiring agent, this batch] the census suite's first authentication of the new derivation tests was run piped through tail — the exit-code-masking family's twenty-sixth attempt, one batch after the orchestrator's three PIPESTATUS variants: the pipe displays the tail while the runner's verdict rides behind it; re-issued pipeless in the same breath, every later gate pipeless | the direct exit code the only verdict — the twenty-sixth attempt booked by the same agent that built the visit's derive guard, one command after writing the tool's own tests for the class | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..87 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (692 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 692 = repo sum 692)
-- PASS — W-4 declared totals 87 batches / 692 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (71 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (62 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..88 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (704 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 704 = repo sum 704)
+- PASS — W-4 declared totals 88 batches / 704 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (73 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (63 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 692 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 704 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

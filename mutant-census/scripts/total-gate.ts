@@ -52,6 +52,8 @@ interface JobResult extends Job {
   ok: boolean;
   ms: number;
   tail: string;
+  /** the timeout tripped and the child was killed — disclosed, never silent */
+  timedOut: boolean;
 }
 
 function runJob(job: Job, timeoutMs: number): Promise<JobResult> {
@@ -59,7 +61,19 @@ function runJob(job: Job, timeoutMs: number): Promise<JobResult> {
     const started = Date.now();
     const child = spawn(job.cmd, job.args, { cwd: job.cwd, shell: true });
     let tail = "";
-    const timer = setTimeout(() => child.kill(), timeoutMs);
+    let timedOut = false;
+    let settled = false;
+    const settle = (ok: boolean): void => {
+      if (settled) return; // a crashed spawn can fire BOTH error and close
+      settled = true;
+      clearTimeout(timer);
+      resolveJob({ ...job, ok, ms: Date.now() - started, tail, timedOut });
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      tail = (tail + "\n[TOTAL GATE] job exceeded the timeout — killed").slice(-600);
+      child.kill();
+    }, timeoutMs);
     // default stdio pipes: stdout/stderr are always Readable here
     child.stdout.on("data", (d: Buffer) => {
       const s = d.toString();
@@ -69,9 +83,14 @@ function runJob(job: Job, timeoutMs: number): Promise<JobResult> {
       const s = d.toString();
       tail = (tail + s).slice(-600);
     });
+    // a spawn that cannot start (error) may never fire close — the honest
+    // minimum is a red cell naming the spawn error, never a hung gate
+    child.on("error", (err: Error) => {
+      tail = (tail + `\n[TOTAL GATE] spawn error: ${err.message}`).slice(-600);
+      settle(false);
+    });
     child.on("close", (code) => {
-      clearTimeout(timer);
-      resolveJob({ ...job, ok: code === 0, ms: Date.now() - started, tail });
+      settle(code === 0);
     });
   });
 }
@@ -140,12 +159,16 @@ async function main(): Promise<void> {
   for (const [repo, entry] of byRepo) {
     const t = entry.test;
     const tc = entry.typecheck;
-    const fmt = (r?: JobResult): string => (r ? (r.ok ? `PASS (${(r.ms / 1000).toFixed(1)}s)` : `**FAIL (${(r.ms / 1000).toFixed(1)}s)**`) : "—");
+    const fmt = (r?: JobResult): string =>
+      r ? (r.ok ? `PASS (${(r.ms / 1000).toFixed(1)}s)` : `**FAIL (${(r.ms / 1000).toFixed(1)}s${r.timedOut ? ", TIMEOUT" : ""})**`) : "—";
     lines.push(`| ${repo} | ${fmt(t)} | ${fmt(tc)} |`);
   }
   if (failed.length > 0) {
     lines.push(`\n## Red cells\n`);
-    for (const f of failed) lines.push(`- ${f.repo} ${f.kind}: …${f.tail.replace(/\s+/g, " ").slice(-260)}`);
+    for (const f of failed)
+      lines.push(
+        `- ${f.repo} ${f.kind}${f.timedOut ? `: TIMEOUT after ${(TIMEOUT_MS / 1000).toFixed(0)}s — killed; the tail follows` : ""}: …${f.tail.replace(/\s+/g, " ").slice(-260)}`,
+      );
   }
   const dir = resolve(process.cwd(), "out", "reports");
   mkdirSync(dir, { recursive: true });
