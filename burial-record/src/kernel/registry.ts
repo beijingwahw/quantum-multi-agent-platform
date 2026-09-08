@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 84;
-export const DECLARED_TOTAL_ERRORS = 608;
+export const DECLARED_TOTAL_BATCHES = 85;
+export const DECLARED_TOTAL_ERRORS = 644;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3863,6 +3863,196 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "[wiring agent, this batch] the G2 family-tier derivation reasoned from the intended CATEGORY instead of the machine's own familyOf assignment — the b84#19 probe text matches the runner-path rule first (first-match-wins), so it files under runner-path and cat:toolchain's LATEST sighting is b84#13's gate-held lint conviction, not the booked probe; the census suite convicted the drifted resolution row on its first run (W-H, G2: 'the row drifted')",
         right: "the family assignment is computed by the machine's own rules before the resolution row is written — the tier follows the familyOf verdict, never the author's filing intent; the flipped row and its note landed together in the correction and the re-run went green (the companion-edit law, the b82#21 class: the gate convicted an act sent half-derived)",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 85,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the quality wave's FOURTH batch wiring (binding-price 0.2.0->0.3.0, ent-clearing 0.2.0->0.3.0, choice-lang 0.2.0->0.3.0, ft-qaoa 0.2.0->0.3.0 — four gates green in each): thirty-six errors across six classes, born enrolled and born audited on both boards — FOURTEEN latent-defect convictions led by ft-qaoa's NINE silent-corrosion entry holes (the 1<<n wraparound class forging one-entry statevectors and wrapped bit indices, the mis-sized energy tables' NaN probabilities, the empty table's fabricated optimum) with binding-price's first-cells market reader and ent-clearing's NaN printer beside them and choice-lang's three boundary forgeries closing the set, while the wave's own b78#13 doc-face debt was REPAID at its needle in the same breath, and the version-pin family's own-repo lockfile face struck THREE times at the wiring visit itself (ft-qaoa's 0.1.0 residual that survived two whole versions, the census's 0.9.0 that survived nineteen, burial-record's own 0.4.0 one behind — a full-workspace sweep priced, fifteen siblings still standing); the sanctioned-channel family struck three times in one wave (a python heredoc and two node -e version edits, the nineteenth through twenty-first sightings) and the exit-code-masking family FOUR times (the eighteenth through twenty-first attempts, the last the wiring agent's own), with the b25#3 dimension-slot family recurring in court inside the very guard written against it — gate-red the same session; the wiring agent's own two slips booked with them",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十五批" },
+    errors: [
+      {
+        wrong: "one gate authentication piped the npm test output through tail under a PIPESTATUS echo — the exit-code-masking family's eighteenth sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2, b82#3, b83#9, b83#17, b84#4, b84#7 the seventeen in-registry before it), an attempted one: no verdict was taken from the pipe and the final authentication ran with NO pipe for the direct exit code",
+        right: "a status echoed from a pipe does not unmake the pipe — the gate's code is read from the command itself and output trimmed on a separate read; the family struck four times in this one wave (the rule is a pre-flight checklist item, not knowledge)",
+        category: "toolchain",
+      },
+      {
+        wrong: "the T10 positive control's first draft asserted a zero matrix against itself — a vacuous self-comparison standing in for the kron the trial needed to exercise",
+        right: "rewritten to the direct kron in self-review before the suite ran — a positive control must run the machinery it certifies (the pre-machine reread is the factory check)",
+        category: "process",
+      },
+      {
+        wrong: "the T10 first draft omitted the concealmentLoss import while asserting its refusal — the typecheck gate convicted it on the spot",
+        right: "the import landed with the trial in the same fix — the gate did its job at the draft's first breath",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the market machine's one-coin paths read only the FIRST CELLS of whatever they were handed — marginal read four, jointAverage read sixteen, so a smuggled 3x3 object multiplied through to an unwarned wrong answer (the qram-b83 same family, market.ts's old lines 67-76 and 378-387)",
+        right: "QUBIT-FRAUD and REGISTER-FRAUD name the mis-shaped object at every kernel door (marginal, passProbability, blochOf, revealStats, concealmentLoss, jointAverage, coinReveal, jointProductReveal) and the T10 five-trial block fires on every suite run — the 3x3 smuggle dies at the reject, never at the multiply",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "the first batch edit went through a bash-fed python heredoc — exit 49 — the sanctioned-channel family's nineteenth sighting (the sixteenth b79#0, the seventeenth b81#4, the eighteenth b82#7), breaking the Write/Edit-only iron rule in the very visit type that founded it; redone through the Edit tool immediately",
+        right: "code and data files travel by Write/Edit only, no content-based exceptions — clean-after-the-fact does not absolve (the b79#10 judgment); the heredoc's own exit 49 was the channel saying so itself",
+        category: "toolchain",
+      },
+      {
+        wrong: "the marginalProbs edit left an extra closing bracket behind — caught on the immediate reread and fixed before any run",
+        right: "a deletion counts its own brackets — the read-back after a structural edit is the factory check (the residue class's smallest face)",
+        category: "process",
+      },
+      {
+        wrong: "the new trials' first draft carried no-op assertions — constructs asserting nothing while looking like evidence",
+        right: "replaced in self-review with inline independent recomputation anchors before the suite ran — a trial that does not recompute the number it certifies certifies nothing (the never-fail assertion class)",
+        category: "process",
+      },
+      {
+        wrong: "the weyl deletion's first cut removed only eye — the weyl residue survived to be cut a second time",
+        right: "a deletion greps its own name before it lands done (grep-then-delete; the residue class's delete face, closed by the second pass)",
+        category: "process",
+      },
+      {
+        wrong: "the non-null-assertion census's first sweep pattern missed the bracket-index reads (the ]! lanes), undercounting the very population it was auditing",
+        right: "the pattern was rewritten for the bracket form and the count re-taken — a survey's pattern is itself data: count the class you name, not the class your regex happens to match",
+        category: "process",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the board's local fmt typeset whatever toFixed handed it — NaN and Infinity rendered as prose into the report's sentences with no refusal (the retro-cache K.G same type, a latent corrosion path no current input triggered)",
+        right: "report.ts's single-source fmt refuses the non-finite BY NAME (EC_NON_FINITE) and the T9 anchor fires on every suite run — the printer no longer speaks what is not a number",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the compose rewrite's first landing carried a mistaken import — runTerm imported under a dead alias the draft never used",
+        right: "caught on self-review and removed in the same minute — imports land where the file's own structure reads them (the residue class's import face)",
+        category: "process",
+      },
+      {
+        wrong: "the first BRANCH_SHAPE guard asserted the WRONG dimension slot — demanding branch = out.rows where the register's data dimension is out.rows / 2^controls (the controls ride in the row count): the b25#3 dimension-slot family recurring in the very guard written against it, convicted by the gate RED in the same session and fixed before anything shipped",
+        right: "the corrected guard names the step, the matrix, and the slot it actually checks — a dimension guard is written from the register's own arithmetic, never from the intent (the gate held the line the draft could not)",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "the package-lock version fields were edited through node -e fs.write — the sanctioned-channel family's twentieth sighting (the nineteenth one repo earlier in the same wave), a version edit that belongs to the Write/Edit tools; the JSON was round-trip verified valid after the act",
+        right: "version bumps travel by Edit on a Read file, both lock slots included — verified clean does not absolve the channel (the b79#10 judgment)",
+        category: "toolchain",
+      },
+      {
+        wrong: "one npm test ran through a tail pipe — the exit-code-masking family's nineteenth sighting, the wave's second: caught immediately, no verdict taken, re-run with NO pipe",
+        right: "the direct re-run is the only verdict — the family struck four times in one wave and every attempt died on sight",
+        category: "toolchain",
+      },
+      {
+        wrong: "lint convicted two extraneous as-casts on the new helper's first landing",
+        right: "both deleted in the same edit — dead scaffolding dies at the lint gate, which is the gate doing its job",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] branchProduct read a short pattern's missing bit as undefined and silently routed through u0 — an out-of-domain read forging a legal-looking branch price with no word",
+        right: "PATTERN_ARITY names the exact arity at the boundary (a 2-step program needs exactly 2 pattern bits) and the T10 trial fires on every suite run — the short and the long pattern both die at the reject",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] conditionOnPattern silently TRUNCATED an over-long pattern and answered a probability-zero conditioning with a silent zero matrix — two forged answers where the input had no meaning",
+        right: "PATTERN_ARITY refuses the over-long pattern and ZERO_PROBABILITY refuses the conditioning itself, both anchored in T10 — the zero matrix is never built",
+        category: "statistics",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] membershipExpectation read a short projector's undefined diagonal as a number — a 2x2 object on a 4x4 register producing silent NaN expectations",
+        right: "PROJECTOR_SHAPE (with DATA_SHAPE and MAT_SHAPE beside it) names the shape at entry and the trial fires on every suite run — the expectation is never computed on an object that is not the register's own shape",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "the first draft imported blocksFor and surfaceCode from the wrong module (ising.js), stacked an import at the file's bottom, and cast a forged Rng to satisfy the checker — three faces of one sloppy pass",
+        right: "self-inspection rewrote the pass whole — imports from the modules that own them, top-of-file, no cast standing in for a real construction",
+        category: "process",
+      },
+      {
+        wrong: "the noisyRatio doc comment landed on the wrong symbol — misplaced twice before sitting on its own function",
+        right: "placement is content for doc faces — the read-back covers where comments sit, not just what they say",
+        category: "process",
+      },
+      {
+        wrong: "the version bump itself went through node -e fs.write — the sanctioned-channel family's twenty-first sighting (the twentieth one delivery earlier in the same wave): the one edit class this workspace has convicted over and over, verified complete after the fact",
+        right: "recorded as the violation it is — the Write/Edit-only rule has no version-field exception; the lock and the manifest both belong to the tools",
+        category: "toolchain",
+      },
+      {
+        wrong: "one npm test ran through a tail pipe with the code echoed from PIPESTATUS — the exit-code-masking family's twentieth sighting, the wave's third attempted one; re-run with NO pipe for the true code",
+        right: "a preserved status under a pipe is still a piped verdict in shape — the no-pipe re-run is the only authentication the book accepts",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the 1<<n shift wrapped at n=32 — plusState(32) built a ONE-ENTRY 'statevector' (1<<32 === 1 in JS) and the ising energies constructor took the same turn: a forged dimension entering every downstream computation unwarned",
+        right: "QUBIT_COUNT_INVALID names the wrap at every constructor door (statevector, density, energies — n=31/32/-1/fractional all refused) and the trial fires on every suite run with the n=0 trivial-system positive control intact",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the cost-phase gate accepted wrong-length energy tables — a short or long table phased the state into NaN probabilities while the machine said nothing (and the pure-state constructor took mis-sized re/im vectors the same way)",
+        right: "ENERGY_LENGTH_MISMATCH and PURE_STATE_LENGTH_MISMATCH name both length contracts at their doors and the trials fire on every suite run — an exactly-sized table applies cleanly, the mis-sized one never computes",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] depolarizeQubit's bit index wrapped through the same 1<<j shift — j=32 silently hit qubit 1 — and probability domains outside [0,1] mixed in unwarned",
+        right: "QUBIT_INDEX_INVALID and DEPOLARIZE_P_INVALID name index and domain at entry; the trials fire on every suite run with the boundary positive controls held (the last legal qubit, p=1 the full-mix edge)",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the readout channel took q outside [0,1] — negative probabilities flowing into flip weights — and mis-sized probability vectors read past their length",
+        right: "READOUT_Q_INVALID and PROB_LENGTH_MISMATCH name the domain and the length at the channel's door, anchored in the errors suite with q=0 the documented no-op and q=1 the full-shuffle boundary held exact",
+        category: "statistics",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the synthesis took epsilon at zero and below — the T-count formula's log collapsing to a descending count that prices nothing",
+        right: "SYNTH_EPSILON_INVALID names the (0,1] domain at entry and the trial fires on every suite run with the eps=1 boundary exact (log2(1)=0, the additive floor)",
+        category: "statistics",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the estimator took qaoaDepth 0 and fractional depths — a zero-depth 'deep QAOA' spawning an unbounded factory schedule",
+        right: "QAOA_DEPTH_INVALID names the positive-integer domain at the estimator's door and the trial fires on every suite run (0, 2.5, -8 all refused by name)",
+        category: "statistics",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the code catalog took distance 0 and fractional — and blocksFor(0 logical qubits) answered a confident ZERO for every resource, all of it silently wrong",
+        right: "CODE_DISTANCE_INVALID and LOGICAL_QUBITS_INVALID name both degenerate inputs at the catalog's door; the trials fire on every suite run with d=2 and one logical qubit held as the legal boundaries",
+        category: "statistics",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the decoder scheduler accepted degenerate scenario shapes unguarded — zero latencies, empty arrays, mismatched tables flowing into division and indexing that answered garbage",
+        right: "the scheduler's full shape contract is named at entry and the degenerate-scenario trial fires on every suite run — the garbage answers are dead at the reject",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] bruteForce answered an EMPTY energy table with a fabricated optimum — a confident best-value where no row exists (the qram GROVER_EMPTY_SCORES twin)",
+        right: "ENERGY_TABLE_EMPTY refuses the empty table by name and the trial fires on every suite run — no best exists where no row does",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[wiring agent, this batch] the visit's first census suite authentication was issued piped through tail under a PIPESTATUS echo — the exit-code-masking family's twenty-first sighting, the wave's fourth, attempted by the agent that came to book the other three: the tail displayed the two pre-wiring failures while the echo displayed a 1, and the shape is the banned one regardless of what the echo displayed",
+        right: "re-issued with NO pipe for the direct code (1 — the expected pre-wiring red) in the next breath; the checklist item fires per command, not per visit — the family's own registrar is not immune, and the honest book runs its gates pipeless",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent registry defect, convicted at wiring] ft-qaoa's package-lock.json carried version 0.1.0 at BOTH slots — the lock survived the whole 0.2.0 wave AND the whole 0.3.0 wave while every gate verified package.json only (the b84#6 own-repo lockfile twin, one wave later)",
+        right: "both lockfile slots pinned to the live 0.3.0 and the census E3 needle holds them on every run — a full-workspace lock sweep is priced (fifteen sibling residuals still standing), the same shape as the repro-no-op family's systemic booking",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[latent registry defect, convicted at wiring] the census's OWN package-lock.json carried version 0.9.0 at both slots — nineteen version bumps behind its own package.json, the version-pin family's own-repo lockfile face living in the very repo that enrolled the family's cross-repo founding",
+        right: "both slots pinned to the live 0.28.0 with the E3 needle holding them on every census run — the registrar's own house swept with the same broom it sells",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[latent registry defect, convicted at wiring] the burial record's own package-lock.json carried version 0.4.0 at both slots — the 0.5.0 morning bump (the B9 memory-structure delivery) verified package.json and never the lock face, the same residual one repo over from the census's own",
+        right: "both slots pinned to the live 0.5.0 with the census E3 needle holding them on every run — the lock is grepped after every bump, no exceptions for the registry's own repo",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[wiring agent, this batch] the G-board resolution rows were drafted from the intended category filings before the machine's own family classifier ever saw the new batch's texts — four rows carried incidental phrase collisions ('one-coin' code readers and a 'latent corrosion' route both landing in the runner family, a controls-tally phrase landing in the count family, a tool-rule phrase landing in the anchor family), and the census suite's FIRST run convicted the drifted resolution by name (the runner family's tier against a gate-held latest) — the same sequencing class the previous batch's wiring had already been convicted of once, one batch later",
+        right: "the classifier runs over every new wrong-text BEFORE any resolution tier is written, and the row follows its verdict — the notes now carry the machine's filings with each collision confessed in place (the lesson booked twice consecutively: the rule is a per-batch checklist item, not a memory)",
         category: "process",
       },
     ],

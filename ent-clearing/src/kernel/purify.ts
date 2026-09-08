@@ -14,12 +14,12 @@
 import {
   type CMat,
   type CVec,
+  at4,
   kron,
   mAdd,
   mMul,
   mScale,
   mat,
-  matEq,
   vInner,
 } from "../core/cmat.js";
 import { applyKraus, applyUnitary, depolarize, filterBasisDigit, partialTrace } from "../core/channels.js";
@@ -32,16 +32,19 @@ import { bellProjectors, concurrence, eF, PHI_PLUS } from "./clearing.js";
 
 /** A Bell-diagonal coin from its weights [Phi+, Phi-, Psi+, Psi-]. */
 export function bellDiagonal(w: readonly number[]): CMat {
+  if (w.length !== 4) {
+    throw new Error(`EC_WEIGHTS: bellDiagonal needs exactly 4 Bell weights [Phi+, Phi-, Psi+, Psi-], got ${w.length}`);
+  }
   const proj = bellProjectors();
-  let acc = mScale(proj[0] as CMat, w[0] as number);
-  for (let k = 1; k < 4; k++) acc = mAdd(acc, mScale(proj[k] as CMat, w[k] as number));
+  let acc = mScale(proj[0], w[0]!);
+  for (let k = 1; k < 4; k++) acc = mAdd(acc, mScale(at4(proj, k, "bellProjector"), w[k]!));
   return acc;
 }
 
 /** Werner coin W_F: fidelity F on |Phi+>, remaining weight uniform on the
  *  other three Bell states — the mixed coin the desk nets. */
 export function wernerCoin(F: number): CMat {
-  if (F <= 0 || F >= 1) throw new Error("wernerCoin needs F in (0,1)");
+  if (F <= 0 || F >= 1) throw new Error(`EC_F_RANGE: wernerCoin needs F in (0,1), got ${F}`);
   const g = (1 - F) / 3;
   return bellDiagonal([F, g, g, g]);
 }
@@ -49,7 +52,7 @@ export function wernerCoin(F: number): CMat {
 /** A standard coin sent through a depolarizing wire at parameter p:
  *  (1-p)|Phi+><Phi+| + p I/4 — machine-identical to W_{1-3p/4}. */
 export function depolCoin(p: number): CMat {
-  if (p < 0 || p > 1) throw new Error("depolCoin needs p in [0,1]");
+  if (p < 0 || p > 1) throw new Error(`EC_P_RANGE: depolCoin needs p in [0,1], got ${p}`);
   return depolarize(PHI_PLUS, p);
 }
 
@@ -58,17 +61,9 @@ export function bellWeights(rho: CMat): readonly number[] {
   return bellProjectors().map((P) => traceReal(mMul(P, rho)));
 }
 
-/** Bell-diagonality: the state equals its Bell-basis diagonal. */
-export function bellDiagonalDev(rho: CMat): number {
-  const w = bellWeights(rho);
-  let acc = mScale(bellProjectors()[0] as CMat, w[0] as number);
-  for (let k = 1; k < 4; k++) acc = mAdd(acc, mScale(bellProjectors()[k] as CMat, w[k] as number));
-  return matEq(rho, acc, 1e-12) ? 0 : 1;
-}
-
 /** Fidelity of a two-qubit state to |Phi+> = its Phi+ Bell weight. */
 export function bellFidelity(rho: CMat): number {
-  return traceReal(mMul(bellProjectors()[0] as CMat, rho));
+  return traceReal(mMul(bellProjectors()[0], rho));
 }
 
 /* ------------------------------------------------------------------ */
@@ -78,11 +73,11 @@ export function bellFidelity(rho: CMat): number {
 /** CNOT on an n-qubit register (qubit 0 is the leftmost tensor factor):
  *  a permutation unitary, |x> -> |x XOR e_target> when the control bit is 1. */
 export function cnotOnQubits(nQubits: number, control: number, target: number): CMat {
-  if (nQubits < 2) throw new Error("cnotOnQubits needs >= 2 qubits");
+  if (nQubits < 2) throw new Error(`EC_QUBITS: cnotOnQubits needs >= 2 qubits, got ${nQubits}`);
   if (control < 0 || control >= nQubits || target < 0 || target >= nQubits) {
-    throw new Error("cnotOnQubits: index out of range");
+    throw new Error(`EC_INDEX: cnotOnQubits control ${control} / target ${target} out of range for ${nQubits} qubits`);
   }
-  if (control === target) throw new Error("cnotOnQubits: control === target");
+  if (control === target) throw new Error("EC_INDEX: cnotOnQubits needs control !== target");
   const d = 1 << nQubits;
   const strides: number[] = new Array<number>(nQubits);
   strides[nQubits - 1] = 1;
@@ -131,7 +126,7 @@ export function purifyRound(source: CMat, target: CMat): PurifyRound {
   const f10 = filterBasisDigit(s1.conditional, dims, 3, 0);
   const pSucc = s0.p * s00.p + s1.p * s11.p;
   const pFail = s0.p * f01.p + s1.p * f10.p;
-  if (pSucc <= 1e-12 || pFail <= 1e-12) throw new Error("purifyRound: zero-probability branch");
+  if (pSucc <= 1e-12 || pFail <= 1e-12) throw new Error(`EC_ZERO_BRANCH: purifyRound hit a probability-zero branch (pSucc ${pSucc}, pFail ${pFail}) — dividing would smuggle NaN`);
   const succUn = mAdd(mScale(s00.conditional, s0.p * s00.p), mScale(s11.conditional, s1.p * s11.p));
   const failUn = mAdd(mScale(f01.conditional, s0.p * f01.p), mScale(f10.conditional, s1.p * f10.p));
   return {
@@ -171,6 +166,9 @@ export function bellRoundClosedForm(
   lam: readonly number[],
   mu: readonly number[],
 ): { pSucc: number; out: readonly number[] } {
+  if (lam.length !== 4 || mu.length !== 4) {
+    throw new Error(`EC_WEIGHTS: bellRoundClosedForm needs two 4-weight Bell spectra, got ${lam.length}/${mu.length}`);
+  }
   const pSucc = (lam[0]! + lam[1]!) * (mu[0]! + mu[1]!) + (lam[2]! + lam[3]!) * (mu[2]! + mu[3]!);
   const out = [
     (lam[0]! * mu[0]! + lam[1]! * mu[1]!) / pSucc,
@@ -288,7 +286,10 @@ export interface SchemeResult {
  *         netted against each other.
  * Every probability is a product of exactly-executed round probabilities.
  */
-export function schemePurify(nCoins: 2 | 3 | 4, coin: CMat): SchemeResult {
+export function schemePurify(nCoins: number, coin: CMat): SchemeResult {
+  if (nCoins !== 2 && nCoins !== 3 && nCoins !== 4) {
+    throw new Error(`EC_SCALE: schemePurify executes n in {2,3,4} only — got ${nCoins} (the asymptotic scale is quoted, never executed)`);
+  }
   const r1 = purifyRound(coin, coin);
   const t1 = bellTwirl(r1.successState);
   if (nCoins === 2) {
@@ -330,7 +331,7 @@ function finish(n: number, pSucc: number, out: CMat, rounds: number, coin: CMat)
  * executed here — it is the n -> infinity line the bounded yields are
  * reported against, not a number this desk has produced.
  */
-export function hashingLineBell(lam: readonly number[]): number {
+function hashingLineBell(lam: readonly number[]): number {
   return 1 - shannonBits(lam);
 }
 
@@ -338,6 +339,12 @@ export function hashingLineBell(lam: readonly number[]): number {
 export function hashingLineWerner(F: number): number {
   const g = (1 - F) / 3;
   return hashingLineBell([F, g, g, g]);
+}
+
+/** The Werner fidelity behind a family/param pair — the single source for
+ * the WERNER F vs DEPOL p mapping (checker, renderer, and tests agree). */
+export function wernerFOfFamily(family: "WERNER" | "DEPOL", param: number): number {
+  return family === "WERNER" ? param : 1 - (3 * param) / 4;
 }
 
 /* ------------------------------------------------------------------ */

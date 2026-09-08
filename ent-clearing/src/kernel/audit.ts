@@ -77,6 +77,7 @@ import {
   purifyRound,
   schemePurify,
   wernerCoin,
+  wernerFOfFamily,
   wernerRoundClosedForm,
   YIELD_TABLE,
   type YieldRow,
@@ -153,7 +154,7 @@ export type UntrustedYieldRow = Omit<YieldRow, "tag"> & { readonly tag: string }
 
 /** The hashing line of a row's family, for laundering detection. */
 function rowHashingLine(family: string, param: number): number {
-  return hashingLineWerner(family === "WERNER" ? param : 1 - (3 * param) / 4);
+  return hashingLineWerner(wernerFOfFamily(family === "WERNER" ? "WERNER" : "DEPOL", param));
 }
 
 /** H6 — yield-table provenance: executed numbers must recompute, quoted lines must be quoted. */
@@ -280,8 +281,8 @@ function ghzClaimOutcome(id: string, censusRounds: number): { holds: boolean; re
       const worst = Math.max(
         Math.abs(wd.pPlus - 0.5),
         Math.abs(wd.pMinus - 0.5),
-        1 - pureFidelity(wd.abPlus, bellBasis()[0] as ReturnType<typeof bellBasis>[number]),
-        1 - pureFidelity(wd.abMinus, bellBasis()[1] as ReturnType<typeof bellBasis>[number]),
+        1 - pureFidelity(wd.abPlus, bellBasis()[0]),
+        1 - pureFidelity(wd.abMinus, bellBasis()[1]),
         Math.abs(concurrence(wd.abPlus) - 1),
         Math.abs(concurrence(wd.abMinus) - 1),
         wd.cbits - 1,
@@ -408,7 +409,7 @@ function witnessReverseQuote(): WitnessResult {
 }
 
 function witnessNetting(): WitnessResult {
-  const coin = bellBasis()[0] as ReturnType<typeof bellBasis>[number];
+  const coin = bellBasis()[0];
   let worstP = 0;
   let worstFid = 0;
   let worstFail = 0;
@@ -450,7 +451,7 @@ function witnessMintWall(): WitnessResult {
   }
   const mintState = mintByGate();
   const minted = concurrence(mintState);
-  const mintFid = pureFidelity(mintState, bellBasis()[0] as ReturnType<typeof bellBasis>[number]);
+  const mintFid = pureFidelity(mintState, bellBasis()[0]);
   const ok = worstRise <= 1e-12 && worstProduct <= 1e-12 && Math.abs(minted - 1) <= 1e-12 && mintFid >= 1 - 1e-12;
   return {
     name: "W-D the mint wall",

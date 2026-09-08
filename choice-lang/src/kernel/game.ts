@@ -21,8 +21,8 @@
  *           identity per cell is machine-exact.
  */
 import { type CMat } from "../core/cmat.js";
-import { conditionOnPattern, membershipExpectation, runProgram, type Program } from "./lang.js";
-import { runOnRegister, registerPattern } from "./compose.js";
+import { conditionOnPattern, membershipExpectation, runProgram, runOnRegister, type Program } from "./lang.js";
+import { registerPattern } from "./compose.js";
 import { randomBranchUnitary } from "./fixtures.js";
 
 /** The adversary's fixed control angle across the whole census. */

@@ -1,12 +1,14 @@
 import type { IsingModel } from "../core/ising.js";
+import { requireThat } from "../core/errors.js";
 import {
   blocksFor,
+  DEFAULT_LOGICAL_ERROR_MODEL,
   logicalErrorPerRound,
   surfaceCode,
   grossCode,
 } from "./codes.js";
 import type { CodeSpec, LogicalErrorModel } from "./codes.js";
-import { qaoaLayerProfile } from "./synthesis.js";
+import { DEFAULT_SYNTHESIS, qaoaLayerProfile } from "./synthesis.js";
 import type { RotationSynthesisOptions } from "./synthesis.js";
 
 export interface TFactoryAssumptions {
@@ -36,13 +38,20 @@ export interface FtAssumptions {
   readonly tFactory: TFactoryAssumptions;
 }
 
+/**
+ * Single-source discipline: the logical-error prefactor and the synthesis
+ * defaults are declared exactly once (codes.ts / synthesis.ts) and consumed
+ * here by reference — the constants audit binds these same objects through
+ * LIVE_CONSTANT_VALUES, so a second literal copy would be a drift site the
+ * gate only catches post-hoc.
+ */
 export const DEFAULT_FT_ASSUMPTIONS: FtAssumptions = {
   pPhys: 1e-3,
   cycleTimeUs: 1,
   roundsPerOpDistanceFactor: 1,
   targetCircuitError: 1e-2,
-  logicalErrorModel: { amplitude: 0.1 },
-  synthesis: { epsilon: 1e-6, coefficient: 3, additiveConstant: 4 },
+  logicalErrorModel: DEFAULT_LOGICAL_ERROR_MODEL,
+  synthesis: DEFAULT_SYNTHESIS,
   tFactory: {
     physicalQubits: 5000,
     nsPerT: 100,
@@ -102,6 +111,11 @@ function humanTime(us: number): string {
  *  - wall time is serial logical execution at the cycle period.
  */
 export function estimateDeepQaoa(input: DeepQaoaEstimateInput): DeepQaoaEstimate {
+  requireThat(
+    Number.isInteger(input.qaoaDepth) && input.qaoaDepth >= 1,
+    "QAOA_DEPTH_INVALID",
+    `qaoaDepth must be an integer >= 1 (0 depth makes the T-rate infinite and factories NaN), got ${input.qaoaDepth}`,
+  );
   const a: FtAssumptions = { ...DEFAULT_FT_ASSUMPTIONS, ...input.assumptions };
   const { model, code, qaoaDepth: p } = input;
 

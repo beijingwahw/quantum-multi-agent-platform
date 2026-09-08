@@ -1,4 +1,5 @@
 import type { IsingModel } from "../core/ising.js";
+import { requireThat } from "../core/errors.js";
 
 export interface RotationSynthesisOptions {
   /** Target synthesis error per rotation (epsilon in Clifford+T approximation). */
@@ -21,6 +22,11 @@ export const DEFAULT_SYNTHESIS: RotationSynthesisOptions = {
 
 /** T gates to synthesize one arbitrary Z-rotation at the given precision. */
 export function tCountForRotation(options: RotationSynthesisOptions = DEFAULT_SYNTHESIS): number {
+  requireThat(
+    options.epsilon > 0 && options.epsilon <= 1,
+    "SYNTH_EPSILON_INVALID",
+    `synthesis epsilon must lie in (0, 1] (outside it log2(1/eps) is negative or NaN), got ${options.epsilon}`,
+  );
   const c = options.coefficient ?? 3;
   const c0 = options.additiveConstant ?? 4;
   return Math.ceil(c * Math.log2(1 / options.epsilon)) + c0;

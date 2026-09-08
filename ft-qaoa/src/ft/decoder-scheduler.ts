@@ -1,4 +1,5 @@
 import type { Rng } from "../core/rng.js";
+import { requireThat } from "../core/errors.js";
 
 /**
  * Real-time decoder scheduling: the syndrome stream of each code block arrives
@@ -54,6 +55,32 @@ export function analyzeDecoderSchedule(
   rng: Rng,
   options: ScheduleSimOptions = {},
 ): ScheduleResult {
+  requireThat(
+    Number.isInteger(totalRounds) && totalRounds >= 1,
+    "TOTAL_ROUNDS_INVALID",
+    `totalRounds must be an integer >= 1, got ${totalRounds}`,
+  );
+  requireThat(cycleTimeUs > 0, "CYCLE_TIME_INVALID", `cycle time must be > 0 us, got ${cycleTimeUs}`);
+  requireThat(
+    Number.isInteger(blocks) && blocks >= 1,
+    "BLOCK_COUNT_INVALID",
+    `code block count must be an integer >= 1, got ${blocks}`,
+  );
+  requireThat(
+    Number.isInteger(scenario.units) && scenario.units >= 1,
+    "FLEET_SIZE_INVALID",
+    `decoder fleet size must be an integer >= 1, got ${scenario.units}`,
+  );
+  requireThat(
+    Number.isInteger(scenario.windowRounds) && scenario.windowRounds >= 1,
+    "WINDOW_ROUNDS_INVALID",
+    `window size must be an integer >= 1 rounds, got ${scenario.windowRounds}`,
+  );
+  requireThat(
+    scenario.unit.roundsPerSecond > 0 && scenario.unit.latencyUs >= 0,
+    "DECODER_UNIT_SPEC_INVALID",
+    `decoder unit needs roundsPerSecond > 0 and latencyUs >= 0, got ${scenario.unit.roundsPerSecond}/s and ${scenario.unit.latencyUs}us`,
+  );
   const maxWindows = options.maxSimulatedWindows ?? 20000;
   const ceiling = options.realtimeUtilizationCeiling ?? 0.95;
 

@@ -10,21 +10,17 @@
 import { pathToFileURL } from "node:url";
 import { BOARD } from "../kernel/board.js";
 import { checkBoard, checkGhzClaims, checkLedger, checkYieldTable, runWitnesses } from "../kernel/audit.js";
-import { writeReport } from "./report.js";
-import { hashingLineWerner, YIELD_TABLE } from "../kernel/purify.js";
+import { fmt, writeReport } from "./report.js";
+import { hashingLineWerner, wernerFOfFamily, YIELD_TABLE } from "../kernel/purify.js";
 import { computeLedger } from "../kernel/ledger.js";
 import { ghzLocalCensus, GHZ_CLAIMS } from "../kernel/ghz.js";
 import { makeRng } from "../core/rng.js";
-
-function fmt(x: number, digits = 6): string {
-  return x.toFixed(digits);
-}
 
 function renderBoard(): string {
   const violations = checkBoard();
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the board is illegal — refusing to print it:\n${lines.join("\n")}`);
+    throw new Error(`EC_BOARD_ILLEGAL: the board is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
   const out: string[] = [];
   out.push("# THE ENT CLEARING — the settlement layer of the entanglement standard, one page\n");
@@ -48,7 +44,7 @@ export function renderPurificationSection(): string {
   const violations = checkYieldTable();
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the yield table is illegal — refusing to print it:\n${lines.join("\n")}`);
+    throw new Error(`EC_YIELD_ILLEGAL: the yield table is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
   const out: string[] = [];
   out.push("\n## The purification desk — mixed coins netted at bounded exact scale (E7)\n");
@@ -58,7 +54,7 @@ export function renderPurificationSection(): string {
   out.push("| id | coin | n | tag | p(chain) | F_out | C_out | E_F_out | coin-yield p/n | E_F-yield | hashing line (QUOTED) |");
   out.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of YIELD_TABLE) {
-    const F = r.family === "WERNER" ? r.param : 1 - (3 * r.param) / 4;
+    const F = wernerFOfFamily(r.family, r.param);
     const hash = hashingLineWerner(F);
     const grade = r.family === "WERNER" ? `Werner F=${r.param}` : `depol p=${r.param} (F=${fmt(F, 4)})`;
     const scale = Number.isFinite(r.scale) ? String(r.scale) : "inf";
@@ -82,7 +78,7 @@ export function renderLedgerSection(): string {
   const violations = checkLedger();
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the conservation ledger is illegal — refusing to print it:\n${lines.join("\n")}`);
+    throw new Error(`EC_LEDGER_ILLEGAL: the conservation ledger is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
   const out: string[] = [];
   out.push("\n## The conservation ledger — what settlement conserves, exactly (E8)\n");
@@ -105,7 +101,7 @@ export function renderGhzSection(): string {
   const violations = checkGhzClaims();
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the GHZ bank's claims are illegal — refusing to print them:\n${lines.join("\n")}`);
+    throw new Error(`EC_CLAIMS_ILLEGAL: the GHZ bank's claims are illegal — refusing to print them:\n${lines.join("\n")}`);
   }
   const census = ghzLocalCensus(makeRng(203), 150);
   const out: string[] = [];

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkModel, runWitnesses } from "../src/kernel/audit.js";
 import { MODEL, type ModelRow } from "../src/kernel/ledger.js";
-import { runProgram, conditionOnPattern, controlState, branchProduct, membershipExpectation, type Program } from "../src/kernel/lang.js";
+import { runProgram, runOnRegister, conditionOnPattern, controlState, branchProduct, membershipExpectation, type Program } from "../src/kernel/lang.js";
 import {
   concatProgram,
   registerPattern,
@@ -12,9 +12,11 @@ import {
   leaf,
   termPaths,
   termIsometry,
+  pathSlotPattern,
   conditionTermOnPath,
   type Term,
 } from "../src/kernel/compose.js";
+import { ChoiceLangError } from "../src/core/errors.js";
 import { loopTrajectory, iteratedProgram } from "../src/kernel/iterate.js";
 import { gameCensus, lockCensus, ADVERSARY_THETA } from "../src/kernel/game.js";
 import { engineeredUnitary, randomBranchUnitary, worldState, worldProjector, DATA_DIM } from "../src/kernel/fixtures.js";
@@ -41,6 +43,16 @@ function perpendicularState() {
   const m = mat(4, 4);
   m.re[1 * 4 + 1] = 1;
   return m;
+}
+
+/** The rejection cross-examination: a named code, and a message that names the crime. */
+function assertRejects(fn: () => unknown, code: string, needle: RegExp): void {
+  assert.throws(fn, (err: unknown) => {
+    assert.ok(err instanceof ChoiceLangError, `expected a ChoiceLangError, got ${String(err)}`);
+    assert.equal(err.code, code);
+    assert.match(err.message, needle);
+    return true;
+  });
 }
 
 describe("T1 the model holds", () => {
@@ -282,6 +294,28 @@ describe("T7 the bounded loop — choose iterated", () => {
     assert.ok(Math.abs(flat - traj.membership[5]!) < 1e-15);
   });
 
+  it("the flat runner and the layered runner are ONE fold (wave 4's single-sourcing), bit-identical", () => {
+    // before wave 4, runProgram (lang.ts) and runOnRegister's loop (compose.ts)
+    // were line-identical twins; now the flat runner delegates to the one fold.
+    // This anchor pins the unification at BIT level: identical Float64Arrays,
+    // not just agreement at a tolerance.
+    const twoStep: Program = [
+      { theta: 0.6, u0: engineeredUnitary(7), u1: engineeredUnitary(8) },
+      { theta: 1.0, u0: randomBranchUnitary(9), u1: randomBranchUnitary(10) },
+    ];
+    const layered = runOnRegister(twoStep, worldState(), 0);
+    const viaFold = runProgram(twoStep, worldState());
+    assert.equal(layered.controls, 2);
+    assert.deepEqual(viaFold.re, layered.reg.re);
+    assert.deepEqual(viaFold.im, layered.reg.im);
+    // and mid-register (the loop/game entry): controls carried in front
+    const mid = runOnRegister(twoStep.slice(0, 1), worldState(), 0).reg;
+    const resumed = runOnRegister(twoStep.slice(1), mid, 1);
+    const whole = runProgram(twoStep, worldState());
+    assert.deepEqual(resumed.reg.re, whole.re);
+    assert.deepEqual(resumed.reg.im, whole.im);
+  });
+
   it("L-TOLL: the k-fold certification weight is w^k exactly", () => {
     const w = Math.sin(0.75) ** 2;
     const { p } = conditionOnPattern(runProgram(iteratedProgram(body, 5), worldState()), 5, Array<1>(5).fill(1), DATA_DIM);
@@ -343,5 +377,78 @@ describe("T9 smuggling trials — composition contraband named and rejected", ()
     assert.equal(hit.row, "R8");
     assert.match(hit.detail, /registry/);
     assert.match(hit.detail, /S1/, "the rejection must list the verified registry");
+  });
+});
+
+describe("T10 smuggling trials — illegal inputs at the language boundary named and rejected", () => {
+  const twoStep: Program = [
+    { theta: 0.6, u0: engineeredUnitary(7), u1: engineeredUnitary(8) },
+    { theta: 1.0, u0: randomBranchUnitary(9), u1: randomBranchUnitary(10) },
+  ];
+
+  it("a short pattern for branchProduct is rejected — the old code silently routed through u0", () => {
+    // convicted hole (wave 4): pattern[i] beyond the pattern's length read
+    // undefined, and `undefined === 1` is false, so every out-of-range bit
+    // silently chose u0 — a denotation nobody asked for
+    assertRejects(() => branchProduct(twoStep, [1]), "PATTERN_ARITY", /2-step program needs exactly 2 pattern bits, got 1/);
+    assertRejects(() => branchProduct(twoStep, [1, 0, 1]), "PATTERN_ARITY", /got 3/);
+    assertRejects(() => branchProduct([], [1]), "EMPTY_PROGRAM", /empty program has no denotation/);
+  });
+
+  it("conditionOnPattern rejects wrong-arity patterns — extra bits are not silently ignored", () => {
+    const fin = runProgram(twoStep, worldState());
+    assertRejects(() => conditionOnPattern(fin, 2, [1], DATA_DIM), "PATTERN_ARITY", /needs exactly 2 bits, got 1/);
+    assertRejects(() => conditionOnPattern(fin, 2, [1, 0, 1], DATA_DIM), "PATTERN_ARITY", /got 3/);
+  });
+
+  it("conditioning on a probability-zero pattern is refused, not answered with silent zeros", () => {
+    const zeroWeight: Program = [{ theta: 0, u0: engineeredUnitary(1), u1: engineeredUnitary(2) }];
+    const fin = runProgram(zeroWeight, worldState()); // sin^2(0) = 0 for pattern [1]
+    assertRejects(() => conditionOnPattern(fin, 1, [1], DATA_DIM), "ZERO_PROBABILITY", /probability 0/);
+    // the legal boundary still conditions (cos^2(0) = 1 for pattern [0])
+    const legal = conditionOnPattern(fin, 1, [0], DATA_DIM);
+    assert.ok(Math.abs(legal.p - 1) < 1e-15);
+  });
+
+  it("branch unitaries of the wrong dimension are named at the step (the dimension-slot family)", () => {
+    const small: Program = [{ theta: 0.5, u0: identity(2), u1: identity(2) }];
+    assertRejects(() => runProgram(small, worldState()), "BRANCH_SHAPE", /branches are 2x2/);
+    // mid-program slot: step 2 sees an 8-dim register over 1 prior control,
+    // so the branches must carry the data dimension 4 — not the joint 8
+    const badSecond: Program = [
+      { theta: 0.5, u0: engineeredUnitary(7), u1: engineeredUnitary(8) },
+      { theta: 0.5, u0: identity(2), u1: identity(2) },
+    ];
+    assertRejects(() => runProgram(badSecond, worldState()), "BRANCH_SHAPE", /step 2 branches are 2x2.*data dimension 4/);
+    assertRejects(() => runProgram([{ theta: 0.5, u0: mat(2, 3), u1: identity(4) }], worldState()), "BRANCH_SHAPE", /must be square/);
+  });
+
+  it("a non-finite control angle is rejected before it routes NaN through every branch", () => {
+    const nanTheta: Program = [{ theta: Number.NaN, u0: engineeredUnitary(1), u1: engineeredUnitary(2) }];
+    assertRejects(() => runProgram(nanTheta, worldState()), "STEP_THETA", /non-finite control angle/);
+  });
+
+  it("a wrong-dimension term leaf is not an isometry of the data register — rejected", () => {
+    assertRejects(() => termIsometry(leaf(identity(2)), DATA_DIM), "LEAF_SHAPE", /a leaf must be 4x4/);
+    // path/tree mismatches are named too
+    const left: Term = node(0.7, node(1.1, leaf(engineeredUnitary(401)), leaf(engineeredUnitary(402))), leaf(engineeredUnitary(403)));
+    assertRejects(() => pathSlotPattern(left, [0, 0, 0]), "PATH_OVERRUN", /path longer than tree/);
+    assertRejects(() => pathSlotPattern(left, [0]), "PATH_SHORT", /path ended at a choose node/);
+  });
+
+  it("loop bounds and register arities are named (LOOP_BOUND, REGISTER_ARITY)", () => {
+    const body: Program = [{ theta: 0.75, u0: engineeredUnitary(501), u1: engineeredUnitary(502) }];
+    assertRejects(() => loopTrajectory(body, worldState(), 0, worldProjector()), "LOOP_BOUND", /k must be >= 1, got 0/);
+    assertRejects(() => iteratedProgram(body, 0), "LOOP_BOUND", /k must be >= 1, got 0/);
+    assertRejects(() => runOnRegister(body, worldState(), -1), "REGISTER_ARITY", /non-negative integer, got -1/);
+    // an 8x8 rho over 2 claimed controls of 4-dim data would be 16-dimensional
+    const single = runProgram(twoStep.slice(0, 1), worldState()); // 8x8 = 1 control over 4-dim data
+    assertRejects(() => conditionOnPattern(single, 2, [0, 0], DATA_DIM), "REGISTER_ARITY", /2-control register over 4-dim data is 16-dimensional, but rho is 8x8/);
+  });
+
+  it("a short world projector and core shape mismatches are named, not turned into silent NaN", () => {
+    assertRejects(() => membershipExpectation(worldState(), mat(2, 2), DATA_DIM), "PROJECTOR_SHAPE", /projector must be 4x4, got 2x2/);
+    assertRejects(() => membershipExpectation(mat(3, 4), worldProjector(), DATA_DIM), "DATA_SHAPE", /must be square/);
+    assertRejects(() => mMul(mat(2, 3), mat(2, 2)), "MAT_SHAPE", /shape mismatch 2x3 \* 2x2/);
   });
 });

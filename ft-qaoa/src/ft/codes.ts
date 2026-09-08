@@ -5,6 +5,8 @@
  * pseudo-thresholds used as estimation inputs, not precision claims.
  */
 
+import { FtQaoaError, requireThat } from "../core/errors.js";
+
 export interface CodeSpec {
   readonly id: string;
   readonly family: "surface" | "gross";
@@ -29,7 +31,9 @@ export interface CodeSpec {
  * (Fowler et al., Phys. Rev. A 86, 032324 (2012) and follow-ups).
  */
 export function surfaceCode(d: number, threshold = 0.006): CodeSpec {
-  if (d < 2 || d % 1 !== 0) throw new Error(`surface distance must be an integer >= 2, got ${d}`);
+  if (d < 2 || d % 1 !== 0) {
+    throw new FtQaoaError("CODE_DISTANCE_INVALID", `surface distance must be an integer >= 2, got ${d}`);
+  }
   return {
     id: `surface-d${d}`,
     family: "surface",
@@ -64,6 +68,11 @@ export function grossCode(threshold = 0.007): CodeSpec {
 
 /** Number of code blocks needed to hold `logicalQubits` logical qubits. */
 export function blocksFor(logicalQubits: number, code: CodeSpec): number {
+  requireThat(
+    Number.isInteger(logicalQubits) && logicalQubits >= 1,
+    "LOGICAL_QUBITS_INVALID",
+    `logical qubit count must be an integer >= 1 (0 blocks would silently zero every resource), got ${logicalQubits}`,
+  );
   return Math.ceil(logicalQubits / code.k);
 }
 

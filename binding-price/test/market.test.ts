@@ -7,14 +7,14 @@ import {
   runWitnesses,
   verifyNoiseIdentityClaim,
   verifySupplyClaim,
+  WITNESS_IDS,
 } from "../src/kernel/audit.js";
 import {
   MARKET,
   QUOTED_CONT_STRATEGIES,
   QUOTED_JOINT_SPREAD_MIN,
   type MarketRow,
-} from "../src/kernel/ledger.js";
-import {
+} from "../src/kernel/ledger.js";import {
   blochState,
   blochOf,
   pureState,
@@ -27,7 +27,10 @@ import {
   jointAverage,
   jointProductReveal,
   coinReveal,
+  concealmentLoss,
   noisyRevealStats,
+  fibSphere,
+  GOLDEN_ANGLE,
   HALF_MIXED,
 } from "../src/kernel/market.js";
 import {
@@ -36,8 +39,10 @@ import {
   dephaseKraus,
   partialTrace,
 } from "../src/core/channels.js";
-import { identity, mMul, mDagger } from "../src/core/cmat.js";
+import * as channelsModule from "../src/core/channels.js";
+import { identity, kron, mat, mMul, mDagger } from "../src/core/cmat.js";
 import { traceDistance, traceReal } from "../src/core/measures.js";
+import { MarketError } from "../src/kernel/errors.js";
 
 function smuggle(mutate: (rows: MarketRow[]) => void): MarketRow[] {
   const copy = JSON.parse(JSON.stringify(MARKET)) as MarketRow[];
@@ -445,5 +450,97 @@ describe("T9 smuggling trials II — counterfeit witnesses are named and rejecte
       claimedSlackEqualsLoss: false,
     });
     assert.ok(identity.ok, identity.detail);
+  });
+});
+
+describe("T10 smuggling trials III — dimension fraud is named and refused at the kernel doors (v0.3.0)", () => {
+  // a dimension-fraud matrix: 3x3 and empty — before v0.3.0 the one-coin
+  // machinery would multiply it, trace it, and answer garbage without a word
+  const fake3x3 = mat(3, 3);
+  const fake2x2 = mat(2, 2);
+  const isCode = (code: string) => (e: unknown): boolean =>
+    e instanceof MarketError && e.code === code;
+
+  it("a qutrit ensemble member is refused by marginal as QUBIT-FRAUD", () => {
+    assert.throws(() => marginal([{ weight: 1, state: fake3x3 }]), isCode("QUBIT-FRAUD"));
+  });
+
+  it("a qutrit announcement is refused by passProbability as QUBIT-FRAUD", () => {
+    assert.throws(() => passProbability(fake3x3, fake2x2), isCode("QUBIT-FRAUD"));
+    assert.throws(() => passProbability(fake2x2, fake3x3), isCode("QUBIT-FRAUD"));
+  });
+
+  it("blochOf refuses a non-qubit object instead of silently reading its first cells", () => {
+    assert.throws(() => blochOf(fake3x3), isCode("QUBIT-FRAUD"));
+  });
+
+  it("a qutrit member is refused by revealStats and concealmentLoss paths as QUBIT-FRAUD", () => {
+    assert.throws(() => revealStats([{ weight: 1, state: fake3x3 }], fake2x2), isCode("QUBIT-FRAUD"));
+    assert.throws(() => concealmentLoss(fake3x3), isCode("QUBIT-FRAUD"));
+  });
+
+  it("a qubit-shaped 'joint register' is refused as REGISTER-FRAUD by the two-coin doors", () => {
+    assert.throws(() => jointAverage([{ weight: 1, state: fake2x2 }]), isCode("REGISTER-FRAUD"));
+    assert.throws(() => coinReveal(fake2x2, 0, fake2x2), isCode("REGISTER-FRAUD"));
+    assert.throws(() => jointProductReveal(fake2x2, fake2x2, fake2x2), isCode("REGISTER-FRAUD"));
+  });
+
+  it("honest shapes still clear every door (positive control)", () => {
+    const rho = blochState([0.3, 0, 0.5]);
+    const m = marginal([{ weight: 1, state: rho }]);
+    assert.ok(passProbability(pureState([0, 0, 1]), m) > 0.5);
+    assert.ok(concealmentLoss(rho) > 0);
+    const prod = kron(pureState([0, 0, 1]), pureState([0, 0, -1]));
+    const joint = jointAverage([{ weight: 1, state: prod }]);
+    assert.equal(joint.rows, 4);
+    assert.ok(Math.abs(coinReveal(joint, 0, pureState([0, 0, 1])) - 1) <= 1e-15);
+    assert.ok(Math.abs(jointProductReveal(joint, pureState([0, 0, 1]), pureState([0, 0, -1])) - 1) <= 1e-15);
+  });
+});
+
+describe("T11 the pared core surface (v0.3.0)", () => {
+  it("channels carries exactly the six live faces — the canon's dead faces stay deleted", () => {
+    assert.deepEqual(Object.keys(channelsModule).sort(), [
+      "ampDampKraus",
+      "applyKraus",
+      "applyNoise",
+      "dephaseKraus",
+      "noiseKraus",
+      "partialTrace",
+    ]);
+  });
+
+  it("the dead family files read NOT-PRESENT on disk (anti-regrowth)", () => {
+    assert.ok(!existsSync(resolve(process.cwd(), "src", "core", "states.ts")), "states.ts must stay deleted");
+    assert.ok(!existsSync(resolve(process.cwd(), "src", "core", "rng.ts")), "rng.ts must stay deleted");
+  });
+});
+
+describe("T12 single-source and closed-set anchors (v0.3.0)", () => {
+  it("the golden angle is pinned bit-for-bit at its single source", () => {
+    assert.equal(GOLDEN_ANGLE, 2.399963229728653);
+  });
+
+  it("fibSphere hits its equal-area closed forms exactly (hand-derived anchors)", () => {
+    // n=2, i=0: z = 1 - 2*(1/2)/2 = 1/2, phi = 0 -> [sqrt(3)/2, 0, 1/2]
+    const [x0, y0, z0] = fibSphere(0, 2);
+    assert.ok(Math.abs(x0 - Math.sqrt(3) / 2) <= 1e-15, `x0 ${x0}`);
+    assert.equal(y0, 0);
+    assert.equal(z0, 0.5);
+    // n=1, i=0: z = 0, phi = 0 -> [1, 0, 0]
+    const [x1, y1, z1] = fibSphere(0, 1);
+    assert.ok(x1 === 1 && y1 === 0 && z1 === 0);
+    // the offset rotates phi only: unit norm at an interior grid point
+    const a = fibSphere(7, 61, 0.5);
+    assert.ok(Math.abs(Math.hypot(a[0], a[1], a[2]) - 1) <= 1e-15);
+  });
+
+  it("the witness set is the closed W-A..W-H and runWitnesses matches it one-to-one", () => {
+    assert.deepEqual([...WITNESS_IDS], ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"]);
+    const names = runWitnesses().map((w) => w.name);
+    assert.equal(names.length, WITNESS_IDS.length);
+    for (let k = 0; k < WITNESS_IDS.length; k++) {
+      assert.ok(names[k]!.startsWith(`${WITNESS_IDS[k]} `), `${names[k]} does not lead with ${WITNESS_IDS[k]}`);
+    }
   });
 });

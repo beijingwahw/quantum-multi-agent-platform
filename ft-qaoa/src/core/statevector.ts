@@ -3,6 +3,8 @@
  * interleaved-real state lives in two Float64Arrays and only the two primitives
  * deep QAOA needs (diagonal cost phases, transverse-field mixer) are provided.
  */
+import { requireThat, requireQubitCount } from "./errors.js";
+
 export class StateVector {
   readonly dim: number;
   readonly re: Float64Array;
@@ -16,16 +18,10 @@ export class StateVector {
 
   /** Uniform superposition |+>^n — the QAOA initial state. */
   static plusState(n: number): StateVector {
+    requireQubitCount(n);
     const dim = 1 << n;
     const amp = 1 / Math.sqrt(dim);
     return new StateVector(n, new Float64Array(dim).fill(amp), new Float64Array(dim));
-  }
-
-  static zeros(n: number): StateVector {
-    const dim = 1 << n;
-    const sv = new StateVector(n, new Float64Array(dim), new Float64Array(dim));
-    sv.re[0] = 1;
-    return sv;
   }
 
   clone(): StateVector {
@@ -35,6 +31,11 @@ export class StateVector {
   /** Apply exp(-i * gamma * C) where energyOf[s] is the eigenvalue on basis state s. */
   applyCostPhase(gamma: number, energyOf: Float64Array): void {
     const { re, im, dim } = this;
+    requireThat(
+      energyOf.length === dim,
+      "ENERGY_LENGTH_MISMATCH",
+      `energy table length must equal 2^n = ${dim}, got ${energyOf.length}`,
+    );
     for (let s = 0; s < dim; s++) {
       const e = energyOf[s]!;
       if (e === 0) continue;

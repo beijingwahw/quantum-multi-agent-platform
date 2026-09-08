@@ -7,6 +7,7 @@
 import { pathToFileURL } from "node:url";
 import { MARKET } from "../kernel/ledger.js";
 import { checkMarket, runWitnesses } from "../kernel/audit.js";
+import { MarketError } from "../kernel/errors.js";
 import { writeReport } from "./report.js";
 
 function renderMarket(): string {
@@ -41,7 +42,10 @@ function main(): void {
       ...violations.map((v) => `${v.row} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`BINDING PRICE REJECTED — the market does not clear:\n${reasons.join("\n")}`);
+    throw new MarketError(
+      "MARKET-REJECTED",
+      `BINDING PRICE REJECTED — the market does not clear:\n${reasons.join("\n")}`,
+    );
   }
   const path = writeReport("the-binding-price.md", renderMarket());
   console.log(`binding price rendered -> ${path}`);

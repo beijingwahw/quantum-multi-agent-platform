@@ -1,4 +1,5 @@
 import { Rng } from "../core/rng.js";
+import { FtQaoaError } from "../core/errors.js";
 import { randomIsing } from "../core/ising.js";
 import type { IsingModel } from "../core/ising.js";
 import { DEFAULT_FT_ASSUMPTIONS, estimateDeepQaoa, selectCodes } from "../ft/estimate.js";
@@ -86,7 +87,10 @@ export function main(): void {
   // Assumption-constants audit: every estimator constant with provenance, gated.
   const auditResult = validateConstantsAudit(CONSTANTS_AUDIT);
   if (!auditResult.valid) {
-    throw new Error(`exp2: constants audit rejected rows — ${auditResult.rejected.map((r) => `[${r.id}] ${r.reason}`).join("; ")}`);
+    throw new FtQaoaError(
+      "CONSTANTS_AUDIT_REJECTED",
+      `exp2: constants audit rejected rows — ${auditResult.rejected.map((r) => `[${r.id}] ${r.reason}`).join("; ")}`,
+    );
   }
   const auditLines = renderConstantsAudit(CONSTANTS_AUDIT, auditResult);
 
@@ -129,4 +133,4 @@ export function main(): void {
   writeReport("exp2-resources", payload, lines.join("\n"));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

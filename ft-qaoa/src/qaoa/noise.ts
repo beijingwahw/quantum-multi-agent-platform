@@ -1,5 +1,6 @@
 import type { IsingModel } from "../core/ising.js";
 import { DensityMatrix } from "../core/density.js";
+import { requireThat, requireQubitCount } from "../core/errors.js";
 import type { QaoaParams } from "./engine.js";
 import { monotonicityReport } from "./monotonic.js";
 import type { DepthPoint } from "./monotonic.js";
@@ -31,9 +32,16 @@ export const NOISELESS: NoiseSpec = { depolarizingPerLayer: 0, readoutFlip: 0 };
  * one. Applied bit-by-bit, O(2^n * n), exact.
  */
 export function applyReadoutFlips(probs: Float64Array, n: number, q: number): Float64Array {
+  requireQubitCount(n);
+  requireThat(q >= 0 && q <= 1, "READOUT_Q_INVALID", `readout flip probability out of [0,1]: ${q}`);
   const out = probs.slice();
   if (q === 0) return out;
   const dim = out.length;
+  requireThat(
+    dim === 1 << n,
+    "PROB_LENGTH_MISMATCH",
+    `probability vector length must equal 2^n = ${1 << n}, got ${dim}`,
+  );
   for (let j = 0; j < n; j++) {
     const bit = 1 << j;
     for (let s0 = 0; s0 < dim; s0++) {
@@ -73,17 +81,7 @@ export function noisyExpectation(
   return acc;
 }
 
-/** r_p under noise: noisy expectation over the exact optimum. */
-export function noisyRatio(
-  model: IsingModel,
-  energyOf: Float64Array,
-  optimum: number,
-  params: QaoaParams,
-  noise: NoiseSpec,
-): number {
-  return noisyExpectation(model, energyOf, params, noise) / optimum;
-}
-
+/** A noisy depth-series point: the depth-ladder point plus the noise spec it was measured under. */
 export interface NoisySeriesPoint extends DepthPoint {
   readonly noise: NoiseSpec;
 }

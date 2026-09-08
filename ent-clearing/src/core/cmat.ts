@@ -110,7 +110,9 @@ export function mScale(a: CMat, s: number): CMat {
 }
 
 export function mMul(a: CMat, b: CMat): CMat {
-  if (a.cols !== b.rows) throw new Error(`shape mismatch ${a.rows}x${a.cols} * ${b.rows}x${b.cols}`);
+  if (a.cols !== b.rows) {
+    throw new Error(`EC_SHAPE: mMul cannot multiply ${a.rows}x${a.cols} by ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, b.cols);
   const bn = b.cols;
   for (let i = 0; i < a.rows; i++) {
@@ -138,17 +140,6 @@ export function mDagger(a: CMat): CMat {
     }
   }
   return m;
-}
-
-export function mTrace(a: CMat): { re: number; im: number } {
-  if (a.rows !== a.cols) throw new Error('trace requires square');
-  let re = 0;
-  let im = 0;
-  for (let i = 0; i < a.rows; i++) {
-    re += a.re[i * a.cols + i]!;
-    im += a.im[i * a.cols + i]!;
-  }
-  return { re, im };
 }
 
 /** Kronecker product a ⊗ b. */
@@ -187,32 +178,18 @@ export function vKron(a: CVec, b: CVec): CVec {
 }
 
 export function kronAll(mats: CMat[]): CMat {
-  if (mats.length === 0) throw new Error('kronAll needs >=1 matrix');
+  if (mats.length === 0) throw new Error('EC_KRON_EMPTY: kronAll needs >=1 matrix');
   return mats.reduce((acc, m) => kron(acc, m));
 }
 
-export function vecToMat(v: CVec): CMat {
-  const m = mat(v.n, 1);
-  m.re.set(v.re);
-  m.im.set(v.im);
-  return m;
-}
-
-export function matToVec(m: CMat): CVec {
-  if (m.cols !== 1) throw new Error('matToVec requires column');
-  return { n: m.rows, re: m.re.slice(), im: m.im.slice() };
-}
-
-export function isHermitian(a: CMat, tol = 1e-12): boolean {
-  if (a.rows !== a.cols) return false;
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = i; j < a.cols; j++) {
-      const dr = a.re[i * a.cols + j]! - a.re[j * a.cols + i]!;
-      const di = a.im[i * a.cols + j]! + a.im[j * a.cols + i]!;
-      if (Math.abs(dr) > tol || Math.abs(di) > tol) return false;
-    }
+/** The k-th slot of a 4-tuple, refused by name when the index strays — the
+ * cast-free bridge between variable-index loops and tuple-typed quartets. */
+export function at4<T>(tuple: readonly [T, T, T, T], k: number, what: string): T {
+  const v = tuple[k];
+  if (v === undefined) {
+    throw new Error(`EC_TUPLE_INDEX: ${what} has no slot ${k} — the pairing order is 0..3`);
   }
-  return true;
+  return v;
 }
 
 export function matEq(a: CMat, b: CMat, tol = 1e-12): boolean {
@@ -337,13 +314,26 @@ function orthonormalize(cols: Float64Array[], n: number): Float64Array[] {
   return out;
 }
 
+/** Group indices of `values` into clusters of near-equal value, ascending.
+ * (Single source for the degenerate-cluster grouping both eigen paths share.) */
+function clusterIndices(values: Float64Array, tol: number): number[][] {
+  const idx = Array.from({ length: values.length }, (_, i) => i).sort((a, b) => values[a]! - values[b]!);
+  const clusters: number[][] = [];
+  for (const i of idx) {
+    const last = clusters[clusters.length - 1];
+    if (last !== undefined && Math.abs(values[i]! - values[last[0]!]!) <= tol) last.push(i);
+    else clusters.push([i]);
+  }
+  return clusters;
+}
+
 /**
  * Eigenvectors of a real symmetric matrix from its (trusted) eigenvalues by
  * block inverse iteration: for each degenerate cluster, iterate (A - (λ+ε)I)⁻¹
  * on a random block, re-orthonormalizing. ε is half the distance to the
  * nearest eigenvalue outside the cluster.
  */
-export function eigVecsFromValues(
+function eigVecsFromValues(
   emb: Float64Array,
   n: number,
   values: Float64Array,
@@ -352,13 +342,7 @@ export function eigVecsFromValues(
   const scale = Math.max(...Array.from(values).map(Math.abs), 1e-30);
   const tol = 1e-9 * scale;
   // cluster eigenvalues (they arrive unsorted from jacobi)
-  const idx = Array.from({ length: n }, (_, i) => i).sort((a, b) => values[a]! - values[b]!);
-  const clusters: number[][] = [];
-  for (const i of idx) {
-    const last = clusters[clusters.length - 1];
-    if (last && Math.abs(values[i]! - values[last[0]!]!) <= tol) last.push(i);
-    else clusters.push([i]);
-  }
+  const clusters = clusterIndices(values, tol);
   let rngState = seed >>> 0;
   const rand = (): number => {
     rngState = (rngState * 1664525 + 1013904223) >>> 0;
@@ -410,8 +394,15 @@ export function eigVecsFromValues(
       out[cluster[j]!] = block[j]!;
     }
   }
-  if (out.some((v) => v === null)) throw new Error('eigVecsFromValues: incomplete eigenspace');
-  return out as Float64Array[];
+  if (out.some((v) => v === null)) {
+    throw new Error('EC_EIGENSPACE: eigVecsFromValues: incomplete eigenspace');
+  }
+  const dense: Float64Array[] = [];
+  for (const v of out) {
+    if (v === null) throw new Error('EC_EIGENSPACE: eigVecsFromValues: incomplete eigenspace');
+    dense.push(v);
+  }
+  return dense;
 }
 
 /**
@@ -419,7 +410,7 @@ export function eigVecsFromValues(
  * Uses the 2n x 2n real embedding whose eigenvalues come in exact pairs.
  */
 export function eigenvaluesHermitian(h: CMat): Float64Array {
-  if (h.rows !== h.cols) throw new Error('eigenvalues require square Hermitian');
+  if (h.rows !== h.cols) throw new Error('EC_SQUARE: eigenvaluesHermitian requires a square Hermitian matrix');
   const n = h.rows;
   const N = 2 * n;
   const emb = buildEmbedding(h, n, N);
@@ -435,8 +426,8 @@ export function eigenvaluesHermitian(h: CMat): Float64Array {
  * matching complex eigenvectors (n x 1 matrices). The decomposition is
  * accepted only if it reconstructs H: Σ λ v v† = H to 1e-8.
  */
-export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] } {
-  if (h.rows !== h.cols) throw new Error('eig requires square Hermitian');
+function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] } {
+  if (h.rows !== h.cols) throw new Error('EC_SQUARE: eigHermitian requires a square Hermitian matrix');
   const n = h.rows;
   const N = 2 * n;
   const emb = buildEmbedding(h, n, N);
@@ -445,13 +436,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] }
 
   const scale = Math.max(...Array.from(raw).map(Math.abs), 1e-30);
   const tol = 1e-9 * scale;
-  const idx = Array.from({ length: N }, (_, i) => i).sort((a, b) => raw[a]! - raw[b]!);
-  const clusters: number[][] = [];
-  for (const i of idx) {
-    const last = clusters[clusters.length - 1];
-    if (last && Math.abs(raw[i]! - raw[last[0]!]!) <= tol) last.push(i);
-    else clusters.push([i]);
-  }
+  const clusters = clusterIndices(raw, tol);
 
   interface CArr {
     re: number[];
@@ -493,7 +478,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] }
       v = { re: v.re.map((x) => x / nrm), im: v.im.map((x) => x / nrm) };
       basis.push(v);
     }
-    if (basis.length < m) throw new Error('eigHermitian: complex basis extraction failed');
+    if (basis.length < m) throw new Error('EC_EIGEN_BASIS: eigHermitian: complex basis extraction failed');
     for (const v of basis) {
       outValues.push(lam);
       outVectors.push(colFrom(v.re, v.im));
@@ -512,7 +497,9 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] }
   for (let k = 0; k < h.re.length; k++) {
     err += Math.abs(recon.re[k]! - h.re[k]!) + Math.abs(recon.im[k]! - h.im[k]!);
   }
-  if (err > 1e-8) throw new Error(`eigHermitian: reconstruction failed (err=${err.toExponential(2)})`);
+  if (err > 1e-8) {
+    throw new Error(`EC_EIGEN_RECONSTRUCT: eigHermitian reconstruction failed (err=${err.toExponential(2)})`);
+  }
   return { values, vectors };
 }
 
@@ -531,7 +518,7 @@ function buildEmbedding(h: CMat, n: number, N: number): Float64Array {
   return emb;
 }
 
-export function colFrom(re: number[], im: number[]): CMat {
+function colFrom(re: number[], im: number[]): CMat {
   const m = mat(re.length, 1);
   for (let i = 0; i < re.length; i++) {
     m.re[i] = re[i]!;
@@ -540,7 +527,8 @@ export function colFrom(re: number[], im: number[]): CMat {
   return m;
 }
 
-export function reconstruct(h: CMat, values: Float64Array, vectors: CMat[]): CMat {
+/** Rebuild the PSD part of H from its spectral decomposition (λ <= 0 skipped). */
+function reconstruct(h: CMat, values: Float64Array, vectors: CMat[]): CMat {
   const n = h.rows;
   const out = mat(n, n);
   for (let m = 0; m < n; m++) {
@@ -572,28 +560,6 @@ export function sqrtPSD(a: CMat): CMat {
         // |v><v| * s, v is real-normalized complex column
         out.re[i * n + j] = out.re[i * n + j]! + s * (vk.re[i]! * vk.re[j]! + vk.im[i]! * vk.im[j]!);
         out.im[i * n + j] = out.im[i * n + j]! + s * (vk.im[i]! * vk.re[j]! - vk.re[i]! * vk.im[j]!);
-      }
-    }
-  }
-  return out;
-}
-
-/** Rebuild a Hermitian matrix from its spectral decomposition. */
-export function fromSpectral(values: Float64Array, vectors: CMat[]): CMat {
-  const first = vectors[0];
-  if (first === undefined) throw new Error('fromSpectral: empty spectral list');
-  const n = first.rows;
-  // values and vectors are parallel lists, one per eigenpair of the n x n matrix
-  if (values.length !== n || vectors.length !== n) {
-    throw new Error(`fromSpectral: expected ${n} values and vectors, got ${values.length}/${vectors.length}`);
-  }
-  const out = mat(n, n);
-  for (let k = 0; k < n; k++) {
-    const vk = vectors[k]!;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        out.re[i * n + j] = out.re[i * n + j]! + values[k]! * (vk.re[i]! * vk.re[j]! + vk.im[i]! * vk.im[j]!);
-        out.im[i * n + j] = out.im[i * n + j]! + values[k]! * (vk.im[i]! * vk.re[j]! - vk.re[i]! * vk.im[j]!);
       }
     }
   }

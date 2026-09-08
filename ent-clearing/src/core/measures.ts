@@ -1,10 +1,13 @@
 /**
- * Distinguishability and information measures: trace distance, Uhlmann
- * fidelity, von Neumann entropy, Holevo χ of an ensemble. All built on the
- * Hermitian eigensolver in cmat.ts.
+ * Distinguishability and information measures: trace distance, von Neumann
+ * entropy, Holevo χ of an ensemble, negativity across a cut. All built on the
+ * Hermitian eigensolver in cmat.ts. (The Uhlmann fidelity was removed in the
+ * v0.3.0 dead-code clearing: zero references — pure references take
+ * <psi|rho|psi> and mixed-vs-mixed identity takes trace distance, the
+ * metric chosen by the rank of what it touches.)
  */
 
-import { type CMat, eigenvaluesHermitian, mAdd, mMul, mScale, sqrtPSD } from './cmat.js';
+import { type CMat, eigenvaluesHermitian, mAdd, mScale } from './cmat.js';
 import { partialTranspose } from './channels.js';
 
 /** Tr ρ for Hermitian ρ. */
@@ -21,14 +24,6 @@ export function traceDistance(rho: CMat, sigma: CMat): number {
   let s = 0;
   for (const l of eig) s += Math.abs(l);
   return s / 2;
-}
-
-/** Uhlmann fidelity F(ρ,σ) = (Tr √(√ρ σ √ρ))², in [0,1]. */
-export function fidelity(rho: CMat, sigma: CMat): number {
-  const sq = sqrtPSD(rho);
-  const inner = sqrtPSD(mMul(mMul(sq, sigma), sq));
-  const t = traceReal(inner);
-  return t * t;
 }
 
 /** Von Neumann entropy -Tr ρ log₂ ρ (0 log 0 = 0). */
@@ -54,13 +49,13 @@ export interface EnsembleItem {
  */
 export function holevo(items: readonly EnsembleItem[]): number {
   const first = items[0];
-  if (first === undefined) throw new Error('holevo: empty ensemble');
+  if (first === undefined) throw new Error('EC_ENSEMBLE_EMPTY: holevo needs a non-empty ensemble');
   const d = first.state.rows;
   const avg = mat0(d);
   let wsum = 0;
   for (const it of items) {
     if (it.state.rows !== d || it.state.cols !== d) {
-      throw new Error('holevo: every ensemble state must share one dimension');
+      throw new Error(`EC_ENSEMBLE_DIM: holevo needs every state ${d}x${d}, saw ${it.state.rows}x${it.state.cols}`);
     }
     wsum += it.weight;
     for (let k = 0; k < d * d; k++) {
@@ -68,7 +63,7 @@ export function holevo(items: readonly EnsembleItem[]): number {
       avg.im[k] = avg.im[k]! + it.weight * it.state.im[k]!;
     }
   }
-  if (Math.abs(wsum - 1) > 1e-9) throw new Error('ensemble weights must sum to 1');
+  if (Math.abs(wsum - 1) > 1e-9) throw new Error(`EC_WEIGHTS: holevo ensemble weights must sum to 1, got ${wsum}`);
   const sAvg = vonNeumannEntropy(avg);
   let sSum = 0;
   for (const it of items) sSum += it.weight * vonNeumannEntropy(it.state);
@@ -96,7 +91,7 @@ export function negativity(rho: CMat, dims: readonly number[], sys: readonly num
 export function shannonBits(p: readonly number[]): number {
   let sum = 0;
   for (const x of p) sum += x;
-  if (Math.abs(sum - 1) > 1e-9) throw new Error('shannonBits: weights must sum to 1');
+  if (Math.abs(sum - 1) > 1e-9) throw new Error(`EC_WEIGHTS: shannonBits needs a distribution summing to 1, got ${sum}`);
   let s = 0;
   for (const x of p) if (x > 1e-15) s -= x * Math.log2(x);
   return s;

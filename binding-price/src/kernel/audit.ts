@@ -33,6 +33,7 @@ import {
   coinReveal,
   concealmentLoss,
   continuousStrategies,
+  fibSphere,
   jointAverage,
   jointProductReveal,
   marginal,
@@ -59,13 +60,22 @@ import {
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
+/** The market laws the checker enforces — a closed set (M6 does not exist). */
+export type MarketLaw = "M1" | "M2" | "M3" | "M4" | "M5";
+
 export interface Violation {
   readonly row: string;
-  readonly law: string;
+  readonly law: MarketLaw;
   readonly detail: string;
 }
 
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"];
+/** The eight invariance witnesses the ledger can cite — a closed set. */
+export const WITNESS_IDS = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"] as const;
+export type WitnessId = (typeof WITNESS_IDS)[number];
+
+/** Membership test over the closed set without lying about the string's type
+ *  (the ledger's `witness` field stays a wide string: rows arrive untrusted). */
+const WITNESS_ID_SET: ReadonlySet<string> = new Set(WITNESS_IDS);
 
 /**
  * A MarketRow as it crosses the untrusted boundary into the checker: the
@@ -87,7 +97,7 @@ export function checkMarket(rows: readonly UntrustedMarketRow[] = MARKET): Viola
     if (r.exactness !== "MARKET-EXACT" && r.exactness !== "DATA") {
       violations.push({ row: r.id, law: "M4", detail: `illegal tag "${r.exactness}"` });
     }
-    if (!WITNESS_IDS.includes(r.witness)) {
+    if (!WITNESS_ID_SET.has(r.witness)) {
       violations.push({ row: r.id, law: "M2", detail: `cites unknown witness "${r.witness}" — an asserted impossibility without a witness is marketing` });
     }
     for (const a of r.anchors) {
@@ -231,8 +241,8 @@ function witnessNoiseCensus(): WitnessResult {
     for (const gamma of grid) {
       for (let i = 0; i < 16; i++) {
         for (let j = 0; j < 16; j++) {
-          const a = fibDir(i, 16, 0);
-          const r = fibDir(j, 16, 0.5);
+          const a = fibSphere(i, 16, 0);
+          const r = fibSphere(j, 16, 0.5);
           const out = applyNoise(blochState([0.7 * r[0], 0.7 * r[1], 0.7 * r[2]]), noise, gamma);
           const p = passProbability(pureState(a), out);
           const rv = blochOf(out);
@@ -307,14 +317,6 @@ function witnessNoiseCensus(): WitnessResult {
   };
 }
 
-/** Equal-area Fibonacci direction (deterministic, shared by the census grids). */
-function fibDir(i: number, n: number, offset: number): [number, number, number] {
-  const z = 1 - (2 * (i + 0.5)) / n;
-  const s = Math.sqrt(Math.max(0, 1 - z * z));
-  const phi = (i + offset) * 2.399963229728653;
-  return [s * Math.cos(phi), s * Math.sin(phi), z];
-}
-
 /** W-H: the two-coin bounded census — per-coin flat, joint movable. */
 function witnessTwoCoins(): WitnessResult {
   const strategies = twoCoinStrategies();
@@ -384,11 +386,22 @@ export function runWitnesses(): WitnessResult[] {
 // never trusted. The checker NAMES the counterfeit and rejects it.
 // ---------------------------------------------------------------------------
 
-export interface ClaimVerdict {
-  readonly ok: boolean;
-  readonly code: string;
-  readonly detail: string;
-}
+/** Every counterfeit code the claim verifiers can name — a closed set. */
+export type FraudCode =
+  | "MEMBER-FRAUD"
+  | "WEIGHT-FRAUD"
+  | "NOT-A-DECOMPOSITION"
+  | "NON-FLAT-REVEAL"
+  | "FORGED-TV"
+  | "FORGED-REVEAL"
+  | "FORGED-PASS"
+  | "WEDGE-DENIED";
+
+/** A claim verdict. ok:true pairs with VERIFIED and with nothing else — the
+ *  correlation lives in the type now, not in caller discipline. */
+export type ClaimVerdict =
+  | { readonly ok: true; readonly code: "VERIFIED"; readonly detail: string }
+  | { readonly ok: false; readonly code: FraudCode; readonly detail: string };
 
 /** A handed-in flat-supply claim: a "family" plus its claimed census numbers. */
 export interface SupplyClaim {

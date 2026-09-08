@@ -11,6 +11,7 @@
 import {
   type CMat,
   type CVec,
+  at4,
   identity,
   kron,
   mAdd,
@@ -45,8 +46,9 @@ import { holevo, traceReal, vonNeumannEntropy, type EnsembleItem } from "../core
 /* The coin and the Bell basis                                         */
 /* ------------------------------------------------------------------ */
 
-/** The Bell basis in pairing order: [Phi+, Phi-, Psi+, Psi-]. */
-export function bellBasis(): readonly CVec[] {
+/** The Bell basis in pairing order: [Phi+, Phi-, Psi+, Psi-]. The 4-tuple
+ * type makes literal indexing exact (no casts, no undefined). */
+export function bellBasis(): readonly [CVec, CVec, CVec, CVec] {
   const k00 = vKron(KET0, KET0);
   const k01 = vKron(KET0, KET1);
   const k10 = vKron(KET1, KET0);
@@ -61,18 +63,19 @@ export function bellBasis(): readonly CVec[] {
 }
 
 /** Bell-basis projectors on two qubits. */
-export function bellProjectors(): readonly CMat[] {
-  return bellBasis().map((b) => outer(b, b));
+export function bellProjectors(): readonly [CMat, CMat, CMat, CMat] {
+  const [b0, b1, b2, b3] = bellBasis();
+  return [outer(b0, b0), outer(b1, b1), outer(b2, b2), outer(b3, b3)];
 }
 
 /** Corrections paired with [Phi+, Phi-, Psi+, Psi-]: I, Z, X, XZ. */
-export function corrections(): readonly CMat[] {
+export function corrections(): readonly [CMat, CMat, CMat, CMat] {
   return [identity(2), PAULI_Z, PAULI_X, mMul(PAULI_X, PAULI_Z)];
 }
 
 /** The standard coin: |Phi+><Phi+| as a 4x4 density matrix. */
 export const PHI_PLUS: CMat = (() => {
-  const b = bellBasis()[0] as CVec;
+  const b = bellBasis()[0];
   return outer(b, b);
 })();
 
@@ -82,12 +85,12 @@ export const PHI_PLUS: CMat = (() => {
 
 /** Spin-flipped state: (Y (x) Y) rho* (Y (x) Y). */
 function spinFlip(rho: CMat): CMat {
-  const conj = {
+  const conj: CMat = {
     rows: rho.rows,
     cols: rho.cols,
     re: rho.re.slice(),
     im: rho.im.map((x) => -x),
-  } as CMat;
+  };
   const yy = kron(PAULI_Y, PAULI_Y);
   return mMul(mMul(yy, conj), yy);
 }
@@ -96,15 +99,23 @@ function spinFlip(rho: CMat): CMat {
 export function concurrence(rho: CMat): number {
   const sq = sqrtPSD(rho);
   const inner = mMul(mMul(sq, spinFlip(rho)), sq);
-  const vals = Array.from(eigenvaluesHermitian(inner))
+  const sorted = Array.from(eigenvaluesHermitian(inner))
     .sort((a, b) => b - a)
     .map((x) => Math.max(0, x));
-  const c = Math.sqrt(vals[0] as number) - Math.sqrt(vals[1] as number) - Math.sqrt(vals[2] as number) - Math.sqrt(vals[3] as number);
+  const [v0, v1, v2, v3] = sorted;
+  if (v0 === undefined || v1 === undefined || v2 === undefined || v3 === undefined) {
+    throw new Error(`EC_SHAPE: concurrence needs 4 eigenvalues of a 4x4 state, got ${sorted.length}`);
+  }
+  const c = Math.sqrt(v0) - Math.sqrt(v1) - Math.sqrt(v2) - Math.sqrt(v3);
   return Math.max(0, c);
 }
 
-/** Binary entropy, path 1 (direct log2). */
+/** Binary entropy, path 1 (direct log2). Tolerance-clamps eigensolver noise
+ * at the endpoints; genuinely out-of-range input is rejected by name. */
 export function h2(x: number): number {
+  if (x < -1e-12 || x > 1 + 1e-12) {
+    throw new Error(`EC_H2_RANGE: binary entropy needs x in [0,1], got ${x}`);
+  }
   const a = Math.min(Math.max(x, 0), 1);
   let s = 0;
   if (a > 0) s -= a * Math.log2(a);
@@ -112,8 +123,12 @@ export function h2(x: number): number {
   return s;
 }
 
-/** Binary entropy, path 2 (natural log / ln 2) — the independent route. */
+/** Binary entropy, path 2 (natural log / ln 2) — the independent route
+ * (deliberately NOT single-sourced with path 1: this is the cross-check). */
 export function h2ViaLn(x: number): number {
+  if (x < -1e-12 || x > 1 + 1e-12) {
+    throw new Error(`EC_H2_RANGE: binary entropy needs x in [0,1], got ${x}`);
+  }
   const a = Math.min(Math.max(x, 0), 1);
   let s = 0;
   if (a > 0) s -= a * Math.log(a);
@@ -121,10 +136,15 @@ export function h2ViaLn(x: number): number {
   return s / Math.LN2;
 }
 
-/** Entanglement of formation of a 2-qubit state from its concurrence. */
-export function eF(rho: CMat): number {
-  const c = concurrence(rho);
+/** E_F of a 2-qubit state FROM ITS CONCURRENCE: h2((1+sqrt(1-C^2))/2).
+ * Single source for the formula (eF and the ledger's pure-coin rows). */
+export function efFromConcurrence(c: number): number {
   return h2((1 + Math.sqrt(Math.max(0, 1 - c * c))) / 2);
+}
+
+/** Entanglement of formation of a 2-qubit state. */
+export function eF(rho: CMat): number {
+  return efFromConcurrence(concurrence(rho));
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,10 +171,10 @@ export function redeem(payload: CMat): Redemption {
   let post = mat(8, 8);
   let out = mat(8, 8);
   for (let k = 0; k < 4; k++) {
-    const P = kron(proj[k] as CMat, identity(2)); // acts on (q1 q2), identity on q3
+    const P = kron(at4(proj, k, "bellProjector"), identity(2)); // acts on (q1 q2), identity on q3
     const term = mMul(mMul(P, rho), P);
     post = mAdd(post, term);
-    const S = kron(identity(4), corr[k] as CMat); // correction on q3
+    const S = kron(identity(4), at4(corr, k, "correction")); // correction on q3
     out = mAdd(out, mMul(mMul(S, term), mDagger(S)));
   }
   return {
@@ -188,9 +208,11 @@ export function denseCode(): DenseQuote {
   });
   const decode: number[][] = [];
   for (let k = 0; k < 4; k++) {
+    const sig = signals[k];
+    if (sig === undefined) throw new Error("EC_SHAPE: denseCode lost a signal");
     const row: number[] = [];
     for (let j = 0; j < 4; j++) {
-      const p = Math.max(0, traceReal(mMul(proj[j] as CMat, signals[k] as CMat)));
+      const p = Math.max(0, traceReal(mMul(at4(proj, j, "bellProjector"), sig)));
       row.push(p);
     }
     decode.push(row);
@@ -200,12 +222,12 @@ export function denseCode(): DenseQuote {
   let hy = 0;
   for (const p of px) if (p > 1e-15) hy -= p * Math.log2(p);
   let hyGivenM = 0;
-  for (let k = 0; k < 4; k++) {
-    for (const p of decode[k] as number[]) if (p > 1e-15) hyGivenM -= (p / 4) * Math.log2(p);
+  for (const row of decode) {
+    for (const p of row) if (p > 1e-15) hyGivenM -= (p / 4) * Math.log2(p);
   }
   const mutualInformation = hy - hyGivenM;
   // Post-decode state on the correct outcome: |B_k><B_k| (p = 1)
-  const coinReturned = proj[0] as CMat;
+  const coinReturned = proj[0];
   return { signals, decode, mutualInformation, coinReturned };
 }
 
@@ -231,7 +253,9 @@ export interface Netting {
  * Success branch is exactly |Phi+>; p = 2*l1; failure leaves |00>.
  */
 export function netWeakCoin(lambdaMin: number): Netting {
-  if (lambdaMin <= 0 || lambdaMin > 0.5) throw new Error("lambdaMin must be in (0, 1/2]");
+  if (lambdaMin <= 0 || lambdaMin > 0.5) {
+    throw new Error(`EC_LMIN: netWeakCoin needs lambdaMin in (0, 1/2], got ${lambdaMin}`);
+  }
   const l0 = 1 - lambdaMin;
   const psi = vAdd(vScale(vKron(KET0, KET0), Math.sqrt(l0)), vScale(vKron(KET1, KET1), Math.sqrt(lambdaMin)));
   const rho = outer(psi, psi);
@@ -282,7 +306,7 @@ export function randomLocalRound(rng: Rng, rho: CMat): CMat {
 }
 
 /** CNOT (control A, target B) as a 4x4 unitary. */
-export const CNOT: CMat = (() => {
+const CNOT: CMat = (() => {
   const m = mat(4, 4);
   m.re[0] = 1; // |00> -> |00>
   m.re[5] = 1; // |01> -> |01>
@@ -311,7 +335,7 @@ function blochState(r: readonly [number, number, number]): CMat {
 }
 
 /** The tetrahedron ensemble: 4 pure qubit states averaging to exactly I/2. */
-export function tetrahedron(): readonly CMat[] {
+function tetrahedron(): readonly CMat[] {
   const s = 1 / Math.sqrt(3);
   return [
     blochState([s, s, s]),

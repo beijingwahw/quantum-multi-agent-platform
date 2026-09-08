@@ -14,15 +14,12 @@ import {
   concurrence,
   denseCode,
   eF,
+  efFromConcurrence,
   netWeakCoin,
-  randomLocalKraus,
   redeem,
 } from "./clearing.js";
 import { purifyRound, wernerCoin } from "./purify.js";
 import { ghzCoin, ghzCutNegativities, ghzLocalCensus, withdrawToAB } from "./ghz.js";
-import { applyKraus } from "../core/channels.js";
-import { identity, kron, type CMat } from "../core/cmat.js";
-import type { Rng } from "../core/rng.js";
 
 export type LedgerClaim = "CONSERVED" | "NOT-CONSERVED" | "NEVER-RISES";
 
@@ -65,27 +62,12 @@ export const LEDGER_SPECS: readonly LedgerSpec[] = [
   { id: "L16", op: "GHZ local-channel census (150 rounds)", resource: "max cut negativity (3 cuts)", claim: "NEVER-RISES", note: "random local channels on all three parties never raise any cut (VW02, cited)" },
 ];
 
-/** Apply an independent random local channel to every party of a 3-qubit state. */
-export function randomTripartiteLocalRound(rng: Rng, rho: CMat): CMat {
-  let acc = rho;
-  for (let party = 0; party < 3; party++) {
-    const kraus = randomLocalKraus(rng);
-    const embedded = kraus.map((k) => {
-      const parts: CMat[] = [];
-      for (let j = 0; j < 3; j++) parts.push(j === party ? k : identity(2));
-      return parts.reduce((a, b) => kron(a, b));
-    });
-    acc = applyKraus(acc, embedded);
+/** LEDGER_SPECS[i] with a named refusal — the row the machinery recomputes. */
+function spec(i: number): LedgerSpec {
+  const s = LEDGER_SPECS[i];
+  if (s === undefined) {
+    throw new Error(`EC_LEDGER_SPEC: the ledger machinery recomputes no row at index ${i} (specs on disk: ${LEDGER_SPECS.length})`);
   }
-  return acc;
-}
-
-/** E_F of a PURE two-qubit coin from its concurrence: h2((1+sqrt(1-C^2))/2). */
-function efOfPure(c: number): number {
-  const x = (1 + Math.sqrt(Math.max(0, 1 - c * c))) / 2;
-  let s = 0;
-  if (x > 0) s -= x * Math.log2(x);
-  if (x < 1) s -= (1 - x) * Math.log2(1 - x);
   return s;
 }
 
@@ -94,32 +76,32 @@ export function computeLedger(): readonly LedgerEntry[] {
   const out: LedgerEntry[] = [];
   // E1 redemption on a canonical payload
   const r = redeem(vecToRho(PLUS));
-  out.push({ ...(LEDGER_SPECS[0] as LedgerSpec), before: concurrence(PHI_PLUS), after: concurrence(r.coinAfter) });
-  out.push({ ...(LEDGER_SPECS[1] as LedgerSpec), before: eF(PHI_PLUS), after: eF(r.coinAfter) });
-  out.push({ ...(LEDGER_SPECS[2] as LedgerSpec), before: 0, after: 2 });
+  out.push({ ...spec(0), before: concurrence(PHI_PLUS), after: concurrence(r.coinAfter) });
+  out.push({ ...spec(1), before: eF(PHI_PLUS), after: eF(r.coinAfter) });
+  out.push({ ...spec(2), before: 0, after: 2 });
   // E2 dense code
   const d = denseCode();
-  out.push({ ...(LEDGER_SPECS[3] as LedgerSpec), before: eF(PHI_PLUS), after: eF(d.coinReturned) });
-  out.push({ ...(LEDGER_SPECS[4] as LedgerSpec), before: 0, after: d.mutualInformation });
+  out.push({ ...spec(3), before: eF(PHI_PLUS), after: eF(d.coinReturned) });
+  out.push({ ...spec(4), before: 0, after: d.mutualInformation });
   // E4 Procrustean netting at the canonical grade
   const nt = netWeakCoin(LEDGER_LMIN);
   out.push({
-    ...(LEDGER_SPECS[5] as LedgerSpec),
-    before: efOfPure(nt.weakConcurrence),
+    ...spec(5),
+    before: efFromConcurrence(nt.weakConcurrence),
     after: nt.pSucc * eF(nt.successState) + nt.pFail * eF(nt.failState),
   });
-  out.push({ ...(LEDGER_SPECS[6] as LedgerSpec), before: 1, after: nt.pSucc });
-  out.push({ ...(LEDGER_SPECS[7] as LedgerSpec), before: 0, after: 1 });
+  out.push({ ...spec(6), before: 1, after: nt.pSucc });
+  out.push({ ...spec(7), before: 0, after: 1 });
   // the BBPSSW round at the canonical Werner grade
   const W = wernerCoin(LEDGER_F);
   const pr = purifyRound(W, W);
   out.push({
-    ...(LEDGER_SPECS[8] as LedgerSpec),
+    ...spec(8),
     before: eF(W) + eF(W),
     after: pr.pSucc * eF(pr.successState) + pr.pFail * eF(pr.failState),
   });
-  out.push({ ...(LEDGER_SPECS[9] as LedgerSpec), before: 2, after: pr.pSucc });
-  out.push({ ...(LEDGER_SPECS[10] as LedgerSpec), before: 0, after: 2 });
+  out.push({ ...spec(9), before: 2, after: pr.pSucc });
+  out.push({ ...spec(10), before: 0, after: 2 });
   // the GHZ withdrawal, per branch (each branch is a product AB x C state)
   const wd = withdrawToAB();
   const g = ghzCoin();
@@ -127,15 +109,15 @@ export function computeLedger(): readonly LedgerEntry[] {
   const plus = ghzCutNegativities(wd.jointPlus);
   const minus = ghzCutNegativities(wd.jointMinus);
   out.push({
-    ...(LEDGER_SPECS[11] as LedgerSpec),
+    ...spec(11),
     before: 0,
     after: wd.pPlus * concurrence(wd.abPlus) + wd.pMinus * concurrence(wd.abMinus),
   });
-  out.push({ ...(LEDGER_SPECS[12] as LedgerSpec), before: before[0] as number, after: wd.pPlus * (plus[0] as number) + wd.pMinus * (minus[0] as number) });
-  out.push({ ...(LEDGER_SPECS[13] as LedgerSpec), before: before[1] as number, after: wd.pPlus * (plus[1] as number) + wd.pMinus * (minus[1] as number) });
-  out.push({ ...(LEDGER_SPECS[14] as LedgerSpec), before: before[2] as number, after: wd.pPlus * (plus[2] as number) + wd.pMinus * (minus[2] as number) });
+  out.push({ ...spec(12), before: before[0], after: wd.pPlus * plus[0] + wd.pMinus * minus[0] });
+  out.push({ ...spec(13), before: before[1], after: wd.pPlus * plus[1] + wd.pMinus * minus[1] });
+  out.push({ ...spec(14), before: before[2], after: wd.pPlus * plus[2] + wd.pMinus * minus[2] });
   // the local-channel census
   const census = ghzLocalCensus(makeRng(203), LEDGER_CENSUS_ROUNDS);
-  out.push({ ...(LEDGER_SPECS[15] as LedgerSpec), before: Math.max(...before), after: census.worstCut });
+  out.push({ ...spec(15), before: Math.max(...before), after: census.worstCut });
   return out;
 }

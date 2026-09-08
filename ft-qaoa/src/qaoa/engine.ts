@@ -1,5 +1,6 @@
 import { StateVector } from "../core/statevector.js";
 import type { IsingModel } from "../core/ising.js";
+import { FtQaoaError } from "../core/errors.js";
 
 /** QAOA angle schedule; layer t applies exp(-i*beta_t*B) exp(-i*gamma_t*C). */
 export interface QaoaParams {
@@ -9,13 +10,9 @@ export interface QaoaParams {
 
 export function makeParams(gammas: readonly number[], betas: readonly number[]): QaoaParams {
   if (gammas.length !== betas.length) {
-    throw new Error(`gamma/beta length mismatch: ${gammas.length} vs ${betas.length}`);
+    throw new FtQaoaError("PARAM_LENGTH_MISMATCH", `gamma/beta length mismatch: ${gammas.length} vs ${betas.length}`);
   }
   return { gammas, betas };
-}
-
-export function depthOf(params: QaoaParams): number {
-  return params.gammas.length;
 }
 
 /** Run the p-layer circuit and return the final state. */

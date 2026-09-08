@@ -34,12 +34,16 @@ The epoch-5 question. Stability here is **compilation**, not physics — the des
 | P4 | ids unique |
 | P5 | law citations (rows' `cites`) must be ids of the machine-verified registry — counterfeit composition identities ("ASSOC-PRICE") and fake toll laws ("T-ADD") are named and rejected with the true law quoted |
 
-Renderer refuses illegal models; eight smuggling trials; entry guard tested.
+Renderer refuses illegal models; sixteen smuggling trials; entry guard tested.
+
+## v0.3.0 — code quality, no new math
+
+Every public entry of the language boundary now rejects illegal input by **named error code** (`ChoiceLangError` — PATTERN_ARITY, BRANCH_SHAPE, ZERO_PROBABILITY, STEP_THETA, LEAF_SHAPE, LOOP_BOUND, REGISTER_ARITY, PROJECTOR_SHAPE, DATA_SHAPE, MAT_SHAPE, EMPTY_PROGRAM, PATH_OVERRUN, PATH_SHORT); previously a short pattern for `branchProduct` silently routed through u0 and a zero-probability conditioning returned silent zeros. The flat and layered execution folds (identical twins since v0.2.0) are single-sourced into one `runOnRegister`, pinned bit-identical by a test. Dead core modules never referenced by the model (`states.ts`, `channels.ts`, `measures.ts`, the Hermitian eigensolver in `cmat.ts`, the unused RNG helpers) were cleared — the capability survives byte-identical in sibling repos; the repro report is byte-identical across the cut.
 
 ## Reproduce
 
 ```bash
 npm ci
-npm test        # 24/24
+npm test        # 33/33
 npm run repro   # renders out/reports/the-choice-model.md (seconds)
 ```

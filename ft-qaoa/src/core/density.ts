@@ -11,6 +11,8 @@
  * sampling, no trajectory approximation: the channels are applied exactly.
  */
 
+import { FtQaoaError, requireThat, requireQubitCount } from "./errors.js";
+
 export class DensityMatrix {
   readonly dim: number;
   readonly re: Float64Array;
@@ -24,6 +26,7 @@ export class DensityMatrix {
 
   /** |+><+|^n: every entry equals 2^-n (real). */
   static plusState(n: number): DensityMatrix {
+    requireQubitCount(n);
     const dim = 1 << n;
     const val = 1 / dim;
     return new DensityMatrix(n, new Float64Array(dim * dim).fill(val), new Float64Array(dim * dim));
@@ -31,9 +34,13 @@ export class DensityMatrix {
 
   /** rho = |psi><psi| from a pure amplitude pair (length 2^n each). */
   static fromPureState(n: number, psiRe: Float64Array, psiIm: Float64Array): DensityMatrix {
+    requireQubitCount(n);
     const dim = 1 << n;
     if (psiRe.length !== dim || psiIm.length !== dim) {
-      throw new Error(`pure-state length mismatch: ${psiRe.length}/${psiIm.length} vs 2^${n}`);
+      throw new FtQaoaError(
+        "PURE_STATE_LENGTH_MISMATCH",
+        `pure-state length mismatch: ${psiRe.length}/${psiIm.length} vs 2^${n}`,
+      );
     }
     const re = new Float64Array(dim * dim);
     const im = new Float64Array(dim * dim);
@@ -58,6 +65,11 @@ export class DensityMatrix {
    */
   applyCostPhase(gamma: number, energyOf: Float64Array): void {
     const { re, im, dim } = this;
+    requireThat(
+      energyOf.length === dim,
+      "ENERGY_LENGTH_MISMATCH",
+      `energy table length must equal 2^n = ${dim}, got ${energyOf.length}`,
+    );
     const cosS = new Float64Array(dim);
     const sinS = new Float64Array(dim);
     const cosT = new Float64Array(dim);
@@ -174,7 +186,12 @@ export class DensityMatrix {
    */
   depolarizeQubit(j: number, p: number): void {
     if (p === 0) return;
-    if (p < 0 || p > 1) throw new Error(`depolarizing probability out of [0,1]: ${p}`);
+    requireThat(
+      Number.isInteger(j) && j >= 0 && j < this.n,
+      "QUBIT_INDEX_INVALID",
+      `qubit index must be an integer in [0, n=${this.n}), got ${j} (1 << j wraps mod 32 silently otherwise)`,
+    );
+    requireThat(p >= 0 && p <= 1, "DEPOLARIZE_P_INVALID", `depolarizing probability out of [0,1]: ${p}`);
     const { re, im, dim } = this;
     const bit = 1 << j;
     const keepSame = 1 - (2 * p) / 3;

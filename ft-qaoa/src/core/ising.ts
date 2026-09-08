@@ -1,4 +1,5 @@
 import type { Rng } from "./rng.js";
+import { FtQaoaError, requireThat, requireQubitCount } from "./errors.js";
 
 /** Weighted Ising coupling between qubits j < k. */
 export interface Coupling {
@@ -66,7 +67,7 @@ export function randomIsing(rng: Rng, n: number, options: RandomIsingOptions = {
  */
 export function maxcut3Reg(rng: Rng, n: number): IsingModel {
   if (n < 4 || n % 2 !== 0) {
-    throw new Error(`3-regular graph needs even n >= 4, got ${n}`);
+    throw new FtQaoaError("MAXCUT_N_INVALID", `3-regular graph needs even n >= 4, got ${n}`);
   }
   const isCycleEdge = (a: number, b: number): boolean => {
     const lo = Math.min(a, b);
@@ -97,7 +98,7 @@ export function maxcut3Reg(rng: Rng, n: number): IsingModel {
     matched = ok;
   }
   if (!matched) {
-    throw new Error(`could not build a 3-regular matching on n=${n} in 200 attempts`);
+    throw new FtQaoaError("MAXCUT_MATCH_FAILED", `could not build a 3-regular matching on n=${n} in 200 attempts`);
   }
   for (let i = 0; i < n; i += 2) {
     const a = perm[i]!;
@@ -109,6 +110,7 @@ export function maxcut3Reg(rng: Rng, n: number): IsingModel {
 
 /** Energy of every computational basis state, indexed by bit pattern. O(2^n * |couplings|). */
 export function energies(model: IsingModel): Float64Array {
+  requireQubitCount(model.n);
   const dim = 1 << model.n;
   const out = new Float64Array(dim);
   const { fields, couplings } = model;
@@ -134,6 +136,11 @@ export interface BruteForceResult {
 
 /** Exact optimum by exhaustive search; the ground truth every ratio is measured against. */
 export function bruteForce(energyOf: Float64Array): BruteForceResult {
+  requireThat(
+    energyOf.length > 0,
+    "ENERGY_TABLE_EMPTY",
+    "brute force needs a non-empty energy table (an empty table would yield optimum NaN)",
+  );
   let best = energyOf[0]!;
   let argmax = 0;
   for (let s = 1; s < energyOf.length; s++) {

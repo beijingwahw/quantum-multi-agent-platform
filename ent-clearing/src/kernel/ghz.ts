@@ -8,10 +8,10 @@
  * a census of random local channels never raises any cut's negativity
  * (the monotonicity is VW02, cited; the census is the testimony).
  */
-import { type CMat, type CVec, identity, kron, mScale, outer, vAdd, vKron, vScale } from "../core/cmat.js";
+import { type CMat, type CVec, identity, kron, kronAll, mScale, outer, vAdd, vKron, vScale } from "../core/cmat.js";
 import { applyKraus, partialTrace } from "../core/channels.js";
-import { negativity } from "../core/measures.js";
-import { KET0, KET1, PLUS, MINUS } from "../core/states.js";
+import { negativity, traceReal } from "../core/measures.js";
+import { KET0, KET1, PLUS, MINUS, vecToRho } from "../core/states.js";
 import type { Rng } from "../core/rng.js";
 import { concurrence, randomLocalKraus } from "./clearing.js";
 
@@ -20,19 +20,11 @@ export function ghzCoin(): CMat {
   const k000 = vKron(vKron(KET0, KET0), KET0);
   const k111 = vKron(vKron(KET1, KET1), KET1);
   const psi = vScale(vAdd(k000, k111), 1 / Math.SQRT2);
-  const re = new Float64Array(64);
-  const im = new Float64Array(64);
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      re[i * 8 + j] = psi.re[i]! * psi.re[j]! + psi.im[i]! * psi.im[j]!;
-      im[i * 8 + j] = psi.im[i]! * psi.re[j]! - psi.re[i]! * psi.im[j]!;
-    }
-  }
-  return { rows: 8, cols: 8, re, im };
+  return vecToRho(psi);
 }
 
 /** Pairwise concurrences [AB, AC, BC] of a 3-qubit state. */
-export function ghzPairwiseConcurrences(rho: CMat): readonly number[] {
+export function ghzPairwiseConcurrences(rho: CMat): readonly [number, number, number] {
   const ab = partialTrace(rho, [2, 2, 2], [2]);
   const ac = partialTrace(rho, [2, 2, 2], [1]);
   const bc = partialTrace(rho, [2, 2, 2], [0]);
@@ -40,7 +32,7 @@ export function ghzPairwiseConcurrences(rho: CMat): readonly number[] {
 }
 
 /** Cut negativities [AB|C, A|BC, B|AC] of a 3-qubit state. */
-export function ghzCutNegativities(rho: CMat): readonly number[] {
+export function ghzCutNegativities(rho: CMat): readonly [number, number, number] {
   return [
     negativity(rho, [2, 2, 2], [2]),
     negativity(rho, [2, 2, 2], [0]),
@@ -72,8 +64,8 @@ export function withdrawToAB(): GhzWithdrawal {
   const kraus = (phi: CVec): CMat => kron(kron(identity(2), identity(2)), outer(phi, phi));
   const unPlus = applyKraus(g, [kraus(PLUS)]);
   const unMinus = applyKraus(g, [kraus(MINUS)]);
-  const pPlus = traceOf(unPlus);
-  const pMinus = traceOf(unMinus);
+  const pPlus = traceReal(unPlus);
+  const pMinus = traceReal(unMinus);
   return {
     pPlus,
     pMinus,
@@ -83,12 +75,6 @@ export function withdrawToAB(): GhzWithdrawal {
     jointMinus: mScale(unMinus, 1 / pMinus),
     cbits: 1,
   };
-}
-
-function traceOf(rho: CMat): number {
-  let t = 0;
-  for (let i = 0; i < rho.rows; i++) t += rho.re[i * rho.cols + i]!;
-  return t;
 }
 
 export interface GhzCensus {
@@ -113,7 +99,7 @@ export function ghzLocalCensus(rng: Rng, rounds: number): GhzCensus {
       const embedded = kraus.map((k) => {
         const parts: CMat[] = [];
         for (let j = 0; j < 3; j++) parts.push(j === party ? k : identity(2));
-        return parts.reduce((a, b) => kron(a, b));
+        return kronAll(parts);
       });
       rho = applyKraus(rho, embedded);
     }

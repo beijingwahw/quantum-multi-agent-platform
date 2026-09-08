@@ -1,9 +1,9 @@
 /**
  * Fixtures — the marked world, the engineered family, the random family.
  */
-import { type CMat, type CVec, mat } from "../core/cmat.js";
+import { type CMat, type CVec, mat, vNormalize } from "../core/cmat.js";
+import { ChoiceLangError } from "../core/errors.js";
 import { makeRng, type Rng } from "../core/rng.js";
-import { vNormalize } from "../core/cmat.js";
 
 export const DATA_DIM = 4; // two data qubits
 /** The desired world: W = span{|00>, |11>} — projector diag(1,0,0,1). */
@@ -56,7 +56,7 @@ export function randomUnitary(rng: Rng, d: number): CMat {
     let nrm = 0;
     for (let k = 0; k < d; k++) nrm += w.re[k]! * w.re[k]! + w.im[k]! * w.im[k]!;
     nrm = Math.sqrt(nrm);
-    if (nrm < 1e-10) throw new Error("randomUnitary: Gram-Schmidt rank collapse");
+    if (nrm < 1e-10) throw new ChoiceLangError("GS_COLLAPSE", "randomUnitary: Gram-Schmidt rank collapse");
     ortho.push({ n: d, re: Float64Array.from(w.re.map((x) => x / nrm)), im: Float64Array.from(w.im.map((x) => x / nrm)) });
   }
   const u = mat(d, d);

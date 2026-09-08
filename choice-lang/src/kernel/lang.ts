@@ -9,11 +9,14 @@
  *   are the legal boundary: coherent control steers, never broadcasts
  *   (SEL04's classical-control wall is exactly this register split).
  *
- * Register discipline: controls accumulate OLDEST-FIRST in front of the data
- * register, (c_1, ..., c_k, data). Each step's operator is a pure Kronecker
- * expression — |0><0| (x) I_{2^{k-1}} (x) U0 + |1><1| (x) I_{2^{k-1}} (x) U1 —
- * because kron is associative, the accumulated controls act as one grouped
- * factor and no per-step reshuffling ever happens.
+ * Register discipline: each step PREPENDS its fresh control, so the controls
+ * accumulate NEWEST-FIRST — the register reads (c_k, ..., c_1, data), the
+ * OLDEST control sitting directly in front of the data register. Each step's
+ * operator is a pure Kronecker expression — |0><0| (x) I_{2^{k-1}} (x) U0 +
+ * |1><1| (x) I_{2^{k-1}} (x) U1 — because kron is associative, the
+ * accumulated controls act as one grouped factor and no per-step reshuffling
+ * ever happens. Patterns are named in REGISTER order; registerPattern (in
+ * compose.ts) reverses a step-order pattern per program part.
  *
  * The DESIRED WORLD is a marked subspace W of data. A program is ENGINEERED
  * for W when every branch unitary is block-diagonal in the W (+) W-perp
@@ -22,6 +25,7 @@
  * different question and stays OPEN.
  */
 import { type CMat, identity, kron, mAdd, mat, mDagger, mMul } from "../core/cmat.js";
+import { ChoiceLangError } from "../core/errors.js";
 
 export interface ChooseStep {
   /** control preparation angle: cos(th)|0> + sin(th)|1> */
@@ -60,23 +64,78 @@ export function controlState(theta: number): CMat {
   return m;
 }
 
-/** Run a program: data density matrix -> (controls..., data) density matrix. */
-export function runProgram(p: Program, rhoData: CMat): CMat {
-  let reg = rhoData;
-  let controls = 0;
-  for (const step of p) {
+/**
+ * THE execution fold (single-sourced, wave 4): run a program on a register
+ * that ALREADY carries controls (from an earlier program, a loop iteration,
+ * or another player) — every step prepends its fresh control and applies its
+ * branch unitary to the data digits only. The flat runner (runProgram), the
+ * layered loop runner (iterate.ts) and the two-player census (game.ts) are
+ * all this one fold; before wave 4 the flat and layered bodies were
+ * line-identical twins, and the bit-identity anchor test pins the unification.
+ * Returns the register and the new control count.
+ */
+export function runOnRegister(
+  p: Program,
+  reg: CMat,
+  controlsSoFar: number,
+): { reg: CMat; controls: number } {
+  if (!Number.isInteger(controlsSoFar) || controlsSoFar < 0) {
+    throw new ChoiceLangError(
+      "REGISTER_ARITY",
+      `runOnRegister: controlsSoFar must be a non-negative integer, got ${controlsSoFar}`,
+    );
+  }
+  if (reg.rows !== reg.cols) {
+    throw new ChoiceLangError("DATA_SHAPE", `runOnRegister: the register must be square, got ${reg.rows}x${reg.cols}`);
+  }
+  let out = reg;
+  let controls = controlsSoFar;
+  for (const [i, step] of p.entries()) {
+    if (!Number.isFinite(step.theta)) {
+      throw new ChoiceLangError(
+        "STEP_THETA",
+        `runOnRegister: step ${i + 1} has a non-finite control angle (${step.theta}) — cos/sin of it would route NaN through every later branch`,
+      );
+    }
+    if (step.u0.rows !== step.u0.cols || step.u1.rows !== step.u1.cols) {
+      throw new ChoiceLangError(
+        "BRANCH_SHAPE",
+        `runOnRegister: step ${i + 1} branches must be square, got u0 ${step.u0.rows}x${step.u0.cols}, u1 ${step.u1.rows}x${step.u1.cols}`,
+      );
+    }
+    // the register-so-far is (prior controls, data) of dim 2^controls * d:
+    // the branch unitaries carry the DATA dimension d, never the joint dim
+    const dataDim = out.rows / 2 ** controls;
+    if (!Number.isInteger(dataDim) || step.u0.rows !== dataDim || step.u1.rows !== dataDim) {
+      throw new ChoiceLangError(
+        "BRANCH_SHAPE",
+        `runOnRegister: step ${i + 1} branches are ${step.u0.rows}x${step.u0.rows}/${step.u1.rows}x${step.u1.rows} but the register-so-far is ${out.rows}-dimensional over ${controls} prior controls, so the branches must carry the data dimension ${out.rows / 2 ** controls} — the step operator kron(control, I_{2^controls}, U_i) demands it`,
+      );
+    }
     const op = stepOperator(step, controls);
-    const withControl = kron(controlState(step.theta), reg);
-    reg = mMul(mMul(op, withControl), mDagger(op));
+    const withControl = kron(controlState(step.theta), out);
+    out = mMul(mMul(op, withControl), mDagger(op));
     controls += 1;
   }
-  return reg;
+  return { reg: out, controls };
+}
+
+/** Run a program on bare data: data density matrix -> (controls..., data)
+ * density matrix, reading newest-first. Delegates to the one fold. */
+export function runProgram(p: Program, rhoData: CMat): CMat {
+  return runOnRegister(p, rhoData, 0).reg;
 }
 
 /** The DENOTATION: the plain unitary product a control pattern compiles to. */
 export function branchProduct(p: Program, pattern: ReadonlyArray<0 | 1>): CMat {
   const first = p[0];
-  if (!first) throw new Error('branchProduct: empty program has no denotation');
+  if (!first) throw new ChoiceLangError("EMPTY_PROGRAM", "branchProduct: empty program has no denotation");
+  if (pattern.length !== p.length) {
+    throw new ChoiceLangError(
+      "PATTERN_ARITY",
+      `branchProduct: a ${p.length}-step program needs exactly ${p.length} pattern bits, got ${pattern.length} — an out-of-range bit must be rejected, not silently routed through u0`,
+    );
+  }
   const d = first.u0.rows;
   let u = identity(d);
   for (const [i, step] of p.entries()) {
@@ -107,8 +166,23 @@ export function conditionOnPattern(
   pattern: ReadonlyArray<0 | 1>,
   d: number,
 ): { p: number; conditional: CMat } {
-  if (pattern.length < nControls) {
-    throw new Error(`conditionOnPattern: pattern needs ${nControls} bits, got ${pattern.length}`);
+  if (pattern.length !== nControls) {
+    throw new ChoiceLangError(
+      "PATTERN_ARITY",
+      `conditionOnPattern: pattern needs exactly ${nControls} bits, got ${pattern.length} — extra bits must be rejected, not silently ignored`,
+    );
+  }
+  if (!Number.isInteger(d) || d < 1) {
+    throw new ChoiceLangError("DATA_SHAPE", `conditionOnPattern: the data dimension must be a positive integer, got ${d}`);
+  }
+  if (rho.rows !== rho.cols) {
+    throw new ChoiceLangError("DATA_SHAPE", `conditionOnPattern: rho must be square, got ${rho.rows}x${rho.cols}`);
+  }
+  if (rho.rows !== d * 2 ** nControls) {
+    throw new ChoiceLangError(
+      "REGISTER_ARITY",
+      `conditionOnPattern: a ${nControls}-control register over ${d}-dim data is ${d * 2 ** nControls}-dimensional, but rho is ${rho.rows}x${rho.rows}`,
+    );
   }
   const dims = [...Array<number>(nControls).fill(2), d];
   const dim = rho.rows;
@@ -126,11 +200,15 @@ export function conditionOnPattern(
     }
     p += rho.re[row * dim + row]!;
   }
-  if (p > 0) {
-    for (let k = 0; k < out.re.length; k++) {
-      out.re[k] = out.re[k]! / p;
-      out.im[k] = out.im[k]! / p;
-    }
+  if (p <= 0) {
+    throw new ChoiceLangError(
+      "ZERO_PROBABILITY",
+      "conditionOnPattern: the pattern has probability 0 — the conditional state is undefined, refusing to return silent zeros",
+    );
+  }
+  for (let k = 0; k < out.re.length; k++) {
+    out.re[k] = out.re[k]! / p;
+    out.im[k] = out.im[k]! / p;
   }
   return { p, conditional: out };
 }
@@ -138,6 +216,21 @@ export function conditionOnPattern(
 /** Membership expectation of the marked world: Tr[(I_controls (x) Pi_W) rho]
  * (the data digit is idx % d regardless of how many controls sit in front). */
 export function membershipExpectation(rho: CMat, piW: CMat, d: number): number {
+  if (!Number.isInteger(d) || d < 1) {
+    throw new ChoiceLangError("DATA_SHAPE", `membershipExpectation: the data dimension must be a positive integer, got ${d}`);
+  }
+  if (piW.rows !== d || piW.cols !== d) {
+    throw new ChoiceLangError(
+      "PROJECTOR_SHAPE",
+      `membershipExpectation: the world projector must be ${d}x${d}, got ${piW.rows}x${piW.cols} — a short diagonal would read undefined and return a silent NaN`,
+    );
+  }
+  if (rho.rows !== rho.cols || rho.rows % d !== 0) {
+    throw new ChoiceLangError(
+      "DATA_SHAPE",
+      `membershipExpectation: rho must be square with dimension a multiple of d=${d}, got ${rho.rows}x${rho.cols}`,
+    );
+  }
   const diag: number[] = [];
   for (let i = 0; i < d; i++) diag.push(piW.re[i * d + i]!);
   let s = 0;

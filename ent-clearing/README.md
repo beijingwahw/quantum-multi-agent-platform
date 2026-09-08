@@ -31,12 +31,12 @@ This repo is that book — a one-page exchange board where every trade carries b
 - **H7** ledger honesty — every conservation row's claim must match the machine-recomputed delta (a fake conservation identity is rejected by recomputation);
 - **H8** GHZ-bank claim honesty — HOLDS/REFUTED/CENSUS tags must match the machine's recomputed verdict (a refuted wall claimed as holding is contraband).
 
-The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes eleven smuggling trials (one per law face) plus the render entry guard, and a test that the exported render mains really run.
+The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes twelve smuggling trials (one per law face plus the named-refusal boundary trials), the render entry guard, a test that the exported render mains really run, and the quality anchors (every kernel throw carries a named EC_ code; the report printer refuses non-finite input by name).
 
 ## Run
 
 ```
-npm test        # the full suite: 39 tests (machinery, witnesses, 11 smuggling trials, entry guard, render mains)
+npm test        # the full suite: 45 tests (machinery, witnesses, 12 smuggling trials, entry guard, render mains, quality anchors)
 npm run typecheck
 npm run lint
 npm run repro   # renders out/reports/the-ent-clearing.md (board + yield table + ledger + GHZ bank + witnesses)

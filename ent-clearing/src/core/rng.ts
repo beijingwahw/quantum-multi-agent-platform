@@ -16,35 +16,33 @@ export function makeRng(seed: number): Rng {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const rng = next as Rng;
-  rng.int = (maxExclusive: number): number => Math.floor(next() * maxExclusive);
   let spare: number | null = null;
-  rng.normal = (): number => {
-    if (spare !== null) {
-      const v = spare;
-      spare = null;
-      return v;
-    }
-    let u: number;
-    let v: number;
-    let s: number;
-    do {
-      u = next() * 2 - 1;
-      v = next() * 2 - 1;
-      s = u * u + v * v;
-    } while (s === 0 || s >= 1);
-    const f = Math.sqrt((-2 * Math.log(s)) / s);
-    spare = v * f;
-    return u * f;
-  };
-  rng.pick = <T>(items: readonly T[]): T => {
-    if (items.length === 0) throw new Error('rng.pick: empty collection');
-    return items[rng.int(items.length)]!;
-  };
+  const rng: Rng = Object.assign(next, {
+    int: (maxExclusive: number): number => Math.floor(next() * maxExclusive),
+    normal: (): number => {
+      if (spare !== null) {
+        const v = spare;
+        spare = null;
+        return v;
+      }
+      let u: number;
+      let v: number;
+      let s: number;
+      do {
+        u = next() * 2 - 1;
+        v = next() * 2 - 1;
+        s = u * u + v * v;
+      } while (s === 0 || s >= 1);
+      const f = Math.sqrt((-2 * Math.log(s)) / s);
+      spare = v * f;
+      return u * f;
+    },
+    pick: <T>(items: readonly T[]): T => {
+      if (items.length === 0) throw new Error('EC_EMPTY: rng.pick: empty collection');
+      const drawn = items[Math.floor(next() * items.length)];
+      if (drawn === undefined) throw new Error('EC_PICK: rng.pick drew nothing');
+      return drawn;
+    },
+  });
   return rng;
-}
-
-export function fmt(x: number, digits = 6): string {
-  if (!Number.isFinite(x)) return String(x);
-  return x.toFixed(digits);
 }

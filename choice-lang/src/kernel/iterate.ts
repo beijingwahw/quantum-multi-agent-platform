@@ -22,8 +22,8 @@
  * that fails to preserve the world.
  */
 import { type CMat } from "../core/cmat.js";
-import { membershipExpectation, type Program } from "./lang.js";
-import { runOnRegister } from "./compose.js";
+import { ChoiceLangError } from "../core/errors.js";
+import { membershipExpectation, runOnRegister, type Program } from "./lang.js";
 
 export interface LoopTrajectory {
   /** membership after each iteration: m_0 = the input's charge, m_k final */
@@ -43,7 +43,7 @@ export interface LoopTrajectory {
  * unchanged.
  */
 export function loopTrajectory(body: Program, rho: CMat, k: number, piW: CMat): LoopTrajectory {
-  if (k < 1) throw new Error("loopTrajectory: k must be >= 1");
+  if (k < 1) throw new ChoiceLangError("LOOP_BOUND", `loopTrajectory: k must be >= 1, got ${k}`);
   const d = rho.rows;
   const membership: number[] = [membershipExpectation(rho, piW, d)];
   let reg = rho;
@@ -61,7 +61,7 @@ export function loopTrajectory(body: Program, rho: CMat, k: number, piW: CMat): 
 
 /** The bounded loop as a flat program: the body's k-fold self-composition. */
 export function iteratedProgram(body: Program, k: number): Program {
-  if (k < 1) throw new Error("iteratedProgram: k must be >= 1");
+  if (k < 1) throw new ChoiceLangError("LOOP_BOUND", `iteratedProgram: k must be >= 1, got ${k}`);
   const steps = [];
   for (let i = 0; i < k; i++) steps.push(...body);
   return steps;

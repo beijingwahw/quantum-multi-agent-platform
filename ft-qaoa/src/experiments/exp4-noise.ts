@@ -1,4 +1,5 @@
 import { Rng } from "../core/rng.js";
+import { FtQaoaError } from "../core/errors.js";
 import { bruteForce, energies, maxcut3Reg, randomIsing } from "../core/ising.js";
 import type { IsingModel } from "../core/ising.js";
 import { qaoaExpectation } from "../qaoa/engine.js";
@@ -127,7 +128,10 @@ export function main(): void {
   const reports = buildInstances().map(runInstance);
   const offender = reports.flatMap((r) => r.series).find((s) => !s.claimAccepted);
   if (offender !== undefined) {
-    throw new Error(`exp4: honest claim rejected by the gate — ${offender.claimReasons.join("; ")}`);
+    throw new FtQaoaError(
+      "NOISE_CLAIM_REJECTED",
+      `exp4: honest claim rejected by the gate — ${offender.claimReasons.join("; ")}`,
+    );
   }
 
   const payload = {
@@ -202,4 +206,4 @@ export function main(): void {
   writeReport("exp4-noise", payload, lines.join("\n"));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

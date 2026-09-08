@@ -13,6 +13,23 @@
 import { type CMat, identity, kron, mat, mDagger, mMul, mTrace } from "../core/cmat.js";
 import { applyNoise, type NoiseName } from "../core/channels.js";
 import { traceDistance } from "../core/measures.js";
+import { MarketError } from "./errors.js";
+
+/** Every one-coin entry point expects 2x2 objects; anything else is named and
+ *  refused at the door — a 3x3 would otherwise multiply, trace, and answer
+ *  garbage without a word (the silent-garbage family, closed at v0.3.0). */
+function requireQubit(m: CMat, what: string): void {
+  if (m.rows !== 2 || m.cols !== 2) {
+    throw new MarketError("QUBIT-FRAUD", `${what} is ${m.rows}x${m.cols}, not a 2x2 qubit object`);
+  }
+}
+
+/** Every two-coin entry point expects the 4x4 joint register. */
+function requireRegister(m: CMat, what: string): void {
+  if (m.rows !== 4 || m.cols !== 4) {
+    throw new MarketError("REGISTER-FRAUD", `${what} is ${m.rows}x${m.cols}, not a 4x4 two-coin joint register`);
+  }
+}
 
 export const HALF_MIXED: CMat = (() => {
   const m = mat(2, 2);
@@ -39,6 +56,7 @@ export function blochState(r: readonly [number, number, number]): CMat {
  *  blochOf outputs and the double flip cancelled; the noise census mixes a raw
  *  direction tuple with one blochOf and exposed it. */
 export function blochOf(rho: CMat): [number, number, number] {
+  requireQubit(rho, "blochOf input");
   const x = 2 * rho.re[2]!;
   const y = 2 * rho.im[2]!;
   const z = rho.re[0]! - rho.re[3]!;
@@ -55,6 +73,8 @@ export function pureState(a: readonly [number, number, number]): CMat {
  * arithmetic here had a real-part sign slip in the complex quadrant (batch 10's
  * lesson: closed forms go through the kernel, not through the fingers). */
 export function passProbability(announced: CMat, rhoV: CMat): number {
+  requireQubit(announced, "passProbability announcement");
+  requireQubit(rhoV, "passProbability marginal");
   return mTrace(mMul(announced, rhoV)).re;
 }
 
@@ -67,6 +87,7 @@ export interface EnsembleMember {
 export function marginal(members: readonly EnsembleMember[]): CMat {
   const out = mat(2, 2);
   for (const m of members) {
+    requireQubit(m.state, "a marginal member state");
     for (let k = 0; k < 4; k++) {
       out.re[k] = out.re[k]! + m.weight * m.state.re[k]!;
       out.im[k] = out.im[k]! + m.weight * m.state.im[k]!;
@@ -89,6 +110,7 @@ export function revealStats(members: readonly EnsembleMember[], rhoV: CMat): { w
 
 /** TV distance of a marginal from the maximally mixed state — concealment loss. */
 export function concealmentLoss(rhoV: CMat): number {
+  requireQubit(rhoV, "concealmentLoss marginal");
   return traceDistance(rhoV, HALF_MIXED);
 }
 
@@ -107,12 +129,11 @@ export function strategyFamilies(): Array<{ name: string; members: readonly Ense
     }
   }
   // tetrahedral decomposition: equal weights 1/4
-  const invSqrt3 = 1 / Math.sqrt(3);
   const tetra: ReadonlyArray<[number, number, number]> = [
-    [invSqrt3, invSqrt3, invSqrt3],
-    [invSqrt3, -invSqrt3, -invSqrt3],
-    [-invSqrt3, invSqrt3, -invSqrt3],
-    [-invSqrt3, -invSqrt3, invSqrt3],
+    [INV_SQRT_3, INV_SQRT_3, INV_SQRT_3],
+    [INV_SQRT_3, -INV_SQRT_3, -INV_SQRT_3],
+    [-INV_SQRT_3, INV_SQRT_3, -INV_SQRT_3],
+    [-INV_SQRT_3, -INV_SQRT_3, INV_SQRT_3],
   ];
   out.push({ name: "tetrahedral", members: tetra.map((a) => ({ weight: 0.25, state: pureState(a) })) });
   // mixed-member decomposition: {1/2: I/2 itself, 1/4: |0>, 1/4: |1>}
@@ -134,10 +155,18 @@ export function strategyFamilies(): Array<{ name: string; members: readonly Ense
 // anonymously).
 // ---------------------------------------------------------------------------
 
-const GOLDEN_ANGLE = 2.399963229728653;
+/** The golden angle — SINGLE-SOURCED since v0.3.0: audit.ts's census grids
+ *  import this constant (the flat-supply property is invariant to its value,
+ *  so a drifted duplicate copy would be completely silent). */
+export const GOLDEN_ANGLE = 2.399963229728653;
 
-/** Equal-area Fibonacci point i of n on the unit sphere. */
-function fibSphere(i: number, n: number, offset = 0): [number, number, number] {
+/** 1/sqrt(3), the tetrahedral/geodesic axis scale — one definition, two users. */
+const INV_SQRT_3 = 1 / Math.sqrt(3);
+
+/** Equal-area Fibonacci point i of n on the unit sphere — the shared grid
+ *  generator of the strategy families AND the noise census (single-sourced
+ *  v0.3.0: audit.ts imports this, its private duplicate fibDir is gone). */
+export function fibSphere(i: number, n: number, offset = 0): [number, number, number] {
   const z = 1 - (2 * (i + 0.5)) / n;
   const s = Math.sqrt(Math.max(0, 1 - z * z));
   const phi = (i + offset) * GOLDEN_ANGLE;
@@ -215,8 +244,7 @@ export function continuousStrategies(): Array<{ name: string; members: readonly 
     }
   }
   // F2: geodesic interpolation between extremal decompositions
-  const invSqrt3 = 1 / Math.sqrt(3);
-  const u0: [number, number, number] = [invSqrt3, invSqrt3, invSqrt3];
+  const u0: [number, number, number] = [INV_SQRT_3, INV_SQRT_3, INV_SQRT_3];
   for (let k = 0; k < CONTINUOUS_GRID.geodesicPoints; k++) {
     const alpha = (k / (CONTINUOUS_GRID.geodesicPoints - 1)) * Math.PI;
     const v = geodesic(u0, alpha);
@@ -378,6 +406,7 @@ export function twoCoinStrategies(): TwoCoinStrategy[] {
 export function jointAverage(members: readonly JointMember[]): CMat {
   const out = mat(4, 4);
   for (const m of members) {
+    requireRegister(m.state, "a jointAverage member state");
     for (let k = 0; k < 16; k++) {
       out.re[k] = out.re[k]! + m.weight * m.state.re[k]!;
       out.im[k] = out.im[k]! + m.weight * m.state.im[k]!;
@@ -388,12 +417,17 @@ export function jointAverage(members: readonly JointMember[]): CMat {
 
 /** Per-coin reveal: |a> announced on `coin`, that coin measured — P(pass). */
 export function coinReveal(joint: CMat, coin: 0 | 1, announced: CMat): number {
+  requireRegister(joint, "the coinReveal joint register");
+  requireQubit(announced, "the coinReveal announcement");
   const proj = coin === 0 ? kron(announced, identity(2)) : kron(identity(2), announced);
   return mTrace(mMul(proj, joint)).re;
 }
 
 /** Joint product reveal: |a>⊗|b> announced, both coins measured — P(pass). */
 export function jointProductReveal(joint: CMat, a: CMat, b: CMat): number {
+  requireRegister(joint, "the jointProductReveal register");
+  requireQubit(a, "the jointProductReveal first announcement");
+  requireQubit(b, "the jointProductReveal second announcement");
   return mTrace(mMul(kron(a, b), joint)).re;
 }
 

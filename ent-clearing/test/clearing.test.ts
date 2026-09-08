@@ -11,19 +11,25 @@ import {
 } from "../src/kernel/audit.js";
 import { BOARD, type BoardRow } from "../src/kernel/board.js";
 import { makeRng } from "../src/core/rng.js";
-import { maximallyMixed, randomStateVec, vecToRho } from "../src/core/states.js";
+import { KET0, KET1, maximallyMixed, randomStateVec, vecToRho } from "../src/core/states.js";
 import { traceDistance, shannonBits } from "../src/core/measures.js";
-import { isUnitary, kron, matEq, type CVec } from "../src/core/cmat.js";
+import { at4, isUnitary, kron, mat, matEq, mMul, vAdd, vInner, vKron, vScale } from "../src/core/cmat.js";
+import { partialTrace } from "../src/core/channels.js";
+import { fmt } from "../src/experiments/report.js";
 import {
   bellBasis,
+  bellProjectors,
   concurrence,
+  corrections,
   denseCode,
   eF,
+  efFromConcurrence,
   entropyOfMixedQubit,
   h2,
   h2ViaLn,
   mintByGate,
   netWeakCoin,
+  PHI_PLUS,
   pureFidelity,
   randomLocalRound,
   randomMixedPair,
@@ -141,7 +147,7 @@ describe("T2 the clearing machinery", () => {
       const lmin = 0.05 * i;
       const nt = netWeakCoin(lmin);
       assert.ok(Math.abs(nt.pSucc - 2 * lmin) <= 1e-12);
-      assert.ok(Math.abs(pureFidelity(nt.successState, bellBasis()[0] as CVec) - 1) <= 1e-12);
+      assert.ok(Math.abs(pureFidelity(nt.successState, bellBasis()[0]) - 1) <= 1e-12);
       // at l_min = 1/2 the fail branch has probability exactly 0 (non-state)
       if (nt.pFail > 1e-12) assert.ok(concurrence(nt.failState) <= 1e-12);
       assert.ok(nt.pSucc <= nt.weakConcurrence + 1e-12);
@@ -163,7 +169,7 @@ describe("T2 the clearing machinery", () => {
       assert.ok(concurrence(randomLocalRound(rng, prod)) <= 1e-12);
     }
     const minted = mintByGate();
-    assert.ok(Math.abs(pureFidelity(minted, bellBasis()[0] as CVec) - 1) <= 1e-12);
+    assert.ok(Math.abs(pureFidelity(minted, bellBasis()[0]) - 1) <= 1e-12);
     assert.ok(Math.abs(concurrence(minted) - 1) <= 1e-12);
   });
 
@@ -396,8 +402,8 @@ describe("T7 the GHZ bank", () => {
   it("the withdrawal: probabilities exactly 1/2, both branches pure known standard coins, cost exactly 1 cbit", () => {
     const wd = withdrawToAB();
     assert.ok(Math.abs(wd.pPlus - 0.5) <= 1e-12 && Math.abs(wd.pMinus - 0.5) <= 1e-12);
-    assert.ok(Math.abs(pureFidelity(wd.abPlus, bellBasis()[0] as CVec) - 1) <= 1e-12);
-    assert.ok(Math.abs(pureFidelity(wd.abMinus, bellBasis()[1] as CVec) - 1) <= 1e-12);
+    assert.ok(Math.abs(pureFidelity(wd.abPlus, bellBasis()[0]) - 1) <= 1e-12);
+    assert.ok(Math.abs(pureFidelity(wd.abMinus, bellBasis()[1]) - 1) <= 1e-12);
     assert.ok(Math.abs(concurrence(wd.abPlus) - 1) <= 1e-12 && Math.abs(concurrence(wd.abMinus) - 1) <= 1e-12);
     assert.strictEqual(wd.cbits, 1);
   });
@@ -507,5 +513,85 @@ describe("T8 smuggling trials round two — contraband in the new tables is reje
     assert.ok(hit, "expected an H8 violation");
     assert.match(hit.detail, /claimed HOLDS/);
     assert.match(hit.detail, /rises/);
+  });
+});
+
+describe("T9 the quality hardening — named refusals, exact arithmetic anchors, quartet discipline", () => {
+  it("every public boundary rejects illegal input BY NAME (the EC_ code is in the message)", () => {
+    assert.throws(() => bellDiagonal([1]), /EC_WEIGHTS/);
+    assert.throws(() => bellRoundClosedForm([0.5, 0.5], [0.25, 0.25, 0.25, 0.25]), /EC_WEIGHTS/);
+    assert.throws(() => schemePurify(5, wernerCoin(0.85)), /EC_SCALE/);
+    assert.throws(() => h2(1.5), /EC_H2_RANGE/);
+    assert.throws(() => h2ViaLn(-0.1), /EC_H2_RANGE/);
+    assert.throws(() => wernerCoin(0), /EC_F_RANGE/);
+    assert.throws(() => depolCoin(1.5), /EC_P_RANGE/);
+    assert.throws(() => netWeakCoin(0), /EC_LMIN/);
+    assert.throws(() => partialTrace(PHI_PLUS, [2, 2], [5]), /EC_INDEX/);
+    assert.throws(() => mMul(mat(2, 3), mat(2, 2)), /EC_SHAPE/);
+    assert.throws(() => makeRng(1).pick([]), /EC_EMPTY/);
+    assert.throws(() => shannonBits([0.5, 0.5, 0.5]), /EC_WEIGHTS/);
+    assert.throws(() => at4(corrections(), 4, "correction"), /EC_TUPLE_INDEX/);
+  });
+
+  it("the report printer refuses non-finite input — NaN is never prose (the convicted latent defect, now anchored)", () => {
+    assert.throws(() => fmt(Number.NaN), /EC_NON_FINITE/);
+    assert.throws(() => fmt(Number.POSITIVE_INFINITY), /EC_NON_FINITE/);
+    assert.strictEqual(fmt(0.123456789), "0.123457");
+    assert.strictEqual(fmt(1, 0), "1");
+    assert.strictEqual(fmt(-2.5, 2), "-2.50");
+  });
+
+  it("h2 exact values: both routes return exactly 0, 1, 0 at x = 0, 1/2, 1", () => {
+    assert.strictEqual(h2(0), 0);
+    assert.strictEqual(h2(1), 0);
+    assert.strictEqual(h2(0.5), 1);
+    assert.strictEqual(h2ViaLn(0), 0);
+    assert.strictEqual(h2ViaLn(1), 0);
+    assert.strictEqual(h2ViaLn(0.5), 1);
+  });
+
+  it("efFromConcurrence is the single E_F source: exact at C = 0 and C = 1, recomputed inline as an anchor", () => {
+    assert.strictEqual(efFromConcurrence(0), 0);
+    assert.strictEqual(efFromConcurrence(1), 1);
+    // independent inline recomputation of the formula (deliberately not shared code)
+    const c = 2 * Math.sqrt(0.75 * 0.25); // the canonical l_min = 1/4 weak coin's concurrence
+    assert.ok(Math.abs(efFromConcurrence(c) - h2((1 + Math.sqrt(1 - c * c)) / 2)) <= 1e-15);
+    assert.ok(Math.abs(eF(PHI_PLUS) - 1) <= 1e-12, "eF of the standard coin is 1 through the shared source");
+  });
+
+  it("the Bell quartets are orthonormal in BOTH parts — and the checks have teeth on counterfeits", () => {
+    const basis = bellBasis();
+    assert.strictEqual(basis.length, 4);
+    assert.strictEqual(bellProjectors().length, 4);
+    assert.strictEqual(corrections().length, 4);
+    for (let i = 0; i < 4; i++) {
+      assert.ok(Math.abs(vInner(basis[i]!, basis[i]!).re - 1) <= 1e-12, `norm of Bell ${i}`);
+      assert.ok(Math.abs(vInner(basis[i]!, basis[i]!).im) <= 1e-12, `imag self-inner of Bell ${i}`);
+      for (let j = i + 1; j < 4; j++) {
+        const ip = vInner(basis[i]!, basis[j]!);
+        assert.ok(Math.abs(ip.re) <= 1e-12 && Math.abs(ip.im) <= 1e-12, `Bell ${i} x Bell ${j} must be orthogonal in both parts`);
+      }
+    }
+    // NEGATIVE CONTROL — a wrong pairing (product state |00> + |10>) must FAIL the check
+    const counterfeit = vScale(vAdd(vKron(KET0, KET0), vKron(KET1, KET0)), 1 / Math.SQRT2);
+    const ip = vInner(basis[0], counterfeit);
+    assert.ok(Math.abs(ip.re - 0.5) <= 1e-12, "the orthogonality assertion must convict a wrong-pairing counterfeit");
+    // NEGATIVE CONTROL — a missing normalization must FAIL the norm check
+    const unnormalized = vAdd(vKron(KET0, KET0), vKron(KET1, KET1));
+    assert.ok(Math.abs(vInner(unnormalized, unnormalized).re - 2) <= 1e-12);
+  });
+
+  it("ghzCoin is the 2-term outer product: exactly four nonzero entries, all on the corners", () => {
+    const g = ghzCoin();
+    const corners = new Set([0, 7, 56, 63]);
+    for (let k = 0; k < 64; k++) {
+      if (corners.has(k)) {
+        assert.ok(Math.abs(g.re[k]! - 0.5) <= 1e-15, `corner ${k} must be 1/2`);
+        assert.strictEqual(g.im[k]!, 0);
+      } else {
+        assert.strictEqual(g.re[k]!, 0);
+        assert.strictEqual(g.im[k]!, 0);
+      }
+    }
   });
 });

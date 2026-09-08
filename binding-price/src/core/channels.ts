@@ -1,7 +1,11 @@
 /**
- * Channels and measurements on density matrices: Kraus application, partial
- * trace over subsystems, computational-basis readout with classical outcome
- * distributions and post-measurement states.
+ * Channels on density matrices: Kraus application, partial trace over
+ * subsystems, and the named single-qubit commit channels of the v0.2.0 noise
+ * census. The canon's computational-basis readout faces (marginalProbs,
+ * filterBasisDigit, depolarize, applyUnitary) were dead weight here — zero
+ * references, grep-verified, the market's marginal analysis runs on
+ * partialTrace — and were deleted at v0.3.0 (the nosignal-tariff absorption
+ * precedent); the census canon and the sibling lineages carry them.
  */
 
 import { type CMat, mat, mMul, mDagger } from './cmat.js';
@@ -27,10 +31,9 @@ export function applyKraus(rho: CMat, kraus: readonly CMat[]): CMat {
   return out;
 }
 
-/** Apply a single unitary: U ρ U†. */
-export function applyUnitary(rho: CMat, u: CMat): CMat {
-  return mMul(mMul(u, rho), mDagger(u));
-}
+/** Apply a single unitary is not carried as a wrapper: U rho U-dagger is one
+ *  kernel line (mMul(mMul(u, rho), mDagger(u))) and the repo's one caller
+ *  (the rotbell face) writes it in place rather than paying an indirection. */
 
 /**
  * Partial trace: trace out the subsystems whose 0-based indices are listed in
@@ -92,20 +95,6 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   return out;
 }
 
-/** Depolarizing channel on dimension d: (1-p)ρ + p I/d. */
-export function depolarize(rho: CMat, p: number): CMat {
-  const d = rho.rows;
-  const out = mat(d, d);
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      const diag = i === j ? 1 / d : 0;
-      out.re[i * d + j] = (1 - p) * rho.re[i * d + j]! + p * diag;
-      out.im[i * d + j] = (1 - p) * rho.im[i * d + j]!;
-    }
-  }
-  return out;
-}
-
 export type NoiseName = "dephase" | "ampdamp";
 
 /**
@@ -140,9 +129,19 @@ export function ampDampKraus(gamma: number): CMat[] {
   return [k0, k1];
 }
 
-/** Kraus set of a named single-qubit noise channel at strength γ. */
+/** Kraus set of a named single-qubit noise channel at strength γ. Exhaustive:
+ *  a future NoiseName member that forgets its case fails to compile here. */
 export function noiseKraus(noise: NoiseName, gamma: number): CMat[] {
-  return noise === "dephase" ? dephaseKraus(gamma) : ampDampKraus(gamma);
+  switch (noise) {
+    case "dephase":
+      return dephaseKraus(gamma);
+    case "ampdamp":
+      return ampDampKraus(gamma);
+    default: {
+      const unhandled: never = noise;
+      throw new Error(`noiseKraus: unhandled channel name ${String(unhandled)}`);
+    }
+  }
 }
 
 /** The named channel as a map: E_γ(ρ). */
@@ -150,93 +149,3 @@ export function applyNoise(rho: CMat, noise: NoiseName, gamma: number): CMat {
   return applyKraus(rho, noiseKraus(noise, gamma));
 }
 
-export interface ReadoutOutcome {
-  /** probability of each joint computational-basis outcome on measured registers */
-  probs: number[];
-  /** dimension labels of one measured outcome, for reconstruction */
-  measuredDims: number[];
-}
-
-/**
- * Marginal distribution of the computational-basis readout of the given
- * subsystems. Outcome index is in little-endian order of `measure` as given.
- */
-export function marginalProbs(rho: CMat, dims: readonly number[], measure: readonly number[]): ReadoutOutcome {
-  const m = dims.length;
-  checkDims('marginalProbs', dims);
-  // an out-of-range measured index would contribute nothing and silently
-  // reshape the outcome distribution — refuse it at the boundary
-  for (const i of measure) {
-    if (!Number.isInteger(i) || i < 0 || i >= m) throw new Error(`marginalProbs: measured subsystem index ${i} out of range for ${m} subsystems`);
-  }
-  const strides: number[] = new Array<number>(m);
-  strides[m - 1] = 1;
-  for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
-  const measuredDims = measure.map((i) => dims[i]!);
-  const dOut = measuredDims.reduce((a, b) => a * b, 1);
-  // strides of the measured subsystems inside the OUTPUT space
-  const outStrides: number[] = new Array<number>(measure.length);
-  outStrides[measure.length - 1] = 1;
-  for (let j = measure.length - 2; j >= 0; j--) outStrides[j] = outStrides[j + 1]! * measuredDims[j + 1]!;
-  const probs = new Array<number>(dOut).fill(0);
-  for (let idx = 0; idx < rho.rows; idx++) {
-    const re = rho.re[idx * rho.rows + idx]!;
-    if (re === 0) continue;
-    let digit = 0;
-    let cur = idx;
-    for (let i = 0; i < m; i++) {
-      const d = Math.floor(cur / strides[i]!);
-      cur %= strides[i]!;
-      const at = measure.indexOf(i);
-      if (at >= 0) digit += d * outStrides[at]!;
-    }
-    probs[digit] = probs[digit]! + re;
-  }
-  return { probs, measuredDims };
-}
-
-/**
- * Projective filter in the computational basis: keep only basis states whose
- * digit on subsystem `sys` equals `digit`. Returns the total probability and
- * the conditional post-measurement state on the same registers.
- */
-export function filterBasisDigit(
-  rho: CMat,
-  dims: readonly number[],
-  sys: number,
-  digit: number,
-): { p: number; conditional: CMat } {
-  const m = dims.length;
-  checkDims('filterBasisDigit', dims);
-  if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
-    throw new Error(`filterBasisDigit: subsystem index ${sys} out of range for ${m} subsystems`);
-  }
-  const dsys = dims[sys]!;
-  // an out-of-range digit would filter out every basis state and silently
-  // return a zero conditional instead of an error
-  if (!Number.isInteger(digit) || digit < 0 || digit >= dsys) {
-    throw new Error(`filterBasisDigit: digit ${digit} out of range for subsystem dimension ${dsys}`);
-  }
-  const strides: number[] = new Array<number>(m);
-  strides[m - 1] = 1;
-  for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
-  const d = rho.rows;
-  const out = mat(d, d);
-  let p = 0;
-  for (let row = 0; row < d; row++) {
-    if (Math.floor(row / strides[sys]!) % dsys !== digit) continue;
-    for (let col = 0; col < d; col++) {
-      if (Math.floor(col / strides[sys]!) % dsys !== digit) continue;
-      out.re[row * d + col] = rho.re[row * d + col]!;
-      out.im[row * d + col] = rho.im[row * d + col]!;
-    }
-    p += rho.re[row * d + row]!;
-  }
-  if (p > 0) {
-    for (let k = 0; k < out.re.length; k++) {
-      out.re[k] = out.re[k]! / p;
-      out.im[k] = out.im[k]! / p;
-    }
-  }
-  return { p, conditional: out };
-}

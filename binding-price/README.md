@@ -23,7 +23,7 @@ The ledger said it as a verdict: *as notary exact, as binding vetoed — HJW let
 | M4 | tags are MARKET-EXACT or DATA |
 | M5 | ids unique |
 
-Renderer refuses illegal markets; eleven smuggling trials (five ledger-level, six v0.2.0 witness-level: counterfeit flat-supply families, forged census numbers, fake identity rows — each named and rejected); the complex-quadrant honesty of the identity is tested (anti-aligned announcements underpass ½ — the identity has a sign face), as is the blochOf roundtrip (the v0.2.0 sign catch).
+Renderer refuses illegal markets; sixteen smuggling trials (five ledger-level, six v0.2.0 witness-level: counterfeit flat-supply families, forged census numbers, fake identity rows — and five v0.3.0 dimension-fraud trials: a qutrit handed to the one-coin machinery is refused by name, not multiplied into garbage); the complex-quadrant honesty of the identity is tested (anti-aligned announcements underpass ½ — the identity has a sign face), as is the blochOf roundtrip (the v0.2.0 sign catch). The v0.3.0 quality wave also single-sourced the golden angle and the Fibonacci grid generator (strategy grids and noise-census grids share one definition — the flat-supply property is invariant to the constant's value, so a drifted duplicate copy would have been completely silent; the rendered report is byte-identical across the merge) and pared the byte-copied kernel core to its live faces (states.ts and rng.ts had zero references — the repo's experiments are deterministic by design; the census canon carries them).
 
 ## Honest boundary
 
@@ -39,6 +39,6 @@ The market layer prices the HJW-style commitment family at the qubit level; quan
 
 ```bash
 npm ci
-npm test        # 33/33
+npm test        # 44/44
 npm run repro   # renders out/reports/the-binding-price.md (seconds)
 ```

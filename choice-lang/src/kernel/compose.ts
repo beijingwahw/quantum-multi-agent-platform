@@ -32,35 +32,13 @@
  *         w_right(A) = cos²θ1): associativity lives in the denotation, never
  *         in the syntax. Exact identity AND exact counterexample, machine-read.
  */
-import { type CMat, kron, mat, mDagger, mMul } from "../core/cmat.js";
-import { conditionOnPattern, controlState, stepOperator, type Program } from "./lang.js";
+import { type CMat, mat, mDagger, mMul } from "../core/cmat.js";
+import { ChoiceLangError } from "../core/errors.js";
+import { conditionOnPattern, type Program } from "./lang.js";
 
 /** Sequential composition P ++ Q: Q's steps run after P's, on one register. */
 export function concatProgram(p: Program, q: Program): Program {
   return [...p, ...q];
-}
-
-/**
- * Run a program on a register that ALREADY carries controls (from an earlier
- * program, a loop iteration, or another player): every step prepends its
- * fresh control and applies its branch unitary to the data digits only —
- * the same stepOperator the flat semantics builds, so flat and layered runs
- * are the same fold. Returns the register and the new control count.
- */
-export function runOnRegister(
-  p: Program,
-  reg: CMat,
-  controlsSoFar: number,
-): { reg: CMat; controls: number } {
-  let out = reg;
-  let controls = controlsSoFar;
-  for (const step of p) {
-    const op = stepOperator(step, controls);
-    const withControl = kron(controlState(step.theta), out);
-    out = mMul(mMul(op, withControl), mDagger(op));
-    controls += 1;
-  }
-  return { reg: out, controls };
 }
 
 /**
@@ -108,7 +86,15 @@ export function termWidth(t: Term): number {
  * of per-step Kronecker factors.
  */
 export function termIsometry(t: Term, d: number): CMat {
-  if (t.kind === "leaf") return t.u;
+  if (t.kind === "leaf") {
+    if (t.u.rows !== d || t.u.cols !== d) {
+      throw new ChoiceLangError(
+        "LEAF_SHAPE",
+        `termIsometry: a leaf must be ${d}x${d} to act on ${d}-dim data, got ${t.u.rows}x${t.u.cols} — a wrong-dimension leaf is not an isometry of the data register`,
+      );
+    }
+    return t.u;
+  }
   const w0 = termWidth(t.t0);
   const w1 = termWidth(t.t1);
   const v0 = termIsometry(t.t0, d);
@@ -170,11 +156,11 @@ export function termPaths(t: Term): TermPath[] {
  */
 export function pathSlotPattern(t: Term, bits: ReadonlyArray<0 | 1>): Array<0 | 1> {
   if (t.kind === "leaf") {
-    if (bits.length > 0) throw new Error("pathSlotPattern: path longer than tree");
+    if (bits.length > 0) throw new ChoiceLangError("PATH_OVERRUN", "pathSlotPattern: path longer than tree");
     return [];
   }
   const b = bits[0];
-  if (b === undefined) throw new Error("pathSlotPattern: path ended at a choose node");
+  if (b === undefined) throw new ChoiceLangError("PATH_SHORT", "pathSlotPattern: path ended at a choose node");
   const rest = bits.slice(1);
   const sub = b === 0 ? t.t0 : t.t1;
   const otherWidth = termWidth(b === 0 ? t.t1 : t.t0);

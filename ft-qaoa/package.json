@@ -1,6 +1,6 @@
 {
   "name": "ft-qaoa",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fault-tolerant deep QAOA route prototype: p>100 logical-layer simulation with provable depth-monotonicity, qLDPC resource estimation, and real-time decoder scheduling",
   "type": "module",
   "engines": {
