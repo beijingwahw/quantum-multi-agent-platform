@@ -13,6 +13,15 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # TS >=7 生态封锁（2026-09-08 双源实测，PR #7 的处置）：
+      # typescript-eslint（含最新 8.70.0）peer 上限 typescript <6.1.0，
+      # 且运行时硬守卫「typescript-eslint does not support TS 7.0」；
+      # 本仓在 TS 7.0.2 下 typecheck/build 均过、唯 lint 链当场崩。
+      # 追踪：typescript-eslint#10940（TS >=7.1 支持）。
+      # TS 6.0.x 线在 peer 域内——主动升级时不受此规则影响。
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

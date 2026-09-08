@@ -343,7 +343,11 @@ function prepareEvolution(
     w.on('error', (err) => {
       ctx.poisoned = true;
       if (process.env.QUANTUM_PARALLEL_DEBUG) {
-        console.error(`[parallel] worker ${rank} error:`, err.message);
+        // @types/node 26 types Worker 'error' payloads as unknown
+        console.error(
+          `[parallel] worker ${rank} error:`,
+          err instanceof Error ? err.message : String(err),
+        );
       }
     });
     w.on('exit', (code) => {
