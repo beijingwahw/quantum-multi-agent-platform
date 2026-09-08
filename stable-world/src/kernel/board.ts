@@ -21,6 +21,19 @@ export interface BoardRow {
   readonly exactness: Exactness;
   readonly witness: string;
   readonly anchors: readonly string[];
+  /** SW7: rows citing W-O must declare the catalyst's dimension and the
+   * claimed recovery — the checker re-derives the cap log2(d). */
+  readonly catalystDim?: number;
+  readonly claimedRecoveryBits?: number;
+  /** SW8: rows citing W-P must carry a join-leakage certificate the checker
+   * re-derives from the exact union-with-intersection closed form. */
+  readonly joinCertificate?: {
+    readonly a0: number;
+    readonly b0: number;
+    readonly c0: number;
+    readonly k: number;
+    readonly leak: number;
+  };
 }
 
 export const BOARD: readonly BoardRow[] = [
@@ -177,5 +190,41 @@ export const BOARD: readonly BoardRow[] = [
     exactness: "EXACT",
     witness: "W-N",
     anchors: ["choice-lang", "dsic-noether"],
+  },
+  {
+    id: "AT15",
+    claim:
+      "the holder's bounded catalyst — the QSI boundary EXECUTED in its bounded face: a holder storing a Schmidt purification of the world register (diagonal marginal, the weakest memory — no coherence smuggled in) rides the shortcut untouched and harvests the correlation term rung by rung, a nested triangle inequality with one layer per side information; the coherent excess is capped by the catalyst's dimension, log2 d_c, and NO general asymptotic claim is made",
+    dynamics: "engineered",
+    price:
+      "the memory is honest (marginal diagonal to 3.47e−17, spectrum = the input's to 9.61e−16) and the riding identity is exact (the register⊗weight output unchanged, TD 4.53e−16; rungs R0/R1 are AT14's naive/ℓ1 to 0.00e+0); the ladder |Σ_r Σ_m| ≤ Σ_r |Σ_m| ≤ Σ_m p_m Σ_r |σ_r^(m)| holds to 2.22e−16 over 37 trajectory inputs — AT14's phase alignment was the FIRST layer (unlock up to 0.238), the classical record from measuring the memory is the SECOND (a further unlock up to 0.172; the record matters exactly when the law has already mixed the register — pure starts carry a trivial record, census unlock 3.3e−16); the bit-currency ladder rides C_rel convexity (BCP14): Σ_m p_m C_rel(σ_W|m) ≥ C_rel(σ_W), record-unlocked up to 0.469 bits; the CAP: no state on a d_c-dimensional catalyst carries more relative-entropy coherence than log2 d_c (census excess 0.00e+0), TIGHT at d_c = 2 — the straddler's full bit banks on the 2-dimensional weight (1.22e−15); the residual gap to the full kT ln2·C_rel term over the census: −0.251 to 0.851 bits (the two currencies — sector tariff vs full-basis bank — meet at 0 on straddlers; the bank may exceed the sector price because within-world cargo coherence also banks, AT12's cargo artifact), max 2.445e−21 J @300 K — finite catalyst, authored law, priced as data",
+    exactness: "EXACT",
+    witness: "W-O",
+    anchors: ["choice-lang", "route-price", "dsic-noether"],
+    catalystDim: 2,
+    claimedRecoveryBits: 1,
+  },
+  {
+    id: "AT16",
+    claim:
+      "two marked worlds under ONE law: the register grows a second world bit and the same damping acts on both — every single-world face keeps its exact geometric, the join world is the absorbing class, and the join's leakage is the exact union-with-intersection qA + qB − qAB with qAB(k) = (1−γ)^{2k} c0, never a single geometric outside the trivial case",
+    dynamics: "law",
+    price:
+      "the product law is CPTP and QUIET on the join world (0.00e+0 over in-join cargo states); each world's own face is exact on ARBITRARY starts — leak_X(k) = (1−γ)^k leak_X(0) to 6.66e−16 including correlated (c0 = 1/2) and anti-correlated (c0 = 0) starts, increment identity ΔV_X = γ(1−V_X) to 1.11e−16 — the single-world analysis LIFTS whole; the JOIN closed form holds to 7.41e−16 and is NOT a single geometric when c0 > 0: the normalized face joinLeak(k)/(1−γ)^k = a0 + b0 − c0(1−γ)^k drifts by 0.347 from k=1 to k=10 on the correlated start (certificate on the board: a0=b0=c0=1/2, k=5, leak 0.209147930145 — the single-geometric counterfeit would claim 0.1187); escape stays impossible: all charges monotone (0.00e+0), the join leak gone at k=200 (1.78e−15); engineered: join-block programs conserve all three charges (1.67e−16) while a one-bit-block program conserves only ITS world (1.67e−16) and moves the other's charge by up to 0.839 — two worlds, one law, two conserved symmetries; inter-world leakage is priced exactly by the intersection term (1−γ)^{2k} c0",
+    exactness: "EXACT",
+    witness: "W-P",
+    anchors: ["choice-lang", "survivor-census"],
+    joinCertificate: { a0: 0.5, b0: 0.5, c0: 0.5, k: 5, leak: 0.20914793014526367 },
+  },
+  {
+    id: "AT17",
+    claim:
+      "the ε-robustness face one step deeper: TIME-DEPENDENT law error ε_t accumulates exactly by the recursion B_t = B_{t−1}(1−ε_t)(1−γ) + ε_t — the constant-ε bound is its fixed point, and an error SCHEDULE can beat the constant worst case",
+    dynamics: "perturbed",
+    price:
+      "exact algebra, census DATA (the AT4 discipline): at constant ε over 500 steps the recursion meets AT4's bound ε/(1−(1−ε)(1−γ)) to 8.33e−17, closing on the fixed point geometrically (contraction identity |B_t − fp| = (1−ε)(1−γ)|B_{t−1} − fp| to 1.67e−16); the census — 10 random ε_t sequences of 300 steps (ε_t ∈ [0.002, 0.1]), FRESH random CPTP channels every step, adversarial starts — never exceeds the bound (worst excess 0.00e+0), the bounds ranging 0.0865–0.2066 over the sequences; the schedule reading: alternating ε_t = 0.1/0.002 prices at 0.1553 against 0.3077 for constant ε = 0.1 — 49.5% off the constant-worst bill for the same worst error, exact arithmetic",
+    exactness: "DATA",
+    witness: "W-Q",
+    anchors: ["choice-lang", "vacuum-compiler"],
   },
 ];

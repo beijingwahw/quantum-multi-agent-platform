@@ -64,7 +64,10 @@ Noether's second-theorem class. The identity it buys: the fiber derivative of ev
 differential incentive identity annihilates the gauge direction (g has no s-monomials,
 so d/ds vanishes on it — the constraint system cannot see the gauge). The
 classification corollary IS Green-Laffont uniqueness: the solver reads the gauge
-off ANY DSIC payment exactly, and convicts off-orbit payments on sight.
+off ANY DSIC payment exactly, and convicts off-orbit payments on sight. The census
+(v0.3.0) includes a TWO-PARAMETER non-linear gauge alpha o0 o1 + beta o0^3: both
+parameters recovered coefficient-exact; the same gauge with a hidden (1/11)s^2
+term is convicted on sight.
 
 | payment | verdict | evidence |
 | --- | --- | --- |
@@ -72,6 +75,8 @@ off ANY DSIC payment exactly, and convicts off-orbit payments on sight.
 | 1 | gauge | recovered exactly (0 residual) |
 | 2 | gauge | recovered exactly (0 residual) |
 | control p + (3/7)s | NOT-DSIC | convicted (1 own-report monomials) |
+| h = (2/7)o0o1 - (3/5)o0^3 (two-parameter) | gauge | both parameters recovered (0 residual) |
+| same gauge + hidden (1/11)s^2 | NOT-DSIC | convicted on sight |
 
 ## K1 — the off-gauge crime and its exact price
 

@@ -25,7 +25,7 @@ describe("T5 atlas discipline", () => {
     for (const e of ATLAS) {
       for (const cert of e.certs) {
         if (cert.kind === "cross-prototype") {
-          assert.match(cert.ref, /^(qram-sched|ft-qaoa|nonstoq-anneal|qverify|quantum-mech|ent-sched|switch-sched|causal-ineq|k-switch|vacuum-compiler|dsic-noether|postselect-sched|retro-cache|depreciation-ledger|route-price|burial-record|readout-wall|nosignal-tariff|choice-lang|binding-price|wukong-crossval|survivor-census|ent-clearing|stable-world|mutant-census|dtc-clock|ds_extracted\/ds)$/);
+          assert.match(cert.ref, /^(qram-sched|ft-qaoa|nonstoq-anneal|qverify|quantum-mech|ent-sched|switch-sched|causal-ineq|k-switch|vacuum-compiler|dsic-noether|postselect-sched|retro-cache|depreciation-ledger|route-price|burial-record|readout-wall|nosignal-tariff|choice-lang|binding-price|wukong-crossval|survivor-census|ent-clearing|stable-world|mutant-census|dtc-clock|letter-audit|ds_extracted\/ds)$/);
         }
       }
     }

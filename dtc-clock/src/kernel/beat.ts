@@ -220,9 +220,15 @@ export function pairingDeviations(rng: Rng, n: number, trials: number, mMax: num
 
 // ---------------------------------------------------------------------------
 // v0.2.0 — THE LIFETIME LAYER (the priced next steps of TC4/TC13):
-//   (L1) EXACT, isolated qubit: |m(k)| = |cos 2δ|^k is geometric, so the
-//        echo lifetime to any threshold θ has the CLOSED FORM
-//        τ*(δ, θ) = ln θ / ln|cos 2δ|  (first strobe below θ).
+//   (L1) the isolated benchmark lifetime τ*(δ, θ) = ln θ / ln|cos 2δ| —
+//        v0.20.0 RESTATEMENT (TC46): this is the DEPHASED drive's expected
+//        echo crossing. The v0.2.0 reading — a COHERENT geometric decay
+//        |m(k)| = |cos 2δ|^k — was verified tautologically (the "direct
+//        simulation" iterated the formula itself) and is FALSE: the
+//        coherent isolated qubit is the detuned rotor m(k) = (-1)^k cos 2kδ,
+//        quasi-periodic, it never decays. The geometric law survives
+//        EXACTLY IN EXPECTATION under per-period sign noise eps_j = ±δ
+//        (E[m~(k)] = (cos 2δ)^k by independence of the sign product).
 //   (L2) DATA, the chain: the stroboscopic horizon at which |m| first drops
 //        below θ — capped at kMax, "still locked" reported as -1 (the
 //        prethermal plateau can outlast any honest ED horizon).
@@ -231,7 +237,10 @@ export function pairingDeviations(rng: Rng, n: number, trials: number, mMax: num
 //        long-window total (the empirical E_∞ = mean of the last decile).
 // ---------------------------------------------------------------------------
 
-/** (L1) The isolated-qubit echo lifetime, closed form. */
+/** (L1) The dephased benchmark's expected-echo lifetime: the first strobe
+ * at which the noise-averaged echo (cos 2δ)^k falls below θ. (v0.2.0's
+ * closed form, relabeled by TC46 — the coherent isolated qubit crosses θ
+ * by beating, not by decay, and recurs.) */
 export function isolatedEchoLifetime(delta: number, threshold: number): number {
   const c = Math.abs(Math.cos(2 * delta));
   if (c >= 1) return Number.POSITIVE_INFINITY;
@@ -397,10 +406,14 @@ export interface RigidityRow {
 
 /**
  * DATA only: at equal detuning delta = theta - pi/2, the interacting chain's
- * |m(k)| against the isolated qubit's (h=0 gives the |cos 2 delta|^k decay).
- * Couplings J = 1.2 uniform, fields h_i in [0.05, 0.15] so the chain's
- * protection has something to protect against. Finite horizon — NOT a
- * lifetime theorem; the hardware-scale certificate is MI22 (cited).
+ * |m(k)| against the isolated qubit's. v0.20.0 note (TC46): the isolated
+ * arm (h = 0.05) does NOT decay — it is the detuned rotor, quasi-periodic
+ * with recurrences; its dips are beatings (YAO17's peak splitting), not
+ * losses. The honest isolated DECAY benchmark is the dephased drive's
+ * expected echo (cos 2 delta)^k. Couplings J = 1.2 uniform, fields h_i in
+ * [0.05, 0.15] so the chain's protection has something to protect against.
+ * Finite horizon — NOT a lifetime theorem; the hardware-scale certificate
+ * is MI22 (cited).
  */
 export function rigidityCensus(n: number, deltas: readonly number[], kMax: number): RigidityRow[] {
   const rows: RigidityRow[] = [];
@@ -427,4 +440,187 @@ export function rigidityCensus(n: number, deltas: readonly number[], kMax: numbe
     }
   }
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// v0.20.0 — TC46: THE ISOLATED ECHO LAWS, INDEPENDENTLY RE-VERIFIED.
+//
+// Route-price v0.2.0's cross-check CONVICTED the v0.2.0 verification of the
+// isolated face as TAUTOLOGICAL: the shipped "direct simulation" iterated
+// the closed form itself (m *= c in the test, the witness W-H, and
+// scratch-life.ts), so it could not fail for ANY c. The independent paths,
+// both through the family kernel (the real two-level simulation):
+//   (C1) COHERENT, h = 0: the isolated qubit NEVER decays — it is the
+//        detuned rotor m(k) = (-1)^k cos(2 k delta) EXACTLY (YAO17's
+//        beating/splitting; a coherent closed system cannot decay
+//        geometrically). First threshold crossings are beat crossings,
+//        not lifetimes.
+//   (C2) COHERENT, any h: the rotor generalizes — F = exp(-i theta X)
+//        exp(-i h Z) = cos(b/2) I - i sin(b/2) (n.sigma) with b/axis read
+//        off F once, so F^k is closed-form and the trajectory is the
+//        quasi-periodic rotor at any field (the B1 census arm's law).
+//   (D) DEPHASED, exact in expectation: with per-period sign errors
+//        eps_j = ±delta (the noisy drive), m~(k) = cos(2 delta sum_j s_j)
+//        and E[m~(k)] = (cos 2 delta)^k EXACTLY by independence — the
+//        geometric law is the noise-averaged echo's law. Verified
+//        EXHAUSTIVELY over all 2^k sign sequences at small k (an exact
+//        expectation, not a sample) and by Monte Carlo beyond.
+// The v0.2.0 coherent-geometric reading is FALSE — convicted with the
+// deviation number below — and the tautology that smuggled it is preserved
+// as a negative control: it "verifies" any decay constant it is handed.
+// ---------------------------------------------------------------------------
+
+/** The isolated qubit's coherent trajectory m(1..kMax) through the family
+ * kernel — the independent simulation path the v0.2.0 witness lacked. */
+export function isolatedEchoTrajectory(delta: number, h: number, kMax: number): number[] {
+  const p: EchoParams = { n: 1, theta: Math.PI / 2 + delta, fields: [h], couplings: [] };
+  const f = echoFloquet(p);
+  let rho = polarizedRho(1);
+  const out: number[] = [];
+  for (let k = 0; k < kMax; k++) {
+    rho = applyUnitary(rho, f);
+    out.push(magnetization(rho, 1));
+  }
+  return out;
+}
+
+/** (C1) worst |kernel m(k) - (-1)^k cos 2k delta| over k <= kMax at h = 0. */
+export function coherentEchoLawDeviation(delta: number, kMax: number): number {
+  let worst = 0;
+  isolatedEchoTrajectory(delta, 0, kMax).forEach((m, i) => {
+    const k = i + 1;
+    worst = Math.max(worst, Math.abs(m - (k % 2 === 0 ? 1 : -1) * Math.cos(2 * k * delta)));
+  });
+  return worst;
+}
+
+/** (C2) the rotor decomposition of the isolated Floquet operator
+ * F = exp(-i theta X) exp(-i h Z): rotation angle b and axis n (the axis
+ * reconstruction's own deviation from unit norm is reported — the road's
+ * self-check). */
+export function isolatedRotorParts(delta: number, h: number): {
+  beta: number;
+  nx: number;
+  ny: number;
+  nz: number;
+  normDev: number;
+} {
+  const p: EchoParams = { n: 1, theta: Math.PI / 2 + delta, fields: [h], couplings: [] };
+  const f = echoFloquet(p);
+  const trHalf = (f.re[0]! + f.re[3]!) / 2; // SU(2): tr F = 2 cos(b/2), real
+  const beta = 2 * Math.acos(Math.min(1, Math.abs(trHalf)));
+  const s = Math.sin(beta / 2);
+  // F = cos(b/2) I - i sin(b/2)(nx X + ny Y + nz Z) reads the axis directly
+  const nx = -f.im[1]! / s;
+  const ny = -f.re[1]! / s;
+  const nz = -f.im[0]! / s;
+  return { beta, nx, ny, nz, normDev: Math.abs(Math.sqrt(nx * nx + ny * ny + nz * nz) - 1) };
+}
+
+/** (C2) worst |kernel trajectory - rotor-road trajectory| at field h (the
+ * rotor road builds F^k from (b, n) once; the kernel road multiplies F k
+ * times — two independent roads to the same quasi-periodic signal). */
+export function rotorEchoLawDeviation(delta: number, h: number, kMax: number): number {
+  const { beta, nx, ny, nz } = isolatedRotorParts(delta, h);
+  const traj = isolatedEchoTrajectory(delta, h, kMax);
+  let worst = 0;
+  traj.forEach((m, i) => {
+    const k = i + 1;
+    const ck = Math.cos((k * beta) / 2);
+    const sk = Math.sin((k * beta) / 2);
+    // F^k |0> = (ck - i sk nz, sk ny - i sk nx); m = |a|^2 - |b|^2
+    const aRe = ck;
+    const aIm = -sk * nz;
+    const bRe = sk * ny;
+    const bIm = -sk * nx;
+    worst = Math.max(worst, Math.abs(m - (aRe * aRe + aIm * aIm - (bRe * bRe + bIm * bIm))));
+  });
+  return worst;
+}
+
+/** THE CONVICTION: worst ||m(k)| - |cos 2 delta|^k| — the v0.2.0 law against
+ * the kernel path it was never checked against. */
+export function convictedLawDeviation(delta: number, kMax: number): number {
+  let worst = 0;
+  isolatedEchoTrajectory(delta, 0, kMax).forEach((m, i) => {
+    const k = i + 1;
+    worst = Math.max(worst, Math.abs(Math.abs(m) - Math.abs(Math.cos(2 * delta)) ** k));
+  });
+  return worst;
+}
+
+/** THE TAUTOLOGY, preserved as the negative control — the v0.2.0 witness's
+ * "direct simulation" verbatim: iterate c into itself and compare with the
+ * closed form built FROM THE SAME c. Returns agreement for ANY c (feed it
+ * |cos 3 delta| and it still passes) — the demonstration that it verifies
+ * nothing. The honest roads are coherentEchoLawDeviation (exact) and the
+ * dephased witnesses below. */
+export function tautologicalIsoAgreement(c: number, threshold: number): boolean {
+  const tau = Math.ceil(Math.log(threshold) / Math.log(c));
+  let k = 0;
+  let m = 1;
+  while (m >= threshold && k < 100000) {
+    k++;
+    m *= c;
+  }
+  return tau === k;
+}
+
+/** (D) one noisy-drive trajectory: k kicks exp(-i(pi/2 + s_j delta)X), the
+ * signs s_j = ±1 the drive noise, applied to |0> through the kernel's own
+ * kick builder; returns the echo-corrected signal m~(k) = (-1)^k m(k). */
+export function dephasedEchoSample(rng: Rng, delta: number, k: number): number {
+  let rho = polarizedRho(1);
+  for (let j = 0; j < k; j++) {
+    const theta = Math.PI / 2 + (rng() < 0.5 ? delta : -delta);
+    rho = applyUnitary(rho, kickStroke(theta, 1));
+  }
+  const m = magnetization(rho, 1);
+  return k % 2 === 0 ? m : -m;
+}
+
+/** (D) the dephased law's EXACT expectation: all 2^k sign sequences through
+ * the kernel, averaged — E[m~(k)] must equal (cos 2 delta)^k. Domain
+ * k <= 16 (the ensemble is exponential). */
+export function dephasedEchoExpectationExact(delta: number, k: number): number {
+  if (k < 1 || k > 16) throw new Error("dephasedEchoExpectationExact: 1 <= k <= 16 (the ensemble is exponential)");
+  const seq = 1 << k;
+  const signs = new Float64Array(k);
+  let sum = 0;
+  for (let mask = 0; mask < seq; mask++) {
+    for (let j = 0; j < k; j++) signs[j] = (mask >> j) & 1 ? delta : -delta;
+    let rho = polarizedRho(1);
+    for (let j = 0; j < k; j++) rho = applyUnitary(rho, kickStroke(Math.PI / 2 + signs[j]!, 1));
+    const m = magnetization(rho, 1);
+    sum += k % 2 === 0 ? m : -m;
+  }
+  return sum / seq;
+}
+
+/** (D) the dephased law's Monte-Carlo mean and standard error at large k. */
+export function dephasedEchoMean(rng: Rng, delta: number, k: number, samples: number): { mean: number; se: number } {
+  const vals = new Float64Array(samples);
+  let sum = 0;
+  for (let t = 0; t < samples; t++) {
+    vals[t] = dephasedEchoSample(rng, delta, k);
+    sum += vals[t]!;
+  }
+  const mean = sum / samples;
+  let vr = 0;
+  for (let t = 0; t < samples; t++) vr += (vals[t]! - mean) ** 2;
+  return { mean, se: Math.sqrt(vr / (samples - 1) / samples) };
+}
+
+/** (D) the benchmark lifetime's crossing, MC-witnessed: E[m~] at tau*-1
+ * must sit above theta and at tau* below it. */
+export function dephasedLifetimeCrossing(
+  rng: Rng,
+  delta: number,
+  threshold: number,
+  samples: number,
+): { tau: number; below: number; at: number } {
+  const tau = isolatedEchoLifetime(delta, threshold);
+  const below = dephasedEchoMean(rng, delta, tau - 1, samples).mean;
+  const at = dephasedEchoMean(rng, delta, tau, samples).mean;
+  return { tau, below, at };
 }

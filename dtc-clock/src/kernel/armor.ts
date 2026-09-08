@@ -1451,6 +1451,46 @@ export function sigmaFirst(n: number): number {
   return (shareFloat(n) / 1.125 - 1) * Math.sqrt(n);
 }
 
+/** The share by the INCREMENTAL-binomial road (v0.20.0, TC47). shareFloat's
+ * log-factorial table carries ulp-scale rounding that random-walks with the
+ * table length (lf(n) ~ 1e7 at n ~ 2e6 carries ~4e-9 ulp per entry) — the
+ * measured sigmaFirst drifts ~1e-4 by n = 2^20. This road keeps every
+ * intermediate at O(1) scale: ln C(dim-1,k) and ln C(n,2k+1) by their
+ * per-step quotient recurrences, ln C(n-2,m) by a direct product. Cross-
+ * validated against shareFloat at n <= 2^16 (both roads agree to < 1e-8
+ * relative there, W-Z) and clean through n = 2^19 (the drift's return at
+ * 2^20 is the recurrences' own ulp random walk — stated, not hidden). */
+export function shareFloatIncremental(n: number): number {
+  if (n < 4 || n % 2 !== 0) throw new Error("shareFloatIncremental: even n >= 4 required");
+  const dim = n / 2;
+  const m = (n - 2) / 2;
+  const lnC2 = (() => {
+    let s = 0;
+    for (let i = 1; i <= m; i++) s += Math.log(n - 2 - m + i) - Math.log(i);
+    return s;
+  })();
+  let lnA = 0; // ln C(dim-1, 0) = 0
+  let lnB = Math.log(n); // ln C(n, 1)
+  let lnr = -Infinity;
+  for (let k = 1; k <= dim - 1; k++) {
+    lnA += Math.log(dim - k) - Math.log(k);
+    lnB += Math.log(n - 2 * k + 1) + Math.log(n - 2 * k) - Math.log(2 * k) - Math.log(2 * k + 1);
+    const t =
+      2 * (Math.log(2 * n * (n - 1)) + lnC2 + lnA) -
+      (Math.log(4 * k) + lnB + 2 * (n - 1) * Math.LN2 + Math.log(n));
+    lnr = lnr === -Infinity ? t : lnr + Math.log1p(Math.exp(t - lnr));
+  }
+  const lnc2 = Math.log(n - 1) + lnC2 - (n - 2) * Math.LN2;
+  return (9 * Math.exp(lnr)) / (2 * (n - 2) * Math.exp(lnc2));
+}
+
+/** sigmaFirst on the incremental road — the certified estimator past the
+ * log-factorial road's noise wall (cross-family Richardson spread on this
+ * road is TC47's eps_kappa control). */
+export function sigmaFirstIncremental(n: number): number {
+  return (shareFloatIncremental(n) / 1.125 - 1) * Math.sqrt(n);
+}
+
 /** The EXACT fixed-k edge law: summand(n,k)·dim -> (2k+1)C(2k,k)/(2·4^k·k)
  * as dim -> n/2 -> infinity with k fixed — the endpoint mass that the
  * singular Euler-Maclaurin machinery must regularize (each coefficient is

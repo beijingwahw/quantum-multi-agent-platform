@@ -189,6 +189,23 @@ describe("T7 Noether II: the gauge identity and the classification", () => {
       pAssertZero(forged, "forged identity");
     }, /FAILED/);
   });
+
+  it("CENSUS EXTENSION (v0.3.0): a two-parameter non-linear gauge is read off coefficient-exact; a hidden own-report term is convicted", () => {
+    const f = gl.makeFamily(3);
+    const s0 = rat(2, 5);
+    const h = gl.nonlinearTwoParamGauge(f, rat(2, 7), rat(-3, 5));
+    const p = pAdd(gl.grovesPayment(f), h);
+    const cls = gl.classifyPayment(f, p, s0);
+    assert.equal(cls.kind, "gauge", "the nonlinear gauge was wrongly convicted");
+    if (cls.kind === "gauge") {
+      pAssertZero(pSub(cls.h, pSubstRat(p, 0, s0)), "two-parameter gauge recovered exactly");
+    }
+    // the counterfeit: the same gauge with a hidden (1/11) s^2 term
+    const crime = pAdd(p, pScale(pMul(pVar(f.vars, 0), pVar(f.vars, 0)), rat(1, 11)));
+    const clsCrime = gl.classifyPayment(f, crime, s0);
+    assert.equal(clsCrime.kind, "not-dsic", "the hidden own-report term slipped through");
+    if (clsCrime.kind === "not-dsic") assert.ok(clsCrime.offending > 0);
+  });
 });
 
 describe("K1 the off-gauge crime and its exact price", () => {

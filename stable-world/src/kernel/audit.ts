@@ -40,12 +40,19 @@
  *   W-M the generator's Lindblad form (the extraction converges to the
  *       Lindblad operator with the Davies rates, uniformly over states);
  *   W-N the phase-alignment bank (the l1-optimal one-shot incoherent
- *       banking, the boost census, the residual correlation gap).
+ *       banking, the boost census, the residual correlation gap);
+ *   W-O the holder's bounded catalyst (the Schmidt memory is honest, the
+ *       riding identity, the nested-triangle rungs, the convexity ladder,
+ *       the dimensional cap and its tightness, the residual priced);
+ *   W-P the second world (one product law, two marked worlds: single faces
+ *       keep their geometrics, the join is the union-with-intersection);
+ *   W-Q the accumulated law-error (time-dependent eps_t, the exact
+ *       recursion bound, the constant-eps limit, the census).
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { type CMat, basisVec, identity, kron, mAdd, mScale, mat, matEq, mDagger, mMul, vAdd, vKron, vScale, vec } from "../core/cmat.js";
-import { applyUnitary } from "../core/channels.js";
+import { applyUnitary, partialTrace } from "../core/channels.js";
 import { makeRng, type Rng } from "../core/rng.js";
 import { maximallyMixed, randomStateVec, vecToRho } from "../core/states.js";
 import { traceDistance, traceReal, vonNeumannEntropy } from "../core/measures.js";
@@ -54,13 +61,19 @@ import {
   GAMMA,
   H_PLANCK,
   K_B,
+  accumulatedLeakageBound,
   applyCollision,
   applyLaw,
   applyPerturbed,
+  applyTwoWorldLaw,
   authoredHamiltonian,
   bathGibbs,
   betaGapOfFrequency,
   boltzmannOccupancy,
+  bothOutside,
+  catalystCap,
+  chargeA,
+  chargeB,
   coherenceBits,
   coherenceDecayRate,
   coherentShortcut,
@@ -74,10 +87,15 @@ import {
   alignedBank,
   exchangeUnitary,
   extractedGenerator,
+  holderHarvest,
+  holderJoint,
+  joinCharge,
+  joinLeakage,
   lindbladRhs,
   h2,
   inWorldState,
   iterateLaw,
+  iterateTwoWorldLaw,
   lawKraus,
   leakage,
   membershipCharge,
@@ -87,13 +105,16 @@ import {
   randomBranchUnitary,
   randomCptpKraus,
   randomUnitary,
+  schmidtPurification,
   sectorCoherence,
   sectorDephase,
+  singleWorldLeak,
   stationaryInWorld,
   thermalUpRate,
   totalCoherenceBits,
   twoRateInWorld,
   twoRateRecursion,
+  twoWorldLawKraus,
 } from "./law.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
@@ -104,7 +125,7 @@ export interface Violation {
   readonly detail: string;
 }
 
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H", "W-I", "W-J", "W-K", "W-L", "W-M", "W-N"];
+const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H", "W-I", "W-J", "W-K", "W-L", "W-M", "W-N", "W-O", "W-P", "W-Q"];
 const LEGAL_DYNAMICS: readonly Dynamics[] = ["law", "engineered", "perturbed", "tariff", "escape"];
 
 /**
@@ -136,6 +157,48 @@ export function checkBoard(rows: readonly UntrustedBoardRow[] = BOARD): Violatio
     }
     if (r.exactness === "QUOTED" && !r.anchors.includes("route-price")) {
       violations.push({ row: r.id, law: "SW3", detail: "quotes a rate without anchoring the schedule's repo (route-price)" });
+    }
+    if (r.witness === "W-O") {
+      // SW7: a catalyst-harvest claim must declare its bounded face — the
+      // checker re-derives the dimensional cap and rejects the counterfeit
+      const dim = r.catalystDim;
+      const claim = r.claimedRecoveryBits;
+      if (dim === undefined || claim === undefined) {
+        violations.push({
+          row: r.id,
+          law: "SW7",
+          detail: "a catalyst-harvest row must declare catalystDim and claimedRecoveryBits — an unbounded harvest claim is counterfeit",
+        });
+      } else if (!Number.isInteger(dim) || dim < 1) {
+        violations.push({ row: r.id, law: "SW7", detail: `catalyst dimension must be a positive integer, got ${String(dim)}` });
+      } else if (claim > catalystCap(dim) + 1e-12) {
+        violations.push({
+          row: r.id,
+          law: "SW7",
+          detail: `catalyst cap exceeded: claimed ${claim} bits > log2(${String(dim)}) = ${catalystCap(dim)} — the bounded face is bounded`,
+        });
+      }
+    }
+    if (r.witness === "W-P") {
+      // SW8: a multi-world absorption claim must carry a certificate the
+      // checker re-derives from the exact union-with-intersection closed form
+      const cert = r.joinCertificate;
+      if (cert === undefined) {
+        violations.push({
+          row: r.id,
+          law: "SW8",
+          detail: "a multi-world row must carry a join-leakage certificate — an absorption claim without its number is a fake certificate",
+        });
+      } else {
+        const exact = joinLeakage(cert.k, cert.a0, cert.b0, cert.c0);
+        if (Math.abs(cert.leak - exact) > 1e-12) {
+          violations.push({
+            row: r.id,
+            law: "SW8",
+            detail: `fake multi-world absorption certificate: the join leakage at k=${String(cert.k)} (a0=${String(cert.a0)}, b0=${String(cert.b0)}, c0=${String(cert.c0)}) is ${exact.toPrecision(12)}, the certificate claims ${cert.leak.toPrecision(12)} — the join world's face is the union-with-intersection, never a single geometric`,
+          });
+        }
+      }
     }
     if (r.dynamics === "tariff" && !r.anchors.includes("route-price")) {
       violations.push({
@@ -895,6 +958,282 @@ function witnessPhaseAlignment(): WitnessResult {
   };
 }
 
+/** W-O: the holder's bounded catalyst — the harvest ladder, rung by rung. */
+function witnessHolderRungs(): WitnessResult {
+  const rng = makeRng(1313);
+  // inputs on the authored trajectories: random pure, sector-dephased, and
+  // the law's own intermediate states (mixed — where a memory has work to do)
+  const inputs: CMat[] = [];
+  for (let t = 0; t < 12; t++) inputs.push(vecToRho(randomStateVec(rng, 4)));
+  for (let t = 0; t < 10; t++) inputs.push(sectorDephase(vecToRho(randomStateVec(rng, 4))));
+  for (const k of [1, 3, 8]) {
+    for (let t = 0; t < 5; t++) inputs.push(iterateLaw(vecToRho(randomStateVec(rng, 4)), k, GAMMA));
+  }
+  // the memory is HONEST: Schmidt marginal diagonal (no coherence smuggled
+  // in), its spectrum the input's (S(mem) = S(rho))
+  let worstDiag = 0;
+  let worstSpec = 0;
+  for (const rho of inputs) {
+    const { joint, mDim } = schmidtPurification(rho);
+    const mem = partialTrace(joint, [4, mDim], [0]);
+    for (let i = 0; i < mDim; i++) {
+      for (let j = 0; j < mDim; j++) {
+        if (i === j) continue;
+        worstDiag = Math.max(worstDiag, Math.abs(mem.re[i * mDim + j]!), Math.abs(mem.im[i * mDim + j]!));
+      }
+    }
+    worstSpec = Math.max(worstSpec, Math.abs(vonNeumannEntropy(mem) - vonNeumannEntropy(rho)));
+  }
+  // the RIDING identity: the memory changes nothing on register x weight;
+  // rungs R0/R1 are AT14's naive/l1 exactly
+  let worstRide = 0;
+  let worstAlign = 0;
+  let worstNaive = 0;
+  for (const rho of inputs) {
+    worstRide = Math.max(worstRide, traceDistance(holderJoint(rho).register, coherentShortcut(rho).register));
+    const bank = alignedBank(coherentShortcut(rho).total);
+    const rungs = holderHarvest(rho);
+    worstAlign = Math.max(worstAlign, Math.abs(rungs.aligned - bank.l1));
+    worstNaive = Math.max(worstNaive, Math.abs(rungs.naive - bank.naive));
+  }
+  // the nested triangle (amplitude currency) and the convexity ladder (bits)
+  let worstTriangle = 0; // max(naive - aligned, aligned - conditional): must be <= tol
+  let maxUnlock1 = 0;
+  let maxUnlock2 = 0;
+  let worstConvex = 0;
+  let maxBitBoost = 0;
+  let worstCap = 0;
+  for (const rho of inputs) {
+    const rungs = holderHarvest(rho);
+    worstTriangle = Math.max(worstTriangle, rungs.naive - rungs.aligned, rungs.aligned - rungs.conditional);
+    maxUnlock1 = Math.max(maxUnlock1, rungs.aligned - rungs.naive);
+    maxUnlock2 = Math.max(maxUnlock2, rungs.conditional - rungs.aligned);
+    worstConvex = Math.max(worstConvex, rungs.bitsUnconditional - rungs.bitsConditional);
+    maxBitBoost = Math.max(maxBitBoost, rungs.bitsConditional - rungs.bitsUnconditional);
+    worstCap = Math.max(worstCap, rungs.bitsConditional - catalystCap(2));
+  }
+  // straddlers: the record is trivial (mDim = 1), all rungs equal, the FULL
+  // bit banked — the d_c = 2 cap is TIGHT
+  let worstStraddler = 0;
+  for (let t = 0; t < 10; t++) {
+    const phi = rng() * 2 * Math.PI;
+    const w = vec(2);
+    w.re[0] = 1 / Math.SQRT2;
+    w.re[1] = Math.cos(phi) / Math.SQRT2;
+    w.im[1] = Math.sin(phi) / Math.SQRT2;
+    const rungs = holderHarvest(vecToRho(vKron(w, randomStateVec(rng, 2))));
+    const trivial = rungs.mDim === 1 ? 0 : 1;
+    worstStraddler = Math.max(worstStraddler, Math.abs(rungs.conditional - rungs.aligned), Math.abs(rungs.bitsConditional - 1), trivial);
+  }
+  // the residual, priced as data: the gap to the full kT ln2 * C_rel term
+  let gapMin = Infinity;
+  let gapMax = -Infinity;
+  for (const rho of inputs) {
+    const rungs = holderHarvest(rho);
+    gapMin = Math.min(gapMin, rungs.cRelInput - rungs.bitsConditional);
+    gapMax = Math.max(gapMax, rungs.cRelInput - rungs.bitsConditional);
+  }
+  const E300 = 2.87098e-21; // kT ln2 @300 K, quoted from route-price D1-P1
+  const ok =
+    worstDiag <= 1e-12 &&
+    worstSpec <= 1e-9 &&
+    worstRide <= 1e-13 &&
+    worstAlign <= 1e-13 &&
+    worstNaive <= 1e-13 &&
+    worstTriangle <= 1e-12 &&
+    worstConvex <= 1e-9 &&
+    worstCap <= 1e-9 &&
+    worstStraddler <= 1e-12 &&
+    maxUnlock2 > 1e-6;
+  return {
+    name: "W-O holder's bounded catalyst",
+    pass: ok,
+    detail: `the Schmidt memory is honest (marginal diagonal to ${worstDiag.toExponential(2)}, spectrum = the input's, S match ${worstSpec.toExponential(2)}); the riding identity: the memory changes the register x weight output by TD ${worstRide.toExponential(2)}, and R0/R1 are AT14's naive/l1 exactly (${worstNaive.toExponential(2)}/${worstAlign.toExponential(2)}); the nested triangle |sum sum| <= sum_r |sum_m| <= sum_m p_m sum_r |.| holds to ${worstTriangle.toExponential(2)} over ${inputs.length} trajectory inputs — the record unlocks up to ${maxUnlock2.toPrecision(3)} beyond phase alignment (which itself unlocked up to ${maxUnlock1.toPrecision(3)}); the bit ladder rides C_rel convexity (BCP14): record-unlocked up to ${maxBitBoost.toPrecision(3)} bits; the d_c = 2 catalyst cap holds (${worstCap.toExponential(2)}) and is TIGHT on straddlers (trivial record, all rungs equal, the full bit banked, ${worstStraddler.toExponential(2)}); the residual gap to the full priced term over the census: ${gapMin.toPrecision(3)} to ${gapMax.toPrecision(3)} bits (${(gapMax * E300).toExponential(3)} J @300 K) — finite catalyst, authored law, no general asymptotic claim`,
+  };
+}
+
+/** A join-block unitary on the two-world register: its own cargo unitary
+ * inside each of the four (w1, w2) blocks — a symmetry of BOTH worlds. */
+function randomJoinBranchUnitary(rng: Rng): CMat {
+  let u = mat(8, 8);
+  for (let block = 0; block < 4; block++) {
+    const p = mat(4, 4);
+    p.re[block * 4 + block] = 1;
+    u = mAdd(u, kron(p, randomUnitary(rng, 2)));
+  }
+  return u;
+}
+
+/** A unitary block-diagonal in world A's bit ONLY: its own (w2 x cargo)
+ * unitary per w1 — a symmetry of world A alone, not of world B. */
+function randomAOnlyBranchUnitary(rng: Rng): CMat {
+  const p1 = mat(2, 2);
+  p1.re[3] = 1;
+  const p0 = mat(2, 2);
+  p0.re[0] = 1;
+  return mAdd(kron(p1, randomUnitary(rng, 4)), kron(p0, randomUnitary(rng, 4)));
+}
+
+/** W-P: the second world — one product law, two marked worlds. */
+function witnessTwoWorlds(): WitnessResult {
+  const rng = makeRng(1414);
+  // CPTP over the four Kraus operators
+  let completeness = mat(8, 8);
+  for (const k of twoWorldLawKraus(GAMMA)) completeness = mAdd(completeness, mMul(mDagger(k), k));
+  const cptpOk = matEq(completeness, identity(8), 1e-14);
+  // quiet on the JOIN world: both bits in-world is a fixed subspace
+  const p1 = basisVec(2, 1);
+  let worstQuiet = 0;
+  for (let t = 0; t < 16; t++) {
+    const rho = vecToRho(vKron(vKron(p1, p1), randomStateVec(rng, 2)));
+    const out = applyTwoWorldLaw(rho, GAMMA);
+    for (let k = 0; k < out.re.length; k++) {
+      worstQuiet = Math.max(worstQuiet, Math.abs(out.re[k]! - rho.re[k]!), Math.abs(out.im[k]! - rho.im[k]!));
+    }
+  }
+  // the starts: correlated, anti-correlated, product-complement, random pure
+  const ghzW = vec(4);
+  ghzW.re[0] = 1 / Math.SQRT2;
+  ghzW.re[3] = 1 / Math.SQRT2; // (|00> + |11>)/sqrt2: a0 = b0 = 1/2, c0 = 1/2
+  const antiW = vec(4);
+  antiW.re[1] = 1 / Math.SQRT2;
+  antiW.re[2] = 1 / Math.SQRT2; // (|01> + |10>)/sqrt2: a0 = b0 = 1/2, c0 = 0
+  const starts: CMat[] = [
+    vecToRho(vKron(ghzW, randomStateVec(rng, 2))),
+    vecToRho(vKron(antiW, randomStateVec(rng, 2))),
+    vecToRho(randomStateVec(rng, 8)),
+    vecToRho(vKron(vKron(basisVec(2, 0), basisVec(2, 0)), randomStateVec(rng, 2))),
+  ];
+  // single faces exact (entangled starts included); the join closed form exact
+  let worstSingle = 0;
+  let worstJoin = 0;
+  let worstInc = 0;
+  for (const rho of starts) {
+    const a0 = 1 - chargeA(rho);
+    const b0 = 1 - chargeB(rho);
+    const c0 = 1 - chargeA(rho) - chargeB(rho) + joinCharge(rho); // inclusion-exclusion = bothOutside
+    worstSingle = Math.max(worstSingle, Math.abs(c0 - bothOutside(rho)));
+    for (const k of [1, 4, 15]) {
+      const cur = iterateTwoWorldLaw(rho, k, GAMMA);
+      worstSingle = Math.max(
+        worstSingle,
+        Math.abs(1 - chargeA(cur) - singleWorldLeak(k, a0, GAMMA)),
+        Math.abs(1 - chargeB(cur) - singleWorldLeak(k, b0, GAMMA)),
+      );
+      worstJoin = Math.max(worstJoin, Math.abs(1 - joinCharge(cur) - joinLeakage(k, a0, b0, c0, GAMMA)));
+    }
+    const cur1 = applyTwoWorldLaw(rho, GAMMA);
+    worstInc = Math.max(
+      worstInc,
+      Math.abs(chargeA(cur1) - (chargeA(rho) + GAMMA * (1 - chargeA(rho)))),
+      Math.abs(chargeB(cur1) - (chargeB(rho) + GAMMA * (1 - chargeB(rho)))),
+    );
+  }
+  // the join is NOT a single geometric when c0 > 0: joinLeak(k)/(1-gamma)^k = a0 + b0 - c0(1-gamma)^k drifts
+  const drift =
+    joinLeakage(10, 0.5, 0.5, 0.5, GAMMA) / Math.pow(1 - GAMMA, 10) -
+    joinLeakage(1, 0.5, 0.5, 0.5, GAMMA) / Math.pow(1 - GAMMA, 1);
+  // escape: every charge monotone, the join leak dies
+  let worstDrop = 0;
+  let worstGone = 0;
+  for (const rho of starts) {
+    let cur = rho;
+    for (let k = 0; k < 12; k++) {
+      const a = chargeA(cur);
+      const b = chargeB(cur);
+      const j = joinCharge(cur);
+      cur = applyTwoWorldLaw(cur, GAMMA);
+      worstDrop = Math.max(worstDrop, a - chargeA(cur), b - chargeB(cur), j - joinCharge(cur));
+    }
+    worstGone = Math.max(worstGone, 1 - joinCharge(iterateTwoWorldLaw(rho, 200, GAMMA)));
+  }
+  // engineered: join-block unitaries conserve ALL charges; one-bit-block
+  // unitaries conserve only their own world's charge
+  let worstJoinBlock = 0;
+  let worstAOnly = 0;
+  let movedB = 0;
+  for (let t = 0; t < 12; t++) {
+    const uJoin = randomJoinBranchUnitary(rng);
+    const uA = randomAOnlyBranchUnitary(rng);
+    for (const rho of starts) {
+      const oj = applyUnitary(rho, uJoin);
+      worstJoinBlock = Math.max(
+        worstJoinBlock,
+        Math.abs(chargeA(oj) - chargeA(rho)),
+        Math.abs(chargeB(oj) - chargeB(rho)),
+        Math.abs(joinCharge(oj) - joinCharge(rho)),
+      );
+      const oa = applyUnitary(rho, uA);
+      worstAOnly = Math.max(worstAOnly, Math.abs(chargeA(oa) - chargeA(rho)));
+      movedB = Math.max(movedB, Math.abs(chargeB(oa) - chargeB(rho)));
+    }
+  }
+  const ok =
+    cptpOk &&
+    worstQuiet <= 1.5e-15 &&
+    worstSingle <= 1e-14 &&
+    worstJoin <= 1e-14 &&
+    worstInc <= 1e-15 &&
+    drift > 1e-6 &&
+    worstDrop >= -1.5e-15 &&
+    worstGone <= 1e-12 &&
+    worstJoinBlock <= 1.5e-15 &&
+    worstAOnly <= 1.5e-15 &&
+    movedB > 0.3;
+  return {
+    name: "W-P the second world",
+    pass: ok,
+    detail: `the product law is CPTP; QUIET on the join world (${worstQuiet.toExponential(2)} over in-join cargo states); every single-world face keeps its exact geometric on ARBITRARY starts (worst deviation ${worstSingle.toExponential(2)}, including the correlated (c0=1/2) and anti-correlated (c0=0) starts) with the SAME increment identity dV = gamma(1-V) (${worstInc.toExponential(2)}); the JOIN leakage is the exact union-with-intersection qA + qB - qAB with qAB(k) = (1-gamma)^{2k} c0 (${worstJoin.toExponential(2)}) and is NOT a single geometric when c0 > 0: the normalized face joinLeak(k)/(1-gamma)^k drifts by ${drift.toPrecision(3)} from k=1 to k=10 on the correlated start; escape stays impossible: all charges monotone (worst drop ${worstDrop.toExponential(2)}), the join leak is gone at k=200 (${worstGone.toExponential(2)}); engineered join-block programs conserve all three charges (${worstJoinBlock.toExponential(2)}) while a one-bit-block program conserves only ITS world (${worstAOnly.toExponential(2)}) and moves the other's charge by up to ${movedB.toPrecision(3)} — two worlds, one law, two conserved symmetries`,
+  };
+}
+
+/** W-Q: the accumulated law-error — time-dependent eps_t, the exact bound. */
+function witnessAccumulatedError(): WitnessResult {
+  const rng = makeRng(1515);
+  // the constant-eps limit reproduces AT4's bound from below
+  let worstLimit = 0;
+  for (const eps of [0.002, 0.01, 0.05, 0.1]) {
+    const seq = new Array<number>(500).fill(eps);
+    worstLimit = Math.max(worstLimit, Math.abs(accumulatedLeakageBound(seq, 1, GAMMA) - perturbedLeakageBound(eps, GAMMA)));
+  }
+  // the census: random eps_t sequences, FRESH random channels every step,
+  // adversarial starts — the recursion bound is never exceeded
+  let worstExcess = 0;
+  let maxBound = 0;
+  let minBound = 1;
+  for (let trial = 0; trial < 10; trial++) {
+    const epsSeq: number[] = [];
+    for (let t = 0; t < 300; t++) epsSeq.push(0.002 + 0.098 * rng());
+    const bound = accumulatedLeakageBound(epsSeq, 1, GAMMA);
+    maxBound = Math.max(maxBound, bound);
+    minBound = Math.min(minBound, bound);
+    for (const rho0 of [vecToRho(randomStateVec(rng, 4)), maximallyMixed(4), outOfWorldState(vecToRho(randomStateVec(rng, 2)))]) {
+      const leak0 = leakage(rho0);
+      let cur = rho0;
+      for (const eps of epsSeq) cur = applyPerturbed(cur, randomCptpKraus(rng, 4, 2), eps, GAMMA);
+      worstExcess = Math.max(worstExcess, leakage(cur) - accumulatedLeakageBound(epsSeq, leak0, GAMMA));
+    }
+  }
+  // the contraction: at constant eps the bound closes on AT4's fixed point
+  // geometrically, |B_t - fp| = (1-eps)(1-gamma)|B_(t-1) - fp| exactly
+  let worstContract = 0;
+  for (const eps of [0.01, 0.08]) {
+    const fp = perturbedLeakageBound(eps, GAMMA);
+    let b = 1.0; // the adversarial leak0
+    for (let t = 1; t <= 6; t++) {
+      const prev = Math.abs(b - fp);
+      b = accumulatedLeakageBound([eps], b, GAMMA);
+      worstContract = Math.max(worstContract, Math.abs(Math.abs(b - fp) - (1 - eps) * (1 - GAMMA) * prev));
+    }
+  }
+  const ok = worstLimit <= 1e-9 && worstExcess <= 1e-12 && worstContract <= 1e-15;
+  return {
+    name: "W-Q accumulated law-error",
+    pass: ok,
+    detail: `the recursion B_t = B_(t-1)(1-eps_t)(1-gamma) + eps_t is exact algebra; at constant eps over 500 steps it meets AT4's bound eps/(1-(1-eps)(1-gamma)) to ${worstLimit.toExponential(2)}, closing on the fixed point geometrically (contraction identity ${worstContract.toExponential(2)}); the census (10 random eps_t sequences of 300 steps, eps_t drawn in [0.002, 0.1], FRESH random CPTP channels every step, adversarial starts): worst excess over the bound ${worstExcess.toExponential(2)}, the bounds themselves ranging ${minBound.toPrecision(4)}–${maxBound.toPrecision(4)} over the sequences — time-dependent law error accumulates exactly as the recursion says, no worse`,
+  };
+}
+
 export function runWitnesses(): WitnessResult[] {
   return [
     witnessLaw(),
@@ -911,5 +1250,8 @@ export function runWitnesses(): WitnessResult[] {
     witnessAuditLedger(),
     witnessLindbladForm(),
     witnessPhaseAlignment(),
+    witnessHolderRungs(),
+    witnessTwoWorlds(),
+    witnessAccumulatedError(),
   ];
 }

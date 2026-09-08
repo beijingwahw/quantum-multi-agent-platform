@@ -72,6 +72,32 @@ the world bit, identity on the cargo. Nothing else. Then, machine-witnessed:
   ℓ¹ optimum **exactly** (triangle inequality attained), recovering up to 72.7% on
   opposite-phase states; the residual correlation coherence stays priced-and-cited
   (WY16).
+- **The holder's bounded catalyst** (AT15) — the QSI face EXECUTED in its bounded
+  form: a holder storing a Schmidt purification of the register (diagonal marginal,
+  the weakest memory) rides the shortcut untouched; the harvest is a **nested
+  triangle** — AT14's phase alignment is the first layer, the classical record from
+  measuring the memory the second (unlock up to 0.172 beyond alignment on the law's
+  own trajectory states; the record matters exactly once the law has mixed the
+  register); the bit ladder rides C_rel convexity (record-unlocked up to 0.469 bits);
+  the coherent excess is **capped by the catalyst's dimension** (C_rel ≤ log2 d_c,
+  tight at d_c = 2 — the straddler's full bit on the 2-dim weight); the residual gap
+  to kT ln2·C_rel priced as data (−0.251…0.851 bits over the census). Finite
+  catalyst, authored law, NO general asymptotic claim (WY16/OH02 stay cited).
+- **The second world** (AT16) — two marked worlds under ONE law (same damping on
+  both world bits, register w1⊗w2⊗cargo): every single-world face keeps its exact
+  geometric on ARBITRARY (entangled) starts with the same increment identity; the
+  join world is the absorbing class, its leakage the exact
+  **union-with-intersection** qA + qB − qAB with qAB(k) = (1−γ)^{2k}·c0 — never a
+  single geometric outside the trivial case (the normalized join face drifts by
+  0.347, k=1→10, on the correlated start); join-block programs conserve all three
+  charges, one-bit-block programs only their own world's (the other's moves by up
+  to 0.839) — two worlds, one law, two conserved symmetries. The checker demands a
+  re-derivable join certificate (SW8 rejects the single-geometric counterfeit).
+- **The accumulated law-error** (AT17) — time-dependent ε_t priced exactly:
+  B_t = B_{t−1}(1−ε_t)(1−γ) + ε_t (constant-ε limit = AT4's bound to 8.33e−17;
+  census with FRESH random channels every step never exceeds it); an error
+  **schedule** beats the constant worst case — alternating ε_t = 0.1/0.002 prices
+  at 0.1553 against 0.3077 (49.5% off the constant-worst bill).
 
 ## Honest boundaries
 
@@ -80,14 +106,21 @@ claimed (same machine-layer boundary as vacuum-compiler). The continuum Green-La
 derivation stays excluded, exactly as ledger rows #14/#16 wrote it. The contents are
 never chosen by the law — bring your own. The collision bath is repeated interactions
 with **discrete** resonant qubits — the continuum weak-coupling (Davies) limit is cited
-(DAV74), not executed. The shortcut needs a prepared coherent weight and control;
-harvesting beyond straddlers splits between weight coherence and register-weight
-entanglement (census 0.01–0.95 banked) — quantum side information territory.
+(DAV74), not executed. The shortcut needs a prepared coherent weight and control. The
+QSI boundary is **tripartite**: one-shot incoherent control (AT14) and the holder's
+classical record (AT15, second triangle layer) are executed exactly, the finite
+catalyst's coherent take is capped at log2 d_c and attained on straddlers — but the
+general/asymptotic face (WY16 distillation rates, OH02 work-deficit asymptotics,
+unbounded catalysis à la LB21) stays **priced-and-cited, never claimed**: finite
+catalyst, authored law, residual measured as data. The two-world law is the same
+product channel on two marked bits — no claim about worlds with different damping
+rates or competing markings. The perturbation censuses (AT4, AT17) are DATA supporting
+exact algebra bounds.
 
 ## Run
 
 ```bash
-npm test          # 41/41 (board laws, machinery closed forms, seven smuggling trials, render guard)
+npm test          # 56/56 (board laws, machinery closed forms, eleven smuggling trials, render guard)
 npm run typecheck # tsc --noEmit, zero errors
 npm run repro     # renders out/reports/the-stable-world.md in seconds
 ```
@@ -95,4 +128,4 @@ npm run repro     # renders out/reports/the-stable-world.md in seconds
 Anchors: `choice-lang` (the language layer), `dsic-noether` (the Noether note),
 `route-price` / `vacuum-compiler` (the tariff schedule), `depreciation-ledger` (the shared
 h₂ anchor), `survivor-census` (the absorbing-class kinship). Citations in `citations.md`
-(LYAP92, NAC00, BCP14, BIPM19, DAV74, WY16 — double-sourced).
+(LYAP92, NAC00, BCP14, BIPM19, DAV74, WY16, OH02, LB21, CZJ24 — double-sourced).

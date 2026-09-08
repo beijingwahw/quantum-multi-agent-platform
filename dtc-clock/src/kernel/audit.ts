@@ -47,6 +47,8 @@
  *   W-W the arcsine law — the exact chain identity, the pi/2
  *   W-X the correction constant pinned — sigma1 to ten digits, the
  *       one-term refutations, and the exact fixed-k edge law;
+ *   W-Z the isolated echo laws independently re-verified (the v0.2.0
+ *       tautology convicted) and the Phi1 machine bracket (v0.20.0);
  *       profile limit reproducing 9/8, and a's structure;
  *       factorization, the geometric-tail bracket, and the correction
  *       constant's convergence;
@@ -64,11 +66,18 @@ import {
   alternationDeviation,
   chainLifetimeCensus,
   cliffBisect,
+  coherentEchoLawDeviation,
+  convictedLawDeviation,
+  dephasedEchoExpectationExact,
+  dephasedLifetimeCrossing,
   flipIdentityDeviation,
   heatingRelaxation,
   isolatedEchoLifetime,
   pairingDeviations,
   rigidityCensus,
+  rotorEchoLawDeviation,
+  isolatedRotorParts,
+  tautologicalIsoAgreement,
 } from "./beat.js";
 import { fredkinConservesWeight, multiplierVerdict, permToCMat, runnerPermutation } from "./compile.js";
 import { isUnitary } from "../core/cmat.js";
@@ -137,8 +146,15 @@ import {
   arcClosureRelative,
   edgeNextOrder,
   edgeSeriesAccelerated,
+  edgeSeriesTailBound,
   fFunctionFace,
+  phi1Face,
+  phi1GridStructure,
+  checkPhi1Bracket,
+  kappaRoadCrossDeviation,
+  zetaEM,
 } from "./assembly.js";
+import { shareFloatIncremental } from "./armor.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 const CITATION_KEYS = [
@@ -152,6 +168,8 @@ const CITATION_KEYS = [
   "MI22",
   "WIL12",
   "LAND61",
+  "YSB25",
+  "MOO26",
 ] as const;
 
 const FAMILIES: readonly Family[] = [
@@ -163,7 +181,7 @@ const FAMILIES: readonly Family[] = [
   "tombstone",
   "certificate",
 ];
-const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-H", "W-I", "W-J", "W-K", "W-L", "W-M", "W-N", "W-O", "W-P", "W-Q", "W-R", "W-S", "W-T", "W-U", "W-V", "W-W", "W-X", "W-Y"] as const;
+const WITNESSES = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-H", "W-I", "W-J", "W-K", "W-L", "W-M", "W-N", "W-O", "W-P", "W-Q", "W-R", "W-S", "W-T", "W-U", "W-V", "W-W", "W-X", "W-Y", "W-Z"] as const;
 
 export interface Violation {
   readonly row: string;
@@ -376,29 +394,47 @@ export function runWitnesses(): WitnessResult[] {
     });
   }
 
-  // W-H — the lifetime law (v0.2.0)
+  // W-H — the lifetime law (v0.2.0; the isolated face RE-VERIFIED at v0.20.0
+  // by an independent path — the v0.2.0 witness here was the TAUTOLOGY)
   {
-    let isoAgree = true;
-    for (const d of [0.1, 0.2, 0.3]) {
-      const tau = isolatedEchoLifetime(d, 0.5);
-      const c = Math.abs(Math.cos(2 * d));
-      let k = 0;
-      let m = 1;
-      while (m >= 0.5 && k < 100000) {
-        k++;
-        m *= c;
+    // the dephased law, exhaustively: E[m~(k)] = (cos 2d)^k over ALL sign
+    // sequences through the kernel (an exact expectation, not a sample)
+    let depWorst = 0;
+    for (const d of [0.1, 0.2]) {
+      for (const k of [8, 12]) {
+        const e = dephasedEchoExpectationExact(d, k);
+        depWorst = Math.max(depWorst, Math.abs(e - Math.cos(2 * d) ** k));
       }
-      isoAgree = isoAgree && tau === k;
     }
+    // the tau* crossing, MC-witnessed at both benchmark deltas
+    const cross20 = dephasedLifetimeCrossing(makeRng(0x5eed47), 0.2, 0.5, 40000);
+    const cross30 = dephasedLifetimeCrossing(makeRng(0x5eed48), 0.3, 0.5, 40000);
+    const crossingOk =
+      cross20.below > 0.5 &&
+      cross20.at < 0.5 &&
+      cross30.below > 0.5 &&
+      cross30.at < 0.5 &&
+      cross20.tau === isolatedEchoLifetime(0.2, 0.5) &&
+      cross30.tau === isolatedEchoLifetime(0.3, 0.5);
     const rows = chainLifetimeCensus(6, [0.3, 0.4], 800, 0.5);
     const cliff = rows[0]!.tauChain > 10 * rows[0]!.tauIso && rows[1]!.tauChain <= rows[1]!.tauIso + 1;
     const heat = heatingRelaxation(6, 0.2, 400);
     const frontLoaded = heat.tauHeat >= 1 && heat.tauHeat <= 4;
     out.push({
       witness: "W-H",
-      ok: isoAgree && cliff && frontLoaded,
+      ok: depWorst <= 1e-12 && crossingOk && cliff && frontLoaded,
       detail:
-        "iso closed form === simulation (3 deltas); protection cliff at 800-horizon rerun: delta0.3 tau " +
+        "dephased law exhaustive over ALL 2^k sign sequences (k=8/12, d=0.1/0.2): worst dev " +
+        depWorst.toExponential(2) +
+        " (the v0.2.0 formula-times-itself witness here was the TAUTOLOGY — TC46 convicted it); tau* crossing (N=40000): d=0.2 E[m~] " +
+        cross20.below.toFixed(4) +
+        " (k=8) -> " +
+        cross20.at.toFixed(4) +
+        " (k=9), d=0.3 " +
+        cross30.below.toFixed(4) +
+        " -> " +
+        cross30.at.toFixed(4) +
+        "; protection cliff at 800-horizon rerun: delta0.3 tau " +
         String(rows[0]!.tauChain) +
         " vs iso " +
         String(rows[0]!.tauIso) +
@@ -887,7 +923,7 @@ export function runWitnesses(): WitnessResult[] {
     });
   }
 
-  // W-Y — the singular Euler-Maclaurin assembly (TC44/TC45)
+  // W-Y — the singular Euler-Maclaurin assembly (TC44/TC45, CORRECTED v0.20.0)
   {
     const t1 = transferResidual(4096);
     const t2 = transferResidual(16384);
@@ -904,6 +940,8 @@ export function runWitnesses(): WitnessResult[] {
     const closure = [8, 12, 16].map((n) => arcClosureRelative(n, s1));
     const closureDeclining = closure[0]! > closure[1]! && closure[1]! > closure[2]!;
     const fEdge = fFunctionFace(100000, 3);
+    const zetaFixOk =
+      Math.abs(zetaEM(1.5, 60) - zetaEM(1.5, 240)) <= 1e-9 && Math.abs(zetaEM(2.5, 60) - zetaEM(2.5, 240)) <= 1e-10;
     const ok =
       t1.residual < 1e-9 &&
       t2.residual < 1e-9 &&
@@ -912,15 +950,71 @@ export function runWitnesses(): WitnessResult[] {
       Math.abs(nextLim - 0.375) <= 1e-6 &&
       Math.abs(secondAt(8192) - -11 / 128) <= 2e-3 &&
       closureDeclining &&
-      Math.abs(series.zetaM - -0.306398243) <= 1e-6 &&
+      Math.abs(series.zetaM - -0.306852819) <= 1e-6 &&
       series.spotChecks <= 1e-12 &&
-      Math.abs(phi1 - -4.547e-4) <= 2e-6 &&
-      phi1 < -1e-4 &&
+      Math.abs(phi1) <= 6e-7 &&
+      zetaFixOk &&
       fEdge > 0.999;
     out.push({
       witness: "W-Y",
       ok,
-      detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${-11 / 128} exact), sum(E) = ${series.sumE.toFixed(9)} so zeta_m = ${series.zetaM.toFixed(9)} — and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} SMALL BUT NONZERO: the sharp-cutoff assembly does not close, the cutoff face's constant is machine-bracketed; the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,
+      detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${-11 / 128} exact), sum(E) = ${series.sumE.toFixed(9)} (WITH THE v0.20.0 zetaEM SIGN FIX — the N=60/120/240 agreement ${zetaFixOk ? "witnessed at ~1e-10" : "FAILED"}, where the v0.19.0 road erred at N^-s) so zeta_m = ${series.zetaM.toFixed(9)} and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} — INSIDE TC47's certified bracket (the v0.19.0 '-4.547e-4 nonzero' claim RETIRED as the sign bug's artifact); the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,
+    });
+  }
+
+  // W-Z — the isolated echo laws (TC46) and the Phi1 bracket (TC47, v0.20.0)
+  {
+    // TC46: the coherent rotor law exact; the v0.2.0 law convicted; the
+    // tautology blind; the B1 arm's rotor road
+    let cohWorst = 0;
+    let convictWorst = 0;
+    for (const d of [0.05, 0.1, 0.2, 0.3]) {
+      cohWorst = Math.max(cohWorst, coherentEchoLawDeviation(d, 40));
+      convictWorst = Math.max(convictWorst, convictedLawDeviation(d, 40));
+    }
+    const rotorB1 = rotorEchoLawDeviation(0.1, 0.05, 60);
+    const rotorNorm = isolatedRotorParts(0.1, 0.05).normDev;
+    const tautBlind = tautologicalIsoAgreement(Math.abs(Math.cos(3 * 0.2)), 0.5);
+    // TC47: the Phi1 face — roads cross-validated, bracket assembled,
+    // structure certified, the checker passing on the real bracket
+    let shareXWorst = 0;
+    for (const n of [4096, 16384, 65536]) {
+      shareXWorst = Math.max(shareXWorst, Math.abs(shareFloatIncremental(n) / shareFloat(n) - 1));
+    }
+    let kappaXWorst = 0;
+    for (const d of [4096, 16384, 65536]) kappaXWorst = Math.max(kappaXWorst, kappaRoadCrossDeviation(d));
+    const face = phi1Face();
+    const struct = phi1GridStructure();
+    const ratiosOk = struct.incrementRatios.every((r) => r > 0.4 && r < 0.6);
+    const realBracketLegal =
+      checkPhi1Bracket(
+        { lo: face.lo, hi: face.hi, pieces: ["kappa transfer spread", "zeta series tail"] },
+        face,
+      ).length === 0;
+    const zetaFix = Math.abs(zetaEM(1.5, 60) - zetaEM(1.5, 240)) <= 1e-9;
+    const tail = edgeSeriesTailBound(1 << 20);
+    const ok =
+      cohWorst <= 1e-14 &&
+      convictWorst > 0.5 &&
+      rotorB1 <= 1e-13 &&
+      rotorNorm <= 1e-12 &&
+      tautBlind &&
+      shareXWorst <= 1e-8 &&
+      kappaXWorst <= 2e-6 &&
+      face.lo <= 0 &&
+      0 <= face.hi &&
+      Math.max(Math.abs(face.lo), Math.abs(face.hi)) <= 6e-7 &&
+      face.epsZeta < 1e-9 &&
+      face.kappaRoadDeviation <= 1e-5 &&
+      struct.monotone &&
+      struct.signStable &&
+      ratiosOk &&
+      realBracketLegal &&
+      zetaFix;
+    out.push({
+      witness: "W-Z",
+      ok,
+      detail: `the isolated echo laws (TC46): coherent rotor law worst ${cohWorst.toExponential(2)} (d=0.05..0.3, k<=40, kernel vs rotation closed form — two roads); the v0.2.0 geometric law CONVICTED, worst deviation ${convictWorst.toFixed(3)} on the same grid; the tautology blind (certifies |cos3d| happily): ${tautBlind}; the B1 arm's rotor law ${rotorB1.toExponential(2)} (axis norm dev ${rotorNorm.toExponential(2)}); the Phi1 face (TC47): share roads cross-validated to ${shareXWorst.toExponential(2)} rel (n<=2^16), kappa roads to ${kappaXWorst.toExponential(2)} (D<=2^16); Phi1 = ${face.point.toExponential(4)} bracketed [${face.lo.toExponential(4)}, ${face.hi.toExponential(4)}] — CONTAINS ZERO, |Phi1| <= ${Math.max(Math.abs(face.lo), Math.abs(face.hi)).toExponential(3)} (eps_kappa ${face.epsKappa.toExponential(3)} carries it, eps_zeta ${face.epsZeta.toExponential(2)} + tail ${tail.tail.toExponential(2)}); the independent kappa(D) road confirms the transfer to ${face.kappaRoadDeviation.toExponential(2)}; D-grid monotone ${struct.monotone} sign-stable ${struct.signStable}, increment ratios ${struct.incrementRatios.map((r) => r.toFixed(3)).join("/")} (the 1/sqrt(D) face); the real bracket passes the checker: ${realBracketLegal}; the zetaEM sign fix witnessed: ${zetaFix}`,
     });
   }
 

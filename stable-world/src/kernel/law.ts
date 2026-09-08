@@ -14,9 +14,10 @@
  * Everything here has a closed form the witnesses re-derive, never assume.
  */
 import type { Rng } from "../core/rng.js";
-import { type CMat, identity, kron, mat, mAdd, mDagger, mMul, mScale } from "../core/cmat.js";
-import { applyKraus, applyUnitary, partialTrace } from "../core/channels.js";
+import { type CMat, type CVec, eigHermitian, identity, kron, mat, mAdd, mDagger, mMul, mScale } from "../core/cmat.js";
+import { applyKraus, applyUnitary, filterBasisDigit, partialTrace } from "../core/channels.js";
 import { vonNeumannEntropy } from "../core/measures.js";
+import { vecToRho } from "../core/states.js";
 
 export const GAMMA = 0.25;
 export const DATA_DIM = 2;
@@ -558,4 +559,296 @@ export function alignedBank(total: CMat): { naive: number; aligned: number; l1: 
     aIm += alignedState.im[(r * 2 + 0) * 8 + (r * 2 + 1)] ?? 0;
   }
   return { naive: Math.hypot(naiveRe, naiveIm), aligned: Math.hypot(aRe, aIm), l1 };
+}
+
+/**
+ * ===== The sixty-fourth-visit additions: the holder's bounded catalyst, the
+ * second marked world, and the accumulated law-error =====
+ *
+ * (1) THE HOLDER (AT15). The QSI boundary of AT12/AT14 — "the residual
+ *     correlation coherence is quantum-side-information territory" — is
+ *     executed in its BOUNDED face. The holder stores a purification of the
+ *     world register (a Schmidt memory: diagonal marginal, the weakest
+ *     memory — no coherence smuggled in), the shortcut runs on R x W with
+ *     the memory riding (identity on M), and the harvest ladder is measured
+ *     exactly on the authored trajectories:
+ *       R0 |sum_{r,m} p_m sigma_r^{(m)}|   the naive bank (destructive sum)
+ *       R1 sum_r |sum_m p_m sigma_r^{(m)}| the AT14 phase-alignment (QSI-free)
+ *       R2 sum_m p_m sum_r |sigma_r^{(m)}| the classical record, feed-forward
+ *     — a nested triangle inequality, one layer per side information, each
+ *     rung EXACT. The bit-currency ladder rides the convexity of C_rel
+ *     (BCP14): sum_m p_m C_rel(sigma_W|m) >= C_rel(sigma_W). The coherent
+ *     harvest beyond R2 is bounded by the catalyst's dimensional cap
+ *     C_rel <= log2 d_c for EVERY state on a d_c-dimensional catalyst —
+ *     tight at d_c = 2 on straddlers (the shortcut banks the full bit on the
+ *     2-dimensional weight). NO general asymptotic claim: finite catalyst,
+ *     authored law, the residual priced as data.
+ *
+ * (2) THE SECOND WORLD (AT16). Two marked worlds under ONE law: the register
+ *     grows a second world bit (w1 x w2 x cargo, dim 8) and the law damps
+ *     BOTH bits into their worlds. Every single-world face keeps its exact
+ *     closed form — leak_X(k) = (1-gamma)^k leak_X(0) for ARBITRARY
+ *     (entangled) starts — but the JOIN world's leakage is the
+ *     union-with-intersection: qA + qB - qAB with qAB(k) = (1-gamma)^{2k} c0,
+ *     never a single geometric outside the trivial case.
+ *
+ * (3) THE ACCUMULATED LAW-ERROR (AT17). Time-dependent error eps_t: the
+ *     exact bound B_0 = leak0, B_t = B_{t-1}(1-eps_t)(1-gamma) + eps_t,
+ *     reducing to AT4's bound at constant eps.
+ */
+
+/** Schmidt purification |Psi> = sum_i sqrt(l_i)|i>_R |i>_M of a register
+ * state: eigenpairs with lam > 1e-12, the memory's dimension = the rank.
+ * The memory marginal is DIAGONAL (the Schmidt basis) — the honest weakest
+ * memory: it carries the record and nothing else. */
+export function schmidtPurification(rho: CMat): { vec: CVec; joint: CMat; mDim: number } {
+  const { values, vectors } = eigHermitian(rho);
+  const pairs: Array<{ lam: number; vec: CMat }> = [];
+  for (let k = 0; k < rho.rows; k++) {
+    const lam = values[k]!;
+    if (lam > 1e-12) pairs.push({ lam, vec: vectors[k]! });
+  }
+  if (pairs.length === 0) throw new Error("schmidtPurification: state has no weight");
+  const mDim = pairs.length;
+  const psi: CVec = {
+    n: rho.rows * mDim,
+    re: new Float64Array(rho.rows * mDim),
+    im: new Float64Array(rho.rows * mDim),
+  };
+  for (let m = 0; m < mDim; m++) {
+    const w = Math.sqrt(pairs[m]!.lam);
+    for (let i = 0; i < rho.rows; i++) {
+      // pairs holds exactly mDim entries pushed above, each vec length rho.rows
+      psi.re[i * mDim + m] = w * pairs[m]!.vec.re[i]!;
+      psi.im[i * mDim + m] = w * pairs[m]!.vec.im[i]!;
+    }
+  }
+  return { vec: psi, joint: vecToRho(psi), mDim };
+}
+
+export interface HolderWorld {
+  /** R(4) x W(2) x M(mDim), pure — the shortcut with the memory riding. */
+  readonly total: CMat;
+  /** the register marginal — equals coherentShortcut(rho).register exactly. */
+  readonly register: CMat;
+  /** the holder's joint weight x memory system. */
+  readonly weightMemory: CMat;
+  readonly mDim: number;
+}
+
+/** The holder world: the theta = pi/2 shortcut applied to R x W with the
+ * Schmidt memory M riding along untouched. */
+export function holderJoint(rho: CMat): HolderWorld {
+  const pur = schmidtPurification(rho);
+  const m = pur.mDim;
+  const psi: CVec = { n: FULL_DIM * 2 * m, re: new Float64Array(FULL_DIM * 2 * m), im: new Float64Array(FULL_DIM * 2 * m) };
+  for (let iR = 0; iR < FULL_DIM; iR++) {
+    for (let mm = 0; mm < m; mm++) {
+      // weight starts in its ground |1_w>: only the w=1 slice is populated
+      const src = iR * m + mm;
+      const dst = (iR * 2 + 1) * m + mm;
+      psi.re[dst] = pur.vec.re[src]!;
+      psi.im[dst] = pur.vec.im[src]!;
+    }
+  }
+  const u = kron(exchangeUnitary(Math.PI / 2), identity(m));
+  const total = applyUnitary(vecToRho(psi), u);
+  return {
+    total,
+    register: partialTrace(total, [FULL_DIM, 2, m], [1, 2]),
+    weightMemory: partialTrace(total, [FULL_DIM, 2, m], [0]),
+    mDim: m,
+  };
+}
+
+export interface HolderRungs {
+  readonly mDim: number;
+  /** the Schmidt record's outcome distribution (the memory's eigenvalues). */
+  readonly probs: readonly number[];
+  /** R0: |sum_{r,m} p_m sigma_r^{(m)}| — the naive destructive-sum bank. */
+  readonly naive: number;
+  /** R1: sum_r |sum_m p_m sigma_r^{(m)}| — the AT14 phase-alignment optimum. */
+  readonly aligned: number;
+  /** R2: sum_m p_m sum_r |sigma_r^{(m)}| — the classical record, feed-forward. */
+  readonly conditional: number;
+  /** C_rel of the unconditional weight marginal (banked bits, AT10's c2). */
+  readonly bitsUnconditional: number;
+  /** sum_m p_m C_rel(sigma_W|m) — the record-unlocked bits (convexity gap). */
+  readonly bitsConditional: number;
+  /** the FULL priced term: the input's sector coherence in bits. */
+  readonly cRelInput: number;
+}
+
+/** The holder's harvest ladder on the authored trajectories: sigma_r^{(m)}
+ * is the weight-coherence element of the memory-m-filtered shortcut output
+ * (register row r, weight leg 0->1), p_m the record's weight. */
+export function holderHarvest(rho: CMat): HolderRungs {
+  const sc = coherentShortcut(rho);
+  const { total, mDim: m } = holderJoint(rho);
+  const dims = [FULL_DIM, 2, m];
+  // unconditional elements from the shortcut total (the memory traced out):
+  // element [row = r*2+0, col = r*2+1] of the 8-dim register x weight state
+  const elem8 = (state: CMat, r: number): { re: number; im: number } => ({
+    re: state.re[(r * 2 + 0) * 8 + (r * 2 + 1)]!,
+    im: state.im[(r * 2 + 0) * 8 + (r * 2 + 1)]!,
+  });
+  let naiveRe = 0;
+  let naiveIm = 0;
+  let aligned = 0;
+  for (const r of [DATA_DIM, DATA_DIM + 1]) {
+    const e = elem8(sc.total, r);
+    naiveRe += e.re;
+    naiveIm += e.im;
+    aligned += Math.hypot(e.re, e.im);
+  }
+  // the classical record: measure M in its (Schmidt) basis, conditionally bank
+  let conditional = 0;
+  let bitsConditional = 0;
+  const probs: number[] = [];
+  for (let digit = 0; digit < m; digit++) {
+    const { p, conditional: cond } = filterBasisDigit(total, dims, 2, digit);
+    probs.push(p);
+    if (p <= 1e-15) continue;
+    let l1m = 0;
+    for (const r of [DATA_DIM, DATA_DIM + 1]) {
+      // element [row = (r*2+0)*m + digit, col = (r*2+1)*m + digit] of the
+      // 8m-dim register x weight x memory conditional (storage width 2*m... no: 8*m)
+      const row = (r * 2 + 0) * m + digit;
+      const col = (r * 2 + 1) * m + digit;
+      l1m += Math.hypot(cond.re[row * (FULL_DIM * 2 * m) + col]!, cond.im[row * (FULL_DIM * 2 * m) + col]!);
+    }
+    conditional += p * l1m;
+    bitsConditional += p * totalCoherenceBits(partialTrace(cond, dims, [0, 2]));
+  }
+  return {
+    mDim: m,
+    probs,
+    naive: Math.hypot(naiveRe, naiveIm),
+    aligned,
+    conditional,
+    bitsUnconditional: totalCoherenceBits(sc.weight),
+    bitsConditional,
+    cRelInput: coherenceBits(rho),
+  };
+}
+
+/** The bounded-catalyst cap: NO state on a d-dimensional catalyst carries
+ * more relative-entropy coherence than log2 d (C_rel <= S(Delta) <= log2 d).
+ * Tight: a 2-dimensional weight banks the straddler's full 1 bit. */
+export function catalystCap(dCatalyst: number): number {
+  if (!Number.isInteger(dCatalyst) || dCatalyst < 1) {
+    throw new Error(`catalystCap: catalyst dimension must be a positive integer, got ${dCatalyst}`);
+  }
+  return Math.log2(dCatalyst);
+}
+
+/** The world-bit damping Kraus pair (2x2): damping INTO the world bit 1. */
+function worldKrausPair(gamma: number): CMat[] {
+  const k0w = mat(2, 2);
+  k0w.re[0 * 2 + 0] = Math.sqrt(1 - gamma);
+  k0w.re[1 * 2 + 1] = 1;
+  const k1w = mat(2, 2);
+  k1w.re[1 * 2 + 0] = Math.sqrt(gamma);
+  return [k0w, k1w];
+}
+
+export const TWO_WORLD_DIM = 8;
+
+/** The two-world law: the SAME damping on both world bits, identity on the
+ * cargo — one law, two marked worlds. Register: w1 x w2 x cargo (2x2x2). */
+export function twoWorldLawKraus(gamma: number = GAMMA): CMat[] {
+  const kraus: CMat[] = [];
+  for (const ka of worldKrausPair(gamma)) {
+    for (const kb of worldKrausPair(gamma)) {
+      kraus.push(kron(kron(ka, kb), identity(DATA_DIM)));
+    }
+  }
+  return kraus;
+}
+
+export function applyTwoWorldLaw(rho: CMat, gamma: number = GAMMA): CMat {
+  return applyKraus(rho, twoWorldLawKraus(gamma));
+}
+
+export function iterateTwoWorldLaw(rho: CMat, steps: number, gamma: number = GAMMA): CMat {
+  let cur = rho;
+  for (let k = 0; k < steps; k++) cur = applyTwoWorldLaw(cur, gamma);
+  return cur;
+}
+
+/** World A's membership charge: Tr[|1><1|_1 (x) I (x) I rho] (basis w1 x w2 x x). */
+export function chargeA(rho: CMat): number {
+  let v = 0;
+  for (let w2 = 0; w2 < 2; w2++) {
+    for (let x = 0; x < DATA_DIM; x++) {
+      const idx = ((1 * 2 + w2) * 2 + x) * TWO_WORLD_DIM + (1 * 2 + w2) * 2 + x;
+      v += rho.re[idx]!;
+    }
+  }
+  return v;
+}
+
+/** World B's membership charge: Tr[I (x) |1><1|_2 (x) I rho]. */
+export function chargeB(rho: CMat): number {
+  let v = 0;
+  for (let w1 = 0; w1 < 2; w1++) {
+    for (let x = 0; x < DATA_DIM; x++) {
+      const idx = ((w1 * 2 + 1) * 2 + x) * TWO_WORLD_DIM + (w1 * 2 + 1) * 2 + x;
+      v += rho.re[idx]!;
+    }
+  }
+  return v;
+}
+
+/** The JOIN world's charge: both bits in their worlds. */
+export function joinCharge(rho: CMat): number {
+  let v = 0;
+  for (let x = 0; x < DATA_DIM; x++) {
+    const idx = ((1 * 2 + 1) * 2 + x) * TWO_WORLD_DIM + (1 * 2 + 1) * 2 + x;
+    v += rho.re[idx]!;
+  }
+  return v;
+}
+
+/** The inter-world intersection: outside BOTH worlds (w1 = w2 = 0). */
+export function bothOutside(rho: CMat): number {
+  let v = 0;
+  for (let x = 0; x < DATA_DIM; x++) {
+    const idx = ((0 * 2 + 0) * 2 + x) * TWO_WORLD_DIM + (0 * 2 + 0) * 2 + x;
+    v += rho.re[idx]!;
+  }
+  return v;
+}
+
+/** Each world's own face keeps the exact single geometric, whatever the
+ * correlations: leak_X(k) = (1-gamma)^k leak_X(0). */
+export function singleWorldLeak(k: number, leak0: number, gamma: number = GAMMA): number {
+  return Math.pow(1 - gamma, k) * leak0;
+}
+
+/** The JOIN leakage, exact for arbitrary (entangled) starts:
+ * qA + qB - qAB with qAB(k) = (1-gamma)^{2k} c0, c0 = P(both outside at 0).
+ * Geometric in k ONLY in the trivial case a0 = b0 = 0 — the union-with-
+ * intersection structure is genuinely two-scale whenever any outside mass
+ * sits at t=0. */
+export function joinLeakage(k: number, a0: number, b0: number, c0: number, gamma: number = GAMMA): number {
+  const qa = Math.pow(1 - gamma, k) * a0;
+  const qb = Math.pow(1 - gamma, k) * b0;
+  const qab = Math.pow(1 - gamma, 2 * k) * c0;
+  return qa + qb - qab;
+}
+
+/** The exact bound on leakage under TIME-DEPENDENT law error eps_t:
+ * B_0 = leak0, B_t = B_{t-1}(1-eps_t)(1-gamma) + eps_t (the N branch can
+ * send anything anywhere). At constant eps this converges to AT4's bound
+ * eps/(1-(1-eps)(1-gamma)) from below. */
+export function accumulatedLeakageBound(epsSeq: readonly number[], leak0: number, gamma: number = GAMMA): number {
+  let b = leak0;
+  for (const eps of epsSeq) {
+    if (!(eps >= 0) || eps >= 1) {
+      throw new Error(`accumulatedLeakageBound: eps must lie in [0,1), got ${eps}`);
+    }
+    b = b * (1 - eps) * (1 - gamma) + eps;
+  }
+  return b;
 }

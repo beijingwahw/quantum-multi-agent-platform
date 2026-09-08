@@ -2,10 +2,10 @@
 
 Every key below is double-source verified (publisher page + independent
 record: arXiv / Crossref / DBLP / author-hosted PDF). Web-verified
-2026-09-06 (v0.1.0) and 2026-09-07 (v0.5.0 additions). In-register
-references (WIL12, WO15, MI22, LAND61) live in route-price/docs/theory.md
-and are quoted, not re-verified here; the FK construction layer (FEY85,
-KSV02) lives in vacuum-compiler.
+2026-09-06 (v0.1.0), 2026-09-07 (v0.5.0 additions) and 2026-09-08 (v0.20.0
+additions). In-register references (WIL12, WO15, MI22, LAND61) live in
+route-price/docs/theory.md and are quoted, not re-verified here; the FK
+construction layer (FEY85, KSV02) lives in vacuum-compiler.
 
 ## New in this repo
 
@@ -65,6 +65,25 @@ KSV02) lives in vacuum-compiler.
   Theory of **Chance**" — wrong; the double-source check caught it (the
   ERS17 lesson repeating). TC26's popcount walk is the Bernoulli-flip walk
   on the n-cube lumped to popcount — this paper's lineage.
+- **YSB25** — R. Yousefjani, K. Sacha, A. Bayat, "Discrete time crystal
+  phase as a resource for quantum-enhanced sensing", Phys. Rev. B **111**,
+  125159 (2025). doi:10.1103/PhysRevB.111.125159, arXiv:2405.00328.
+  [arXiv](https://arxiv.org/abs/2405.00328) +
+  [Crossref](https://api.crossref.org/works/10.1103/PhysRevB.111.125159).
+  The 2024–2026 stability line: a disorder-free many-body DTC with
+  persistent subharmonic oscillations, robust to drive-pulse imperfections
+  — TC46's anchors (the subharmonic response's robustness under pulse
+  error is the field's live question, not a settled footnote).
+- **MOO26** — L. J. I. Moon, P. M. Schindler, R. J. Smith, E. Druga,
+  Z.-R. Zhang, M. Bukov, A. Ajoy, "Sensing with discrete time crystals",
+  Nature Physics **22**, 367–373 (2026). doi:10.1038/s41567-025-03163-6,
+  arXiv:2410.05625.
+  [arXiv](https://arxiv.org/abs/2410.05625) +
+  [Nature](https://www.nature.com/articles/s41567-025-03163-6).
+  Prethermal DTCs as sensors: the linewidth is set by the PDTC lifetime,
+  and the response is resilient to drive errors and sample inhomogeneity —
+  the experimental face of TC18/TC46's benchmark question (what the
+  isolated decay is, and what the many-body rigidity buys against it).
 
 ## Quoted from the register
 

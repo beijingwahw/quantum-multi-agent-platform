@@ -81,7 +81,7 @@ function run(): void {
 
   // the sibling citations, re-audited against shipped reports (read-only)
   const genuineCitations = [
-    { repo: "dtc-clock", version: "0.19.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
+    { repo: "dtc-clock", version: "0.20.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
     { repo: "route-price", version: "0.2.0", witness: "W-E", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
   ];
   const auditRows: string[][] = [];

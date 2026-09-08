@@ -356,6 +356,17 @@ export function randomGauge(f: Family, rng: Rng, terms: number): Poly {
   return g;
 }
 
+/** The census extension (v0.3.0): a TWO-PARAMETER non-linear gauge
+ * h(o) = alpha*o0*o1 + beta*o0^3 (n >= 3 required — the gauge couples the
+ * others' types nonlinearly; the solver must read BOTH parameters off any
+ * DSIC payment carrying it, coefficient-exact). */
+export function nonlinearTwoParamGauge(f: Family, alpha: Rat, beta: Rat): Poly {
+  if (f.n < 3) throw new Error("nonlinearTwoParamGauge: n >= 3 required");
+  const o0 = pVar(f.vars, 2);
+  const o1 = pVar(f.vars, 3);
+  return pAdd(pScale(pMul(o0, o1), alpha), pScale(pMul(pMul(o0, o0), o0), beta));
+}
+
 // ---------------------------------------------------------------------------
 // K1: the off-gauge crime and its exact price
 // ---------------------------------------------------------------------------

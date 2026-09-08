@@ -67,25 +67,18 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   // compiler switches; assertion placement differs repo-to-repo, so the bytes
   // drifted during the window. Registered as debt, not adjudicated: whether a
   // member re-converges to the census canon (or the canon adopts its variant)
-  // is the family's appeal court.
+  // is the family's appeal court. THE APPEAL COURT'S PASS (batch 79's wiring
+  // visit): twelve of the window's registrations went STALE — the delivery
+  // waves re-converged nosignal-tariff/choice-lang/binding-price/letter-audit/
+  // ent-clearing/quantum-mech cmat+measures and readout-wall measures to the
+  // canon byte-for-byte — their debt entries are pruned here so the register
+  // matches reality exactly (0 unregistered, 0 stale).
   { repo: "readout-wall", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
   { repo: "readout-wall", file: "channels.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "readout-wall", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "nosignal-tariff", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "nosignal-tariff", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "choice-lang", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "choice-lang", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "binding-price", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "binding-price", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "letter-audit", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "letter-audit", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "ent-clearing", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "ent-clearing", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "quantum-mech", file: "cmat.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
-  { repo: "quantum-mech", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
   // -- the batch-77 wave appends (v0.2.0 faces onto the canon channels) ------
   { repo: "binding-price", file: "channels.ts", reason: "the v0.2.0 noisy-commit census appended its own noise face to the canon (dephaseKraus, ampDampKraus with the strength guard, noiseKraus, applyNoise — the quantum-mech channels.ts precedent one wave later); the canon's face is untouched above the append; re-convergence is the appeal court's call" },
   { repo: "ent-clearing", file: "channels.ts", reason: "the v0.2.0 purification desk and GHZ bank appended partialTranspose to the canon (the negativity/per-cut machinery); the canon's face is untouched above the append; re-convergence is the appeal court's call" },
+  { repo: "ent-clearing", file: "measures.ts", reason: "the 2026-09-06 strict-mode window's last live cmat-adjacent variant: this member's measures.ts still carries its own repair placement (the wave's other variants re-converged; this one did not) — re-convergence is the appeal court's call" },
   // -- long-standing registered lineages ----------------------------------------
   { repo: "quantum-mech", file: "states.ts", reason: "an independent states module, reconciled on 2026-09-06 onto the strict-mode canon with its original anchors (RPLUS, LPLUS, BELL_PHI_PLUS, bellState, ghz, w3, werner, HADAMARD, randomPureState, valueKet) appended; shares the other files where byte-identical" },
   { repo: "quantum-mech", file: "channels.ts", reason: "the v0.2.0 erasure-robustness census appended its own noise face to the canon (phaseFlipKraus, amplitudeDampKraus with the gamma guard, applyQubitChannel the register-wide applier; import line widened for identity/kronAll) — the canon's face is untouched above the append; re-convergence is the appeal court's call" },

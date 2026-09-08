@@ -161,10 +161,10 @@ export const BOARD: readonly BoardRow[] = [
   {
     id: "TC13",
     claim:
-      "the detuned beat PAYS: the first period has a true closed form, the chain's heating beyond it is suppressed by the same rigidity, and the isolated-qubit echo decay is exact",
+      "the detuned beat PAYS: the first period has a true closed form, the chain's heating beyond it is suppressed by the same rigidity, and the dephased isolated benchmark is exact",
     family: "thermo",
     price:
-      "E_1 closed form <H_zz>_1 = -J(n-1)cos^2(2 delta): deviation 4.4e-15; W_0 = J(n-1) sin^2(2 delta) = 0.2566 at J=1.3, n=6, delta=0.1; isolated echo |<Z>_k| = |cos 2 delta|^k EXACT; chain drift over 15 periods = 5.7e-2 of the binding energy vs the isolated benchmark 2.6e-1 — suppression 4.5x; NO infinite-time total claimed: the naive (cos^2)^k law was convicted by the scratch run (batch 36 — after one kick the state is a superposition and the ZZ stroke entangles it); prethermal bounds cited (EBN16/KLS16)",
+      "E_1 closed form <H_zz>_1 = -J(n-1)cos^2(2 delta): deviation 4.4e-15; W_0 = J(n-1) sin^2(2 delta) = 0.2566 at J=1.3, n=6, delta=0.1; isolated benchmark 1 - (cos 2 delta)^kMax — the DEPHASED drive's exact expected echo loss (v0.20.0/TC46: the v0.2.0 reading, a COHERENT isolated decay |<Z>_k| = |cos 2 delta|^k, was verified tautologically and is FALSE — the coherent isolated qubit is the quasi-periodic rotor); chain drift over 15 periods = 5.7e-2 of the binding energy vs the dephased benchmark 2.6e-1 — suppression 4.5x; NO infinite-time total claimed: the naive (cos^2)^k law was convicted by the scratch run (batch 36 — after one kick the state is a superposition and the ZZ stroke entangles it); prethermal bounds cited (EBN16/KLS16)",
     exactness: "EXACT",
     witness: "W-D",
     anchors: [],
@@ -216,10 +216,10 @@ export const BOARD: readonly BoardRow[] = [
   {
     id: "TC18",
     claim:
-      "the LIFETIME LAW, isolated face (v0.2.0 — the priced next step of TC4): the detuned echo's decay is geometric, |m(k)| = |cos 2δ|^k, so the lifetime to any threshold θ has the closed form τ*(δ, θ) = ln θ / ln|cos 2δ|",
+      "the LIFETIME BENCHMARK, restated at v0.20.0 (route-price v0.2.0's cross-check convicted the original verification as TAUTOLOGICAL — the 'direct simulation' iterated the formula itself): under per-period sign noise eps_j = ±delta the expected echo decays geometrically — E[m~(k)] = (cos 2 delta)^k exactly — so the benchmark lifetime tau*(delta, theta) = ln theta / ln|cos 2 delta| is the EXPECTED echo's crossing; the coherent isolated qubit does NOT decay (m(k) = (-1)^k cos 2k delta, the detuned rotor — YAO17's beating), its threshold crossings are recurrences, not lifetimes",
     family: "beat",
     price:
-      "closed form === direct simulation at δ = 0.1/0.2/0.3 with θ = 0.5 (τ* = 35/9/4, agreement exact) — the benchmark the chain's protection is measured against",
+      "the v0.2.0 witness (tau* = 35/9/4 at delta = 0.1/0.2/0.3, 'agreement exact') was formula-times-itself in the test, the witness W-H and scratch-life.ts — it certifies ANY constant handed to it (reproduced and rejected, TC46's negative control); the dephased law now verified by an INDEPENDENT path: exhaustive over ALL 2^k sign sequences through the kernel at k = 8/12 (deviation <= 3.6e-15) and Monte Carlo at N = 40000 within 1.3 sigma at (delta,k) = (0.2,9)/(0.1,35); the tau* crossing margins: E[m~] = 0.5161 above / 0.4733 below at k = 8/9 (delta = 0.2), 0.5604/0.4627 at k = 3/4 (delta = 0.3); the chain's protection factors (TC19) are UNCHANGED — the benchmark's MEANING is",
     exactness: "EXACT",
     witness: "W-H",
     anchors: [],
@@ -513,12 +513,34 @@ export const BOARD: readonly BoardRow[] = [
   {
     id: "TC45",
     claim:
-      "THE SINGULAR EULER-MACLAURIN ASSEMBLY (v0.19.0 — the assembly, part two, machine-arbitrated): kappa = zeta_m + Phi1 — the constant DECOMPOSES additively into the edge-mass series' generalized-zeta constant zeta_m = sum_{k>=1}(m_k - mu_k) - sqrt(2/pi) = -0.306398243 (99.85% of kappa) plus the cutoff face's subleading constant Phi1 = -4.547e-4, SMALL BUT NONZERO — the sharp-cutoff assembly does not close exactly, and the residual is the F-function's own singular face",
+      "THE SINGULAR EULER-MACLAURIN ASSEMBLY (v0.19.0 — the assembly, part two, machine-arbitrated; CORRECTED at v0.20.0): kappa = zeta_m + Phi1 — the constant DECOMPOSES additively into the edge-mass series' generalized-zeta constant zeta_m = sum_{k>=1}(m_k - mu_k) - sqrt(2/pi) plus the cutoff face's constant Phi1; the v0.19.0 reading 'Phi1 = -4.547e-4 SMALL BUT NONZERO' was zetaEM's SIGN ERROR wearing a physical story — with the tail fixed (TC47) the certified bracket is |Phi1| <= 5.6e-7 WITH ZERO INSIDE, and whatever sub-bracket residue survives is the F-function's own singular face",
     family: "backaction",
     price:
-      "the exact per-k terms: m_k = (2k+1)C(2k,k)/(2·4^k·k) exact rationals (incremental recurrence spot-checked bitwise-converted at k=1..200), mu_k the midpoint masses; the next-order laws EXACT: E_k·sqrt(pi)·k^{3/2} -> 3/8 (Richardson 0.37500000) and (E·sqrt(pi)k^{3/2} - 3/8)·k -> -11/128 (hand-derived from the central-binomial expansion and the midpoint Taylor: (1+1/2k)(1-1/8k+1/128k^2) - (1+1/32k^2) = 3/8k - 11/128k^2); the accelerated series sum(E) = (3/8)zeta(3/2)/sqrt(pi) - (11/128)(3/8)zeta(5/2)/sqrt(pi) + R = 0.491486318 with R = -0.037280594 an explicit convergent remainder (k^{-7/2} tail) — the STRUCTURAL EXPLANATION of TC43's zeta(1/2) refutations: the constant is zeta(3/2)/zeta(5/2)-flavored plus an explicit remainder, not a zeta(1/2) composite; Phi1 = kappa - zeta_m = -4.54717e-4 machine-measured — the F-function face F(k,D) -> f(k/D) with f(0)=1 (0.99999 at k=3, D=1e5): its leading O(1) shift renormalizes 2/sqrt(pi) -> sqrt(pi)/2 (the arcsine law's own leading constant), its subleading constant is Phi1; boundary honest: Phi1's closed form stays open (machine-bracketed), so the final assembly is a DECOMPOSITION, not a closed form — a's value remains machine-settled at ten digits, now with its arithmetic structure named",
+      "the exact per-k terms: m_k = (2k+1)C(2k,k)/(2·4^k·k) exact rationals (incremental recurrence spot-checked bitwise-converted at k=1..200), mu_k the midpoint masses; the next-order laws EXACT: E_k·sqrt(pi)·k^{3/2} -> 3/8 (Richardson 0.37500000) and (E·sqrt(pi)k^{3/2} - 3/8)·k -> -11/128 (hand-derived from the central-binomial expansion and the midpoint Taylor: (1+1/2k)(1-1/8k+1/128k^2) - (1+1/32k^2) = 3/8k - 11/128k^2); the accelerated series sum(E) = (3/8)zeta(3/2)/sqrt(pi) - (11/128)(3/8)zeta(5/2)/sqrt(pi) + R = 0.491031741 WITH THE v0.20.0 SIGN FIX (the v0.19.0 value 0.491486318 carried the Euler-Maclaurin tail's +N^{-s} error — zetaEM ADDED the (1/2)N^{-s} term it must subtract, +4.542e-4 on zetaFace at N=60, the error's exact N^{-s} signature 2.1517e-3 = 60^{-1.5}/7.6073e-4 = 120^{-1.5}/3.5861e-5 = 60^{-2.5} convicting it, TC47) with R = -0.037280594 an explicit convergent remainder (k^{-7/2} tail) — the STRUCTURAL EXPLANATION of TC43's zeta(1/2) refutations stands: the constant is zeta(3/2)/zeta(5/2)-flavored plus an explicit remainder, not a zeta(1/2) composite; zeta_m = -0.306852819 (fixed) so Phi1 = kappa - zeta_m = +7.14e-8, bracketed within ±5.6e-7 (TC47) — the 'nonzero' claim RETIRED; the F-function face F(k,D) -> f(k/D) with f(0)=1 (0.99999 at k=3, D=1e5): its leading O(1) shift renormalizes 2/sqrt(pi) -> sqrt(pi)/2 (the arcsine law's own leading constant); boundary honest: Phi1's fate inside the bracket is open — a's value remains machine-settled at ten digits, its arithmetic structure named",
     exactness: "EXACT",
     witness: "W-Y",
+    anchors: [],
+  },
+  {
+    id: "TC46",
+    claim:
+      "THE ISOLATED ECHO LAWS, INDEPENDENTLY RE-VERIFIED (v0.20.0 — route-price v0.2.0's cross-check CONVICTED the v0.2.0 verification as TAUTOLOGICAL, and the conviction stands): the COHERENT isolated qubit (n=1, h=0, theta=pi/2+delta) NEVER decays — through the family kernel m(k) = (-1)^k cos 2k delta EXACTLY, the detuned rotor (YAO17's beating/peak-splitting), and at any field the SU(2) rotor law with angle and axis read off F once; the geometric law |cos 2 delta|^k is the DEPHASED drive's law, EXACT IN EXPECTATION under per-period sign noise eps_j = ±delta: E[m~(k)] = (cos 2 delta)^k by independence of the sign product — and the benchmark lifetime tau* = ln theta / ln|cos 2 delta| is its expected-echo crossing",
+    family: "beat",
+    price:
+      "coherent law worst deviation 8.3e-15 over delta in {0.05,0.1,0.2,0.3}, k <= 40 (kernel trajectory vs rotation closed form — two roads); the B1 census arm (h=0.05) rotor law 2.5e-14 at delta=0.1, k <= 60, axis norm deviation 1.1e-16; the v0.2.0 law CONVICTED on the same grid: worst ||m(k)| - |cos2d|^k| = 0.82..0.99, the coherent first theta-crossings at 6/3/2 (delta = 0.1/0.2/0.3) where the retired law claimed 35/9/4; dephased law EXACT — exhaustive over ALL 2^k sign sequences through the kernel at k = 8/12 (worst deviation 3.6e-15), Monte Carlo at N=40000 within 1.3 sigma at (delta,k) = (0.2,9)/(0.1,35), tau* crossing margins E[m~] = 0.5161/0.4733 (k=8/9, delta=0.2) and 0.5604/0.4627 (k=3/4, delta=0.3); the TAUTOLOGY reproduced as the negative control: the v0.2.0 formula-times-itself witness certifies the WRONG constant |cos 3 delta| just as happily — named, rejected",
+    exactness: "EXACT",
+    witness: "W-Z",
+    anchors: ["route-price"],
+  },
+  {
+    id: "TC47",
+    claim:
+      "Phi1 BOUNDED, THE NONZERO CLAIM RETIRED (v0.20.0 — the arc's one open face, closed to a certified bracket): the v0.19.0 'Phi1 = -4.547e-4 SMALL BUT NONZERO' was an ARTIFACT — zetaEM's Euler-Maclaurin tail ADDED the (1/2)N^{-s} term it must subtract (the error's exact N^{-s} signature: 2.1517e-3 = 60^{-1.5} on zeta(3/2), 7.6073e-4 = 120^{-1.5}, 3.5861e-5 = 60^{-2.5} on zeta(5/2)), contaminating zetaFace by +4.542e-4; with the sign fixed (certified by N=60/120/240 agreement at ~1e-10 where the buggy road disagreed at 1e-3), zeta_m = -0.306852819 and Phi1 = kappa - zeta_m = +7.14e-8, machine-bracketed with |Phi1| <= 5.58e-7 and every error piece named — the bracket CONTAINS ZERO: the sharp-cutoff assembly closes within the certified error, and whether Phi1 is exactly zero or a sub-bracket constant is left undecided (NO fake closed form)",
+    family: "backaction",
+    price:
+      "the bracket's pieces: eps_kappa = 4.86e-7 — the spread of four cross-family sigma1 Richardson combos on the NEW incremental-binomial share road (per-step quotient recurrences, clean past n = 2^18 where the log-factorial table's ulp random-walk bites; cross-validated against shareFloat to 8.2e-10 relative at n <= 2^16) — plus eps_zeta = 4.6e-11 (the series' probed k^{-7/2} tail bound 9.5e-12 + the fixed zetaEM's N-truncation 3.7e-11): the transfer carries the precision; the independent kappa(D) road (incremental S, cross-validated to 1.4e-6 at D = 2^16, clean through D = 2^20) confirms the transfer kappa to 5.8e-6 — 8x tighter than v0.19's 4.7e-5 confirmation; the D-grid structure certified: Phi1(D) negative and monotone rising on D = 2^12..2^20 with increment ratios 0.502/0.501/0.498 (the 1/sqrt(D) face); fake brackets rejected BY NAME by the checker (over-narrow = over-precision fraud, misdirected, provenance-free); boundary: the D = 2^22 road point is a named outlier, excluded",
+    exactness: "EXACT",
+    witness: "W-Z",
     anchors: [],
   },
 ];

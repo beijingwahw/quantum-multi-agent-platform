@@ -94,7 +94,7 @@ console.log("B4 landauer 300K:", landauerJoules(300).toExponential(6), "J; 10mK:
 console.log("B4 beat energy deviation:", beatEnergyDeviation(6, Array(5).fill(1.3), 12).toExponential(3));
 console.log("B4 beat TPM work escape:", beatTpmWorkDelta(6, Array(5).fill(1.3), 10).toExponential(3));
 const dh = detunedHeatingCensus(6, 1.3, 0.1, 15);
-console.log("B4 detuned heating: E1 closed dev", dh.e1ClosedFormDeviation.toExponential(3), "W0", dh.w0ClosedForm.toFixed(4), "series[0..2]", dh.workSeries.slice(0, 3).map((w) => w.toFixed(4)).join(","), "chainDrift", dh.chainDrift.toExponential(3), "isoDecay", dh.isolatedEchoDecay.toExponential(3), "suppression", dh.suppression.toFixed(1));
+console.log("B4 detuned heating: E1 closed dev", dh.e1ClosedFormDeviation.toExponential(3), "W0", dh.w0ClosedForm.toFixed(4), "series[0..2]", dh.workSeries.slice(0, 3).map((w) => w.toFixed(4)).join(","), "chainDrift", dh.chainDrift.toExponential(3), "isoDecay", dh.isolatedDephasedDecay.toExponential(3), "suppression", dh.suppression.toFixed(1));
 const tt = tariffTable();
 console.log("B4 tariff winner:", tt.winner);
 for (const r of tt.rows) console.log("B4 tariff row:", r.machine, "units", r.units);

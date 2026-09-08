@@ -28,6 +28,12 @@ export const QUOTED_UNIVERSE2 = 20736;
 export const QUOTED_HALTED2 = 9784;
 export const QUOTED_WALKER_STEPS = 500;
 export const QUOTED_ABILITIES = 5;
+/** The frontier census as this audit quotes it — law A8 re-counts FRONTIER and
+ * convicts any drift between the quoted string and the machine's count. */
+export const QUOTED_CENSUS_NOW = "8/4/2/2/0/1";
+export const QUOTED_CENSUS_PRIOR = "6/4/2/2/2/1";
+export const QUOTED_FRONTIER_ROWS = 17;
+export const QUOTED_GRADUATIONS = 2;
 
 export const LETTER: readonly AuditRow[] = [
   {
@@ -54,11 +60,11 @@ export const LETTER: readonly AuditRow[] = [
     id: "O3",
     section: "视今 — 'your frontier is kindergarten handicraft'",
     poetry: "幼儿园的手工课：认真、笨拙、动人",
-    precise: "the frontier's registry: 17 verdict rows — MECHANISM-SETTLED 6 / HEURISTIC 4 / CONDITIONAL-WALL 2 / HW-WAIT 2 / OPEN 2 / INFO-WALL 1; every number row costed on the same line; five cost columns now carry execution stamps",
-    boundary: "'settled' means machine-witnessed at the stated layer, nothing more; two rows remain OPEN precisely where honesty demands it (#10 hardware, #15 physics-layer stability)",
+    precise: "the frontier's registry RE-AUDITED at v0.2.0 because it had fallen behind the workspace: 17 verdict rows — MECHANISM-SETTLED 8 / HEURISTIC 4 / CONDITIONAL-WALL 2 / HW-WAIT 2 / OPEN 0 / INFO-WALL 1 (v0.1.0 held 6/4/2/2/OPEN 2/1); the two OPEN rows graduated against shipped certificates — #10 the clock wall settled at the model layer (dtc-clock v0.19.0, the decay-law arc assembled: kappa = -0.3068529590), #15 choice/stability settled at BOTH layers (stable-world v0.5.0 physics + choice-lang v0.2.0 language); every row now carries live-checked pointers (file + needle) into the sibling that settles or holds it",
+    boundary: "the graduations carry their boundaries on the same line: #10's hardware instantiation is NOT claimed — the HW-WAIT face survives inside the graduation (MI22 holds the hardware cells); #15's law is AUTHORED — nature's instantiation not claimed, DAV74/WY16 stay cited; zero OPEN rows remain because the boundaries moved into the cost columns, not because they vanished — honesty demands OPEN rows stay only where the boundary is real, and these two stopped being real",
     exactness: "CITED",
-    witness: "W-D",
-    anchors: ["depreciation-ledger", "route-price"],
+    witness: "W-F",
+    anchors: ["depreciation-ledger", "dtc-clock", "stable-world", "choice-lang"],
   },
   {
     id: "O4",
@@ -98,6 +104,16 @@ export const LETTER: readonly AuditRow[] = [
     boundary: "the walker's non-halting is provable HERE because its invariant is one line; in general, separating slow from never is exactly the halting problem — which is why O1's boundary is a theorem and not a schedule",
     exactness: "EXACT",
     witness: "W-C",
+    anchors: [],
+  },
+  {
+    id: "O8",
+    section: "来历 — the ladder's sixth rung (beyond the letter's text, audited as data)",
+    poetry: "第六个宇宙的完成时刻（信中未写——梯子自己长出的下一级）",
+    precise: "the 6-state universe's completion point is fenced, not climbed: BB(6) > 2↑↑(2↑↑(2↑↑9)) — at least 2↑↑↑5, pentation, one operator past the tower (MXDYS25, mxdys, June 2025; the prior 2022 record was Kropitz's 10↑↑15; an interim 10↑↑10,000,000 landed June 17 2025, Coq-verified via busycoq — prose-sourced); the two cited expressions machine-checked CONSISTENT by exact height arithmetic (the champion's tower strictly exceeds 2↑↑↑5), the computable prefix exact: 2↑↑4 = 65536, 2↑↑5 = 2^65536 (19,729 digits)",
+    boundary: "a LOWER bound only — cited two-source, never re-run; the exact value is gated on a Collatz-like problem (Antihydra, June 2024, 'probviously' non-halting and unproven), and the holdout census (~3,000 machines as of July 2025, single-sourced prose) is not a proof; the visitor's home address ends at five states",
+    exactness: "CITED",
+    witness: "W-G",
     anchors: [],
   },
 ];

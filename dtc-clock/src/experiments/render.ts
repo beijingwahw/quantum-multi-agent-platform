@@ -7,9 +7,17 @@
 import { pathToFileURL } from "node:url";
 import { BOARD, type BoardRow } from "../kernel/board.js";
 import { checkBoard, DEMO_CIRCUIT, runWitnesses } from "../kernel/audit.js";
-import { kappaFace, transferResidual, kappaFromSigma, arcClosureRelative, edgeNextOrder, edgeSeriesAccelerated } from "../kernel/assembly.js";
-import { richardsonLimit, sigmaFirst } from "../kernel/armor.js";
-import { chainLifetimeCensus, rigidityCensus } from "../kernel/beat.js";
+import { kappaFace, transferResidual, kappaFromSigma, arcClosureRelative, edgeNextOrder, edgeSeriesAccelerated, phi1Face, phi1GridStructure, kappaRoadCrossDeviation } from "../kernel/assembly.js";
+import { richardsonLimit, sigmaFirst, shareFloat, shareFloatIncremental } from "../kernel/armor.js";
+import {
+  chainLifetimeCensus,
+  coherentEchoLawDeviation,
+  convictedLawDeviation,
+  dephasedEchoExpectationExact,
+  isolatedEchoLifetime,
+  isolatedEchoTrajectory,
+  rigidityCensus,
+} from "../kernel/beat.js";
 import { detunedCensus, randomClockCensus, readDephasingCensus } from "../kernel/clock.js";
 import {
   absorptionRadius,
@@ -71,11 +79,16 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
 
   const rng = makeRng(0xd7c10c);
   out.push("\n## B1 — rigidity census (DATA, horizon 20 periods)\n");
-  out.push("| delta | k | chain \\|m\\| | isolated \\|m\\| |");
-  out.push("| --- | --- | --- | --- |");
+  out.push("| delta | k | chain \\|m\\| | isolated \\|m\\| (rotor, h=0.05) | dephased benchmark \\|E[m~]\\| |");
+  out.push("| --- | --- | --- | --- | --- |");
   for (const r of rigidityCensus(6, [0.05, 0.1, 0.2], 20).filter((r) => r.k === 10 || r.k === 20)) {
-    out.push(`| ${r.delta.toFixed(2)} | ${r.k} | ${r.chainAbsM.toFixed(4)} | ${r.isolatedAbsM.toFixed(4)} |`);
+    out.push(
+      `| ${r.delta.toFixed(2)} | ${r.k} | ${r.chainAbsM.toFixed(4)} | ${r.isolatedAbsM.toFixed(4)} | ${Math.abs(Math.cos(2 * r.delta)) ** r.k} |`,
+    );
   }
+  out.push(
+    "\nv0.20.0 reading (TC46): the isolated column is the DETUNED ROTOR — quasi-periodic with recurrences, its dips are beatings (YAO17's peak splitting), not losses; a coherent isolated qubit never decays (m(k) = (-1)^k cos 2k delta exactly through the kernel). The honest isolated DECAY benchmark is the dephased drive's expected echo (cos 2 delta)^k — the last column; the chain's |m| at these horizons sits far above it (the rigidity the census was licensed to find).\n",
+  );
 
   out.push("\n## B5 — the frontier census (off the orbit the wall is real)\n");
   out.push("| probe | last-beat fidelity | entropy (bits) | order back-action |");
@@ -108,13 +121,18 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
   ]);
   for (const p of probes) out.push(`| ${p[0]} | ${p[1]} | ${p[2]} | ${p[3]} |`);
 
-  out.push("\n## The lifetime law (v0.2.0 — the priced next steps of TC4/TC13, n = 6, threshold 0.5)\n");
-  out.push("| delta | tau_iso (closed form) | tau_chain (measured) | protection |\n");
+  out.push(
+    "\n## The lifetime law (v0.2.0 — the priced next steps of TC4/TC13, n = 6, threshold 0.5; the isolated face RE-VERIFIED at v0.20.0)\n",
+  );
+  out.push("| delta | tau_iso (dephased benchmark) | tau_chain (measured) | protection |\n");
   out.push("| --- | --- | --- | --- |\n");
   for (const r of chainLifetimeCensus(6, [0.1, 0.15, 0.2, 0.3, 0.4], 1500, 0.5)) {
     const prot = r.tauChain > 0 ? `${(r.tauChain / r.tauIso).toFixed(1)}x` : `>${Math.floor(1500 / r.tauIso)}x (locked at 1500)`;
     out.push(`| ${r.delta} | ${r.tauIso} | ${r.tauChain < 0 ? ">1500 (locked)" : r.tauChain} | ${prot} |`);
   }
+  out.push(
+    "\nv0.20.0 CONVICTION (TC46): the tau_iso column is the DEPHASED benchmark's expected-echo crossing — the geometric law is exact IN EXPECTATION under per-period sign noise (E[m~(k)] = (cos 2 delta)^k, exhaustive-verified over all 2^k sign sequences at k = 8/12 to 3.6e-15 and MC-verified at N = 40000). The v0.2.0 verification of this table's isolated face was TAUTOLOGICAL (the 'direct simulation' iterated the formula itself — test, witness, and scratch) and its COHERENT reading is FALSE: the isolated qubit is the quasi-periodic rotor, first crossings at 6/3/2 for delta = 0.1/0.2/0.3 where the retired reading claimed 35/9/4. The chain's measured lifetimes and protection factors stand unchanged — the benchmark's meaning is what changed.\n",
+  );
   out.push(
     "\nThe protection cliff: the prethermal shield holds at full strength through delta ~ 0.3 (175x at 0.3, still locked at 1500 strobes for delta <= 0.2) and COLLAPSES to 1.0x by delta = 0.4 — not smooth decay, a cliff. The heating twin (TC20): the window drift is front-loaded (the perturbative first-strobe jump; tau_heat = 2 at every delta) while the empirical diagonal value climbs toward the infinite-temperature face as delta grows. Boundaries: ED-scale horizons — the exponential-prethermal asymptotics beyond the cliff are cited (EBN16/KLS16), not re-proven.\n",
   );
@@ -427,12 +445,57 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
     const nextLim = richardsonLimit([64, 256, 1024, 4096].map((k) => ({ n: k, v: edgeNextOrder(k) })), 1);
     const second8192 = (edgeNextOrder(8192) - 0.375) * 8192;
     const closure16 = arcClosureRelative(16, s1);
+    const phi1FaceResult = phi1Face();
     out.push("\n## The singular Euler–Maclaurin assembly — the constant decomposed (v0.19.0)\n");
     out.push(
       `\nTHE EXACT TRANSFER (TC44): sigma1(n) = G(n)·u(D) − sqrt(n) with G = (2·sqrt(2)/9)·P·A and u = S·sqrt(D) is an ALGEBRAIC IDENTITY in the chain pieces — machine residual ${t.residual.toExponential(2)} at n=16384 — so the limit identity sigma1 = 2·sqrt(2/pi)·kappa carries the ten digits to the S-face constant kappa = ${kappa.toFixed(10)}. kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)} (slow mixed-order convergence; the transfer carries the precision). Through it the arc's third-order face closes at theorem grade: c3(n) = −(n−2)·c2(n)/12·(1 − 3·sigma1/sqrt(n) + O(1/n)), the closure face tracking the exact c3 to ${Math.abs(closure16).toExponential(2)} relative at n=16, declining — TC41's IF now ships as a theorem with its full 1/sqrt(n) correction face.\n`,
     );
     out.push(
-      `\nTHE DECOMPOSITION (TC45): kappa = zeta_m + Phi1 — an additive split, machine-arbitrated. zeta_m = sum_k(m_k − mu_k) − sqrt(2/pi) = ${series.zetaM.toFixed(9)}, the edge-mass series' generalized-zeta constant (99.85% of kappa), with EXACT per-k terms (m_k = (2k+1)C(2k,k)/(2·4^k·k) as exact rationals, mu_k the midpoint masses) and EXACT next-order laws: E_k·sqrt(pi)·k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8), (E·sqrt(pi)k^{3/2} − 3/8)·k -> ${second8192.toFixed(6)} (= −11/128 = ${-11 / 128}, hand-derived from the central-binomial expansion and the midpoint Taylor). The accelerated series sum(E) = (3/8)zeta(3/2)/sqrt(pi) − (11/128)(3/8)zeta(5/2)/sqrt(pi) + R = ${series.sumE.toFixed(9)} with R = ${series.remainder.toFixed(9)} an explicit k^(−7/2)-convergent remainder — THE STRUCTURAL EXPLANATION of the zeta(1/2) refutations: the constant is zeta(3/2)/zeta(5/2)-flavored plus an explicit remainder, not a zeta(1/2) composite. And Phi1 = kappa − zeta_m = ${phi1.toExponential(4)} — SMALL BUT NONZERO: the sharp-cutoff assembly does not close exactly; the residual is the cutoff function's own subleading constant (F(k,D) -> f(k/D), f(0) = 1 — its leading O(1) shift renormalizes 2/sqrt(pi) -> sqrt(pi)/2, the arcsine law's own leading constant). Boundary honest: Phi1's closed form stays open, machine-bracketed — the final assembly ships as a DECOMPOSITION with the arithmetic structure named, a's value unchanged at ten digits.\n`,
+      `\nTHE DECOMPOSITION (TC45, CORRECTED at v0.20.0): kappa = zeta_m + Phi1 — an additive split, machine-arbitrated. zeta_m = sum_k(m_k − mu_k) − sqrt(2/pi) = ${series.zetaM.toFixed(9)}, the edge-mass series' generalized-zeta constant, with EXACT per-k terms (m_k = (2k+1)C(2k,k)/(2·4^k·k) as exact rationals, mu_k the midpoint masses) and EXACT next-order laws: E_k·sqrt(pi)·k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8), (E·sqrt(pi)k^{3/2} − 3/8)·k -> ${second8192.toFixed(6)} (= −11/128 = ${-11 / 128}, hand-derived from the central-binomial expansion and the midpoint Taylor). The accelerated series sum(E) = (3/8)zeta(3/2)/sqrt(pi) − (11/128)(3/8)zeta(5/2)/sqrt(pi) + R = ${series.sumE.toFixed(9)} with R = ${series.remainder.toFixed(9)} an explicit k^(−7/2)-convergent remainder — THE STRUCTURAL EXPLANATION of the zeta(1/2) refutations stands: the constant is zeta(3/2)/zeta(5/2)-flavored plus an explicit remainder, not a zeta(1/2) composite. And Phi1 = kappa − zeta_m = ${phi1.toExponential(4)} — WITH THE v0.20.0 zetaEM SIGN FIX: the v0.19.0 reading here (−4.547e-4, "SMALL BUT NONZERO") was the Euler–Maclaurin tail's sign error wearing a physical story; the corrected Phi1 sits INSIDE TC47's certified bracket [${phi1FaceResult.lo.toExponential(4)}, ${phi1FaceResult.hi.toExponential(4)}] which CONTAINS ZERO — the sharp-cutoff assembly closes within the certified error (the F-function's singular face remains the priced sub-bracket residue; f(0) = 1 still witnessed in the TC45 test). Boundary honest: Phi1's fate inside the bracket is open, not faked — a's value unchanged at ten digits.\n`,
+    );
+  }
+
+  // v0.20.0 — TC46/TC47
+  {
+    out.push("\n## The isolated echo laws — the tautology convicted and re-verified (v0.20.0)\n");
+    out.push(
+      "\nTHE CONVICTION (TC46, route-price v0.2.0's cross-check confirmed): the v0.2.0 lifetime witness verified the isolated echo's 'geometric decay' |m(k)| = |cos 2 delta|^k against ITSELF — the test, the audit witness W-H, and scratch-life.ts all iterated the formula (m *= c) and compared it to the closed form built from the same c, so the verification could not fail for ANY c. The independent kernel path (a real two-level simulation through the family Floquet builder) convicts the law: the COHERENT isolated qubit never decays — m(k) = (-1)^k cos 2k delta EXACTLY, the detuned rotor (YAO17's beating/peak-splitting; a coherent closed system cannot decay geometrically). The geometric law survives where it is actually true — the DEPHASED drive: under per-period sign noise eps_j = ±delta, E[m~(k)] = (cos 2 delta)^k EXACTLY (independence of the sign product), verified exhaustively over ALL 2^k sign sequences and by Monte Carlo beyond.\n",
+    );
+    out.push("| delta | coherent law residual (k<=40) | v0.2.0 law deviation (the conviction) | first coherent crossing (vs retired tau*) | dephased exhaustive dev (k=8/12) |\n");
+    out.push("| --- | --- | --- | --- | --- |\n");
+    for (const d of [0.1, 0.2, 0.3]) {
+      const trajFirst = (() => {
+        const traj = isolatedEchoTrajectory(d, 0, 100);
+        const idx = traj.findIndex((m) => Math.abs(m) < 0.5);
+        return idx < 0 ? -1 : idx + 1;
+      })();
+      const exhaustive = Math.max(
+        Math.abs(dephasedEchoExpectationExact(d, 8) - Math.cos(2 * d) ** 8),
+        Math.abs(dephasedEchoExpectationExact(d, 12) - Math.cos(2 * d) ** 12),
+      );
+      out.push(
+        `| ${d} | ${coherentEchoLawDeviation(d, 40).toExponential(2)} | ${convictedLawDeviation(d, 40).toFixed(3)} | ${trajFirst} (vs ${isolatedEchoLifetime(d, 0.5)}) | ${exhaustive.toExponential(2)} |`,
+      );
+    }
+    out.push(
+      "\nThe benchmark lifetime tau* = ln theta / ln|cos 2 delta| is thereby the DEPHASED expected-echo crossing (MC margins: E[m~] = 0.5161 -> 0.4733 at k = 8/9 for delta = 0.2; 0.5604 -> 0.4627 at k = 3/4 for delta = 0.3), and the chain's protection factors (the cliff table above) stand unchanged. The tautology itself is preserved as the negative control: handed the WRONG constant |cos 3 delta| it certifies it just as happily — named, rejected. Anchors: YAO17's decoupled-echo beating (cited), the 2024-2026 prethermal-DTC stability line (YSB25 PRB 111, MOO26 Nat. Phys. 22 — cited, citations.md).\n",
+    );
+
+    const face = phi1Face();
+    const struct = phi1GridStructure();
+    out.push("\n## The Phi1 machine bracket — the zetaEM sign bug found, the nonzero claim retired (v0.20.0)\n");
+    out.push(
+      `\nTHE SECOND CONVICTION (TC47): re-deriving TC45's error budget exposed a SIGN ERROR in zetaEM's Euler–Maclaurin tail — the (1/2)N^{-s} term was ADDED where the expansion subtracts it, a +N^{-s} error with an exact fingerprint (err(60) = 60^{-1.5} = 2.1517e-3 on zeta(3/2), err(120) = 120^{-1.5}, err(2.5) = 60^{-2.5} — every digit matches). The contamination +4.542e-4 on zetaFace is numerically almost exactly TC45's reported "Phi1 = -4.547e-4, SMALL BUT NONZERO": the constant was the bug. With the sign fixed (certified by N = 60/120/240 agreement at ~1e-10 where the buggy road disagreed at 1e-3): zeta_m = ${face.zetaM.toFixed(12)}, sum(E) = ${(face.zetaM + Math.sqrt(2 / Math.PI)).toFixed(9)}, and Phi1 = kappa - zeta_m = ${face.point.toExponential(4)}, machine-bracketed to |Phi1| <= ${Math.max(Math.abs(face.lo), Math.abs(face.hi)).toExponential(3)} — THE BRACKET CONTAINS ZERO: the sharp-cutoff assembly closes within the certified error, and whether Phi1 is exactly zero or a sub-bracket constant is left open (NO fake closed form).\n`,
+    );
+    out.push("| piece | value | what it is |\n");
+    out.push("| --- | --- | --- |\n");
+    out.push(`| sigma1 point | ${face.sigma1.toFixed(12)} | TC43's grid on the new incremental share road |\n`);
+    out.push(`| kappa (transfer) | ${face.kappa.toFixed(12)} | sigma1 / (2 sqrt(2/pi)), the exact transfer |\n`);
+    out.push(`| eps_kappa | ${face.epsKappa.toExponential(4)} | cross-family Richardson spread (4 combos, no shared points) |\n`);
+    out.push(`| eps_zeta | ${face.epsZeta.toExponential(4)} | series k^{-7/2} tail + fixed zetaEM N-truncation |\n`);
+    out.push(`| Phi1 bracket | [${face.lo.toExponential(4)}, ${face.hi.toExponential(4)}] | contains ZERO — the certified bound |\n`);
+    out.push(
+      `\nThe roads behind it: a NEW incremental-binomial share/kappa road (per-step quotient recurrences; the log-factorial tables' ulp random-walk is what drifts the old road ~1e-4 by n = 2^20), cross-validated against the old roads (share to ${Math.abs(shareFloatIncremental(65536) / shareFloat(65536) - 1).toExponential(2)} relative at n = 2^16, kappa to ${kappaRoadCrossDeviation(65536).toExponential(2)} at D = 2^16); the independent kappa(D) road confirms the transfer kappa to ${face.kappaRoadDeviation.toExponential(2)} — 8x tighter than v0.19's 4.7e-5 confirmation. The D-grid structure certified: Phi1(D) negative and monotone rising on D = 2^12..2^20, increment ratios ${struct.incrementRatios.map((r) => r.toFixed(3)).join("/")} (the 1/sqrt(D) face; the D = 2^22 road point is a named outlier, excluded). Fake brackets are rejected BY NAME by the checker: over-narrow brackets are over-precision fraud, not tighter results.\n`,
     );
   }
   out.push("\n## B4 — the tariff table (per run, units of kT ln 2, equal error)\n");

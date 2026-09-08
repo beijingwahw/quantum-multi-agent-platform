@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 78;
-export const DECLARED_TOTAL_ERRORS = 509;
+export const DECLARED_TOTAL_BATCHES = 79;
+export const DECLARED_TOTAL_ERRORS = 527;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3309,6 +3309,106 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "five lint convictions in vacuum-compiler — residue found by the gate after the fact",
         right: "all five closed in the same edit — the lint gate convicted every one and the tree rides green",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 79,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the sixth four-repo delivery wave's registry wiring (dsic-noether 0.2.0->0.3.0, letter-audit 0.1.0->0.2.0, stable-world 0.5.0->0.6.0, dtc-clock 0.19.0->0.20.0 — four gates green in each): eighteen delivery errors across ten classes, born enrolled and born audited on both boards — one latent v0.2.0 defect (the README's stale test count) and TWO SEVERE CONVICTIONS of previously-shipped dtc-clock claims (the tautologically-verified echo-decay law, with route-price's v0.2.0 suspicion confirmed as the discovering sibling; and the zetaEM tail-term artifact behind the 'Phi1 nonzero' reading), both machine-convicted by the new tests and both re-based through the shared registries the same day",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第七十九批" },
+    errors: [
+      {
+        wrong: "one heredoc patch was used in the dsic-noether delivery — the banned channel, discipline breach; verified clean after the act, which does not unmake the breach (the canonical channel lineage's sixteenth sighting; the family's wrong-text sightings grep to 19 in-registry, unchanged by this clean act, counted before enrolling)",
+        right: "code goes through the Write/Edit tools, no content-based exceptions — the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin)",
+        category: "toolchain",
+      },
+      {
+        wrong: "the across-kink [I] assertion's first draft pointed the wrong way — the envelope integral was signed for the reversed crossing and the direction claim could not survive its own exact-rational run; the machine convicted the draft on the spot",
+        right: "U(t1) - U(t0) equals the exact measure of the active rule above w, crossing or not — the grid's fourth pair is the REVERSED crossing and asserts the same law, pinned in kink.test.ts on every run",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "the wall kink's flux jump was first asserted FLAT — the continuity regime misread as flux-continuity; the exact-rational run returned the nonzero surface term and convicted the assertion",
+        right: "the charge is continuous at s* = w - 1 while its FLUX jumps by exactly (t - w + 1)/2 — the surface term asserted as a polynomial identity with the zero-jump counterfeit explicitly refused (the pIsZero guard) on every run",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "chargeOneSided's first draft clamped the win-side limit to the wrong sign — the winner's fromWin face came out against the convention the losing side carries",
+        right: "the one-sided limits are priced exactly WITH the signed win-side limit (winner fromWin 0 / fromLose -1/5; loser fromWin -1/10 / fromLose 0), both dsicAcross — the sign convention pinned by the exact rationals on every run",
+        category: "conjugation",
+      },
+      {
+        wrong: "the wall-grid witness's first draft treated the flat dishonestly — strict negativity demanded everywhere, and the wall-to-wall zero pairs (the weak-DSIC flat) read as failures of the witness itself",
+        right: "the witness is honest about the flat: worst never positive, strictly negative off-diagonal on both strict blocks, and the wall-to-wall zeros COUNTED (flatPairs > 0 asserted — the witness is degenerate without them) on every run",
+        category: "statistics",
+      },
+      {
+        wrong: "four lint convictions in dsic-noether — void-return faces left behind by the delivery edits",
+        right: "all four closed in the same edit — the lint gate convicted every one and the tree rides green",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent from v0.2.0] the README's test count still said '19/19' while the suite had long moved — 47 at v0.2.0's close, 78 now — a stale count on a face no law reads (the count-drift family's README face)",
+        right: "counts follow the data in the same edit that moves it — the README now says 78/78, re-derived from the run's own arithmetic (the b67#6 law: any field that carries data is a copy of the data)",
+        category: "process",
+      },
+      {
+        wrong: "one frontier needle was a genuine error — the #08 pointer quoted the CHSH constant at 15 decimals while retro-cache's actual report prints 12; the needle could never resolve, and the repo's own A6 law (every pointer read LIVE) caught it on the spot",
+        right: "the needle re-anchored on the string the sibling's report actually carries — A6 reads every pointer live on every run, so a needle that misquotes its target dies at the next suite run, not at the next reader",
+        category: "anchor-blindspot",
+      },
+      {
+        wrong: "the nested-triangle test's first draft had the ladder backwards — it demanded aligned <= naive and the run inverted it: naive <= aligned <= conditional is the law's own direction, with the unlock on MIXED states",
+        right: "the ladder asserts its true direction with a real unlock on mixed states (max > 1e-2) and pure starts carrying a trivial record — the machine's ordering, not the intuition's, pinned on every run",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "the Schmidt-memory test assumed the memory's dimension from a fixed table (pure 1, mixed 4, dephased 2) — the law's own trajectories carry no such fixed rank and the assumption convicted the draft",
+        right: "the rank is the state's OWN eigen-rank, computed where it is asserted (eigenvalues above 1e-12) — the memory's dimension is whatever the state's rank is, with spectrum and diagonal marginal asserted beside it",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the error-schedule saving was claimed at 'half' the constant-worst bill — the exact arithmetic prices it at 0.1553 against 0.3077, 49.5%: 'half' is a rounding of the data, not the data",
+        right: "the claim restated at 49.5% with the numbers quoted, and the test bounds it honestly (alternating < 0.51 * constant, exact arithmetic) — 'about half' is a summary, the census is the assertion",
+        category: "statistics",
+      },
+      {
+        wrong: "BCP14's preprint number was recalled wrong — memory produced arXiv:1310.6190; the source check caught it on the spot (the identifier family's eighth registered sighting: b55#3, b56#9, b74#5, b75#7, b76#11, b76#12, b78#4 the seven in-registry before this batch, grepped before enrolling)",
+        right: "arXiv:1311.0275, verified against the arXiv abstract page and pinned in citations.md with the wrong first guess confessed — memory holds the shape of a citation, never its identifiers",
+        category: "citation-drift",
+      },
+      {
+        wrong: "one bad backtick rode a template string in dtc-clock's render.ts — the typecheck gate convicted it the moment it landed",
+        right: "the fix rode the same edit and the typecheck rides green — a broken template literal is a syntax death no later gate would have softened",
+        category: "toolchain",
+      },
+      {
+        wrong: "a bash command's template-string escaping failed in the dtc-clock delivery — the command produced nothing; no effect on the tree",
+        right: "shell quoting that cannot carry the payload is replaced by the Write/Edit tools, never retried with deeper escaping — the act face is ungated (no machine sees the shell), and the tree face was never touched",
+        category: "toolchain",
+      },
+      {
+        wrong: "one gate run went through a pipe — the exit-code-masking family's ninth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10 the eight in-registry before it); caught by self-review, killed on sight, and re-run for the DIRECT exit code",
+        right: "the attempt was aborted before any verdict was taken from it and the gate re-run for its direct exit code — a display pipe is still a masking pipe; if output must be trimmed, the gate's code is read separately from the trimming",
+        category: "toolchain",
+      },
+      {
+        wrong: "the new row's witness name W-Z collided with an old trial's numbering — the test suite caught the duplicate on the first run",
+        right: "identifier namespaces are grepped before claimed: witnesses, board letters, anchor names (the b52#2 line) — the closed W-A..W-Z list with W-G retired is pinned in the checker, and the L2 unknown-witness trial fires on every run",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped claim, v0.19.0] TC13(ii)/TC18's echo-decay law |cos2d|^k was verified TAUTOLOGICALLY — the v0.2.0 witness certified the formula against ITSELF (formula times itself) — and the law is FALSE: the true isolated-echo law is m(k) = (-1)^k cos(2k*delta) exactly (8.3e-15), the geometric envelope misses by 0.82-0.99 with first theta-crossings at 6/3/2 against the claimed 35/9/4; route-price v0.2.0's suspicion was confirmed as the discovering sibling, and the geometric law is re-founded by TC46 as exact-in-expectation under per-period sign noise (exhaustive over all 2^k sequences, 3.6e-15)",
+        right: "convicted by the new tautology smuggling trial: a formula-times-itself witness certifies the WRONG constant |cos 3*delta|^k just as happily — named, rejected, the negative control fires on every run; the coherent law carries its two-road needle and the dephased law its exhaustive witness",
+        category: "bogus-comparison",
+      },
+      {
+        wrong: "[conviction of a shipped claim, v0.19.0] zetaEM ADDED the (1/2)N^-s Euler-Maclaurin tail term it must subtract — the error's exact N^-s signature (err(60) = 60^-1.5, 120^-1.5, 60^-2.5, every digit matches) convicted it; v0.19.0's 'Phi1 = -4.547e-4 SMALL BUT NONZERO' was that bug's artifact, and the old kappa digits (-0.3068529590) with the old zeta_m (-0.306398243) carried the same contamination into every shared doc",
+        right: "with the tail fixed (N=60/120/240 agreement at ~1e-10 where the buggy road erred at 1e-3): zeta_m = -0.306852819, Phi1 = +7.14e-8 inside the certified bracket |Phi1| <= 5.58e-7 which CONTAINS ZERO — 'nonzero' RETIRED, the fate inside the bracket left open; the transfer independently confirmed to 5.8e-6 on the new incremental-binomial road, and the shared registries re-based on the corrected digits the same day",
+        category: "machine-overruled",
       },
     ],
   },

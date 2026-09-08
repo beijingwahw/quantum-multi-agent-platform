@@ -396,14 +396,14 @@ describe("T5 the graduated boundary (v0.2.0)", () => {
   });
 
   it("genuine sibling citations pass the two-ground audit", () => {
-    const tc14: BoundaryCitation = { repo: "dtc-clock", version: "0.19.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
+    const tc14: BoundaryCitation = { repo: "dtc-clock", version: "0.20.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
     const we: BoundaryCitation = { repo: "route-price", version: "0.2.0", witness: "W-E", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
     assert.deepEqual(auditBoundaryCitation(tc14), []);
     assert.deepEqual(auditBoundaryCitation(we), []);
   });
 
   it("SMUGGLING TRIAL: fake graduated-boundary citations are named and rejected", () => {
-    const genuine: BoundaryCitation = { repo: "dtc-clock", version: "0.19.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
+    const genuine: BoundaryCitation = { repo: "dtc-clock", version: "0.20.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
     const wrongDepth: BoundaryCitation = { ...genuine, depth: 12 }; // 13·log2(13) ≈ 48.11, not 43.02
     const v1 = auditBoundaryCitation(wrongDepth);
     assert.ok(v1.some((x) => x.crime === "tariff figure not our conventions at claimed depth"), JSON.stringify(v1));

@@ -7,19 +7,25 @@ import { BOARD, type BoardRow } from "../src/kernel/board.js";
 import { makeRng } from "../src/core/rng.js";
 import { maximallyMixed, randomStateVec, vecToRho } from "../src/core/states.js";
 import { traceDistance, vonNeumannEntropy } from "../src/core/measures.js";
-import { identity, kron, mat, matEq, mAdd, mDagger, mMul, mScale, basisVec, vAdd, vKron, vScale, vec } from "../src/core/cmat.js";
+import { identity, kron, mat, matEq, mAdd, mDagger, mMul, mScale, basisVec, eigHermitian, vAdd, vKron, vScale, vec } from "../src/core/cmat.js";
 import { applyUnitary } from "../src/core/channels.js";
 import {
   GAMMA,
   H_PLANCK,
   K_B,
+  accumulatedLeakageBound,
   applyCollision,
   applyLaw,
   applyPerturbed,
+  applyTwoWorldLaw,
   authoredHamiltonian,
   bathGibbs,
   betaGapOfFrequency,
   boltzmannOccupancy,
+  bothOutside,
+  catalystCap,
+  chargeA,
+  chargeB,
   coherenceBits,
   coherenceDecayRate,
   coherentShortcut,
@@ -33,10 +39,15 @@ import {
   alignedBank,
   exchangeUnitary,
   extractedGenerator,
+  holderHarvest,
+  holderJoint,
+  joinCharge,
+  joinLeakage,
   lindbladRhs,
   h2,
   inWorldState,
   iterateLaw,
+  iterateTwoWorldLaw,
   lawKraus,
   leakage,
   membershipCharge,
@@ -46,14 +57,18 @@ import {
   randomBranchUnitary,
   randomCptpKraus,
   randomUnitary,
+  schmidtPurification,
   sectorCoherence,
   sectorDephase,
+  singleWorldLeak,
   stationaryInWorld,
   thermalUpRate,
   totalCoherenceBits,
   twoRateInWorld,
   twoRateRecursion,
+  twoWorldLawKraus,
 } from "../src/kernel/law.js";
+import { partialTrace } from "../src/core/channels.js";
 
 /** BoardRow with readonly stripped: smuggle deep-copies the board, so
  * in-place mutation of the copy is the whole point of the harness. */
@@ -70,7 +85,7 @@ describe("T1 the board stands", () => {
     assert.deepEqual(checkBoard(), []);
   });
 
-  it("all fourteen witnesses pass", () => {
+  it("all seventeen witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
   });
 });
@@ -265,6 +280,51 @@ describe("T3 smuggling trials — the board rejects contraband by name", () => {
     const hit = checkBoard(contraband).find((v) => v.law === "SW6");
     assert.ok(hit, "expected an SW6 violation");
     assert.match(hit.detail, /route-price/);
+  });
+
+  it("SW7: a counterfeit catalyst harvest beyond the bounded face is rejected", () => {
+    // the smuggler claims one qubit catalyst recovers the full straddler bit
+    // AND half the correlation term off a single shot — beyond log2(2) = 1
+    const contraband = smuggle((rows) => {
+      const at15 = rows.find((r) => r.id === "AT15") as WritableBoardRow;
+      at15.claimedRecoveryBits = 1.5;
+    });
+    const hit = checkBoard(contraband).find((v) => v.law === "SW7");
+    assert.ok(hit, "expected an SW7 violation");
+    assert.match(hit.detail, /catalyst cap/);
+  });
+
+  it("SW7: an unbounded harvest claim with no declared catalyst is rejected", () => {
+    const contraband = smuggle((rows) => {
+      const at15 = rows.find((r) => r.id === "AT15") as WritableBoardRow;
+      delete at15.catalystDim;
+      delete at15.claimedRecoveryBits;
+    });
+    const hit = checkBoard(contraband).find((v) => v.law === "SW7");
+    assert.ok(hit, "expected an SW7 violation");
+    assert.match(hit.detail, /counterfeit/);
+  });
+
+  it("SW8: a fake multi-world absorption certificate (single geometric) is rejected", () => {
+    // the smuggler prices the join leakage with the SINGLE-world closed form
+    // (1-gamma)^k * leak0 — the union-with-intersection says otherwise
+    const contraband = smuggle((rows) => {
+      const at16 = rows.find((r) => r.id === "AT16") as WritableBoardRow;
+      at16.joinCertificate = { a0: 0.5, b0: 0.5, c0: 0.5, k: 5, leak: Math.pow(1 - GAMMA, 5) * 0.5 };
+    });
+    const hit = checkBoard(contraband).find((v) => v.law === "SW8");
+    assert.ok(hit, "expected an SW8 violation");
+    assert.match(hit.detail, /union-with-intersection/);
+  });
+
+  it("SW8: a multi-world row without its certificate is rejected", () => {
+    const contraband = smuggle((rows) => {
+      const at16 = rows.find((r) => r.id === "AT16") as WritableBoardRow;
+      delete at16.joinCertificate;
+    });
+    const hit = checkBoard(contraband).find((v) => v.law === "SW8");
+    assert.ok(hit, "expected an SW8 violation");
+    assert.match(hit.detail, /fake certificate/);
   });
 });
 
@@ -647,5 +707,253 @@ describe("T7 the sixty-second visit — the continuum limit executed, the audit 
       worstNoop = Math.max(worstNoop, Math.abs(bank.aligned - bank.naive));
     }
     assert.ok(worstNoop <= 1e-14, "straddlers need no alignment");
+  });
+});
+
+describe("T8 the sixty-fourth visit — the holder's bounded catalyst", () => {
+  it("the Schmidt memory is honest: diagonal marginal, spectrum = the input's, rank = the state's", () => {
+    const rng = makeRng(91);
+    const rank = (rho: ReturnType<typeof vecToRho>): number => {
+      let r = 0;
+      for (const l of eigHermitian(rho).values) if (l > 1e-12) r++;
+      return r;
+    };
+    const cases: Array<{ rho: ReturnType<typeof vecToRho>; mDim: number }> = [
+      { rho: vecToRho(randomStateVec(rng, 4)), mDim: 1 }, // pure: trivial record
+      { rho: maximallyMixed(4), mDim: 4 },
+      { rho: sectorDephase(vecToRho(randomStateVec(rng, 4))), mDim: 2 },
+    ];
+    for (let t = 0; t < 6; t++) {
+      const rho = iterateLaw(vecToRho(randomStateVec(rng, 4)), (t % 4) + 1, GAMMA);
+      cases.push({ rho, mDim: rank(rho) }); // the law's trajectory rank, whatever it is
+    }
+    for (const { rho, mDim } of cases) {
+      const { joint, mDim: got } = schmidtPurification(rho);
+      assert.ok(got === mDim, `rank ${got}, expected ${mDim}`);
+      const mem = partialTrace(joint, [4, got], [0]);
+      for (let i = 0; i < got; i++) {
+        for (let j = 0; j < got; j++) {
+          if (i === j) continue;
+          assert.ok(Math.abs(mem.re[i * got + j]!) <= 1e-12, "the Schmidt marginal is diagonal");
+        }
+      }
+      assert.ok(Math.abs(vonNeumannEntropy(mem) - vonNeumannEntropy(rho)) <= 1e-9, "the memory's spectrum is the input's");
+    }
+  });
+
+  it("the riding identity: the memory changes nothing on register x weight, and R0/R1 are AT14's banks", () => {
+    const rng = makeRng(92);
+    let worstRide = 0;
+    let worstAlign = 0;
+    let worstNaive = 0;
+    for (let t = 0; t < 15; t++) {
+      const rho = t % 2 === 0 ? vecToRho(randomStateVec(rng, 4)) : iterateLaw(vecToRho(randomStateVec(rng, 4)), t % 4 + 1, GAMMA);
+      worstRide = Math.max(worstRide, traceDistance(holderJoint(rho).register, coherentShortcut(rho).register));
+      const bank = alignedBank(coherentShortcut(rho).total);
+      const rungs = holderHarvest(rho);
+      worstAlign = Math.max(worstAlign, Math.abs(rungs.aligned - bank.l1));
+      worstNaive = Math.max(worstNaive, Math.abs(rungs.naive - bank.naive));
+    }
+    assert.ok(worstRide <= 1e-13);
+    assert.ok(worstAlign <= 1e-13, "rung R1 is AT14's l1 optimum");
+    assert.ok(worstNaive <= 1e-13, "rung R0 is AT14's naive bank");
+  });
+
+  it("the nested triangle ladder: naive <= aligned <= conditional, with a real unlock on mixed states", () => {
+    const rng = makeRng(93);
+    let worstViolation = 0;
+    let maxUnlock2 = 0;
+    let pureUnlock = 0;
+    for (let t = 0; t < 30; t++) {
+      const rho = iterateLaw(vecToRho(randomStateVec(rng, 4)), (t % 5) + 1, GAMMA);
+      const rungs = holderHarvest(rho);
+      worstViolation = Math.max(worstViolation, rungs.naive - rungs.aligned, rungs.aligned - rungs.conditional);
+      maxUnlock2 = Math.max(maxUnlock2, rungs.conditional - rungs.aligned);
+    }
+    for (let t = 0; t < 10; t++) {
+      const rungs = holderHarvest(vecToRho(randomStateVec(rng, 4)));
+      pureUnlock = Math.max(pureUnlock, rungs.conditional - rungs.aligned);
+    }
+    assert.ok(worstViolation <= 1e-12, "the ladder never inverts");
+    assert.ok(maxUnlock2 > 1e-2, `the record unlocks beyond alignment (max ${maxUnlock2})`);
+    assert.ok(pureUnlock <= 1e-12, "pure starts carry a trivial record — the unlock needs the law's mixing first");
+  });
+
+  it("the bit ladder rides C_rel convexity; the catalyst cap log2 d holds and is tight on straddlers", () => {
+    const rng = makeRng(94);
+    let worstConvex = 0;
+    let maxBitBoost = 0;
+    let worstCap = 0;
+    for (let t = 0; t < 25; t++) {
+      const rungs = holderHarvest(iterateLaw(vecToRho(randomStateVec(rng, 4)), (t % 4) + 1, GAMMA));
+      worstConvex = Math.max(worstConvex, rungs.bitsUnconditional - rungs.bitsConditional);
+      maxBitBoost = Math.max(maxBitBoost, rungs.bitsConditional - rungs.bitsUnconditional);
+      worstCap = Math.max(worstCap, rungs.bitsConditional - catalystCap(2));
+    }
+    assert.ok(worstConvex <= 1e-9, "sum_m p_m C_rel(cond) >= C_rel(marginal) — the convexity ladder");
+    assert.ok(maxBitBoost > 1e-2, `the record unlocks bits (max ${maxBitBoost})`);
+    assert.ok(worstCap <= 1e-9, "no 2-dimensional bank exceeds 1 bit");
+    assert.ok(Math.abs(catalystCap(2) - 1) <= 1e-15 && Math.abs(catalystCap(4) - 2) <= 1e-15);
+    // tightness: the straddler banks the FULL bit on the 2-dimensional weight
+    let worstTight = 0;
+    for (let t = 0; t < 8; t++) {
+      const phi = rng() * 2 * Math.PI;
+      const w = vec(2);
+      w.re[0] = 1 / Math.SQRT2;
+      w.re[1] = Math.cos(phi) / Math.SQRT2;
+      w.im[1] = Math.sin(phi) / Math.SQRT2;
+      const rungs = holderHarvest(vecToRho(vKron(w, randomStateVec(rng, 2))));
+      worstTight = Math.max(worstTight, Math.abs(rungs.bitsConditional - 1), rungs.mDim === 1 ? 0 : 1);
+    }
+    assert.ok(worstTight <= 1e-12, "the cap is attained: the straddler's full bit on a qubit catalyst");
+  });
+});
+
+describe("T9 the second world — one law, two marked worlds", () => {
+  it("the two-world law is CPTP and quiet on the join world", () => {
+    let completeness = mat(8, 8);
+    for (const k of twoWorldLawKraus(GAMMA)) completeness = mAdd(completeness, mMul(mDagger(k), k));
+    assert.ok(matEq(completeness, identity(8), 1e-14));
+    const rng = makeRng(95);
+    const p1 = basisVec(2, 1);
+    for (let t = 0; t < 12; t++) {
+      const rho = vecToRho(vKron(vKron(p1, p1), randomStateVec(rng, 2)));
+      const out = applyTwoWorldLaw(rho, GAMMA);
+      assert.ok(traceDistance(out, rho) <= 1e-15, "both-in-world states are fixed");
+    }
+  });
+
+  it("single-world faces keep exact geometrics on entangled starts, with the same increment identity", () => {
+    const rng = makeRng(96);
+    const ghz = vec(4);
+    ghz.re[0] = 1 / Math.SQRT2;
+    ghz.re[3] = 1 / Math.SQRT2;
+    const anti = vec(4);
+    anti.re[1] = 1 / Math.SQRT2;
+    anti.re[2] = 1 / Math.SQRT2;
+    const starts = [
+      vecToRho(vKron(ghz, randomStateVec(rng, 2))),
+      vecToRho(vKron(anti, randomStateVec(rng, 2))),
+      vecToRho(randomStateVec(rng, 8)),
+    ];
+    let worstLeak = 0;
+    let worstInc = 0;
+    for (const rho of starts) {
+      const a0 = 1 - chargeA(rho);
+      const b0 = 1 - chargeB(rho);
+      for (const k of [1, 5, 20]) {
+        const cur = iterateTwoWorldLaw(rho, k, GAMMA);
+        worstLeak = Math.max(worstLeak, Math.abs(1 - chargeA(cur) - singleWorldLeak(k, a0, GAMMA)));
+        worstLeak = Math.max(worstLeak, Math.abs(1 - chargeB(cur) - singleWorldLeak(k, b0, GAMMA)));
+      }
+      const cur1 = applyTwoWorldLaw(rho, GAMMA);
+      worstInc = Math.max(worstInc, Math.abs(chargeA(cur1) - (chargeA(rho) + GAMMA * (1 - chargeA(rho)))));
+      worstInc = Math.max(worstInc, Math.abs(chargeB(cur1) - (chargeB(rho) + GAMMA * (1 - chargeB(rho)))));
+    }
+    assert.ok(worstLeak <= 1e-14, `single-world geometrics exact (${worstLeak})`);
+    assert.ok(worstInc <= 1e-15, `increment identity dV = gamma(1-V) (${worstInc})`);
+  });
+
+  it("the join leakage is the exact union-with-intersection and never a single geometric when c0 > 0", () => {
+    const rng = makeRng(97);
+    const ghz = vec(4);
+    ghz.re[0] = 1 / Math.SQRT2;
+    ghz.re[3] = 1 / Math.SQRT2;
+    const rho = vecToRho(vKron(ghz, randomStateVec(rng, 2))); // a0 = b0 = c0 = 1/2
+    const a0 = 1 - chargeA(rho);
+    const b0 = 1 - chargeB(rho);
+    const c0 = bothOutside(rho);
+    assert.ok(Math.abs(a0 - 0.5) <= 1e-15 && Math.abs(b0 - 0.5) <= 1e-15 && Math.abs(c0 - 0.5) <= 1e-15);
+    let worst = 0;
+    for (const k of [1, 2, 7, 30]) {
+      worst = Math.max(worst, Math.abs(1 - joinCharge(iterateTwoWorldLaw(rho, k, GAMMA)) - joinLeakage(k, a0, b0, c0, GAMMA)));
+    }
+    assert.ok(worst <= 1e-14, `the join closed form is exact (${worst})`);
+    // NOT a single geometric: joinLeak(k)/(1-gamma)^k = a0 + b0 - c0(1-gamma)^k drifts upward
+    const face1 = joinLeakage(1, a0, b0, c0, GAMMA) / Math.pow(1 - GAMMA, 1);
+    const face10 = joinLeakage(10, a0, b0, c0, GAMMA) / Math.pow(1 - GAMMA, 10);
+    assert.ok(face10 - face1 > 1e-2, "the normalized join face drifts — no single geometric fits");
+    // and the trivial case is the ONLY geometric one: a0 = b0 = 0 stays at 0
+    assert.ok(Math.abs(joinLeakage(15, 0, 0, 0, GAMMA)) <= 1e-15);
+  });
+
+  it("escape impossible: charges monotone; join-block conservation splits by world", () => {
+    const rng = makeRng(98);
+    const ghz = vec(4);
+    ghz.re[0] = 1 / Math.SQRT2;
+    ghz.re[3] = 1 / Math.SQRT2;
+    const rho = vecToRho(vKron(ghz, randomStateVec(rng, 2)));
+    let cur = rho;
+    let worstDrop = 0;
+    for (let k = 0; k < 15; k++) {
+      const a = chargeA(cur);
+      const b = chargeB(cur);
+      const j = joinCharge(cur);
+      cur = applyTwoWorldLaw(cur, GAMMA);
+      worstDrop = Math.max(worstDrop, a - chargeA(cur), b - chargeB(cur), j - joinCharge(cur));
+    }
+    assert.ok(worstDrop >= -1.5e-15, "all charges monotone");
+    assert.ok(1 - joinCharge(iterateTwoWorldLaw(rho, 200, GAMMA)) <= 1e-12, "the join leak dies");
+    // a join-block unitary (its own cargo unitary per (w1,w2) block) conserves all three charges
+    let u = mat(8, 8);
+    for (let block = 0; block < 4; block++) {
+      const p = mat(4, 4);
+      p.re[block * 4 + block] = 1;
+      u = mAdd(u, kron(p, randomUnitary(rng, 2)));
+    }
+    const oj = applyUnitary(rho, u);
+    assert.ok(Math.abs(chargeA(oj) - chargeA(rho)) <= 1.5e-15);
+    assert.ok(Math.abs(chargeB(oj) - chargeB(rho)) <= 1.5e-15);
+    assert.ok(Math.abs(joinCharge(oj) - joinCharge(rho)) <= 1.5e-15);
+    // a one-bit-block unitary conserves ONLY its own world's charge
+    const p1w = mat(2, 2);
+    p1w.re[3] = 1;
+    const p0w = mat(2, 2);
+    p0w.re[0] = 1;
+    const ua = mAdd(kron(p1w, randomUnitary(rng, 4)), kron(p0w, randomUnitary(rng, 4)));
+    const oa = applyUnitary(rho, ua);
+    assert.ok(Math.abs(chargeA(oa) - chargeA(rho)) <= 1.5e-15, "world A's charge conserved");
+    assert.ok(Math.abs(chargeB(oa) - chargeB(rho)) > 0.1, "world B's charge moves — one world's symmetry is not the other's");
+  });
+});
+
+describe("T10 the accumulated law-error — time-dependent eps_t", () => {
+  it("constant eps reproduces AT4's bound; the contraction to the fixed point is exact", () => {
+    for (const eps of [0.002, 0.01, 0.05, 0.1]) {
+      const seq = new Array<number>(500).fill(eps);
+      assert.ok(Math.abs(accumulatedLeakageBound(seq, 1, GAMMA) - perturbedLeakageBound(eps, GAMMA)) <= 1e-9);
+      const fp = perturbedLeakageBound(eps, GAMMA);
+      let b = 1;
+      for (let t = 0; t < 6; t++) {
+        const prev = Math.abs(b - fp);
+        b = accumulatedLeakageBound([eps], b, GAMMA);
+        assert.ok(Math.abs(Math.abs(b - fp) - (1 - eps) * (1 - GAMMA) * prev) <= 1e-15);
+      }
+    }
+  });
+
+  it("the census: random eps_t with FRESH channels every step stays under the recursion bound", () => {
+    const rng = makeRng(99);
+    let worstExcess = 0;
+    for (let trial = 0; trial < 6; trial++) {
+      const epsSeq: number[] = [];
+      for (let t = 0; t < 200; t++) epsSeq.push(0.002 + 0.098 * rng());
+      for (const rho0 of [vecToRho(randomStateVec(rng, 4)), outOfWorldState(vecToRho(randomStateVec(rng, 2)))]) {
+        const leak0 = leakage(rho0);
+        let cur = rho0;
+        for (const eps of epsSeq) cur = applyPerturbed(cur, randomCptpKraus(rng, 4, 2), eps, GAMMA);
+        worstExcess = Math.max(worstExcess, leakage(cur) - accumulatedLeakageBound(epsSeq, leak0, GAMMA));
+      }
+    }
+    assert.ok(worstExcess <= 1e-12, `worst excess ${worstExcess}`);
+  });
+
+  it("an error schedule beats constant worst-case eps: exact arithmetic", () => {
+    const alternating = Array.from({ length: 300 }, (_, i) => (i % 2 === 0 ? 0.1 : 0.002));
+    const constant = new Array<number>(300).fill(0.1);
+    const alt = accumulatedLeakageBound(alternating, 1, GAMMA);
+    const con = accumulatedLeakageBound(constant, 1, GAMMA);
+    assert.ok(alt < 0.51 * con, `alternating ${alt} vs constant ${con}`);
+    assert.ok(Math.abs(con - perturbedLeakageBound(0.1, GAMMA)) <= 1e-9);
   });
 });

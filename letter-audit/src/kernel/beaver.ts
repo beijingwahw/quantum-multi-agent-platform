@@ -109,3 +109,73 @@ export function rightWalker(n: number): TMachine {
   }
   return { n, entries };
 }
+
+/**
+ * The ladder's sixth rung — base-2 power towers, exact where materializable,
+ * structural beyond. 2↑↑5 = 2^65536 is the last tower that fits a BigInt;
+ * 2↑↑6 would have ~10^19728 digits. Taller towers are therefore compared
+ * STRUCTURALLY: for base 2, a tower of height h+1 equals 2^T(h) > T(h) for
+ * every h >= 1 (machine-checked on the materializable prefix), so among
+ * base-2 towers, height decides the order — and heights that are themselves
+ * towers decide the same way, recursively.
+ */
+export const MAX_MATERIALIZE_HEIGHT = 5;
+
+/** 2↑↑height, exact BigInt; refuses heights beyond the materializable prefix. */
+export function tetrate(height: number): bigint {
+  if (!Number.isInteger(height) || height < 1 || height > MAX_MATERIALIZE_HEIGHT) {
+    throw new Error(`tetrate: height must be an integer in 1..${MAX_MATERIALIZE_HEIGHT}, got ${height}`);
+  }
+  let v = 2n;
+  for (let i = 2; i <= height; i++) v = 2n ** v;
+  return v;
+}
+
+/** A base-2 tower: either an exact BigInt value, or 2↑↑height with the height
+ * itself a tower (heights past 5 are only ever expressible this way). */
+export type TowerExpr =
+  | { readonly kind: "lit"; readonly n: bigint }
+  | { readonly kind: "tet"; readonly height: TowerExpr };
+
+export const lit = (n: bigint): TowerExpr => ({ kind: "lit", n });
+/** 2↑↑(the value of `height`) — requires that value to be a positive integer. */
+export const tet = (height: TowerExpr): TowerExpr => ({ kind: "tet", height });
+
+function litHeightIsSmallInteger(h: TowerExpr): bigint | null {
+  if (h.kind === "lit" && h.n >= 1n && h.n <= BigInt(MAX_MATERIALIZE_HEIGHT)) return h.n;
+  return null;
+}
+
+/** Exact three-way comparison of base-2 tower expressions.
+ * Handles lit/lit numerically, tet/tet by comparing heights recursively, and
+ * mixed cases via the monotone materializable bound — throwing on any case
+ * outside the checked domain rather than guessing. */
+export function compareTowers(a: TowerExpr, b: TowerExpr): -1 | 0 | 1 {
+  if (a.kind === "lit" && b.kind === "lit") return a.n < b.n ? -1 : a.n > b.n ? 1 : 0;
+  if (a.kind === "tet" && b.kind === "tet") return compareTowers(a.height, b.height);
+  // mixed: one tower side, one literal side
+  const towerSide = a.kind === "tet" ? a : b;
+  const litSide = a.kind === "lit" ? a : b;
+  if (towerSide.kind !== "tet" || litSide.kind !== "lit") throw new Error("compareTowers: unreachable mixed case");
+  const flip = (c: -1 | 0 | 1): -1 | 0 | 1 => (c === 0 ? 0 : c === 1 ? -1 : 1);
+  const sign: -1 | 0 | 1 = a.kind === "tet" ? 1 : -1; // result sign as seen from `a`
+  const h = litHeightIsSmallInteger(towerSide.height);
+  if (h !== null) {
+    // tower fully materializable: exact numeric comparison
+    const v = tetrate(Number(h));
+    const c: -1 | 0 | 1 = v < litSide.n ? -1 : v > litSide.n ? 1 : 0;
+    return sign === 1 ? c : flip(c);
+  }
+  if (towerSide.height.kind === "lit") {
+    // height is a large literal: a monotone lower bound decides when it already
+    // exceeds the literal side (tetrate is strictly increasing in height)
+    const bound = tetrate(MAX_MATERIALIZE_HEIGHT);
+    if (bound > litSide.n) return sign; // tower > literal, exactly
+    if (towerSide.height.n <= BigInt(MAX_MATERIALIZE_HEIGHT)) {
+      const v = tetrate(Number(towerSide.height.n));
+      const c: -1 | 0 | 1 = v < litSide.n ? -1 : v > litSide.n ? 1 : 0;
+      return sign === 1 ? c : flip(c);
+    }
+  }
+  throw new Error("compareTowers: comparison outside the checked domain — refusing to guess");
+}

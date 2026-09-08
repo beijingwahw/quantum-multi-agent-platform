@@ -13,7 +13,7 @@
  * K1-K4 the four boundary controls.
  */
 import { Rng } from "../src/core/rng.js";
-import { pAdd, pConst, pDeriv, pIsZero, pScale, pSub, pSubstRat, pVar, rMul, rStr, rSub, rat, type Poly, type Rat } from "../src/continuum/poly.js";
+import { pAdd, pConst, pDeriv, pIsZero, pMul, pScale, pSub, pSubstRat, pVar, rMul, rStr, rSub, rat, type Poly, type Rat } from "../src/continuum/poly.js";
 import * as gl from "../src/continuum/green-laffont.js";
 import { table, writeReport } from "./report.js";
 
@@ -114,6 +114,19 @@ function run(): void {
     const cls = gl.classifyPayment(f, crime, rat(2, 5));
     require("N-II conviction: p + (3/7)s is not on the orbit", cls.kind === "not-dsic", "smuggled through");
     classRows.push(["control p + (3/7)s", "NOT-DSIC", `convicted (${cls.kind === "not-dsic" ? cls.offending : 0} own-report monomials)`]);
+    // census extension (v0.3.0): a two-parameter non-linear gauge, read off exactly
+    const h2 = gl.nonlinearTwoParamGauge(f, rat(2, 7), rat(-3, 5));
+    const p2 = pAdd(gl.grovesPayment(f), h2);
+    const cls2 = gl.classifyPayment(f, p2, rat(2, 5));
+    require("N-II census: two-parameter non-linear gauge classified as gauge", cls2.kind === "gauge", "convicted a legal gauge");
+    if (cls2.kind === "gauge") {
+      exact("N-II census: both parameters recovered exactly", pSub(cls2.h, pSubstRat(p2, 0, rat(2, 5))));
+      classRows.push(["h = (2/7)o0o1 - (3/5)o0^3 (two-parameter)", "gauge", "both parameters recovered (0 residual)"]);
+    }
+    const crime2 = pAdd(p2, pScale(pMul(pVar(f.vars, 0), pVar(f.vars, 0)), rat(1, 11)));
+    const cls3 = gl.classifyPayment(f, crime2, rat(2, 5));
+    require("N-II census conviction: hidden (1/11)s^2 term", cls3.kind === "not-dsic", "the hidden term slipped through");
+    classRows.push(["same gauge + hidden (1/11)s^2", "NOT-DSIC", "convicted on sight"]);
   }
 
   // ---------- K1: the off-gauge crime ----------
@@ -244,7 +257,10 @@ function run(): void {
     "differential incentive identity annihilates the gauge direction (g has no s-monomials,",
     "so d/ds vanishes on it — the constraint system cannot see the gauge). The",
     "classification corollary IS Green-Laffont uniqueness: the solver reads the gauge",
-    "off ANY DSIC payment exactly, and convicts off-orbit payments on sight.",
+    "off ANY DSIC payment exactly, and convicts off-orbit payments on sight. The census",
+    "(v0.3.0) includes a TWO-PARAMETER non-linear gauge alpha o0 o1 + beta o0^3: both",
+    "parameters recovered coefficient-exact; the same gauge with a hidden (1/11)s^2",
+    "term is convicted on sight.",
     "",
     table(["payment", "verdict", "evidence"], classRows),
     "",

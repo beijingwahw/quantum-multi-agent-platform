@@ -5,6 +5,10 @@
 > v0.1.0 exhibited the charge — the poetry survived as algebra, discretely.
 > v0.2.0 executes the derivation the row still excluded: Noether's 1918
 > continuum theorem -> Green-Laffont, every link the zero polynomial.
+> v0.3.0 takes the two boundaries v0.2.0 priced: the NON-QUADRATIC face (the
+> quartic chain closes on the externality-free stage, and a no-polynomial
+> certificate proves the coupled quartic stage cannot host the chain at all)
+> and the KINK as piecewise-smooth Noether (both regimes glued exactly).
 
 ## Positioning
 
@@ -106,26 +110,84 @@ where each hypothesis is load-bearing:
   exactly 1) is where the smooth chain stops and the general measurable-space
   theorem (GL79) takes over.
 
+**T9 the non-quadratic face (v0.3.0)**: the quartic utility family
+v = θa − a⁴/4, on both sides of the polynomial boundary. (a) On the
+EXTERNALLY-FREE stage (one private good per agent, types τ = θ^(1/3), so the
+efficient rule x_j = τ_j is polynomial) the whole chain closes again — every
+link the zero polynomial — and the charge acquires a genuinely new closed
+form G = −(s−t)²(s²+2st+3t²)/4, a square times a POSITIVE-DEFINITE quadratic
+((s+t)²+2t², a sum of squares) — DSIC by ordered-field arithmetic, globally.
+Noether I orbit conservation and the Noether II classifier run on the new
+family; the κ-control's Groves drift is exactly κ(1−κ³)s³ (Groves only on the
+κ = 1 slice; κ < 0 has a positive Rochet 2-cycle −κ(a−b)²). (b) On the
+COUPLED stage (Σa = 1 — the v0.2.0 stage) a NO-POLYNOMIAL CERTIFICATE proves
+the efficient allocation x_j = (θ_j−λ)^(1/3) cannot be a polynomial in the
+types: the FOC forces (X₂−X₁)(X₂²+X₂X₁+X₁²) = θ₂−θ₁, the quadratic factor
+has degree 2d exactly (leading coefficient (q_d+p_d/2)²+(3/4)p_d² > 0 by a
+machine sum-of-squares identity), and degree arithmetic e+2d = 1 with d = 0
+⟹ e = 0 has no solution. The chain does not break at a link — the ring
+cannot state it. Controls prove the checker sharp: at degree 3 the lemma
+does not refute (X₁=1, X₂=t solves it), and the quadratic family's LINEAR
+FOC is not convicted. The exponential family fails one level earlier
+(transcendental FOC inversion) — cited, not machine-claimed.
+
+**T10 the kink locus as piecewise-smooth Noether (v0.3.0)**: K4 executed as
+a piecewise mechanism, two regimes. JUMP regime — the second-price auction
+as two polynomial patches: the chain per patch, the COMMON gauge h = w (the
+pivot) on both patches, and the gluing priced exactly: [x] = 1, [p] = w,
+[u] = t−w with the identity [u] = t·[x] − [p]; the charge's one-sided limits
+(0 and −(t−w) for a true winner — forcing a win you should not take costs
+exactly the true-type gap); the across-kink integration step = the
+Milgrom-Segal envelope (MS02) executed exactly on crossing, non-crossing,
+and reversed rational pairs. First price PASSES the gluing identity and is
+convicted ON THE PATCH (residual exactly −1): the counterfeit certificate
+"gluing ⟹ DSIC" is named and rejected. CONTINUITY regime — the capacity
+wall of the quadratic family (types widened to [1/2, 5/2]²): the interior
+patch carries a NONCONSTANT rule (the chain runs nontrivially); x, p, and
+the charge are continuous at the wall kink s* = w−1 (zero polynomials, w
+symbolic) while the charge's FLUX jumps by exactly (t−w+1)/2 = x(t) — the
+surface term of the piecewise conservation law. The wall-to-wall block is a
+weak-DSIC flat (charge 0), counted honestly. The gauge-readoff census gains
+a two-parameter non-linear gauge, read off coefficient-exact with hidden
+own-report terms convicted on sight.
+
 ## Honest boundaries
 
 - **What is proved**: both instantiations of the algebra at the discrete
-  layer (integer-exact, T1–T4), and the continuum derivation at the smooth
+  layer (integer-exact, T1–T4), the continuum derivation at the smooth
   layer (T5–T8, every identity the zero polynomial in exact rational
-  arithmetic — it holds for every type profile in the region at once). The
-  symmetry group and the conserved charge the atlas asked for are exhibited
-  at both layers; the Noether→Green-Laffont implication is executed with
-  its four load-bearing hypotheses each carrying a machine witness.
+  arithmetic — it holds for every type profile in the region at once), the
+  quartic chain on the externality-free stage plus the no-polynomial
+  certificate for the coupled quartic stage (T9, both directions, with
+  sharp controls), and the piecewise-smooth kink discipline in both regimes
+  (T10, per-patch chains plus exact gluing). The symmetry group and the
+  conserved charge the atlas asked for are exhibited at both layers and on
+  the new family; the Noether→Green-Laffont implication is executed with
+  its load-bearing hypotheses each carrying a machine witness.
 - **What is NOT proved**: the general Green-Laffont theorem for measurable
   type spaces and nonsmooth mechanisms (GL79, cited — the kink locus K4 is
-  its territory); Green/Poincaré as general analytic theorems (SPI65, cited
-  — here they are executed as exact polynomial integration on a convex box);
+  its territory; the modern general-type-space uniqueness PBS25 is likewise
+  cited); Green/Poincaré as general analytic theorems (SPI65, cited — here
+  they are executed as exact polynomial integration on a convex box);
   Noether's theorems as general statements (NOE18, KSS11, cited — the
-  mechanism instances are what the machine holds).
+  mechanism instances are what the machine holds); polynomial exactness of
+  any EXTERNALITY-BEARING quartic mechanism (the T9 certificate refutes the
+  natural one — reparametrizing the type space does not polynomialize the
+  λ-coupling); rational (as opposed to polynomial) non-solvability of the
+  coupled quartic FOC (would need the arithmetic of the Fermat cubic —
+  cited, not executed); the exponential family's FOC inversion (transcendental
+  — outside the certificate's algebraic scope); the second-price per-patch
+  links are trivially zero (constant patch rules — labelled, not inflated);
+  tie-breaking AT the kink point itself (the repo stays tie-free — the wall
+  flat is indifference, not a tie) and multi-agent wall combinatorics (one
+  wall, n = 2 here).
 - **Scale**: discrete layer 3×3 assignment instances, K = 5 own-reports,
   full enumeration; continuum layer n = 2, 3 agents, closed forms — the
   polynomial ring is the whole type space at once. Small on purpose —
   exactness is the deliverable, not size.
-- Tie-free by construction at both layers (ties are the kink locus of K4).
+- Tie-free by construction at both layers (ties are the kink locus of K4;
+  the wall-to-wall flat of T10's continuity regime is indifference, priced
+  and counted, never a tie).
 - The epoch-5 superstructure ("scheduling as a physical law", choice as a
   language primitive) remains where it was: the `choice-primitive` OPEN row.
 
@@ -135,6 +197,6 @@ where each hypothesis is load-bearing:
 npm ci && npm test && npm run repro
 ```
 
-19/19 tests; full report rebuild in under a second. Seeded, zero runtime
-dependencies, TypeScript strict + NodeNext. Reports land in `out/reports/`.
-Citations (web-verified): [docs/citations.md](docs/citations.md).
+78/78 tests; seven reports rebuilt in about a second and a half. Seeded,
+zero runtime dependencies, TypeScript strict + NodeNext. Reports land in
+`out/reports/`. Citations (web-verified): [docs/citations.md](docs/citations.md).

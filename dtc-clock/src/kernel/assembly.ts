@@ -30,7 +30,14 @@
  *     sqrt(pi)/2 (the arcsine law), its subleading constant is Phi1.
  */
 
-import { secondOrderGeneral, shareChainPieces, sigmaFirst, thirdOrderClosed } from "./armor.js";
+import {
+  richardsonLimit,
+  secondOrderGeneral,
+  shareChainPieces,
+  sigmaFirst,
+  sigmaFirstIncremental,
+  thirdOrderClosed,
+} from "./armor.js";
 
 // ---------------------------------------------------------------------------
 // TC44: the exact transfer and the S-face constant
@@ -132,12 +139,18 @@ export function edgeNextOrder(k: number): number {
  * midpoint Taylor; float noise dominates for k >> 3·10^4). */
 export const EDGE_SECOND_COEFF = -11 / 128;
 
-/** Euler–Maclaurin zeta for s > 1 (the values feeding the zeta-face). */
-export function zetaEM(s: number): number {
-  const N = 60;
+/** Euler–Maclaurin zeta for s > 1 (the values feeding the zeta-face).
+ * v0.20.0 SIGN FIX (TC47): the tail formula is zeta = sum_{k<=N} +
+ * N^{1-s}/(s-1) - (1/2) N^{-s} + (s/12) N^{-s-1} - ...; v0.19.0 ADDED the
+ * (1/2) N^{-s} term, a +N^{-s} error of +2.15e-3 on zeta(3/2) at N = 60
+ * (the error's exact N^{-s} signature is the conviction: err(60) =
+ * 60^{-1.5} = 2.1517e-3, err(120) = 120^{-1.5} = 7.6073e-4, err_zeta(5/2)
+ * = 60^{-2.5} = 3.5861e-5 — all four digits). Certified by the N = 60/120/
+ * 240 agreement (now ~1e-10) where the buggy road disagreed at 1e-3. */
+export function zetaEM(s: number, N = 60): number {
   let sum = 0;
   for (let k = 1; k <= N; k++) sum += Math.pow(k, -s);
-  return sum + Math.pow(N, 1 - s) / (s - 1) + 0.5 * Math.pow(N, -s) + (s / 12) * Math.pow(N, -s - 1);
+  return sum + Math.pow(N, 1 - s) / (s - 1) - 0.5 * Math.pow(N, -s) + (s / 12) * Math.pow(N, -s - 1);
 }
 
 export interface EdgeSeries {
@@ -194,4 +207,199 @@ export function fFunctionFace(d: number, k: number): number {
   const lb = (a: number, b: number): number => lf[a]! - lf[b]! - lf[a - b]!;
   const lnS = 2 * lb(d - 1, k) - lb(n, 2 * k + 1) - Math.log(k);
   return (d * Math.exp(lnS)) / edgeMassFloat(k);
+}
+
+// ---------------------------------------------------------------------------
+// v0.20.0 — TC47: Phi1 MACHINE-BRACKETED, EXPLICITLY (the arc's one open
+// face, extended). Phi1 = kappa - zeta_m was machine-MEASURED at v0.19.0
+// with no stated bracket; here every error piece is named and certified:
+//   - eps_kappa: the spread of four cross-family Richardson combos for
+//     sigma1 on the INCREMENTAL-binomial share road (clean past n = 2^18
+//     where the log-factorial road's ulp noise bites), mapped through the
+//     exact transfer kappa = sigma1/(2 sqrt(2/pi));
+//   - eps_zeta: the edge series' K-truncation tail, bounded by a probed
+//     k^{-7/2} coefficient bound, plus the Euler-Maclaurin zeta truncation
+//     (N = 60 vs 120 differences);
+//   - the independent kappa(D) road (incremental S, cross-validated against
+//     the lf-table road at D <= 2^16) confirms the transfer kappa to ~7e-6
+//     — 6.7x tighter than v0.19.0's 4.7e-5 confirmation;
+//   - the D-grid structure: Phi1(D) = kappaFaceInc(D) - zeta_m is NEGATIVE
+//     and MONOTONE RISING on D = 2^12..2^20, its increments shrinking with
+//     ratio ~0.50 = 2^{-1} (the 1/sqrt(D) approach face) — certified data.
+// NO closed form is claimed for Phi1 (that face stays open); fake brackets
+// are rejected by name by checkPhi1Bracket.
+// ---------------------------------------------------------------------------
+
+/** S(D) by the incremental-binomial road: ln C(D-1,k) and ln C(2D,2k+1) by
+ * per-step quotient recurrences (every intermediate O(1) — no log-factorial
+ * table), summed by log1p log-sum-exp. */
+export function scaledModeSumIncremental(d: number): number {
+  if (d < 2 || d % 1 !== 0) throw new Error("scaledModeSumIncremental: integer D >= 2 required");
+  let lnA = 0;
+  let lnB = Math.log(2 * d);
+  let lnS = -Infinity;
+  for (let k = 1; k <= d - 1; k++) {
+    lnA += Math.log(d - k) - Math.log(k);
+    lnB += Math.log(2 * d - 2 * k + 1) + Math.log(2 * d - 2 * k) - Math.log(2 * k) - Math.log(2 * k + 1);
+    const t = 2 * lnA - lnB - Math.log(k);
+    lnS = lnS === -Infinity ? t : lnS + Math.log1p(Math.exp(t - lnS));
+  }
+  return Math.exp(lnS);
+}
+
+/** kappa(D) on the incremental road — the independent D-road to kappa. */
+export function kappaFaceIncremental(d: number): number {
+  return (scaledModeSumIncremental(d) * Math.sqrt(d) - Math.sqrt(Math.PI) / 2) * Math.sqrt(d);
+}
+
+/** The two kappa roads' disagreement at D (the lf-table road vs the
+ * incremental road — the old road's noise, measured where both are valid). */
+export function kappaRoadCrossDeviation(d: number): number {
+  return Math.abs(kappaFaceIncremental(d) - kappaFace(d));
+}
+
+/** The edge series' K-truncation tail bound: the remainder per term after
+ * the 3/8 k^{-3/2} and -(11/128)(3/8) k^{-5/2} faces decays as k^{-7/2};
+ * the coefficient is bounded on the resolvable probe window (beyond it the
+ * midpoint difference's own cancellation drowns the signal — a DATA bound,
+ * labeled as such), and the tail integral (2/5) K^{-5/2} caps the error. */
+export function edgeSeriesTailBound(K: number, probeStep = 997): { c2Bound: number; tail: number; zetaTrunc: number } {
+  let c2Bound = 0;
+  for (let k = 1000; k <= 100000; k += probeStep) {
+    const r = edgeDiff(k) * Math.sqrt(Math.PI) * Math.pow(k, 1.5) - 0.375 + 11 / (128 * k);
+    c2Bound = Math.max(c2Bound, Math.abs(r) * k * k);
+  }
+  const tail = c2Bound * (2 / 5) * Math.pow(K, -2.5);
+  const zetaTrunc =
+    0.375 / Math.sqrt(Math.PI) * Math.abs(zetaEM(1.5, 60) - zetaEM(1.5, 120)) +
+    Math.abs(((-11 / 128) * 0.375) / Math.sqrt(Math.PI)) * Math.abs(zetaEM(2.5, 60) - zetaEM(2.5, 120));
+  return { c2Bound, tail, zetaTrunc };
+}
+
+export interface Phi1Face {
+  readonly sigma1: number; // the point estimator (TC43's grid, incremental road)
+  readonly kappa: number; // sigma1 / (2 sqrt(2/pi)) — the transfer
+  readonly zetaM: number; // the edge series' constant (K = 2^20)
+  readonly point: number; // kappa - zeta_m
+  readonly epsKappa: number; // cross-family Richardson spread, mapped to kappa
+  readonly epsZeta: number; // series tail + zeta truncation
+  readonly lo: number; // the certified bracket
+  readonly hi: number;
+  readonly kappaRoadDeviation: number; // |stage-1 D-road cluster - kappa| (independent confirmation)
+  readonly spread: number; // the raw sigma1 combo spread
+}
+
+/** The four cross-family sigma1 Richardson combos (no shared points across
+ * families; tops <= 2^19 where the incremental road is certified clean). */
+const PHI1_SIGMA_COMBOS: ReadonlyArray<readonly number[]> = [
+  [16384, 65536, 262144],
+  [4096, 16384, 65536, 262144],
+  [12288, 49152, 196608],
+  [24576, 98304, 393216],
+];
+
+/** The assembled Phi1 face: point, certified bracket, error pieces. */
+export function phi1Face(): Phi1Face {
+  const estimates = PHI1_SIGMA_COMBOS.map((g) =>
+    richardsonLimit(g.map((n) => ({ n, v: sigmaFirstIncremental(n) })), 1),
+  );
+  const sigma1 = estimates[1]!; // TC43's own grid, on the certified road
+  const spread = Math.max(...estimates) - Math.min(...estimates);
+  const epsKappa = spread / (2 * Math.sqrt(2 / Math.PI));
+  const series = edgeSeriesAccelerated(1 << 20);
+  const tail = edgeSeriesTailBound(1 << 20);
+  const epsZeta = tail.tail + tail.zetaTrunc;
+  const kappa = kappaFromSigma(sigma1);
+  const point = kappa - series.zetaM;
+  // the independent D-road: stage-1 Richardson (eliminates the 1/sqrt(D)
+  // face) clusters; its center is the road's kappa — the confirmation
+  const road = [16384, 65536, 262144, 1048576].map((d) => kappaFaceIncremental(d));
+  const stage1 = [road[1]! * 2 - road[0]!, road[2]! * 2 - road[1]!, road[3]! * 2 - road[2]!];
+  const roadCenter = (stage1[0]! + stage1[1]!) / 2;
+  const kappaRoadDeviation = Math.abs(roadCenter - kappa);
+  return {
+    sigma1,
+    kappa,
+    zetaM: series.zetaM,
+    point,
+    epsKappa,
+    epsZeta,
+    lo: point - epsKappa - epsZeta,
+    hi: point + epsKappa + epsZeta,
+    kappaRoadDeviation,
+    spread,
+  };
+}
+
+export interface Phi1GridRow {
+  readonly D: number;
+  readonly phi1D: number; // kappaFaceIncremental(D) - zeta_m
+}
+
+/** The Phi1(D) grid on the certified road (D = 2^12..2^20). */
+export function phi1Grid(): readonly Phi1GridRow[] {
+  const zetaM = edgeSeriesAccelerated(1 << 20).zetaM;
+  return [4096, 16384, 65536, 262144, 1048576].map((D) => ({
+    D,
+    phi1D: kappaFaceIncremental(D) - zetaM,
+  }));
+}
+
+/** The D-grid structural certificate: sign stability (Phi1(D) < 0
+ * everywhere probed), monotone rise toward the limit, and the increments'
+ * shrinking ratios (the approach face — ~0.50 = 2^{-1}, the 1/sqrt(D)
+ * face; the geometric tail bound on the grid alone is the road's own
+ * coarse bracket, the transfer carries the precision). */
+export function phi1GridStructure(): {
+  monotone: boolean;
+  signStable: boolean;
+  incrementRatios: readonly number[];
+  tailBound: number;
+} {
+  const grid = phi1Grid().map((r) => r.phi1D);
+  const monotone = grid.every((v, i) => i === 0 || v > grid[i - 1]!);
+  const signStable = grid.every((v) => v < 0);
+  const ratios: number[] = [];
+  for (let i = 2; i < grid.length; i++) {
+    ratios.push((grid[i]! - grid[i - 1]!) / (grid[i - 1]! - grid[i - 2]!));
+  }
+  const lastInc = grid[grid.length - 1]! - grid[grid.length - 2]!;
+  const rMax = Math.max(...ratios);
+  return { monotone, signStable, incrementRatios: ratios, tailBound: (lastInc * rMax) / (1 - rMax) };
+}
+
+/** A claimed Phi1 bracket, with its provenance — the error pieces it
+ * claims to have paid for. */
+export interface Phi1Bracket {
+  readonly lo: number;
+  readonly hi: number;
+  readonly pieces: readonly string[];
+}
+
+/** The bracket checker: a Phi1 bracket is legal only if it contains the
+ * machine point, its width covers the CERTIFIED error floor (an
+ * over-narrow bracket is over-precision fraud, not a tighter result), and
+ * its provenance names the kappa-transfer and zeta-series pieces. Every
+ * rejection NAMES the fraud; [] means legal. */
+export function checkPhi1Bracket(b: Phi1Bracket, face: Phi1Face = phi1Face()): readonly string[] {
+  const out: string[] = [];
+  if (!(b.lo < b.hi)) {
+    out.push(`fake Phi1 bracket: lo ${b.lo} >= hi ${b.hi} — an empty interval is not a bracket`);
+    return out;
+  }
+  if (b.lo > face.point || b.hi < face.point) {
+    out.push(
+      `fake Phi1 bracket: does not contain the machine point kappa - zeta_m = ${face.point.toExponential(6)}`,
+    );
+  }
+  const floor = 2 * (face.epsKappa + face.epsZeta);
+  if (b.hi - b.lo < floor) {
+    out.push(
+      `fake Phi1 bracket: width ${b.hi - b.lo} is below the certified error floor 2(eps_kappa + eps_zeta) = ${floor.toExponential(3)} — over-precision fraud`,
+    );
+  }
+  if (!b.pieces.some((p) => /kappa|sigma1/i.test(p)) || !b.pieces.some((p) => /zeta/i.test(p))) {
+    out.push("fake Phi1 bracket: provenance names no error piece (need the kappa-transfer spread AND the zeta-series tail)");
+  }
+  return out;
 }

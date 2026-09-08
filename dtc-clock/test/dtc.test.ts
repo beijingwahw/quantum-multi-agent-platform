@@ -8,13 +8,21 @@ import {
   alternationDeviation,
   chainLifetimeCensus,
   cliffBisect,
+  coherentEchoLawDeviation,
+  convictedLawDeviation,
+  dephasedEchoExpectationExact,
+  dephasedEchoMean,
+  dephasedLifetimeCrossing,
   echoFloquet,
   flipIdentityDeviation,
   heatingRelaxation,
   isolatedEchoLifetime,
+  isolatedRotorParts,
   maxAbs,
   pairingDeviations,
+  rotorEchoLawDeviation,
   siteZ,
+  tautologicalIsoAgreement,
   type EchoParams,
 } from "../src/kernel/beat.js";
 import {
@@ -38,7 +46,13 @@ import {
   edgeNextOrder,
   edgeSeriesAccelerated,
   fFunctionFace,
+  checkPhi1Bracket,
+  kappaRoadCrossDeviation,
+  phi1Face,
+  phi1GridStructure,
+  zetaEM,
 } from "../src/kernel/assembly.js";
+import { shareFloatIncremental } from "../src/kernel/armor.js";
 import {
   absorptionRadius,
   armorFireRule,
@@ -230,18 +244,37 @@ describe("B6 the tombstone", () => {
   });
 });
 
-describe("v0.2.0 — the lifetime law", () => {
-  it("TC18: the isolated closed form === direct simulation", () => {
-    for (const d of [0.1, 0.2, 0.3]) {
-      const tau = isolatedEchoLifetime(d, 0.5);
-      const c = Math.abs(Math.cos(2 * d));
-      let k = 0;
-      let m = 1;
-      while (m >= 0.5 && k < 100000) {
-        k++;
-        m *= c;
-      }
-      assert.equal(tau, k, `delta ${d}`);
+describe("v0.2.0 — the lifetime law (the isolated face re-verified at v0.20.0)", () => {
+  it("TC18: the dephased law EXACT — exhaustive over ALL 2^k sign sequences, E[m~(k)] = (cos 2δ)^k", () => {
+    for (const [d, k] of [
+      [0.1, 8],
+      [0.1, 12],
+      [0.2, 8],
+      [0.2, 12],
+    ] as const) {
+      const e = dephasedEchoExpectationExact(d, k);
+      assert.ok(Math.abs(e - Math.cos(2 * d) ** k) <= 1e-12, `d=${d} k=${k}: ${e} vs ${Math.cos(2 * d) ** k}`);
+    }
+    assert.throws(() => dephasedEchoExpectationExact(0.1, 17), /exponential/);
+  });
+
+  it("TC18: the tau* crossing, MC-witnessed — E[m~] above theta at tau*-1, below at tau*", () => {
+    for (const d of [0.2, 0.3]) {
+      const c = dephasedLifetimeCrossing(makeRng(0x5eed47), d, 0.5, 40000);
+      assert.equal(c.tau, isolatedEchoLifetime(d, 0.5));
+      assert.ok(c.below > 0.5, `d=${d}: E[m~] at tau*-1 is ${c.below}`);
+      assert.ok(c.at < 0.5, `d=${d}: E[m~] at tau* is ${c.at}`);
+    }
+    const rng = makeRng(0x5eed46);
+    for (const [d, k] of [
+      [0.2, 9],
+      [0.1, 35],
+    ] as const) {
+      const r = dephasedEchoMean(rng, d, k, 40000);
+      assert.ok(
+        Math.abs(r.mean - Math.cos(2 * d) ** k) <= 4 * r.se,
+        `d=${d} k=${k}: ${r.mean} vs ${Math.cos(2 * d) ** k} (se ${r.se})`,
+      );
     }
   });
 
@@ -255,6 +288,86 @@ describe("v0.2.0 — the lifetime law", () => {
     const r = heatingRelaxation(6, 0.2, 400);
     assert.ok(r.tauHeat >= 1 && r.tauHeat <= 4, `tau_heat ${r.tauHeat}`);
     assert.ok(r.totalDrift > 0.1, `drift ${r.totalDrift}`);
+  });
+});
+
+describe("v0.20.0 — TC46: the isolated echo laws, independently re-verified", () => {
+  it("TC46: the COHERENT law m(k) = (-1)^k cos 2kδ at the float floor — the kernel trajectory vs the rotation closed form", () => {
+    for (const d of [0.05, 0.1, 0.2, 0.3]) {
+      const dev = coherentEchoLawDeviation(d, 40);
+      assert.ok(dev <= 1e-14, `d=${d}: ${dev}`);
+    }
+  });
+
+  it("TC46: the v0.2.0 geometric law CONVICTED on the coherent path (it never held — the rotor recurs)", () => {
+    for (const d of [0.1, 0.2, 0.3]) {
+      const dev = convictedLawDeviation(d, 40);
+      assert.ok(dev > 0.5, `d=${d}: ${dev}`);
+    }
+  });
+
+  it("TC46: the B1 census arm (h = 0.05) — the SU(2) rotor law, two independent roads to the quasi-period", () => {
+    assert.ok(rotorEchoLawDeviation(0.1, 0.05, 60) <= 1e-13);
+    assert.ok(isolatedRotorParts(0.1, 0.05).normDev <= 1e-12, "the axis reconstruction is unitary");
+  });
+
+  it("SMUGGLING TRIAL: the v0.2.0 TAUTOLOGY itself — a formula-times-itself witness certifies the WRONG law |cos 3δ|^k", () => {
+    const wrongC = Math.abs(Math.cos(3 * 0.2)); // the smuggled object: a wrong decay constant
+    assert.equal(
+      tautologicalIsoAgreement(wrongC, 0.5),
+      true,
+      "the tautology is blind — it verifies any constant handed to it (THE v0.2.0 defect, reproduced)",
+    );
+    assert.ok(convictedLawDeviation(0.2, 40) > 0.5, "the independent kernel path convicts the wrong law");
+    assert.ok(coherentEchoLawDeviation(0.2, 40) <= 1e-14, "the honest law is verified against the kernel, not itself");
+  });
+});
+
+describe("v0.20.0 — TC47: the zetaEM sign fix and the Phi1 machine bracket", () => {
+  it("TC47: the zetaEM SIGN FIX — N=60/120/240 agree at 1e-10 where the v0.19.0 road erred at exactly N^{-s}", () => {
+    assert.ok(Math.abs(zetaEM(1.5, 60) - zetaEM(1.5, 240)) <= 1e-9);
+    assert.ok(Math.abs(zetaEM(2.5, 60) - zetaEM(2.5, 240)) <= 1e-10);
+    assert.ok(Math.abs(zetaEM(1.5, 120) - zetaEM(1.5, 240)) <= 1e-10);
+  });
+
+  it("TC47: the new roads cross-validated — share roads at n<=2^16, kappa roads at D<=2^16", () => {
+    for (const n of [4096, 16384, 65536]) {
+      assert.ok(Math.abs(shareFloatIncremental(n) / shareFloat(n) - 1) <= 1e-8, `n=${n}`);
+    }
+    for (const d of [4096, 16384, 65536]) {
+      assert.ok(kappaRoadCrossDeviation(d) <= 2e-6, `D=${d}: ${kappaRoadCrossDeviation(d)}`);
+    }
+  });
+
+  it("TC47: Phi1 bracketed with ZERO INSIDE — TC45's '-4.547e-4 nonzero' RETIRED as the sign bug's artifact", () => {
+    const f = phi1Face();
+    assert.ok(f.lo <= 0 && 0 <= f.hi, `bracket [${f.lo}, ${f.hi}] must contain zero`);
+    assert.ok(Math.max(Math.abs(f.lo), Math.abs(f.hi)) <= 6e-7, "the certified |Phi1| bound");
+    assert.ok(f.epsKappa > 1e-7, "the kappa-transfer spread is the load-bearing error piece");
+    assert.ok(f.epsZeta < 1e-9, "the fixed series is far tighter than the transfer road");
+    assert.ok(Math.abs(f.sigma1 - -0.4896661401) <= 1e-9, `sigma1 point ${f.sigma1}`);
+    assert.ok(f.kappaRoadDeviation <= 1e-5, `independent D-road confirms to ${f.kappaRoadDeviation}`);
+  });
+
+  it("TC47: the D-grid structure — sign-stable, monotone rising, the 1/sqrt(D) increment face", () => {
+    const st = phi1GridStructure();
+    assert.ok(st.monotone, "Phi1(D) monotone rising on D=2^12..2^20");
+    assert.ok(st.signStable, "Phi1(D) < 0 on the whole grid");
+    for (const r of st.incrementRatios) assert.ok(r > 0.4 && r < 0.6, `ratio ${r}`);
+  });
+
+  it("SMUGGLING TRIAL: fake Phi1 brackets rejected BY NAME — over-narrow (over-precision fraud), misdirected, provenance-free", () => {
+    const f = phi1Face();
+    const pieces = ["kappa transfer spread", "zeta series tail"];
+    assert.deepEqual(checkPhi1Bracket({ lo: f.lo, hi: f.hi, pieces }, f), []);
+    const narrow = checkPhi1Bracket({ lo: f.point - 1e-9, hi: f.point + 1e-9, pieces }, f);
+    assert.ok(narrow.some((v) => v.includes("below the certified error floor")), narrow.join("; "));
+    const off = checkPhi1Bracket({ lo: f.point - 1e-3, hi: f.point - 8e-4, pieces }, f);
+    assert.ok(off.some((v) => v.includes("does not contain the machine point")), off.join("; "));
+    const bare = checkPhi1Bracket({ lo: f.lo, hi: f.hi, pieces: [] }, f);
+    assert.ok(bare.some((v) => v.includes("names no error piece")), bare.join("; "));
+    const empty = checkPhi1Bracket({ lo: 1, hi: 0, pieces }, f);
+    assert.ok(empty.some((v) => v.includes("empty interval")), empty.join("; "));
   });
 });
 
@@ -848,13 +961,14 @@ describe("v0.19.0 — the singular Euler–Maclaurin assembly", () => {
     assert.ok(Math.abs(edgeDiff(1) - (0.75 - mu1)) < 1e-15);
   });
 
-  it("the decomposition: zeta_m machine-set, Phi1 SMALL BUT NONZERO", () => {
+  it("the decomposition, CORRECTED at v0.20.0: zeta_m machine-set with the zetaEM sign fix, Phi1 inside TC47's bracket", () => {
     const series = edgeSeriesAccelerated(1 << 18);
     assert.ok(series.spotChecks < 1e-12, `spot ${series.spotChecks}`);
-    assert.ok(Math.abs(series.zetaM - -0.306398243) < 1e-6, String(series.zetaM));
+    assert.ok(Math.abs(series.zetaM - -0.306852819) < 1e-6, String(series.zetaM));
     const phi1 = kappaFromSigma(-0.4896664762) - series.zetaM;
-    assert.ok(Math.abs(phi1 - -4.547e-4) < 3e-6, String(phi1));
-    assert.ok(phi1 < -1e-4, "the sharp-cutoff assembly must NOT close exactly");
+    assert.ok(Math.abs(phi1) <= 6e-7, String(phi1));
+    const face = phi1Face();
+    assert.ok(phi1 >= face.lo - 1e-6 && phi1 <= face.hi + 1e-6, "the old-road Phi1 sits inside the certified bracket");
   });
 
   it("the closure face tracks the exact c3 on its rational domain, declining", () => {
@@ -890,7 +1004,7 @@ describe("the board and the witnesses", () => {
   it("all witnesses re-derive and pass", () => {
     const results = runWitnesses();
     for (const w of results) assert.ok(w.ok, `${w.witness}: ${w.detail}`);
-    assert.equal(results.length, 24);
+    assert.equal(results.length, 25);
   });
 });
 
@@ -907,7 +1021,7 @@ describe("smuggling trials — every law bites", () => {
   });
 
   it("L2: EXACT with unknown witness is rejected", () => {
-    const v = checkBoard([forged({ id: "SM2", exactness: "EXACT", witness: "W-Z" })]);
+    const v = checkBoard([forged({ id: "SM2", exactness: "EXACT", witness: "W-AA" })]);
     assert.ok(v.some((x) => x.law === "L2" && x.row === "SM2"));
   });
 

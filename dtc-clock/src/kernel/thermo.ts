@@ -9,9 +9,10 @@
  *   (T2) THE DETUNED BEAT PAYS: first period exactly — W_0 = J(n-1) sin^2
  *        2 delta >= 0 from the product-state geometry (<H_zz>_1 has a true
  *        closed form); beyond it the chain's heating series is DATA,
- *        SUPPRESSED far below the isolated-qubit echo decay |cos 2d|^k
- *        (which is EXACT) — rigidity on the energy account; no infinite-
- *        time total is claimed (prethermal bounds cited, not proven).
+ *        SUPPRESSED far below the DEPHASED isolated benchmark 1-(cos 2d)^k
+ *        (exact in expectation, TC46) — rigidity on the energy account; no
+ *        infinite-time total is claimed (prethermal bounds cited, not
+ *        proven).
  *   (T3) THE TARIFF TABLE (dossier demand C4 / milestone M4): per-run
  *        erasure obligations, in units of kT ln 2, at equal error (all
  *        machines here are exact): DTC-clocked Bennett machine 0 (garbage
@@ -114,16 +115,22 @@ export function beatTpmWorkDelta(n: number, couplings: readonly number[], kMax: 
  *       the first kick ends, so <H_zz>_1 = -J(n-1) cos^2(2 delta) exactly
  *       (each bond factorizes; the ZZ stroke then only entangles, it cannot
  *       move <ZZ>). The first period's work W_0 = J(n-1) sin^2(2 delta) >= 0.
- *   (ii) EXACT, isolated qubit: the echo decays |<Z>_k| = |cos 2 delta|^k
- *       (no bonds, h = 0, no entangling stroke ever happens).
+ *   (ii) the isolated benchmark, restated at v0.20.0 (TC46): the DEPHASED
+ *       drive's expected echo loss 1 - (cos 2 delta)^kMax — exact in
+ *       expectation under per-period sign noise, independently re-verified
+ *       through the kernel. The v0.2.0 reading (a COHERENT isolated decay
+ *       |<Z>_k| = |cos 2 delta|^k) was verified tautologically and is
+ *       FALSE: the coherent isolated qubit is the quasi-periodic rotor
+ *       m(k) = (-1)^k cos 2k delta (YAO17's beating) and never decays.
  *   (iii) DATA, the chain beyond period 1: after the first kick the state is
  *       a superposition and the ZZ stroke entangles it — no product closed
  *       form survives (the scratch run convicted the naive (cos^2)^k law;
  *       recorded batch 36). What the numbers show instead: the chain's
- *       per-period work is SUPPRESSED far below the isolated-qubit echo
- *       error — the same rigidity as board B1, now on the energy account.
- *       The infinite-time total is the heating question — prethermal bounds
- *       are CITED (EBN16/KLS16), not proven here; no total is claimed.
+ *       per-period work is SUPPRESSED far below the dephased isolated
+ *       benchmark — the same rigidity as board B1, now on the energy
+ *       account. The infinite-time total is the heating question —
+ *       prethermal bounds are CITED (EBN16/KLS16), not proven here; no
+ *       total is claimed.
  */
 export function detunedHeatingCensus(
   n: number,
@@ -135,8 +142,8 @@ export function detunedHeatingCensus(
   w0ClosedForm: number;
   workSeries: readonly number[];
   chainDrift: number; // (E_0 - E_kMax) / (J(n-1)): normalized energy paid
-  isolatedEchoDecay: number; // 1 - |cos 2 delta|^kMax: the isolated benchmark
-  suppression: number; // isolatedEchoDecay / chainDrift — how much the chain resists
+  isolatedDephasedDecay: number; // 1 - (cos 2 delta)^kMax: the dephased benchmark (TC46)
+  suppression: number; // isolatedDephasedDecay / chainDrift — how much the chain resists
 } {
   const p: EchoParams = {
     n,
@@ -159,14 +166,14 @@ export function detunedHeatingCensus(
   const e1 = e0 + workSeries[0]!;
   const e1Closed = -j * (n - 1) * Math.cos(2 * delta) ** 2;
   const chainDrift = (prev - e0) / (j * (n - 1)); // energy PAID = the rise from E_0
-  const isolatedEchoDecay = 1 - Math.abs(Math.cos(2 * delta)) ** kMax;
+  const isolatedDephasedDecay = 1 - Math.abs(Math.cos(2 * delta)) ** kMax;
   return {
     e1ClosedFormDeviation: Math.abs(e1 - e1Closed),
     w0ClosedForm: j * (n - 1) * Math.sin(2 * delta) ** 2,
     workSeries,
     chainDrift,
-    isolatedEchoDecay,
-    suppression: chainDrift > 1e-15 ? isolatedEchoDecay / chainDrift : Number.POSITIVE_INFINITY,
+    isolatedDephasedDecay,
+    suppression: chainDrift > 1e-15 ? isolatedDephasedDecay / chainDrift : Number.POSITIVE_INFINITY,
   };
 }
 

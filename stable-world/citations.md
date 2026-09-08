@@ -31,8 +31,25 @@ Every new reference was double-sourced before enrollment (publisher/archive + in
 
 - **WY16** — A. Winter, D. Yang, "Operational Resource Theory of Coherence", *Physical Review Letters* 116, 120404 (2016). doi:10.1103/PhysRevLett.116.120404.
   - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.116.120404
-  - Source 2: arXiv:1506.07975, https://arxiv.org/abs/1506.07975
-  - Used for: the operational backdrop of AT10's banking claim — coherence's work value under incoherent operations (distillation/dilution). The machine banks the straddler's full bit on the weight exactly (free-energy excess = kT ln2 witnessed); what WY16's framework prices beyond that (asymptotic distillation rates) is cited, not re-derived.
+  - Source 2: arXiv:1506.07975, https://arxiv.org/abs/1506.07975 (re-verified this visit: title/authors/journal reference confirmed on the arXiv abstract page — PRL 116, 120404 (2016))
+  - Used for: the operational backdrop of AT10's banking claim — coherence's work value under incoherent operations (distillation/dilution). The machine banks the straddler's full bit on the weight exactly (free-energy excess = kT ln2 witnessed); what WY16's framework prices beyond that (asymptotic distillation rates) is cited, not re-derived. AT15 keeps exactly this split: the bounded catalyst face is executed, the asymptotic face stays cited.
+
+## New this visit (v0.6.0 — the holder, the second world, the accumulated error)
+
+- **OH02** — J. Oppenheim, M. Horodecki, P. Horodecki, R. Horodecki, "Thermodynamical Approach to Quantifying Quantum Correlations", *Physical Review Letters* 89, 180402 (2002). doi:10.1103/PhysRevLett.89.180402.
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.89.180402
+  - Source 2: PubMed record 12398585 (PRL 89(18):180402, 2002), https://pubmed.ncbi.nlm.nih.gov/12398585/ — preprint arXiv:quant-ph/0112074; note the PUBLISHED version credits four authors (an early preprint listing is sometimes cited with five — the sources corrected this)
+  - Used for: the work-deficit backdrop of AT15 — work extraction from bipartite correlations, global vs local, and the gap a classical record fails to close. The machine executes this repo's exact shadow: the nested-triangle ladder (naive → aligned → conditional) with the residual priced as data; OH02's asymptotic deficit theory is the cited frame, not a re-derived claim.
+
+- **LB21** — P. Lipka-Bartosik, P. Skrzypczyk, "All States are Universal Catalysts in Quantum Thermodynamics", *Physical Review X* 11, 011061 (2021). doi:10.1103/PhysRevX.11.011061.
+  - Source 1: arXiv:2006.16290, https://arxiv.org/abs/2006.16290
+  - Source 2: the PRX record as indexed (PRX 11, 011061 (2021)) via independent search coverage of link.aps.org/doi/10.1103/PhysRevX.11.011061
+  - Used for: the catalytic contrast class for AT15 — with UNBOUNDED (many-copy) catalysts, majorization-resource theories make every state universal. This repo deliberately bounds the catalyst (d_c = 2, cap log2 d_c = 1 bit) and claims nothing asymptotic; LB21 marks exactly the territory left uncited-into.
+
+- **CZJ24** — J. Czartowski, A. de Oliveira Junior, "Catalytic transformations for thermal operations", *Physical Review Research* 6, 033203 (2024). doi:10.1103/PhysRevResearch.6.033203.
+  - Source 1: arXiv:2403.04845, https://arxiv.org/abs/2403.04845 (abstract page confirms journal reference PRR 6, 033203 (2024))
+  - Source 2: independent search-index coverage of the PRR bibliographic record (volume/article/year agreeing)
+  - Used for: the strict-catalysis framing of AT15 — a catalyst returned unchanged, with lower bounds on how large it must be to help. The machine's catalyst is finite and single-shot (the weight, d_c = 2); CZJ24's dimensional-tradeoff results are the recent literature anchor for why the bound is the story.
 
 ## Anchored in-book (not re-verified here)
 
