@@ -5,7 +5,7 @@ import { auditFilter, feedforwardCheck, runPayload, runSorter } from "../kernel/
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# T1 — sorter branch algebra (exact amplitude execution)\n");
 

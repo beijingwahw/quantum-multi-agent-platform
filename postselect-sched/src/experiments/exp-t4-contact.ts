@@ -15,7 +15,7 @@ function geometricRounds(rng: Rng, q: number): number {
   }
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# T4 — scheduling contact: when is postselection a free resource?\n");
 

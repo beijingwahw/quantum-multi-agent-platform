@@ -66,7 +66,7 @@ The T1 quantum switch (control |+⟩, target |0⟩), same game, canonical OCB in
 p_succ = 0.625000000000 — 0.125000 BELOW the classical causal cap 3/4.
 The switch is causally nonseparable as an ORDER structure (T1's control-displacement
 witness) yet does not even reach, let alone beat, the causal inequality on this game —
-machine echo of van der Lugt et al., Nat. Commun. 14, 5807 (2023): the isolated switch's
+machine echo of van der Lugt et al., Nat. Commun. 14, 5811 (2023), doi:10.1038/s41467-023-40162-8: the isolated switch's
 correlations do not violate causal inequalities. The OCB process and the switch are
 different objects; only the former violates. Scope: canonical instruments, one target
 preparation — a computed instance, not a claim over all switch strategies.

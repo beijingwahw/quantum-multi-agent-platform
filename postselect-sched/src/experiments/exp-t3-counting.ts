@@ -42,7 +42,7 @@ function countRun(n: number, seed: number): CountRun {
   return { n, m, cntJoint, ratio, brute, deviation: Math.abs(ratio - brute) };
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# T3 — counting power: the branch as a #P-fraction evaluator\n");
 

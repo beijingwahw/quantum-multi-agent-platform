@@ -11,7 +11,7 @@ import {
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# T5 — the power-depreciation ledger: both columns, on one page\n");
   lines.push(
@@ -63,7 +63,7 @@ function main(): void {
   const eNear = exchangeEntry(nearTie.row, 0.1);
   lines.push(`| near-tie instance: m = ${nearTie.row.m}, gap = ${fmt(nearTie.row.gap, 9)} (= ${fmt(1 / (2 * nearTie.row.m), 9)} floor) | delta = 0.1 | k = ${eNear.k} | exact tail = ${fmt(eNear.tailExact, 12)} | queries = ${fmt(eNear.queries, 1)} |`);
   const eMod = exchangeEntry(moderate.row, 0.1);
-  lines.push(`\nAt the integer-separation floor (gap = 1/(2m)) the same delta=0.1 decision costs ${fmt(eNear.queries / eMod.queries, 1)}x the moderate-gap instance — the sorter's power is priced by how close the count sits to the threshold. The exact-tie row of table A is the limit: gap = 0, k = infinity, the ledger declines to quote.\n`);
+  lines.push(`\nAt the integer-separation floor (gap = 1/(2m)) the same delta=0.1 decision costs ${fmt(eNear.queries / eMod.queries, 1)}x the moderate-gap instance — the sorter's power is priced by how close the count sits to the threshold. The exact-tie row of table A is the limit: gap = 0, k = infinity, the ledger declines to quote — priced and executed as its own face in t6-tieface.md (the refusal there is a typed result, not prose).\n`);
 
   lines.push("## D. both columns, side by side (the page the report was missing)\n");
   lines.push("| instance | power: decision at 99% confidence | depreciation: expected queries |");

@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hermitianExtremeEig, cmatEye } from "../src/core/cmat.js";
+import { hermitianExtremeEig, cmatEye, cmatMaxAbsDiff } from "../src/core/cmat.js";
 import { checkValidity, patternAllowed } from "../src/process/validity.js";
 import { wChannelAB, wChannelBA, wForbiddenF1, wForbiddenF3, wMixed, wNotPSD, wNoisy, wStar } from "../src/process/construct.js";
 import { sweepDeterministic } from "../src/game/classical.js";
 import { bobAngleBranch, runProtocol } from "../src/game/quantum.js";
+import { buildStrategy, hillClimb, mulberry32, ocbParamsVector, ocbStrategy, paramsToVector, randomEntangledPair, randomStrategyParams, strategyPayoff } from "../src/game/strategy.js";
+import { adjudicate, boundReport, closedFormProductPayoff, decompositionIdentity, lemmaViolations, wStarCoefficients } from "../src/game/certificate.js";
+import { compareWithOCB12, equivalenceReport, equivalenceVerdict, ocb12ClosedFormTables, wBiased, wLC25, wOCB12, wOCB12TamperedCoeff, wOCB12TamperedPauli } from "../src/process/ocb12.js";
 
 const COS2PI8 = Math.cos(Math.PI / 8) ** 2;
 
@@ -119,5 +122,130 @@ describe("T3 the violation, executed", () => {
     assert.ok(Math.abs(best.p - COS2PI8) < 1e-12);
     const closed = bobAngleBranch(wStar(Math.SQRT1_2), Math.PI / 4);
     assert.ok(Math.abs(closed - (0.5 * (1 + Math.SQRT1_2 * Math.cos(Math.PI / 4)))) < 1e-12);
+  });
+});
+
+describe("T4 optimality beyond the rotated-measurement family", () => {
+  const w = wStar(Math.SQRT1_2);
+  const coeff = wStarCoefficients(w);
+
+  it("certificate chain: Born rule == functional decomposition == closed form (incl. entangled elements)", () => {
+    const rng = mulberry32(31337);
+    let worstIdent = 0;
+    let worstClosed = 0;
+    let worstLemma = 0;
+    for (let i = 0; i < 40; i++) {
+      const prm = randomStrategyParams(rng);
+      const builder = buildStrategy(prm);
+      worstIdent = Math.max(worstIdent, decompositionIdentity(w, builder, strategyPayoff(w, builder)));
+      worstClosed = Math.max(worstClosed, Math.abs(closedFormProductPayoff(coeff, prm).pSuccess - boundReport(coeff, builder).pSuccessExecuted));
+      worstLemma = Math.max(worstLemma, lemmaViolations(builder).worst);
+    }
+    for (let i = 0; i < 12; i++) {
+      const ent = randomEntangledPair(rng);
+      const builderEnt = { alice: () => ent, bob: (b: number, bp: number) => ocbStrategy().bob(b, bp) };
+      worstIdent = Math.max(worstIdent, decompositionIdentity(w, builderEnt, strategyPayoff(w, builderEnt)));
+      worstLemma = Math.max(worstLemma, lemmaViolations(builderEnt).worst);
+    }
+    assert.ok(worstIdent < 1e-12, `Born vs functional ${worstIdent}`);
+    assert.ok(worstClosed < 1e-12, `functional vs closed form ${worstClosed}`);
+    assert.ok(worstLemma < 1e-9, `lemma violation ${worstLemma}`);
+  });
+
+  it("the qubit-family bound is cos²(π/8), attained by the OCB protocol; sweep never exceeds it", () => {
+    const br = boundReport(coeff, ocbStrategy());
+    assert.ok(Math.abs(br.pSuccessBound - COS2PI8) < 1e-12);
+    assert.ok(Math.abs(br.slack) < 1e-12, `OCB slack ${br.slack}`);
+    const rng = mulberry32(606);
+    const payoff = (p: Parameters<typeof buildStrategy>[0]) => closedFormProductPayoff(coeff, p).pSuccess;
+    let best = -1;
+    for (let i = 0; i < 24; i++) {
+      best = Math.max(best, hillClimb(payoff, paramsToVector(randomStrategyParams(rng)), rng, 24).value);
+    }
+    assert.ok(best <= COS2PI8 + 1e-9, `sweep best ${best}`);
+    const perturbed = ocbParamsVector().map((x) => x + 0.1 * (2 * rng() - 1));
+    assert.ok(Math.abs(hillClimb(payoff, perturbed, rng, 60).value - COS2PI8) < 1e-9);
+  });
+
+  it("the biased OCB functional saturates LC25's (1+α+√(1+α²))/2 on S_OCB,α", () => {
+    for (const alpha of [0.5, 1, 2]) {
+      const wb = wBiased(alpha);
+      assert.deepEqual(checkValidity(wb).violations, [], `alpha=${alpha}`);
+      const pr = strategyPayoff(wb, ocbStrategy());
+      const ialpha = pr.pAliceGuesses + alpha * pr.pBobGuesses;
+      const closed = (1 + alpha + Math.sqrt(1 + alpha * alpha)) / 2;
+      assert.ok(Math.abs(ialpha - closed) < 1e-12, `alpha=${alpha}: ${ialpha} vs ${closed}`);
+    }
+    // the PSD window: c1²+c2² = 1 on the curve, min eig 0 at every alpha
+    assert.ok(Math.abs(hermitianExtremeEig(wBiased(2)).min) < 1e-12);
+  });
+});
+
+describe("T5 the OCB12 equivalence, machine-checked", () => {
+  it("W* ≡ OCB12 eq. (7) ≡ LC25 S_OCB,1 elementwise, both valid, S_OCB,2 differs", () => {
+    const rep = equivalenceReport();
+    assert.deepEqual(equivalenceVerdict(rep).problems, []);
+    assert.ok(rep.wVsOCB12 < 1e-12, `eq7 deviation ${rep.wVsOCB12}`);
+    assert.ok(rep.wVsLC25 < 1e-12, `LC25 deviation ${rep.wVsLC25}`);
+    assert.ok(cmatMaxAbsDiff(wLC25(2), wStar(Math.SQRT1_2)) > 1e-2);
+    assert.ok(rep.ocb12Validity.valid && rep.starValidity.valid);
+  });
+
+  it("payoff tables agree between the two derivations (Born rule vs eq. (26) closed forms)", () => {
+    const rep = equivalenceReport();
+    assert.ok(rep.tablesVsClosedForm < 1e-12, `table deviation ${rep.tablesVsClosedForm}`);
+    assert.ok(Math.abs(runProtocol(wOCB12()).pSuccess - COS2PI8) < 1e-12);
+    // closed-form tables themselves sum to 1 per (a,b) row
+    const t = ocb12ClosedFormTables();
+    for (let b = 0; b < 2; b++) {
+      for (let a = 0; a < 2; a++) {
+        const sA = (t.pAlice[b] as number[][])[a] as number[];
+        const sB = (t.pBob[b] as number[][])[a] as number[];
+        assert.ok(Math.abs((sA[0] as number) + (sA[1] as number) - 1) < 1e-12);
+        assert.ok(Math.abs((sB[0] as number) + (sB[1] as number) - 1) < 1e-12);
+      }
+    }
+  });
+});
+
+describe("smuggling trials (走私审判)", () => {
+  const w = wStar(Math.SQRT1_2);
+  const rng = mulberry32(918);
+
+  it("trial 1 — counterfeit 'improved violation': NAMED and REJECTED, honest claim accepted", () => {
+    const strategy = buildStrategy(randomStrategyParams(rng));
+    const executed = strategyPayoff(w, strategy);
+    // counterfeit A: the claimed 0.9 rides an INVALID process (c = 0.75, outside the PSD window)
+    const badProcess = wStar(0.75);
+    const verdictA = adjudicate({ name: "counterfeit-on-invalid-process", claimedValue: 0.9, w: badProcess, builder: strategy, executedPayoff: strategyPayoff(badProcess, strategy) });
+    assert.ok(!verdictA.accepted);
+    assert.match(verdictA.reasons.join(" | "), /REJECT\[invalid-process\]/);
+    assert.match(verdictA.reasons.join(" | "), /not PSD/);
+    // counterfeit B: valid process, doctored number (0.86) that the execution contradicts
+    const verdictB = adjudicate({ name: "doctored-number", claimedValue: 0.86, w, builder: strategy, executedPayoff: executed });
+    assert.ok(!verdictB.accepted);
+    assert.match(verdictB.reasons.join(" | "), /REJECT\[claim-vs-execution\]/);
+    // honest claim: the OCB protocol at its executed value is accepted
+    const ocbExec = strategyPayoff(w, ocbStrategy());
+    const verdictC = adjudicate({ name: "honest-ocb", claimedValue: ocbExec.pSuccess, w, builder: ocbStrategy(), executedPayoff: ocbExec });
+    assert.deepEqual(verdictC.reasons, []);
+    assert.ok(verdictC.accepted);
+  });
+
+  it("trial 2 — fake equivalence table: tampered transcriptions NAMED and REJECTED", () => {
+    // both tampers are VALID processes; only the comparison against the
+    // transcribed eq. (7) / eq. (26) exposes them
+    const okStar = compareWithOCB12(wStar(Math.SQRT1_2));
+    assert.deepEqual(okStar.problems, []);
+    for (const tamper of [
+      { name: "sigma_y-tamper", w: wOCB12TamperedPauli() },
+      { name: "coefficient-tamper", w: wOCB12TamperedCoeff() },
+    ]) {
+      const verdict = compareWithOCB12(tamper.w);
+      assert.ok(!verdict.ok, `${tamper.name} must be rejected`);
+      assert.match(verdict.problems.join(" | "), /REJECT\[elementwise-vs-OCB12\]/, `${tamper.name} must be named`);
+      assert.match(verdict.problems.join(" | "), /REJECT\[tables-vs-eq26\]/, `${tamper.name} table mismatch must be named`);
+      assert.deepEqual(checkValidity(tamper.w).violations, [], `${tamper.name} is valid — validity alone cannot catch it`);
+    }
   });
 });

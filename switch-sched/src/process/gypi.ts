@@ -318,8 +318,9 @@ export function isRealHermitian(w: CMat, tol = 1e-12): boolean {
  *
  * Machine result (and test anchor): 5/8 — the isolated switch plays the
  * causal game BELOW the classical causal cap 3/4, in line with van der Lugt
- * et al., Nat. Commun. 14, 5807 (2023): order indefiniteness is not causal
- * inequality violation. Scope: canonical instruments, one target state.
+ * et al., Nat. Commun. 14, 5811 (2023), doi:10.1038/s41467-023-40162-8:
+ * order indefiniteness is not causal inequality violation. Scope: canonical
+ * instruments, one target state.
  */
 export function psuccOCBThroughSwitch(): number {
   const z0: CVec = { n: 2, re: Float64Array.from([1, 0]), im: new Float64Array(2) };

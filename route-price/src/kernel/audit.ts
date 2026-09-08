@@ -12,7 +12,10 @@
  *   R4. every citation resolves in docs/theory.md's verified bibliography, and
  *       every local anchor points at a workspace prototype that exists on disk;
  *   R5. the executable witnesses pass — quoted arithmetic is two-path;
- *   R6. every dossier anchors to a row that exists in bqp-map's atlas.
+ *   R6. every dossier anchors to a row that exists in bqp-map's atlas;
+ *   R7. every executed milestone pairs its sibling certificate with a PASSING
+ *       cross-check witness of THIS repo — a price claimed without its own
+ *       re-derivation is a counterfeit certificate, rejected by name.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -94,9 +97,38 @@ export function checkDossiers(rows: readonly DossierInput[] = DOSSIERS): Violati
     if (!atlas.includes(`id: "${d.atlasRow}"`)) {
       violations.push({ dossierId: d.id, law: "R6", detail: `atlas row "${d.atlasRow}" not found in bqp-map entries.ts` });
     }
+
+    // R7 — executions must carry their own cross-check (v0.2.0): a milestone
+    // may cite a sibling's certificate only together with a witness of THIS
+    // repo that exists and passes — and the sibling repo must exist on disk.
+    for (const m of d.milestones) {
+      const x = m.execution;
+      if (x === undefined) continue;
+      if (!existsSync(resolve(WORKSPACE_ROOT, x.repo))) {
+        violations.push({ dossierId: d.id, law: "R7", detail: `milestone ${m.id} cites repo ${x.repo} missing on disk — no such certificate source` });
+      }
+      if (x.certificate.trim().length === 0) {
+        violations.push({ dossierId: d.id, law: "R7", detail: `milestone ${m.id} claims execution without naming its sibling certificate` });
+      }
+      const w = witnessById(x.crossCheck);
+      if (w === undefined) {
+        violations.push({ dossierId: d.id, law: "R7", detail: `milestone ${m.id} claims execution via cross-check ${x.crossCheck} — no such witness in this repo (counterfeit certificate)` });
+      } else if (!w.pass) {
+        violations.push({ dossierId: d.id, law: "R7", detail: `milestone ${m.id} cites cross-check ${x.crossCheck}, which FAILS — the certificate is not backed` });
+      }
+    }
   }
 
   return violations;
+}
+
+/** Resolve a witness id to its result (undefined = no such witness). The
+ * R7 path caches one run per process — witness results do not depend on the
+ * dossier data under audit, and W-A's quadrature should not run per row. */
+let witnessCache: ReturnType<typeof runWitnesses> | undefined;
+function witnessById(id: string): ReturnType<typeof runWitnesses>[number] | undefined {
+  witnessCache ??= runWitnesses();
+  return witnessCache.find((w) => w.id === id);
 }
 
 export function witnessVerdicts(): { pass: boolean; failures: readonly string[] } {

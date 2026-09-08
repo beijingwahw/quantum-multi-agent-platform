@@ -515,7 +515,7 @@
         {
           "kind": "cross-prototype",
           "ref": "postselect-sched",
-          "note": "restart-scheduling theorem layer: the ledger placed inside executed LSZ93 restart theory (no-beating by exhaustive enumeration, convex-combination identity, universal-doubling robustness, k=0-optimal threshold law at density (3-sqrt(2))/4, heralded-loss freeness accounting)"
+          "note": "restart-scheduling theorem layer: the ledger placed inside executed LSZ93 restart theory (no-beating by exhaustive enumeration, convex-combination identity, universal-doubling robustness, k=0-optimal threshold law at density (3-sqrt(2))/4, heralded-loss freeness accounting); v0.2.0 the tie face: the typed-refusal protocol at exact ties (half-binomial sum 2^(k-1) exact), 58 tie tables at d <= 64 verified both directions, the tied-menu plateau 14/14, and the c_k census at 40 certified digits with c_1 > c_2 > ... > c_6"
         },
         {
           "kind": "cross-prototype",
@@ -650,7 +650,7 @@
         {
           "kind": "cross-prototype",
           "ref": "route-price",
-          "note": "D1: the route-and-price dossier — criteria, falsified milestones, and the Landauer-floor price lines re-derived by executable witnesses (k exact, ln2 by quadrature)"
+          "note": "D1: the route-and-price dossier — criteria, falsified milestones, and the Landauer-floor price lines re-derived by executable witnesses (k exact, ln2 by quadrature); v0.2.0 the independent zero-dependency cross-checks: the echo identity rebuilt inline to 2.22e-16, the own 11-gate multiplier 16/16, orbit flatness 2.66e-15, W_0 0.256552 vs the sibling's 0.2566, and the tariff 0 < 5 < 9 < 43.02 re-priced on the own netlist (D1-M3/D1-M4/D2-M4 receipted CERTIFIED-ELSEWHERE)"
         },
         {
           "kind": "cross-prototype",
@@ -805,12 +805,12 @@
         {
           "kind": "cross-prototype",
           "ref": "causal-ineq",
-          "note": "the causal inequality executed: 8,192-strategy exhaustive 3/4 cap, W* violation exactly cos^2(pi/8), validity checker with derived pattern rules"
+          "note": "the causal inequality executed: 8,192-strategy exhaustive 3/4 cap, W* violation exactly cos^2(pi/8), validity checker with derived pattern rules; v0.2.0: within ALL qubit-lab instruments the OCB functional F_q on W* has sup = cos^2(pi/8) EXACTLY (proven by functional relaxation, the OCB protocol attaining), W* ≡ OCB12 eq. (7) elementwise, and LC25's Tsirelson-type bound 1+1/sqrt(2) cited as the all-dimension anchor"
         },
         {
           "kind": "cross-prototype",
           "ref": "k-switch",
-          "note": "the 3-switch executed: parity-orthogonality readout fidelity 1 exact, structural plain-order blindness, six-order scheduling contact law D(fixed)/sqrt(2)"
+          "note": "the 3-switch executed: parity-orthogonality readout fidelity 1 exact, structural plain-order blindness, six-order scheduling contact law D(fixed)/sqrt(2); v0.2.0 the k=4 face: the parity law <u|u_sgn> = 0 EXACT on all 24 orders (readout fidelities 1.0, 96-dim isometry M-dagger-M = I), the 256-census (136 Pauli sets readable with probability EXACTLY 1; fixed-order supersequence minimum 9 vs the switch's 4 uses), the honest NO-GO at d=4 (0 commuting Pauli quadruples in the 1365-census), and the halving law BREAKING at k=4: switch D = sqrt(10)/6 ~ 0.527, still below every fixed order's 1/sqrt(2)"
         },
         {
           "kind": "cross-prototype",
@@ -880,7 +880,7 @@
         {
           "kind": "cross-prototype",
           "ref": "mutant-census",
-          "note": "the quality layer, closed to the last error: the burial record's defect classes replayed as nine mutants and killed by a ten-property battery (6 EXACT + 1 CRASH + 2 DATA kills, zero survivors, margins booked); the kernel family's byte-identity censused live across the workspace (48 file-pairs identical, 11 divergences registered, unregistered drift fails the build); the engineering hygiene machine-swept — the pre-batch-21 guard debt PAID in full (42 entries retrofitted, zero tolerated since), the platform repo censused under its registered exemption, `npm run total` judging the whole workspace (every repo's tests AND typecheck plus the platform suite) as one command; and the ENROLLMENT — the registry imported live on every run, every buried error wired to the guard that kills it now (107 on the mutants by declared class, 61 on build gates anchored file+needle to disk, 36 booked unenforceable with printed reasons) — an error without an enforcement anchor can no longer be buried; and the A-board — every guard upgraded from a string to a registered object with evidence: firing-inject demos convicted in the sibling checkers' own code, firing-live shots on every run, or resolved machinery on disk — a guard that cannot fire is a false guard"
+          "note": "the quality layer, closed to the last error: the burial record's defect classes replayed as nine mutants and killed by a ten-property battery (6 EXACT + 1 CRASH + 2 DATA kills, zero survivors, margins booked); the kernel family's byte-identity censused live across the workspace (48 file-pairs identical, 11 divergences registered, unregistered drift fails the build); the engineering hygiene machine-swept — the pre-batch-21 guard debt PAID in full (42 entries retrofitted, zero tolerated since), the platform repo censused under its registered exemption, `npm run total` judging the whole workspace (every repo's tests AND typecheck plus the platform suite) as one command; and the ENROLLMENT — the registry imported live on every run, every buried error wired to the guard that kills it now (117 on the mutants by declared class, 189 on build gates anchored file+needle to disk, 144 booked unenforceable with printed reasons) — an error without an enforcement anchor can no longer be buried; and the A-board — every guard upgraded from a string to a registered object with evidence: firing-inject demos convicted in the sibling checkers' own code, firing-live shots on every run, or resolved machinery on disk — a guard that cannot fire is a false guard"
         }
       ]
     },

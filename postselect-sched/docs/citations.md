@@ -50,5 +50,36 @@ primary source (publisher page, arXiv abstract, or the authors' own hosting).
   copy of the PDF (csee.umbc.edu); journal volume/issue/pages confirmed from
   publisher metadata.
 
+- **SRZ23** — J.-B. Seznec, H. Richard, K. Scaman, G. Zappella, "Black-box
+  Acceleration of Las Vegas Algorithms and Algorithmic Reverse Jensen's
+  Inequalities", arXiv:2304.11017 (2023). Version 1 carried the title
+  "Breaking the Log Barrier: a Novel Universal Restart Strategy for Faster
+  Las Vegas Algorithms".
+  [Adopted as the modern-successor anchor for the restart-theorem layer: the
+  LSZ93 log factor can be beaten by a universal strategy, and restart costs
+  obey a reverse-Jensen view. Context and currency only — nothing from the
+  paper is re-proven or imported as method; the T2/T6 kernels stay on LSZ93
+  plus exact in-repo arithmetic.]
+  Verification 2026-09-08, two independent sources: (1) arXiv abstract page
+  (v2 title, author metadata); (2) SemanticScholar record
+  (paper 4be7973b90112d600944a5d30b5a5de6bf0dded4, v1 title with the full
+  four-author line, DOI 10.48550/arXiv.2304.11017). The DataCite registry
+  record for the same DOI lists only the submitting author — an incomplete
+  registry entry, recorded here honestly rather than papered over.
+
+- **AH25** — S. Ashur, S. Har-Peled, "Quickly Avoiding a Random Catastrophe",
+  arXiv:2503.04633 (2025), cs.DS.
+  [Adopted as the randomized-restart anchor: simulations of a randomized
+  search algorithm to expected time O(O log O) via randomized threshold
+  schedules — the mixed-strategy line that contextualizes the T6 tie face
+  (at an exact tie the optimal-policy set is a full simplex of mixed
+  policies; LSZ93 Thm 4 already says no MIX beats the best FIXED cutoff when
+  the distribution is known — the randomized schedules earn their keep in
+  the unknown-distribution regime). Cited as context; no method imported.]
+  Verification 2026-09-08, two independent sources: (1) arXiv abstract page
+  (authors Stav Ashur, Sariel Har-Peled; submitted 2025-03-06); (2) DataCite
+  registry record for DOI 10.48550/arxiv.2503.04633 (full creator list:
+  Ashur, Stav; Har-Peled, Sariel; publication year 2025).
+
 Carried-over entries were verified the same day in the sibling atlas repo;
 this file records their provenance rather than duplicating the fetch.

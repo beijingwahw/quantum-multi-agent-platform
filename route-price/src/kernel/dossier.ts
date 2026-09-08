@@ -34,6 +34,25 @@ export interface Milestone {
   readonly falsifier: string;
   /** The cost column. Non-empty by law (R1). */
   readonly price: string;
+  /** The execution record (v0.2.0): a sibling repo's certificate plus this
+   * repo's own passing cross-check witness. Absent while the milestone is
+   * still only routed. Policed by law R7. */
+  readonly execution?: MilestoneExecution;
+}
+
+/** What flips a milestone to CERTIFIED-ELSEWHERE: the sibling repo that shipped
+ * the certificate, the certificate's id there, and the witness of THIS repo
+ * that re-derives the cited numbers at toy scale. A milestone may claim an
+ * execution only with all three — anything less is a counterfeit certificate. */
+export interface MilestoneExecution {
+  /** Sibling workspace repo (must exist on disk, R7). */
+  readonly repo: string;
+  /** The sibling's certificate id(s), e.g. "TC9". */
+  readonly certificate: string;
+  /** One line: what the sibling shipped. */
+  readonly shipped: string;
+  /** Witness id of THIS repo whose run backs the claim (must exist and pass, R7). */
+  readonly crossCheck: string;
 }
 
 export interface PriceLine {
@@ -61,7 +80,7 @@ export const DOSSIERS: readonly Dossier[] = [
     atlasRow: "dtc-clock",
     claim: "Time crystals as the clock wall — a zero-energy, eternal beat clocking general computation.",
     scope:
-      "Three faces, three different truths: the beat exists (driven systems, experimentally certified at NISQ scale); the beat is zero-energy (closed as impossible in equilibrium — a no-go, not a promise); the beat clocks general computation (uncertified anywhere). The dossier prices all three and routes the third.",
+      "Three faces, three different truths: the beat exists (driven systems, experimentally certified at NISQ scale); the beat is zero-energy (closed as impossible in equilibrium — a no-go, not a promise); the beat clocks general computation (certified at the model layer by dtc-clock since that repo shipped, and re-priced here: milestones M3 and M4 now carry execution records with cross-checks W-D and W-E — this dossier verifies its neighbors' receipts, it does not take them on faith).",
     verdict: "OPEN-ROUTE",
     criteria: [
       {
@@ -113,22 +132,36 @@ export const DOSSIERS: readonly Dossier[] = [
       {
         id: "D1-M3",
         statement:
-          "Promote the beat to a clock register: ticks phase-lock a data register across a full circuit depth — the job the Feynman-Kitaev clock does today, done by physics instead of spectrum.",
+          "Promote the beat to a clock register: ticks phase-lock a data register across a full circuit depth — the job the Feynman-Kitaev clock does today, done by physics instead of spectrum. Executed at the model layer by dtc-clock; cross-checked here at toy scale (W-D).",
         anchor: "local:vacuum-compiler",
         falsifier:
-          "per-tick dephasing accumulates; the wall fails where cumulative phase error exceeds the circuit's tolerance — and the demonstrated ticks are far short of circuit depth.",
+          "per-tick dephasing accumulates; the wall fails where cumulative phase error exceeds the circuit's tolerance — the demonstrated ticks are far short of hardware circuit depth (dtc-clock's certificate is in-model: hardware instantiation stays MI22's to claim).",
         price:
-          "coherence-time-per-tick times tick-count must cover the computation, and every read of the clock pays the readout tariff — the same erasure schedule the vacuum-compiler already prices (D1-P2).",
+          "coherence-time-per-tick times tick-count must cover the computation, and every read of the clock pays the readout tariff — the same erasure schedule the vacuum-compiler already prices (D1-P2). EXECUTED (dtc-clock TC5/TC6/TC9: beat-keyed one-hot token, zero back-action, a TOFFOLI+CNOT 2x2-bit multiplier 16/16 integer-exact with cyclic self-reset) and cross-checked by W-D: echo identity worst 2.22e-16 (n=4, 5 random-J trials), trajectory |m(k) - (-1)^k| worst 1.11e-15 (k<=12), token return 1 - |<0|F^(2k)|0>|^2 = 0 exactly (k<=6), own 11-gate/13-wire multiplier 16/16 integer-exact, 8192/8192 bijection, bitwise self-reset, garbage census 5 wires.",
+        execution: {
+          repo: "dtc-clock",
+          certificate: "TC5/TC6/TC9",
+          shipped:
+            "the beat keys a one-hot clock token that sequences a reversible 2x2-bit multiplier — cargo fidelity 1 at every tick, 16/16 integer-exact, cyclic self-reset",
+          crossCheck: "W-D",
+        },
       },
       {
         id: "D1-M4",
         statement:
-          "The certificate itself: a computation clocked by a time crystal whose per-operation energy undercuts reversible rivals at equal error.",
+          "The certificate itself: a computation clocked by a time crystal whose per-operation energy undercuts reversible rivals at equal error. Executed at the model layer by dtc-clock; cross-checked here at toy scale (W-E).",
         anchor: "cite:LAND61",
         falsifier:
-          "if drive energy per tick exceeds the rivals' erasure bill, the wall loses on its own tariff schedule — universality without an energy win is a slower clock.",
+          "if drive energy per tick exceeds the rivals' erasure bill, the wall loses on its own tariff schedule — universality without an energy win is a slower clock. The in-model tariff is now settled (see price); the hardware drive bill is not, and remains D1-P3's open cord.",
         price:
-          "the floor any rival pays is erasure at kT ln2 per irreversible bit (D1-P1); beating that floor requires reversible operation, at which point the clock is overhead, not engine.",
+          "the floor any rival pays is erasure at kT ln2 per irreversible bit (D1-P1); beating that floor requires reversible operation, at which point the clock is overhead, not engine. EXECUTED (dtc-clock TC12/TC13/TC14/TC17: ideal beat zero net work, detuned W_0 = J(n-1)sin^2(2*delta), tariff 0 < 5 < 9 < 43.02 units, winner the Bennett-uncomputed machine) and cross-checked by W-E: orbit energy flat to 2.66e-15 (n=6, J=1.3, k<=12), W_0 numeric 0.256552 matching the closed form to 1e-12, isolated stroboscope |cos 2k*delta| exact to 3.33e-16, tariff ordering re-priced on this repo's own netlist 0 < 5 < 9 < 43.02 (5 units = 1.4355e-20 J at 300 K, 9 units = 8.6129e-25 J at 10 mK).",
+        execution: {
+          repo: "dtc-clock",
+          certificate: "TC12/TC13/TC14/TC17",
+          shipped:
+            "zero net work on the ideal beat; the detuned first period's exact price W_0 = J(n-1)sin^2(2*delta); the legislated tariff table — the DTC-clocked Bennett machine wins at 0 units",
+          crossCheck: "W-E",
+        },
       },
     ],
     prices: [
@@ -150,17 +183,17 @@ export const DOSSIERS: readonly Dossier[] = [
         id: "D1-P3",
         item: "the drive: the re-scoped claim's recurring cost — every period, for as long as the crystal is asked to beat.",
         amount:
-          "hardware-specific and deliberately unquoted: this dossier prices the floor (P1), the no-go (M1), and the readout meter (P2); the cord is priced by the experiment that survives its own falsifier, not by prose.",
+          "still deliberately unquoted — the boundary now sharpened by the certificates it waits on: every IN-MODEL face of the cord is metered (ideal beat zero net work; detuning pays W_0 = J(n-1)sin^2(2*delta), W-E's 0.256552 at J=1.3, n=6, delta=0.1; readout and maintenance on their own meters), so what remains unpriced is exactly the HARDWARE cord — the dissipated joules of a physical drive, which no repo computes and only an experiment surviving its own falsifier can invoice. The theory price is real and cited (ERS17: accuracy is bought with entropy; VHM26: the time-crystal clock's performance is a thermodynamic quantity; NS25: the fuel itself is priced) — the number is not, by design.",
       },
     ],
-    citations: ["WIL12", "WO15", "MI22", "LAND61"],
+    citations: ["WIL12", "WO15", "MI22", "LAND61", "ERS17", "VHM26", "NS25"],
   },
   {
     id: "D2",
     atlasRow: "choice-primitive",
     claim: "'Choice' as a language primitive — writing the desired world makes it a stable solution of the program.",
     scope:
-      "The primitive's nearest certified relatives are already in the atlas: coherent branching (controlled operations — legal today), stability-as-invariance (ground-state compilation), the certification toll (the postselection ledger). What is undelivered is the semantics where stability is the default, and the conservation law that would guard it. The dossier draws the boundary, prices the tolls, and leaves the Noether question open with its price unquoted — by law.",
+      "The primitive's nearest certified relatives are already in the atlas: coherent branching (controlled operations — legal today), stability-as-invariance (ground-state compilation), the certification toll (the postselection ledger). What is undelivered is the semantics where stability is the default; the conservation law that would guard it is now EXHIBITED at the mechanism-design layer (dsic-noether shipped the Groves gauge group and its charge, discrete and continuum) and re-priced here with cross-check W-F — the language-level charge remains unidentified, and the dossier keeps drawing that boundary honestly.",
     verdict: "OPEN-ROUTE",
     criteria: [
       {
@@ -177,8 +210,8 @@ export const DOSSIERS: readonly Dossier[] = [
       },
       {
         id: "D2-C3",
-        demand: "the conservation law — the symmetry whose conserved charge guards the stability",
-        status: "UNCERTIFIED",
+        demand: "the conservation law — the symmetry whose conserved charge guards the stability (exhibited at the mechanism-design layer: the Groves gauge group and its welfare-gap charge; the language-level charge remains open)",
+        status: "CERTIFIED-ELSEWHERE",
         anchor: "local:dsic-noether",
       },
       {
@@ -222,12 +255,19 @@ export const DOSSIERS: readonly Dossier[] = [
       {
         id: "D2-M4",
         statement:
-          "Ask the Noether question: which group action, which conserved charge guards the choice semantics — the discrete exact layer exists for mechanism design's domain; the language-level charge is unidentified.",
+          "Ask the Noether question: which group action, which conserved charge guards the choice semantics — the mechanism-design layer's answer is now exhibited (dsic-noether's Groves gauge group and charge, discrete and continuum, cross-checked here by W-F); the LANGUAGE-level charge remains unidentified.",
         anchor: "local:dsic-noether",
         falsifier:
-          "if no symmetry guards the semantics, stability is maintenance rather than physics — every perturbation must be recompiled against, and the 'physical law' wording retires.",
+          "if no symmetry guards the semantics, stability is maintenance rather than physics — every perturbation must be recompiled against, and the 'physical law' wording retires. This face stands: the exhibited charge guards DSIC truth-telling, not yet the choice primitive's semantics.",
         price:
-          "unpriced by law: no number may be quoted for an unexhibited conservation law — the row that owes this price stays OPEN (the atlas's own discipline, enforced there and here).",
+          "REPRICED (was: unpriced by law — no number for an unexhibited conservation law; the law is now exhibited): the charge has the closed form G(s;t) = -(n-1)(s-t)^2/(2n), zero exactly at truth, gauge-invariant along the Groves orbit p -> p + h(theta_-i) — cross-checked by W-F on exact BigInt rationals: gap === closed form bitwise on 72 probes (n in {2,3}); two gauges shift every payment by exactly h - h' with gains bitwise unchanged; the off-gauge payment p + eps*s buys a profitable deviation worth exactly eps^2*n/(2(n-1)) at s* = t - eps*n/(n-1) (eps = 1/7: worth 1/49 at n=2, 3/196 at n=3). The language-level charge stays unpriced — the exhibited one prices the mechanism layer only.",
+        execution: {
+          repo: "dsic-noether",
+          certificate: "T1/T6/T8",
+          shipped:
+            "the Groves gauge group with its conserved charge G(s;t) = -(n-1)(s-t)^2/(2n), bitwise at the discrete layer and coefficient-wise on the continuum, plus the Noether-to-Green-Laffont chain [E][I][S][G] with its four load-bearing controls",
+          crossCheck: "W-F",
+        },
       },
       {
         id: "D2-M5",

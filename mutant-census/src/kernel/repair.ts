@@ -275,6 +275,9 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b74#9", verdict: "SHARPENED", basis: "dual-face: the act face (rewritten on the spot, pre-machine) is booked; the landing face — require() in the ESM tree — is a loader death the gates convict the moment it lands (the b47#1 precedent, the same death one gate earlier). Booked: the act face only" },
   { key: "b74#10", verdict: "HELD", basis: "scratch-arbitration face (the b52#0 class): the bad unitary and the withdrawn 'transpose fix' lived in scratch and were refuted by variant enumeration — an author's probe, not a scheduled gate" },
   { key: "b74#11", verdict: "SHARPENED", basis: "dual-face: the apostrophe was caught pre-machine (the act face is booked); the landing face is a parser death at typecheck. Booked: the act face only" },
+  // ---- batch 75 (the second four-repo delivery wave's wiring) — born audited ----
+  { key: "b75#6", verdict: "SHARPENED", basis: "dual-face placement class (b22#2/b33#0/b49#2/b74#1 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the /tmp face resolves outside the workspace tree where no scheduled gate scans — three gate logs landed there during the causal-ineq delivery. Booked: the outside-tree face only" },
+  { key: "b75#13", verdict: "SHARPENED", basis: "dual-face: the heredoc act is ungated — the channel's twelfth canonical sighting (the family's wrong-text sightings grepped to 16 in-registry before enrolling), and 'not repeated' grades the offense without unmaking the ban; the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only" },
 ];
 
 export interface RepairViolation {

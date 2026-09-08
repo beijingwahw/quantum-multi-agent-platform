@@ -24,7 +24,7 @@ import {
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# T2 — restart algebra: the depreciation ledger as a Las Vegas strategy\n");
 

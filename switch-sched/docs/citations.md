@@ -61,13 +61,18 @@ TWO independent sources before adoption, with the verification route noted.
    Used for: causal-nonseparability witnesses (our control-displacement
    witness is the operational slice; full certification is their framework).
 
-7. **van der Lugt et al. — device-independent certification of indefinite
-   causal order** Nat. Commun. 14, 5807 (2023).
+7. **van der Lugt, Barrett, Chiribella — "Device-independent certification of
+   indefinite causal order in the quantum switch"**
+   Nat. Commun. 14, 5811 (2023). doi:10.1038/s41467-023-40162-8.
    <https://www.nature.com/articles/s41467-023-40162-8>
    Used for: the note that the isolated switch does not violate causal
    inequalities (order superposition ≠ relativistic causality violation).
    v0.2.0: this note now has a machine number in-repo — the switch plays the
    OCB game at exactly 5/8 < 3/4 (canonical instruments; exp5 §6).
+   *Correction (2026-09-08, flagged by the sibling causal-ineq agent): the
+   article number was 5807 as first filed — 5811 is the identifying number;
+   re-verified against nature.com and PMC (Nat Commun. 2023 Sep 19;14:5811,
+   doi: 10.1038/s41467-023-40162-8) before writing.*
 
 8. **Follow-up (context only):** "Indefinite causal order enables perfect
    quantum communication with zero capacity channels", New J. Phys. (2021).

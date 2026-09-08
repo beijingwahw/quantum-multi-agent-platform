@@ -95,6 +95,36 @@ export function cmatTrace(a: CMat): number {
   return t;
 }
 
+/** Partial trace over the SECOND factor of a tensor product (a.dim must be even). */
+export function cmatPartialTraceSecond(a: CMat): CMat {
+  if (a.dim % 2 !== 0) throw new Error(`cmatPartialTraceSecond: dim ${a.dim} not even`);
+  const h = a.dim / 2;
+  const out = cmatZero(h);
+  for (let i = 0; i < h; i++) {
+    for (let j = 0; j < h; j++) {
+      for (let k = 0; k < 2; k++) {
+        out.re[i]![j] = (out.re[i]![j] as number) + (a.re[2 * i + k]![2 * j + k] as number);
+        out.im[i]![j] = (out.im[i]![j] as number) + (a.im[2 * i + k]![2 * j + k] as number);
+      }
+    }
+  }
+  return out;
+}
+
+/** Max |a - b| over all entries (modulus); the elementwise certificate metric. */
+export function cmatMaxAbsDiff(a: CMat, b: CMat): number {
+  if (a.dim !== b.dim) throw new Error(`cmatMaxAbsDiff: dims ${a.dim} vs ${b.dim}`);
+  let d = 0;
+  for (let i = 0; i < a.dim; i++) {
+    for (let j = 0; j < a.dim; j++) {
+      const dr = (a.re[i]![j] as number) - (b.re[i]![j] as number);
+      const di = (a.im[i]![j] as number) - (b.im[i]![j] as number);
+      d = Math.max(d, Math.hypot(dr, di));
+    }
+  }
+  return d;
+}
+
 /** Hermiticity deviation: max |a - a^dagger| over all entries (modulus). */
 export function hermiticityDeviation(a: CMat): number {
   let d = 0;

@@ -1,7 +1,7 @@
 /** Full repro: rebuild every report from scratch. */
 import { execFileSync } from "node:child_process";
 
-const experiments = ["exp1-validity.ts", "exp2-classical.ts", "exp3-quantum.ts"];
+const experiments = ["exp1-validity.ts", "exp2-classical.ts", "exp3-quantum.ts", "exp4-optimality.ts", "exp5-equivalence.ts"];
 
 const t0 = Date.now();
 for (const exp of experiments) {

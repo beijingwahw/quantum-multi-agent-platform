@@ -90,7 +90,7 @@ Ten full members byte-identical in all five files (the eight-repo lineage plus t
 | wukong-crossval | Y | Y | 0 | — | 1 |
 | survivor-census | Y | Y | 0 | — | 1 |
 | ent-clearing | Y | Y | 0 | — | 1 |
-| postselect-sched | Y | Y | 0 | — | 5 |
+| postselect-sched | Y | Y | 0 | — | 6 |
 | retro-cache | Y | Y | 0 | — | 4 |
 | stable-world | Y | Y | 0 | — | 1 |
 | qverify | Y | Y | 0 | — | 0 |
@@ -102,8 +102,8 @@ Ten full members byte-identical in all five files (the eight-repo lineage plus t
 | dsic-noether | Y | Y | 0 | — | 5 |
 | ft-qaoa | Y | Y | 0 | — | 0 |
 | switch-sched | Y | Y | 0 | — | 0 |
-| causal-ineq | Y | Y | 0 | — | 3 |
-| k-switch | Y | Y | 0 | — | 2 |
+| causal-ineq | Y | Y | 0 | — | 5 |
+| k-switch | Y | Y | 0 | — | 5 |
 | dtc-clock | Y | Y | 0 | — | 1 |
 | phase-law | Y | Y | 0 | — | 1 |
 | ds_extracted/ds | Y | Y | 0 | exempt-registered | 0 |
@@ -112,26 +112,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 431 errors across 74 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 450 errors across 75 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
-| GATE-ENFORCED | 172 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 142 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| GATE-ENFORCED | 189 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
+| BOOKED-UNENFORCEABLE | 144 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
 | anchor-blindspot | 0 | 14 | 2 |
 | bogus-comparison | 0 | 8 | 3 |
-| citation-drift | 0 | 12 | 3 |
-| conjugation | 19 | 4 | 0 |
-| dimension-slot | 29 | 0 | 0 |
-| machine-overruled | 0 | 34 | 0 |
-| process | 0 | 54 | 101 |
-| statistics | 25 | 2 | 3 |
-| toolchain | 0 | 36 | 22 |
-| wrong-object | 44 | 8 | 8 |
+| citation-drift | 0 | 14 | 3 |
+| conjugation | 19 | 5 | 0 |
+| dimension-slot | 29 | 2 | 0 |
+| machine-overruled | 0 | 36 | 0 |
+| process | 0 | 55 | 102 |
+| statistics | 25 | 5 | 3 |
+| toolchain | 0 | 41 | 23 |
+| wrong-object | 44 | 9 | 8 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -193,6 +193,23 @@ The registry is imported LIVE on every run: 431 errors across 74 batches, each w
 | `switch-sched/test/process.test.ts :: eigenvalues exactly {0, ½}` | 1 | statistics |
 | `switch-sched/test/process.test.ts :: 8192 vertices` | 1 | statistics |
 | `nonstoq-anneal/package.json :: typecheck` | 1 | toolchain |
+| `route-price/test/dossier.test.ts :: R5: all executable witnesses pass` | 1 | citation-drift |
+| `route-price/package.json :: lint` | 1 | toolchain |
+| `causal-ineq/test/causal-ineq.test.ts :: W* eigenvalues exactly {0, 1/2}` | 1 | statistics |
+| `causal-ineq/test/causal-ineq.test.ts :: OCB12 eq. (7)` | 1 | dimension-slot |
+| `causal-ineq/test/causal-ineq.test.ts :: noise threshold exactly eta = 1/sqrt(2)` | 1 | process |
+| `causal-ineq/package.json :: lint` | 1 | toolchain |
+| `switch-sched/docs/citations.md :: 10.1038/s41467-023-40162-8` | 1 | citation-drift |
+| `k-switch/test/k4.test.ts :: ZERO commuting Pauli quadruples exist at d=4` | 1 | machine-overruled |
+| `k-switch/test/k4.test.ts :: constructed matched pair outside the Pauli universe` | 1 | machine-overruled |
+| `k-switch/test/k4.test.ts :: the generator's Pauli ray` | 1 | conjugation |
+| `k-switch/test/k4.test.ts :: Algorithm 1 reads the promise column with probability 1 exactly` | 1 | dimension-slot |
+| `k-switch/test/k4.test.ts :: NO plain order separates ANY column pair` | 1 | wrong-object |
+| `postselect-sched/test/t5-power-ledger.test.ts :: branch ratio = integer ratio on real 3-SAT` | 1 | statistics |
+| `postselect-sched/test/t6-tieface.test.ts :: exact tie iff d | a1^2` | 1 | statistics |
+| `postselect-sched/package.json :: typecheck` | 1 | toolchain |
+| `postselect-sched/package.json :: lint` | 1 | toolchain |
+| `postselect-sched/src/experiments/run-all.ts :: call the mains directly` | 1 | toolchain |
 
 **Booked unenforceable — the visible boundary, every row:**
 
@@ -338,6 +355,8 @@ The registry is imported LIVE on every run: 431 errors across 74 batches, each w
 - b74#9 [toolchain] — dual-face: the act face (rewritten on the spot, pre-machine) is booked; a require() landing in the ESM tree is a loader death the test/typecheck gates convict the moment it lands (the b47#1 precedent). Booked: the act face only
 - b74#10 [process] — scratch-arbitration face (the b52#0 class): the bad unitary and the withdrawn 'transpose fix' lived in scratch and were refuted by variant enumeration — an author's probe, not a scheduled gate
 - b74#11 [toolchain] — pre-machine draft face: the apostrophe was caught before any run; the landing face is a parser death at typecheck. Booked: the act face only
+- b75#6 [process] — dual-face placement class (b22#2/b33#0/b49#2/b74#1 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the /tmp face lives outside the workspace tree where no scheduled gate scans. Booked: the outside-tree face only
+- b75#13 [toolchain] — heredoc act face — the banned channel's twelfth canonical sighting (the family's wrong-text sightings grep to 16 in-registry, counted before enrolling); no machine sees the channel, the Write-tool rule is the guard, and the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -356,6 +375,19 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **FIRING-INJECT** — `switch-sched/test/process.test.ts :: identity channel gives SWAP` — the CJ-convention guard: the v0.1.0 latent defect (identity not mapping to SWAP under complex Kraus) dies at the circuit-vs-process assertion the switch-sched suite runs on every pass — the test that caught it in the same breath it was written (demo: switch-sched/test/process.test.ts, "identity channel gives SWAP")
 - **FIRING-INJECT** — `switch-sched/test/process.test.ts :: eigenvalues exactly {0, ½}` — the exact-spectrum guard: the v0.1.0 global-½ double-count dies at W_OCB's exact-eigenvalue assertion {0, ½} (8-fold each, trace 4) — a scaled process matrix cannot pass it (demo: switch-sched/test/process.test.ts, "eigenvalues exactly {0, ½}")
 - **FIRING-INJECT** — `switch-sched/test/process.test.ts :: 8192 vertices` — the census-size guard: the v0.1.0 fabricated census size (20480) dies at the census's own size assertion — 8192 deterministic strategies (4096 per order) cap exactly ¾, and the vertex count is pinned to the enumeration that produces it (demo: switch-sched/test/process.test.ts, "8192 vertices")
+- **FIRING-INJECT** — `route-price/test/dossier.test.ts :: R5: all executable witnesses pass` — the sibling-claim guard: W-E's iso face (|cos 2kδ| coherent oscillation — the geometric envelope overruled at deviation 8.2e-1) is asserted on every suite run under R5; a rebaked geometric model fails the witness and the suite with it (demo: route-price/test/dossier.test.ts, "R5: all executable witnesses pass")
+- **FIRING-INJECT** — `causal-ineq/test/causal-ineq.test.ts :: W* eigenvalues exactly {0, 1/2}` — the scale guard: a 4x coefficient moves W*'s spectrum off {0, ½} and the eigenvalue assertion convicts on the spot (demo: causal-ineq/test/causal-ineq.test.ts, "W* eigenvalues exactly {0, 1/2}")
+- **FIRING-INJECT** — `causal-ineq/test/causal-ineq.test.ts :: OCB12 eq. (7)` — the slot-order guard: W* ≡ OCB12 eq. (7) is checked ELEMENTWISE — a transcribed vector with its slots in the wrong order dies entry by entry (demo: causal-ineq/test/causal-ineq.test.ts, "OCB12 eq. (7)")
+- **FIRING-INJECT** — `causal-ineq/test/causal-ineq.test.ts :: noise threshold exactly eta = 1/sqrt(2)` — the exact-boundary guard: a tampered threshold (0.71 where the machine holds 1/√2) breaks the PSD account at the boundary and the noise-threshold test names it (demo: causal-ineq/test/causal-ineq.test.ts, "noise threshold exactly eta = 1/sqrt(2)")
+- **FIRING-INJECT** — `k-switch/test/k4.test.ts :: ZERO commuting Pauli quadruples exist at d=4` — the no-go census guard: the machine's (0, 30, 1335) over 1365 is asserted and a counterfeit census (an invented commuting quadruple) is named by the smuggling trial in the same file (demo: k-switch/test/k4.test.ts, "ZERO commuting Pauli quadruples exist at d=4")
+- **FIRING-INJECT** — `k-switch/test/k4.test.ts :: constructed matched pair outside the Pauli universe` — the generator-contract guard: the constructed pair keeps max trace distance < 1e-7 over all 24 plain orders — the T = 0.918 generator died exactly here (demo: k-switch/test/k4.test.ts, "constructed matched pair outside the Pauli universe")
+- **FIRING-INJECT** — `k-switch/test/k4.test.ts :: the generator's Pauli ray` — the phase guard: rotationsOf's product is phase-only off the generator (diagonal exactly 0) — a wrong phase leaves the ray and the assertion names it (demo: k-switch/test/k4.test.ts, "the generator's Pauli ray")
+- **FIRING-INJECT** — `k-switch/test/k4.test.ts :: Algorithm 1 reads the promise column with probability 1 exactly` — the layout guard: the 8-dim split-layout joint state feeding Algorithm 1 must read the promise column at probability exactly 1 on every promising set — NaN and mislayout die at the first such assertion (demo: k-switch/test/k4.test.ts, "Algorithm 1 reads the promise column with probability 1 exactly")
+- **FIRING-INJECT** — `k-switch/test/k4.test.ts :: NO plain order separates ANY column pair` — the object guard: the game matrix (the discriminator) is asserted cell by cell (all 144 entries 0) — the projection-vs-discriminator conflation cannot survive it (demo: k-switch/test/k4.test.ts, "NO plain order separates ANY column pair")
+- **FIRING-INJECT** — `postselect-sched/test/t5-power-ledger.test.ts :: branch ratio = integer ratio on real 3-SAT` — the integer-account guard: 2*both vs m holds on real 3-SAT — the halved U_1 initialization (x where 2x belongs) breaks the ratio and the referee convicts (demo: postselect-sched/test/t5-power-ledger.test.ts, "branch ratio = integer ratio on real 3-SAT")
+- **FIRING-INJECT** — `postselect-sched/test/t6-tieface.test.ts :: exact tie iff d | a1^2` — the tie-equation guard: the census holds both directions on exact rationals and every reported tie re-verifies through the full ledger row machinery — a broken denominator dies on re-verification (demo: postselect-sched/test/t6-tieface.test.ts, "exact tie iff d | a1^2")
+- **FIRING-INJECT** — `postselect-sched/src/experiments/run-all.ts :: call the mains directly` — the no-op repro guard: the explicit main calls ARE the fix — a recurrence that reverts run-all to import-only removes the needle and E3 convicts the missing-guard face on every census run (the exit-0-fake-green family's first needle-held sighting; the demo is E3's own conviction trial) (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
+- **FIRING-INJECT** — `switch-sched/docs/citations.md :: 10.1038/s41467-023-40162-8` — the identifier guard: the VDL23 DOI is pinned in the register — a drift back to 5807 or a dropped DOI removes the needle and E3 convicts the missing-guard face on every census run (the b55#3 identifier family's first needle-held sighting; the demo is E3's own conviction trial) (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
 - **FIRING-LIVE** — `mutant-census/src/experiments/render.ts :: witness letters must be unique` — a forged report headlining two censuses under one W-letter is refused on the spot (assertUniqueWitnessLetters, the b46#5 tier upgrade; the guard lives in report.ts since b53#5 — a leaf, so the anchor's dynamic fire can never deadlock the entry)
 - **FIRING-LIVE** — `mutant-census/src/kernel/audit.ts :: E1` — a forged registry carrying an un-enrolled error is convicted by checkEnrollment on the spot
 - **FIRING-LIVE** — `mutant-census/src/kernel/audit.ts :: E2` — a forged class-mismatched mutant tie is convicted by checkEnrollment on the spot
@@ -401,6 +433,10 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **RESOLVED** — `phase-law/package.json :: typecheck` — tsconfig.typecheck.json on disk
 - **RESOLVED** — `switch-sched/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted batch 74's void-expression/array-type lint batch (the b53#5 law)
 - **RESOLVED** — `nonstoq-anneal/package.json :: typecheck` — tsconfig.typecheck.json on disk — the project the gate compiles; the machinery that convicted batch 74's unused-parameter/unexported-main/readonly-push batch (the b53#5 law)
+- **RESOLVED** — `route-price/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the wave's two lint rounds
+- **RESOLVED** — `causal-ineq/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the 32-error lint batch
+- **RESOLVED** — `postselect-sched/package.json :: typecheck` — tsconfig.typecheck.json on disk — the project that kills the template-string quote mismatch the moment it lands
+- **RESOLVED** — `postselect-sched/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the wave's two lint errors
 
 ## G-board — the genealogy census (every error in a family, every family resolved, every catch credited)
 
@@ -408,23 +444,23 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 129 | b1 | b74#10 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 57 | b2 | b74#18 | GATE-ENFORCED |
-| cat:toolchain | 43 | b1 | b74#19 | GATE-ENFORCED |
-| cat:machine-overruled | 30 | b4 | b74#17 | GATE-ENFORCED |
-| cat:statistics | 30 | b3 | b74#15 | GATE-ENFORCED |
-| cat:dimension-slot | 29 | b5 | b36#9 | MUTANT-KILLED |
-| cat:conjugation | 23 | b4 | b74#13 | GATE-ENFORCED |
-| shell-template-heredoc | 22 | b10 | b67#0 | BOOKED-UNENFORCEABLE |
+| cat:process | 131 | b1 | b75#6 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 58 | b2 | b75#12 | GATE-ENFORCED |
+| cat:toolchain | 48 | b1 | b75#18 | GATE-ENFORCED |
+| cat:statistics | 33 | b3 | b75#15 | GATE-ENFORCED |
+| cat:machine-overruled | 32 | b4 | b75#9 | GATE-ENFORCED |
+| cat:dimension-slot | 31 | b5 | b75#11 | GATE-ENFORCED |
+| cat:conjugation | 24 | b4 | b75#10 | GATE-ENFORCED |
+| shell-template-heredoc | 23 | b10 | b75#13 | BOOKED-UNENFORCEABLE |
 | runner-path | 16 | b14 | b73#8 | GATE-ENFORCED |
+| cat:citation-drift | 15 | b6 | b75#7 | GATE-ENFORCED |
 | cat:anchor-blindspot | 13 | b9 | b45#5 | BOOKED-UNENFORCEABLE |
-| cat:citation-drift | 13 | b6 | b74#5 | BOOKED-UNENFORCEABLE |
 | cat:bogus-comparison | 10 | b2 | b37#2 | GATE-ENFORCED |
 | edit-anchor | 8 | b22 | b69#1 | BOOKED-UNENFORCEABLE |
 | count-drift | 6 | b36 | b65#0 | GATE-ENFORCED |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 
-The catch census: gate 61 / author 335 / numbers 34 / visitor 1 over 431 errors — the gate fraction rose from 1% (batches 1-22) to 30% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 67 / author 346 / numbers 36 / visitor 1 over 450 errors — the gate fraction rose from 1% (batches 1-22) to 30% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -559,7 +595,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | verdict | rows | meaning |
 | --- | --- | --- |
 | UPGRADED | 11 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
-| SHARPENED | 19 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
+| SHARPENED | 21 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
 | HELD | 123 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
@@ -717,6 +753,8 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **SHARPENED** b74#9 — dual-face: the act face (rewritten on the spot, pre-machine) is booked; the landing face — require() in the ESM tree — is a loader death the gates convict the moment it lands (the b47#1 precedent, the same death one gate earlier). Booked: the act face only
 - **HELD** b74#10 — scratch-arbitration face (the b52#0 class): the bad unitary and the withdrawn 'transpose fix' lived in scratch and were refuted by variant enumeration — an author's probe, not a scheduled gate
 - **SHARPENED** b74#11 — dual-face: the apostrophe was caught pre-machine (the act face is booked); the landing face is a parser death at typecheck. Booked: the act face only
+- **SHARPENED** b75#6 — dual-face placement class (b22#2/b33#0/b49#2/b74#1 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the /tmp face resolves outside the workspace tree where no scheduled gate scans — three gate logs landed there during the causal-ineq delivery. Booked: the outside-tree face only
+- **SHARPENED** b75#13 — dual-face: the heredoc act is ungated — the channel's twelfth canonical sighting (the family's wrong-text sightings grepped to 16 in-registry before enrolling), and 'not repeated' grades the offense without unmaking the ban; the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only
 
 ## T-board — the total gate
 
@@ -729,11 +767,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - FAIL — W-D family census (readout-wall/measures.ts registered as divergent but now byte-identical — stale registration; nosignal-tariff/cmat.ts registered as divergent but now byte-identical — stale registration; nosignal-tariff/measures.ts registered as divergent but now byte-identical — stale registration; choice-lang/cmat.ts registered as divergent but now byte-identical — stale registration; choice-lang/measures.ts registered as divergent but now byte-identical — stale registration; binding-price/cmat.ts registered as divergent but now byte-identical — stale registration; binding-price/measures.ts registered as divergent but now byte-identical — stale registration; letter-audit/cmat.ts registered as divergent but now byte-identical — stale registration; letter-audit/measures.ts registered as divergent but now byte-identical — stale registration; ent-clearing/cmat.ts registered as divergent but now byte-identical — stale registration; ent-clearing/measures.ts registered as divergent but now byte-identical — stale registration; quantum-mech/cmat.ts registered as divergent but now byte-identical — stale registration; quantum-mech/measures.ts registered as divergent but now byte-identical — stale registration)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: probe.ts) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (431 errors enrolled LIVE against a registry of 74 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 172, BOOKED-UNENFORCEABLE 142, every booked row printed on the report)
-- PASS — W-G anchor census (58 guards registered: 13 firing-inject demos on disk, 9 fired live this run, 36 resolved to machinery)
-- PASS — W-H genealogy census (15 families over 431 errors (15 recurring, all resolved); catch census gate 61 / author 335 / numbers 34 / visitor 1 — the gate fraction rose from 1% (b1-22) to 30% (b37+); count-drift held by B7: true)
+- PASS — W-F enrollment census (450 errors enrolled LIVE against a registry of 75 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 189, BOOKED-UNENFORCEABLE 144, every booked row printed on the report)
+- PASS — W-G anchor census (75 guards registered: 26 firing-inject demos on disk, 9 fired live this run, 40 resolved to machinery)
+- PASS — W-H genealogy census (15 families over 450 errors (15 recurring, all resolved); catch census gate 67 / author 346 / numbers 36 / visitor 1 — the gate fraction rose from 1% (b1-22) to 30% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (153 booked-population rows audited LIVE (of the 142 booked + 11 upgraded) — UPGRADED 11 on cited live anchors with needle-level firing evidence (R4, 11 needles in the cited gates' own trees), SHARPENED 19 to named faces, HELD 123 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (155 booked-population rows audited LIVE (of the 144 booked + 11 upgraded) — UPGRADED 11 on cited live anchors with needle-level firing evidence (R4, 11 needles in the cited gates' own trees), SHARPENED 21 to named faces, HELD 123 with the ungated face stated; born-audited is law)
 
 ## Boundaries
 

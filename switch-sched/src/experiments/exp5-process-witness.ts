@@ -184,7 +184,7 @@ function main(): void {
   lines.push(`p_succ = ${switchPsucc.toFixed(12)} — ${(CLASSICAL_CAP - switchPsucc).toFixed(6)} BELOW the classical causal cap 3/4.`);
   lines.push("The switch is causally nonseparable as an ORDER structure (T1's control-displacement");
   lines.push('witness) yet does not even reach, let alone beat, the causal inequality on this game —');
-  lines.push("machine echo of van der Lugt et al., Nat. Commun. 14, 5807 (2023): the isolated switch's");
+  lines.push("machine echo of van der Lugt et al., Nat. Commun. 14, 5811 (2023), doi:10.1038/s41467-023-40162-8: the isolated switch's");
   lines.push('correlations do not violate causal inequalities. The OCB process and the switch are');
   lines.push('different objects; only the former violates. Scope: canonical instruments, one target');
   lines.push('preparation — a computed instance, not a claim over all switch strategies.');

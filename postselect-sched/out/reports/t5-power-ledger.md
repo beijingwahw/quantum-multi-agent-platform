@@ -29,7 +29,7 @@ The exact binomial tail never exceeds delta (the Hoeffding design is conservativ
 
 | near-tie instance: m = 11, gap = 0.045454545 (= 0.045454545 floor) | delta = 0.1 | k = 559 | exact tail = 0.015588545593 | queries = 52037.8 |
 
-At the integer-separation floor (gap = 1/(2m)) the same delta=0.1 decision costs 3.7x the moderate-gap instance — the sorter's power is priced by how close the count sits to the threshold. The exact-tie row of table A is the limit: gap = 0, k = infinity, the ledger declines to quote.
+At the integer-separation floor (gap = 1/(2m)) the same delta=0.1 decision costs 3.7x the moderate-gap instance — the sorter's power is priced by how close the count sits to the threshold. The exact-tie row of table A is the limit: gap = 0, k = infinity, the ledger declines to quote — priced and executed as its own face in t6-tieface.md (the refusal there is a typed result, not prose).
 
 ## D. both columns, side by side (the page the report was missing)
 
