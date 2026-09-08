@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 82;
-export const DECLARED_TOTAL_ERRORS = 565;
+export const DECLARED_TOTAL_BATCHES = 83;
+export const DECLARED_TOTAL_ERRORS = 586;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3536,7 +3536,7 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         category: "process",
       },
       {
-        wrong: "one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#2, b81#3 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict",
+        wrong: "one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict",
         right: "the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code (clean, exit 0) — a display pipe is still a masking pipe; the gate's code is read from the command itself, output trimmed on a separate read",
         category: "toolchain",
       },
@@ -3628,6 +3628,121 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "[wiring agent, this batch] the first census suite run went RED on two companion-edit faces: W-D convicted the unregistered phase-law/rng.ts drift (predictable from the delivery report's dead-export purge) and S1/S2 convicted the stale on-disk artifact — the K-board registration and the repro re-render belonged in the same breath as the enrollment edits, not after the gate had named them",
         right: "a wave that touches a family member's bytes ships its REGISTERED_DIVERGENCES row and its re-rendered artifact in the same act as the board edits; both closed immediately and the suite re-ran green — the gate convicted an incomplete state, which is the gate doing its job on an act that should not have been sent half-done",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 83,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the quality wave's SECOND batch wiring (k-switch 0.2.0->0.3.0, causal-ineq 0.2.0->0.3.0, nosignal-tariff 0.2.0->0.3.0, qram-sched 0.2.0->0.3.0 — four gates green in each; the absorption law's first execution, its b branch folded in and its c-class pricing enrolled): twenty-one delivery errors across five classes, born enrolled and born audited on both boards — EIGHT latent-defect convictions (qram's six silent-garbage-value paths: Rng.pick([]) forging undefined as T, linearFindBest([]) forging index 0, the wrong-length mu's silent NaN amplitudes, the out-of-range neighbor's silently dropped typed-array write, the dimension-mismatched linalg NaN solutions, the OBM swallowed out-of-bounds read with undefined forged as a number; causal-ineq's silent NaN-grid family and theory.md's stale duplicate boundaries section) and FOUR wiring-visit rows (the exit-code-masking family's fifteenth sighting ONE ROW after the fourteenth, a latent citation slip in b82#3's own family list, a latent README batch-count drift, and the Edit-before-Read refusal firing on the wiring agent's own second package.json of the visit), with the same-wave version-pin re-verification returning clean",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十三批" },
+    errors: [
+      {
+        wrong: "the first exp1 edit mangled the experiments file's import block — a void slipped into the import lines; caught on the immediate reread and fixed in the same breath",
+        right: "the reread after every structural edit is the factory check — the mangled block would have died at typecheck, the reread closed it before any run (the b55 residue class)",
+        category: "process",
+      },
+      {
+        wrong: "the SECOND edit into the same file deleted the entire import block — the replacement scope swallowed what it was splicing into; restored from the reread in the same minute",
+        right: "an edit's replacement scope is checked against the file's own declaration list before it is issued — two residue convictions in one delivery is the reread made constant, not a new rule",
+        category: "process",
+      },
+      {
+        wrong: "the T8 draft asserted shortestSupersequence(4).minLength === 4 — four letters cannot contain four mutually distinct orders; the honest contract is null (the search runs and finds nothing). Recomputed and corrected BEFORE the first run",
+        right: "the anchor is recomputed from the object's own combinatorics before the assertion is written — the shipped trial pins the corrected contract live: below-quartet limits are NAMED and rejected (SUPERSEQUENCE-LIMIT-BELOW-QUARTET) and shortestSupersequence(4) === null on every suite run (fix the anchor, not the machine — the b13#7 law's face, pre-caught)",
+        category: "process",
+      },
+      {
+        wrong: "the single-sourcing edit left a const COS2PI8 alias standing at two call sites beside the new quantum.ts source — residue of the very dedup the edit was making; found on the reread and removed",
+        right: "a single-sourcing edit greps its own old name before it lands done — the constant now has exactly one spelling in the tree; the residue class's smallest face, caught by the same factory check",
+        category: "process",
+      },
+      {
+        wrong: "the new rejection tests were written used-first, import-later — symbols referenced before the import block named them, a guaranteed typecheck red had the gate run mid-edit; fixed in the same minute",
+        right: "imports land with the code that uses them in the same edit — the landing face is a TS2552/TS2305 death at the repo's typecheck the moment it ships, and the gate never had to say it",
+        category: "process",
+      },
+      {
+        wrong: "debug-eig.ts was deleted with rm — the house red line prefers trash (recoverable beats gone forever), but trash is not installed in this Git Bash; executed only after the zero-reference grep verified the file had no importers (the deletion-channel note, founding entry — no in-registry family to count, grepped before enrolling)",
+        right: "deletions ride the recoverable channel when the environment has one; when it does not, the pre-deletion zero-reference grep is the guard that makes rm honest — the placement/deletion-channel discipline note",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the cmat kernels answered dimension mismatch and malformed grids with a silently corrupted NaN grid — cmatAdd/cmatTraceProd/cmatMaxAbsDiff on mismatched dims, cmatTrace/cmatScale on ragged re/im grids, no signal at all (instrumentTP and vectorToParams the same class)",
+        right: "the requireWellFormed/requireSameDim guards name the precondition at every public kernel and the NamedError codes (cmat/dim-mismatch, cmat/malformed-grid, cmat/dim-not-even) anchor the conviction: the rejection block asserts each by name on every suite run — the NaN grid is dead",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of shipped prose, v0.2.0] theory.md carried TWO Honest boundaries sections — the second contradicted the v0.2.0 machine verdicts the report had since rendered, stale prose outliving its own data; deleted in the F face",
+        right: "a doc's boundaries section is a copy of the machine's verdicts — theory.md now carries exactly one Honest boundaries section whose claims are the rendered report's own; the surviving section is needle-pinned and the census's E3 live-checks it on every run",
+        category: "process",
+      },
+      {
+        wrong: "the RNG freeze-anchor probe was attempted twice as tsx -e with a relative import under Git Bash — silent both times (the b14#4/b38#1/b46#1 line; the family's next sighting by its own count, the last recorded ordinal the seventh at b49#0)",
+        right: "the in-repo Write-tool probe file plus run-and-delete — the scratch-file rule executed on the third attempt; the -e route stays banned for anything that imports .ts because its failure mode is silent",
+        category: "toolchain",
+      },
+      {
+        wrong: "the first gate authentication piped the npm test output through tail — the exit-code-masking family's fourteenth sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2, b82#3 the thirteen in-registry before it), an attempted one: caught in self-review, killed on sight, and re-run with NO pipe for the true exit code (0)",
+        right: "a display pipe is still a masking pipe — the gate's code is read from the command itself, output trimmed on a separate read; the attempt took no verdict from the pipe",
+        category: "toolchain",
+      },
+      {
+        wrong: "the new tests' first draft needed two self-caught corrections — assert.throws cannot catch a rejected Promise (the async trial needed rejects), and a dead-export probe was left as a floating Promise; both fixed on the draft's own reread before the suite ran",
+        right: "async trials assert on rejects(), and every probe's Promise is awaited (an unhandled rejection can ride a green run) — the pre-machine reread is the factory check for both faces",
+        category: "process",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] Rng.pick([]) returned undefined cast to T — a forged witness value from an empty domain, consumed downstream as a real draw",
+        right: "RNG_EMPTY_PICK names the empty domain at entry and the smuggling trial fires it on every suite run — the forged value is dead at the reject",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] linearFindBest([]) answered an empty scores array with a forged index 0 — a confident lie where no best exists",
+        right: "GROVER_EMPTY_SCORES refuses the empty array by name; the trial holds it on every run",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] SzegedyWalk.initialState accepted a wrong-length mu and built silent NaN amplitudes — the unitarity monitor downstream would have certified garbage",
+        right: "WALK_MU_SHAPE names the shape precondition at entry and the trial fires on every suite run — the unitarity monitor never sees the lie because the lie never gets built",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] chainFromGraph accepted an out-of-range neighbor and the Float64Array out-of-bounds WRITE was silently dropped — the chain's row never knew",
+        right: "WALK_NEIGHBOR_RANGE rejects the out-of-range neighbor by name on every suite run — the typed array no longer eats the write",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] luSolve/hittingTime/jacobiEigenvalues answered dimension mismatch with silent NaN solutions — linear algebra that never disagrees, never alarms",
+        right: "LINALG_SHAPE names every wrong-shape entry (solve, eigenvalues, hitting time, target range) and the trials fire on every suite run",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] the OBM matchers swallowed an out-of-bounds neighbor (the Uint8Array out-of-bounds READ) and forged undefined as a number on a short rank vector",
+        right: "OBM_INSTANCE_SHAPE and OBM_RANK_SHAPE name both faces at entry — instance shape and rank shape — and the trials fire on every suite run",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[wiring agent, this batch] the wiring visit's first census suite run was piped (npm test 2>&1 | tail -40; echo EXIT) — the exit-code-masking family's fifteenth sighting, ONE ROW after the fourteenth, attempted by the agent that had come to enforce the rule: tail printed the two failures while EXIT echoed tail's own 0",
+        right: "re-issued with no pipe for the DIRECT code (1 — the expected pre-wiring red) in the next breath; the rule is a pre-flight checklist item, not knowledge — the family's own registrar is not immune, and the two failures the pipe did show were real output, the masked verdict was not",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent registry defect, convicted at wiring] batch 82's exit-code-masking citation list named b81#2 and b81#3 as the eleventh and twelfth sightings where the registry's own rows are b81#1 and b81#2 — b81#3 is the lockfile-intent row, no pipe in it; caught by grepping the family's count BEFORE enrolling this batch's own sighting",
+        right: "the citation corrected in place (b81#1, b81#2 — the eleventh and twelfth); family counts and keys are grepped from the registry's own text, never recalled — the discipline this row executes is the one that caught it",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[latent doc defect, convicted at wiring] the README's headline still read 81 batches / 543 errors where the registry carried 82/565 before this batch — the wave-1 wiring's registry edit never re-synced the README face; caught reading the repo before touching it",
+        right: "the headline corrected to the live count (83 batches / 586 errors with this batch) in the same edit — B7/B8 hold contexts and headings, E7 holds the census's description, and the README is none of these: the count is re-derived from the registry at every wiring visit (the b79#6 doc-face line)",
+        category: "process",
+      },
+      {
+        wrong: "[wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides), the refusal firing on the wiring agent's own second package.json of the visit hours after the burial package.json's Read-first edit had landed cleanly; nothing damaged landed",
+        right: "the refusal is the guard: Read before Edit is a fixed step PER FILE, regardless of how recently that file or any other was displayed by other means — the second attempt after a real Read landed cleanly (the b48#2/b53#0/b67#4/b82#6/b82#20 line, seventh sighting of the class, third by a wiring agent)",
         category: "process",
       },
     ],

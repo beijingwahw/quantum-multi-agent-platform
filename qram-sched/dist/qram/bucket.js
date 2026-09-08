@@ -23,24 +23,30 @@
  * coherent noise on the stored amplitudes is a strictly harder model (see
  * Arunachalam et al., New J. Phys. 17, 123010 (2015)) and is not simulated.
  */
+import { reject } from "../core/errors.js";
 /** Number of routing nodes whose failure can corrupt a single query. */
 export function activeNodes(arch, addressBits) {
-    if (addressBits < 1)
-        throw new Error("addressBits must be >= 1");
+    if (!Number.isInteger(addressBits) || addressBits < 1)
+        reject("QRAM_ARG_RANGE", "addressBits must be >= 1");
     if (arch === "bucket-brigade")
         return addressBits;
     return 2 ** addressBits - 1;
 }
 /** Query failure probability under independent per-active-node failure p. */
 export function queryFailureProb(arch, addressBits, p) {
+    // v0.3.0: p outside [0,1] used to produce probabilities outside [0,1] silently.
+    if (!(p >= 0 && p <= 1))
+        reject("QRAM_P_RANGE", "node failure p in [0,1]");
     const k = activeNodes(arch, addressBits);
     return 1 - (1 - p) ** k;
 }
 /** Exhaustive enumeration of failure subsets; referee for queryFailureProb. */
 export function queryFailureProbEnumerated(arch, addressBits, p) {
+    if (!(p >= 0 && p <= 1))
+        reject("QRAM_P_RANGE", "node failure p in [0,1]");
     const k = activeNodes(arch, addressBits);
     if (k > 20)
-        throw new Error("enumeration limited to 20 active nodes");
+        reject("QRAM_ENUM_LIMIT", "enumeration limited to 20 active nodes");
     let fail = 0;
     for (let mask = 0; mask < 2 ** k; mask++) {
         const weight = popcount(mask);
@@ -73,14 +79,15 @@ export class BucketBrigadeQram {
     totalActivations = 0;
     queryCount = 0;
     constructor(addressBits, cells) {
-        if (addressBits < 1 || addressBits > 16)
-            throw new Error("addressBits in [1,16]");
+        if (!Number.isInteger(addressBits) || addressBits < 1 || addressBits > 16) {
+            reject("QRAM_ARG_RANGE", "addressBits in [1,16]");
+        }
         this.addressBits = addressBits;
         this.numCells = 2 ** addressBits;
         this.dim = this.numCells * 2;
         this.cells = cells ?? new Float64Array(this.numCells);
         if (cells !== undefined && cells.length !== this.numCells)
-            throw new Error("cells length mismatch");
+            reject("QRAM_CELLS_SHAPE", "cells length mismatch");
     }
     /** Apply one addressing query to a state vector on address x bus, in place-safe fashion. */
     applyQuery(state /* re */, im /* im */) {
@@ -104,9 +111,9 @@ export class BucketBrigadeQram {
     /** Stream update: write value into cell a; ledger charges one routing pass (depth n). */
     write(address, value) {
         if (address < 0 || address >= this.numCells)
-            throw new Error("address out of range");
+            reject("QRAM_ADDRESS_RANGE", "address out of range");
         if (value < 0 || value > 1)
-            throw new Error("cell values live in [0,1]");
+            reject("QRAM_CELL_RANGE", "cell values live in [0,1]");
         this.cells[address] = value;
         this.totalActivations += activeNodes("bucket-brigade", this.addressBits);
     }

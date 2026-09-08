@@ -20,8 +20,9 @@
  * cross-branch coherences (a bug class this repo's judges are built to catch).
  */
 
-import { type CMat, identity, kron, mat, matEq, mDagger, mMul } from '../core/cmat.js';
+import { type CMat, identity, mat, matEq, mDagger, mMul } from '../core/cmat.js';
 import { partialTrace } from '../core/channels.js';
+import { refuse } from '../core/errors.js';
 
 export interface Stinespring {
   /** target system dimension (input = output) */
@@ -35,7 +36,7 @@ export interface Stinespring {
 /** Standard Stinespring dilation of a Kraus set: V = Σ_m K_m ⊗ |m⟩_E. */
 export function krausToStinespring(kraus: readonly CMat[]): Stinespring {
   const d = kraus[0]?.rows ?? 0;
-  if (kraus.some((k) => k.rows !== d || k.cols !== d)) throw new Error('kraus operators must be d×d');
+  if (kraus.some((k) => k.rows !== d || k.cols !== d)) refuse('KRAUS_NOT_SQUARE', 'kraus operators must be d×d');
   const envDim = kraus.length;
   const V = mat(d * envDim, d);
   for (let m = 0; m < envDim; m++) {
@@ -55,7 +56,7 @@ export function krausToStinespring(kraus: readonly CMat[]): Stinespring {
 /** Isometry certificate: V†V = I_d. */
 export function assertStinespring(st: Stinespring, tol = 1e-12): void {
   if (!matEq(mMul(mDagger(st.V), st.V), identity(st.d), tol)) {
-    throw new Error('Stinespring dilation failed the isometry check V†V = I');
+    refuse('STINESPRING_ISOMETRY_FAILED', 'Stinespring dilation failed the isometry check V†V = I');
   }
 }
 
@@ -67,7 +68,7 @@ export function assertStinespring(st: Stinespring, tol = 1e-12): void {
  *   first='B': β(s,a,b|i) = Σ_j V_A[(s,a), j] · V_B[(j,b), i]
  */
 export function branchIsometry(va: Stinespring, vb: Stinespring, first: 'A' | 'B'): CMat {
-  if (va.d !== vb.d) throw new Error('target dimensions must match');
+  if (va.d !== vb.d) refuse('BRANCH_DIM_MISMATCH', 'target dimensions must match');
   const d = va.d;
   const eA = va.envDim;
   const eB = vb.envDim;
@@ -142,7 +143,7 @@ export function switchIsometry(va: Stinespring, vb: Stinespring): SwitchIsometry
     }
   }
   if (!matEq(mMul(mDagger(M), M), identity(2 * d), 1e-12)) {
-    throw new Error('switch isometry failed M†M = I — construction bug');
+    refuse('SWITCH_ISOMETRY_FAILED', 'switch isometry failed M†M = I — construction bug');
   }
   return { M, d, eA, eB, wAFirst, wBFirst };
 }
@@ -183,31 +184,4 @@ export function makeSwitchedChannel(va: Stinespring, vb: Stinespring): SwitchedC
       return partialTrace(applyIsometry(rhoS, sw.wBFirst), [sw.d, sw.eA, sw.eB], [1, 2]);
     },
   };
-}
-
-/** Environment unitary freedom: V' = (I_d ⊗ U_E) V — same channel, new dilation. */
-export function envUnitaryFreedom(st: Stinespring, U: CMat): Stinespring {
-  if (U.rows !== st.envDim) throw new Error('environment unitary dimension mismatch');
-  const full = mMul(kron(identity(st.d), U), st.V);
-  const out: Stinespring = { d: st.d, envDim: st.envDim, V: full };
-  assertStinespring(out);
-  return out;
-}
-
-/** Dilation padding: V' = V ⊗ |0⟩ with one fresh unused environment qudit. */
-export function padDilation(st: Stinespring, padDim: number): Stinespring {
-  const e2 = st.envDim * padDim;
-  const V2 = mat(st.d * e2, st.d);
-  for (let row = 0; row < st.V.rows; row++) {
-    const s = Math.floor(row / st.envDim);
-    const m = row % st.envDim;
-    const newRow = s * e2 + m * padDim; // fresh env digit 0
-    for (let col = 0; col < st.d; col++) {
-      V2.re[newRow * st.d + col] = st.V.re[row * st.d + col]!;
-      V2.im[newRow * st.d + col] = st.V.im[row * st.d + col]!;
-    }
-  }
-  const out: Stinespring = { d: st.d, envDim: e2, V: V2 };
-  assertStinespring(out);
-  return out;
 }

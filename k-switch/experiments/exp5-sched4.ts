@@ -4,17 +4,14 @@
  * distinguish γ=1 vs γ=0. Does the k=3 law (D(fixed) = 1/√2 for every order,
  * D(switch) = D(fixed)/√2) survive to k = 4? The machine answers.
  */
-import { cmatZero } from "../src/core/cmat.js";
 import { chainDistinguishability4 } from "../src/kswitch/sched4.js";
+import { plusPlus } from "../src/kswitch/sched3.js";
 import { table, writeReport } from "./report.js";
 
 function run(): void {
-  // input: |+> — sensitive to both X and Z writes (and Y flips it to |->)
-  const input = cmatZero(2);
-  input.re[0]![0] = 0.5;
-  input.re[0]![1] = 0.5;
-  input.re[1]![0] = 0.5;
-  input.re[1]![1] = 0.5;
+  // input: |+> — sensitive to both X and Z writes (and Y flips it to |->); the
+  // shared single source (exp2 and both scheduling tests use the same)
+  const input = plusPlus();
 
   const r = chainDistinguishability4(input);
   const fixedVals = new Set(r.fixed.map((f) => f.d.toFixed(12)));

@@ -20,8 +20,8 @@ test("A1-A3: the anchor registry is legal, symmetric and fully evidenced (live)"
   assert.deepEqual(v, []);
   const byKind = new Map<string, number>();
   for (const r of ANCHOR_REGISTRY) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
-  assert.equal(ANCHOR_REGISTRY.length, 139);
-  assert.equal(byKind.get("FIRING-INJECT"), 85);
+  assert.equal(ANCHOR_REGISTRY.length, 148);
+  assert.equal(byKind.get("FIRING-INJECT"), 94);
   assert.equal(byKind.get("FIRING-LIVE"), 9);
   assert.equal(byKind.get("RESOLVED"), 45);
 });

@@ -25,8 +25,8 @@
  *     (exact 0/1), against the switch readout (deterministic).
  */
 import { I2, X2, Y2, Z2 } from "./promise.js";
-import type { Rng } from "./rng.js";
 import { S4 } from "./k4.js";
+import { KSwitchError } from "./errors.js";
 
 /** The experimental quartet of orders (TCA+21): ABCD, BADC, CBDA, DACB. */
 export const ORDERS4: ReadonlyArray<readonly [number, number, number, number]> = [
@@ -66,9 +66,18 @@ function toMat2(m: { re: number[][]; im: number[][] }): Mat2 {
   return { re: m.re.map((r) => [...r]), im: m.im.map((r) => [...r]) };
 }
 
-/** The Mat2 gates of a census set, by gate indices. */
+/**
+ * The Mat2 gates of a census set, by gate indices. The only public way to
+ * index GATES: an out-of-range or non-integer index is NAMED and rejected
+ * (no silent undefined -> NaN downstream).
+ */
 export function gatesByIndices(indices: readonly number[]): readonly Mat2[] {
-  return indices.map((i) => GATES[i]!.mat);
+  return indices.map((i) => {
+    if (!Number.isInteger(i) || i < 0 || i >= GATES.length) {
+      throw new KSwitchError("GATE-INDEX-OUT-OF-RANGE", `gate index ${String(i)} is outside the census alphabet {I,X,Y,Z} (0..${GATES.length - 1})`);
+    }
+    return GATES[i]!.mat;
+  });
 }
 
 export function mul2(a: Mat2, b: Mat2): Mat2 {
@@ -119,7 +128,7 @@ export function hadamardCensus(): HadamardCensus {
       for (let c = 0; c < 4; c++) {
         for (let d = 0; d < 4; d++) {
           const indices: [number, number, number, number] = [a, b, c, d];
-          const gates = indices.map((i) => GATES[i]!.mat) as unknown as readonly Mat2[];
+          const gates = gatesByIndices(indices);
           const base = product2(gates, [0, 1, 2, 3]);
           const rel: number[] = [];
           let ok = true;
@@ -244,13 +253,6 @@ export function algorithm1(gates: readonly Mat2[], psi: Vec): number[] {
   return controlOutcomes(s);
 }
 
-/** A deterministic d=2 test state from the rng. */
-export function randomQubit(rng: Rng): Vec {
-  const th = rng.next() * Math.PI;
-  const ph = rng.next() * 2 * Math.PI;
-  return { re: [Math.cos(th), Math.sin(th) * Math.cos(ph)], im: [0, Math.sin(th) * Math.sin(ph)] };
-}
-
 // ---------------------------------------------------------------------------
 // The fixed-order supersequence bound (TCA+21 App. — their claim: 9).
 // ---------------------------------------------------------------------------
@@ -274,9 +276,14 @@ export interface SupersequenceResult {
 /**
  * Exhaustive search over strings of length 1..limit on {A,B,C,D}: the shortest
  * that contains every quartet order as a subsequence. TCA+21's Appendix gives
- * 9 (witness ACBADACDB); the machine decides.
+ * 9 (witness ACBADACDB); the machine decides. A limit below the quartet size
+ * can never succeed (each order has 4 distinct letters) and is NAMED and
+ * rejected rather than silently returning null.
  */
 export function shortestSupersequence(limit: number): SupersequenceResult | null {
+  if (!Number.isInteger(limit) || limit < ORDERS4.length) {
+    throw new KSwitchError("SUPERSEQUENCE-LIMIT-BELOW-QUARTET", `limit ${String(limit)} is below the quartet size ${ORDERS4.length} — no supersequence can exist`);
+  }
   const patterns = ORDERS4;
   for (let len = patterns.length; len <= limit; len++) {
     const total = 4 ** len;
@@ -347,10 +354,10 @@ export function distinguishabilityMatrix(census: HadamardCensus): Distinguishabi
       let separatedPairs = 0;
       let totalPairs = 0;
       for (const s1 of census.byColumn[y]!) {
-        const g1: readonly Mat2[] = s1.gates.map((i) => GATES[i]!.mat);
+        const g1 = gatesByIndices(s1.gates);
         const p1 = product2(g1, S4[pi]!.seq);
         for (const s2 of census.byColumn[y2]!) {
-          const g2: readonly Mat2[] = s2.gates.map((i) => GATES[i]!.mat);
+          const g2 = gatesByIndices(s2.gates);
           const p2 = product2(g2, S4[pi]!.seq);
           totalPairs++;
           if (!sameRay(p1, p2)) separatedPairs++;

@@ -11,6 +11,42 @@ export interface CMat {
   readonly im: number[][];
 }
 
+/**
+ * A kernel rejection with a stable, greppable `code`. Every throw in the src
+ * tree is a NamedError — callers and tests match on the code, never on
+ * message prose alone.
+ */
+export class NamedError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "NamedError";
+    this.code = code;
+  }
+}
+
+/** Structural sanity: re/im grids must be dim x dim (a smuggled shape produces NaN, never a verdict). */
+function requireWellFormed(m: CMat, op: string): void {
+  if (m.re.length !== m.dim || m.im.length !== m.dim) {
+    throw new NamedError("cmat/malformed-grid", `${op}: re/im row counts ${m.re.length}/${m.im.length} != dim ${m.dim}`);
+  }
+  for (let i = 0; i < m.dim; i++) {
+    const r = m.re[i]!;
+    const g = m.im[i]!;
+    if (r.length !== m.dim || g.length !== m.dim) {
+      throw new NamedError("cmat/malformed-grid", `${op}: row ${i} lengths ${r.length}/${g.length} != dim ${m.dim}`);
+    }
+  }
+}
+
+/** Operand agreement: mismatched dims are rejected BEFORE any arithmetic (NaN is never an answer). */
+function requireSameDim(a: CMat, b: CMat, op: string): void {
+  if (a.dim !== b.dim) {
+    throw new NamedError("cmat/dim-mismatch", `${op}: cmat dim mismatch ${a.dim} vs ${b.dim}`);
+  }
+}
+
 export function cmatZero(dim: number): CMat {
   return {
     dim,
@@ -26,6 +62,9 @@ export function cmatEye(dim: number, scale = 1): CMat {
 }
 
 export function cmatAdd(a: CMat, b: CMat): CMat {
+  requireWellFormed(a, "cmatAdd");
+  requireWellFormed(b, "cmatAdd");
+  requireSameDim(a, b, "cmatAdd");
   const out = cmatZero(a.dim);
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
@@ -37,6 +76,7 @@ export function cmatAdd(a: CMat, b: CMat): CMat {
 }
 
 export function cmatScale(a: CMat, s: number): CMat {
+  requireWellFormed(a, "cmatScale");
   const out = cmatZero(a.dim);
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
@@ -48,6 +88,8 @@ export function cmatScale(a: CMat, s: number): CMat {
 }
 
 export function cmatKron(a: CMat, b: CMat): CMat {
+  requireWellFormed(a, "cmatKron");
+  requireWellFormed(b, "cmatKron");
   const dim = a.dim * b.dim;
   const out = cmatZero(dim);
   for (let i = 0; i < a.dim; i++) {
@@ -74,6 +116,9 @@ export function cmatKron4(a: CMat, b: CMat, c: CMat, d: CMat): CMat {
 
 /** Trace of a product Tr[a·b] (complex result; used with Hermitian factors). */
 export function cmatTraceProd(a: CMat, b: CMat): { re: number; im: number } {
+  requireWellFormed(a, "cmatTraceProd");
+  requireWellFormed(b, "cmatTraceProd");
+  requireSameDim(a, b, "cmatTraceProd");
   let re = 0;
   let im = 0;
   for (let i = 0; i < a.dim; i++) {
@@ -90,6 +135,7 @@ export function cmatTraceProd(a: CMat, b: CMat): { re: number; im: number } {
 }
 
 export function cmatTrace(a: CMat): number {
+  requireWellFormed(a, "cmatTrace");
   let t = 0;
   for (let i = 0; i < a.dim; i++) t += a.re[i]![i] as number;
   return t;
@@ -97,7 +143,8 @@ export function cmatTrace(a: CMat): number {
 
 /** Partial trace over the SECOND factor of a tensor product (a.dim must be even). */
 export function cmatPartialTraceSecond(a: CMat): CMat {
-  if (a.dim % 2 !== 0) throw new Error(`cmatPartialTraceSecond: dim ${a.dim} not even`);
+  requireWellFormed(a, "cmatPartialTraceSecond");
+  if (a.dim % 2 !== 0) throw new NamedError("cmat/dim-not-even", `cmatPartialTraceSecond: dim ${a.dim} not even`);
   const h = a.dim / 2;
   const out = cmatZero(h);
   for (let i = 0; i < h; i++) {
@@ -113,7 +160,9 @@ export function cmatPartialTraceSecond(a: CMat): CMat {
 
 /** Max |a - b| over all entries (modulus); the elementwise certificate metric. */
 export function cmatMaxAbsDiff(a: CMat, b: CMat): number {
-  if (a.dim !== b.dim) throw new Error(`cmatMaxAbsDiff: dims ${a.dim} vs ${b.dim}`);
+  requireWellFormed(a, "cmatMaxAbsDiff");
+  requireWellFormed(b, "cmatMaxAbsDiff");
+  if (a.dim !== b.dim) throw new NamedError("cmat/dim-mismatch", `cmatMaxAbsDiff: cmat dim mismatch ${a.dim} vs ${b.dim}`);
   let d = 0;
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
@@ -127,6 +176,7 @@ export function cmatMaxAbsDiff(a: CMat, b: CMat): number {
 
 /** Hermiticity deviation: max |a - a^dagger| over all entries (modulus). */
 export function hermiticityDeviation(a: CMat): number {
+  requireWellFormed(a, "hermiticityDeviation");
   let d = 0;
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
@@ -145,6 +195,7 @@ export function hermiticityDeviation(a: CMat): number {
  * textbook cyclic real Jacobi rotation sweep. Returns {min, max}.
  */
 export function hermitianExtremeEig(a: CMat): { min: number; max: number } {
+  requireWellFormed(a, "hermitianExtremeEig");
   const n = a.dim;
   const m = 2 * n;
   const s: number[][] = Array.from({ length: m }, () => new Array<number>(m).fill(0));

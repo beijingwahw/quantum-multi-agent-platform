@@ -23,11 +23,11 @@
  */
 import { Rng } from "../core/rng.js";
 export interface QuantumRun {
-    regret: number;
-    plays: number;
-    queries: number;
-    committedArm: number;
-    rounds: number;
+    readonly regret: number;
+    readonly plays: number;
+    readonly queries: number;
+    readonly committedArm: number;
+    readonly rounds: number;
 }
 /** Draw one amplitude-estimation outcome for true amplitude p with m phase qubits, from the exact distribution. */
 export declare function sampleQae(p: number, m: number, rng: Rng): number;

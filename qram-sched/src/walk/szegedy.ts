@@ -24,11 +24,33 @@
  * Theta(n^2) -> Theta(n) is established.
  */
 
+import { reject } from "../core/errors.js";
+
 export interface Chain {
   readonly n: number;
   /** Sparse row-stochastic transitions: neighbors[i] distinct, probs[i] row-stochastic. */
   readonly neighbors: ReadonlyArray<readonly number[]>;
   readonly probs: ReadonlyArray<readonly number[]>;
+}
+
+/**
+ * Structural shape of a hand-built Chain (v0.3.0): n rows in both tables,
+ * equal row lengths. Malformed chains used to read `undefined as number` in
+ * the dense-matrix referee and the lazy transform — silent NaN onward.
+ * (Stochasticity is a property of the input family, not checked here.)
+ */
+function checkChainShape(c: Chain): void {
+  if (!Number.isInteger(c.n) || c.n < 1) reject("WALK_CHAIN_SHAPE", `n >= 1 states required (got ${c.n})`);
+  if (c.neighbors.length !== c.n || c.probs.length !== c.n) {
+    reject("WALK_CHAIN_SHAPE", `neighbors and probs must both carry n=${c.n} rows`);
+  }
+  for (let i = 0; i < c.n; i++) {
+    const nb = c.neighbors[i] as readonly number[];
+    const pr = c.probs[i] as readonly number[];
+    if (nb.length !== pr.length) {
+      reject("WALK_CHAIN_SHAPE", `row ${i}: neighbors/probs length mismatch (${nb.length} vs ${pr.length})`);
+    }
+  }
 }
 
 /** Uniform chain over an undirected adjacency structure (no self-loops added). */
@@ -38,7 +60,14 @@ export function chainFromGraph(adj: ReadonlyArray<readonly number[]>): Chain {
   const probs: number[][] = [];
   for (let i = 0; i < n; i++) {
     const nb = Array.from(adj[i] as readonly number[]);
-    if (nb.length === 0) throw new Error(`isolated vertex ${i}`);
+    if (nb.length === 0) reject("WALK_ISOLATED_VERTEX", `isolated vertex ${i}`);
+    // v0.3.0: out-of-range neighbors used to be silently DROPPED by the dense
+    // Float64Array referee matrix (OOB writes are no-ops) — a wrong hitting time.
+    for (const j of nb) {
+      if (!Number.isInteger(j) || j < 0 || j >= n) {
+        reject("WALK_NEIGHBOR_RANGE", `vertex ${i} lists neighbor ${j} outside [0, n=${n})`);
+      }
+    }
     neighbors.push(nb);
     probs.push(nb.map(() => 1 / nb.length));
   }
@@ -47,6 +76,7 @@ export function chainFromGraph(adj: ReadonlyArray<readonly number[]>): Chain {
 
 /** Lazy version P' = (P + I)/2: self-loop weight 1/2 + p(x|x)/2, all other probabilities halved. */
 export function lazyChain(c: Chain): Chain {
+  checkChainShape(c);
   const neighbors: number[][] = [];
   const probs: number[][] = [];
   for (let i = 0; i < c.n; i++) {
@@ -71,6 +101,7 @@ export function lazyChain(c: Chain): Chain {
 
 /** Dense row-major matrix of the chain (for LU / Jacobi referees). */
 export function chainMatrix(c: Chain): Float64Array {
+  checkChainShape(c);
   const a = new Float64Array(c.n * c.n);
   for (let i = 0; i < c.n; i++) {
     const nb = c.neighbors[i] as readonly number[];
@@ -82,8 +113,13 @@ export function chainMatrix(c: Chain): Float64Array {
 
 /** Start distribution: uniform over all states except the targets (the conditioned start law). */
 export function uniformAwayFrom(n: number, targets: ReadonlySet<number>): Float64Array {
+  for (const t of targets) {
+    if (!Number.isInteger(t) || t < 0 || t >= n) {
+      reject("WALK_TARGET_RANGE", `target ${t} outside states [0, n=${n})`);
+    }
+  }
   const free = n - targets.size;
-  if (free <= 0) throw new Error("no transient states");
+  if (free <= 0) reject("WALK_NO_TRANSIENT", "no transient states");
   const mu = new Float64Array(n);
   for (let i = 0; i < n; i++) if (!targets.has(i)) mu[i] = 1 / free;
   return mu;
@@ -102,8 +138,16 @@ export class SzegedyWalk {
   steps = 0;
 
   constructor(chain: Chain, marked: Iterable<number>) {
+    checkChainShape(chain);
     this.chain = chain;
     this.marked = new Set(marked);
+    // v0.3.0: a marked vertex outside [0, n) can never match an edge — the
+    // walk would run forever reporting zero marked mass (a silent dead search).
+    for (const m of this.marked) {
+      if (!Number.isInteger(m) || m < 0 || m >= chain.n) {
+        reject("WALK_TARGET_RANGE", `marked vertex ${m} outside [0, n=${chain.n})`);
+      }
+    }
     const total = chain.neighbors.reduce((s, r) => s + r.length, 0);
     this.edgeX = new Int32Array(total);
     this.edgeY = new Int32Array(total);
@@ -130,7 +174,7 @@ export class SzegedyWalk {
     for (let e2 = 0; e2 < total; e2++) {
       const x = this.edgeX[e2] as number;
       const y = this.edgeY[e2] as number;
-      if (!this.edgeIdx.has(y * this.chain.n + x)) throw new Error("chain support must be symmetric");
+      if (!this.edgeIdx.has(y * this.chain.n + x)) reject("WALK_ASYMMETRIC_SUPPORT", "chain support must be symmetric");
       this.flipEdge[e2] = this.marked.has(x) || this.marked.has(y) ? 1 : 0;
     }
   }
@@ -205,6 +249,11 @@ export class SzegedyWalk {
 
   /** Initial state phi_mu for a start distribution mu over vertices. */
   initialState(mu: Float64Array): { re: Float64Array; im: Float64Array } {
+    // v0.3.0: a wrong-length mu used to build sqrt(undefined) = NaN amplitudes
+    // silently — the unitarity monitor would then report NaN, not a defect.
+    if (mu.length !== this.chain.n) {
+      reject("WALK_MU_SHAPE", `start distribution mu must have length n=${this.chain.n} (got ${mu.length})`);
+    }
     const re = new Float64Array(this.edgeX.length);
     const im = new Float64Array(this.edgeX.length);
     for (let e = 0; e < this.edgeX.length; e++) {

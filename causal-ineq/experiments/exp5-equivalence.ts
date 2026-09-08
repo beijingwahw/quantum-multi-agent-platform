@@ -16,9 +16,8 @@ import { wStar } from "../src/process/construct.js";
 import { runProtocol } from "../src/game/quantum.js";
 import { ocbStrategy, strategyBranchTables, strategyPayoff } from "../src/game/strategy.js";
 import { branchTableDeviation, equivalenceReport, equivalenceVerdict, ocb12ClosedFormTables, wLC25, wOCB12, wOCB12TamperedCoeff, wOCB12TamperedPauli } from "../src/process/ocb12.js";
+import { COS2_PI_8 } from "../src/game/quantum.js";
 import { table, writeReport } from "./report.js";
-
-const COS2PI8 = Math.cos(Math.PI / 8) ** 2;
 
 function run(): void {
   const failures: string[] = [];
@@ -28,7 +27,7 @@ function run(): void {
 
   // payoff of the transcription under T3 machinery == cos^2(pi/8)
   const p = runProtocol(wOCB12());
-  if (Math.abs(p.pSuccess - COS2PI8) > 1e-12) failures.push(`runProtocol(wOCB12) = ${p.pSuccess} != cos²(π/8)`);
+  if (Math.abs(p.pSuccess - COS2_PI_8) > 1e-12) failures.push(`runProtocol(wOCB12) = ${p.pSuccess} != cos²(π/8)`);
 
   // branch tables: executed vs eq. (26), printed for the audit trail
   const wStarMat = wStar(Math.SQRT1_2);
@@ -60,7 +59,7 @@ function run(): void {
   ]) {
     const v = checkValidity(c.w);
     const dev = cmatMaxAbsDiff(c.w, wStarMat);
-    const payoffDev = Math.abs(strategyPayoff(c.w, ocbStrategy()).pSuccess - COS2PI8);
+    const payoffDev = Math.abs(strategyPayoff(c.w, ocbStrategy()).pSuccess - COS2_PI_8);
     const tblDev = branchTableDeviation(strategyBranchTables(c.w, ocbStrategy()), closed);
     const caught = dev > 1e-12 && tblDev > 1e-12;
     tamperRows.push([c.name, v.valid ? "VALID" : "INVALID", dev.toExponential(2), payoffDev.toExponential(2), tblDev.toExponential(2), caught ? "REJECTED by comparison" : "NOT CAUGHT"]);

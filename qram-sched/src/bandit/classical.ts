@@ -10,19 +10,32 @@
  *   Freund-Schapire, SICOMP 2002): the Ω(sqrt(kT)) information-theoretic wall.
  */
 import { Rng } from "../core/rng.js";
+import { reject } from "../core/errors.js";
+
+/** Shared entry contract for the Bernoulli-stream schedulers (v0.3.0):
+ *  at least one arm, means in [0,1], non-negative integer horizons. These used
+ *  to degrade silently (best = -Infinity, NaN regret) on malformed banks. */
+function checkBanditBank(means: readonly number[], horizon: number): void {
+  if (means.length < 1) reject("BANDIT_NO_ARMS", "at least one arm is required");
+  for (const m of means) {
+    if (!(m >= 0 && m <= 1)) reject("BANDIT_MEANS_RANGE", "Bernoulli means must live in [0,1]");
+  }
+  if (!Number.isInteger(horizon) || horizon < 0) reject("BANDIT_ARG_RANGE", "horizon must be an integer >= 0");
+}
 
 export interface BanditRun {
   /** Cumulative regret vs the best arm in hindsight (means known to the referee, not the algorithm). */
-  regret: number;
+  readonly regret: number;
   /** Total live plays (each consumes a task; classical exploration burns these). */
-  plays: number;
+  readonly plays: number;
   /** Inner-loop oracle reads of the score table (the compute ledger). */
-  oracleReads: number;
-  decisions: Uint8Array;
+  readonly oracleReads: number;
+  readonly decisions: Uint8Array;
 }
 
 /** UCB1 on k Bernoulli arms with true means, horizon T. */
 export function ucb1Run(means: readonly number[], horizon: number, seed: number): BanditRun {
+  checkBanditBank(means, horizon);
   const k = means.length;
   const rng = new Rng(seed);
   const best = Math.max(...means);
@@ -73,6 +86,10 @@ export function etcRun(
   seed: number,
   mode: "live" | "replay" = "live",
 ): BanditRun {
+  checkBanditBank(means, horizon);
+  if (!Number.isInteger(samplesPerArm) || samplesPerArm < 0) {
+    reject("BANDIT_ARG_RANGE", "samplesPerArm must be an integer >= 0");
+  }
   const k = means.length;
   const rng = new Rng(seed);
   const best = Math.max(...means);
@@ -122,6 +139,9 @@ export function adversarialRun(
   gamma: number,
   search: <T>(scores: readonly T[], less: (x: T, y: T) => boolean) => { best: number; reads: number },
 ): BanditRun {
+  if (!Number.isInteger(k) || k < 1) reject("BANDIT_NO_ARMS", "at least one arm is required");
+  if (!Number.isInteger(horizon) || horizon < 0) reject("BANDIT_ARG_RANGE", "horizon must be an integer >= 0");
+  if (!(gamma >= 0 && gamma < 1)) reject("BANDIT_ARG_RANGE", "Exp3 mixing gamma in [0,1)");
   const rng = new Rng(seed);
   const rewards = new Uint8Array(k * horizon); // oblivious adversary, fixed stream
   for (let i = 0; i < rewards.length; i++) rewards[i] = rng.bernoulli(0.5) ? 1 : 0;

@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 82
-- errors: 565
+- batches: 83
+- errors: 586
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 10 | 155 |
+| burial-record | 11 | 176 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,14 +43,14 @@
 
 | category | errors |
 | --- | --- |
-| process | 187 |
-| toolchain | 95 |
-| wrong-object | 75 |
+| process | 196 |
+| toolchain | 99 |
+| wrong-object | 78 |
 | statistics | 47 |
 | machine-overruled | 46 |
-| dimension-slot | 34 |
+| dimension-slot | 38 |
 | conjugation | 29 |
-| citation-drift | 23 |
+| citation-drift | 24 |
 | anchor-blindspot | 17 |
 | bogus-comparison | 12 |
 
@@ -1257,7 +1257,7 @@
 | a new test's first expected value was computed wrong by hand — the midpoint of a grid whose lambda starts at 0 is 0, not 0.5; the suite convicted the anchor on the first run | the anchor is recomputed from the grid's own boundary definition before the assertion is written — fix the anchor, not the machine (the b13#7 law's face) | machine-overruled |
 | the orphan-reachability test's first draft typed readdirSync's recursive listing as if every entry were a string — the Buffer union produced TS2339/TS2345 at the typecheck gate | the union is narrowed with an explicit string guard before use — the gate convicted the draft and the fix rode the same edit | toolchain |
 | [latent from v0.5.0] PL20's panel and render claimed an integer-vs-float C_j cross-check of 8.88e-13 while staircaseFloatCrossCheck was a dead export with ZERO call sites — the number was hand-copied out of band, no gate ever witnessed it (the claim turned out true, but truth without a witness is not a verdict) | the cross-check is now WIRED: the staircase float sum feeds the W-K bound < 1e-12 with a new anchor asserting the error is real (> 0) and under the bound — the machine value 8.882e-13 matches the claimed digits, and the claim is witnessed on every run | process |
-| one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#2, b81#3 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict | the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code (clean, exit 0) — a display pipe is still a masking pipe; the gate's code is read from the command itself, output trimmed on a separate read | toolchain |
+| one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict | the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code (clean, exit 0) — a display pipe is still a masking pipe; the gate's code is read from the command itself, output trimmed on a separate read | toolchain |
 | errors.test.ts's first draft called a helper with the wrong arity (TS2554) and expected the WRONG code on the ghost-endpoint trial — POLICY fires before the endpoint verdict the test named; typecheck refused the draft and the run convicted the expectation | the trial's ammunition is read from the checker's own firing order before the expectation is written — the corrected test asserts the code that actually fires (the b80#4 ammunition law, recurring) | machine-overruled |
 | errors.test.ts's first draft carried dead scaffolding — an unused variable plus a prototype-reflection construction reaching around the public constructor; the rewrite removed both whole | drafts do not reach the machine dirty — the construction was replaced, not patched around (the b55#2 law); the unused-symbol face dies at the repo's typecheck anyway | process |
 | the package.json version edit was issued before the file had been Read — the Edit tool refused it (the read-state tracker, not a shell view, decides what may be edited); the second attempt after a real Read landed cleanly | the refusal is the guard: Read before Edit is a fixed step, and a rejected edit left nothing behind (the b48#2/b53#0 class, recurring) | process |
@@ -1277,15 +1277,44 @@
 | [wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides); the second attempt after a real Read landed cleanly — the b53#0 lesson re-offended one batch after b82#6 booked it | the refusal is the guard and nothing damaged landed: Read before Edit is a fixed step regardless of how recently the file was displayed by other means | process |
 | [wiring agent, this batch] the first census suite run went RED on two companion-edit faces: W-D convicted the unregistered phase-law/rng.ts drift (predictable from the delivery report's dead-export purge) and S1/S2 convicted the stale on-disk artifact — the K-board registration and the repro re-render belonged in the same breath as the enrollment edits, not after the gate had named them | a wave that touches a family member's bytes ships its REGISTERED_DIVERGENCES row and its re-rendered artifact in the same act as the board edits; both closed immediately and the suite re-ran green — the gate convicted an incomplete state, which is the gate doing its job on an act that should not have been sent half-done | process |
 
+### Batch 83 — burial-record (2026-09-08)
+
+- context: the quality wave's SECOND batch wiring (k-switch 0.2.0->0.3.0, causal-ineq 0.2.0->0.3.0, nosignal-tariff 0.2.0->0.3.0, qram-sched 0.2.0->0.3.0 — four gates green in each; the absorption law's first execution, its b branch folded in and its c-class pricing enrolled): twenty-one delivery errors across five classes, born enrolled and born audited on both boards — EIGHT latent-defect convictions (qram's six silent-garbage-value paths: Rng.pick([]) forging undefined as T, linearFindBest([]) forging index 0, the wrong-length mu's silent NaN amplitudes, the out-of-range neighbor's silently dropped typed-array write, the dimension-mismatched linalg NaN solutions, the OBM swallowed out-of-bounds read with undefined forged as a number; causal-ineq's silent NaN-grid family and theory.md's stale duplicate boundaries section) and FOUR wiring-visit rows (the exit-code-masking family's fifteenth sighting ONE ROW after the fourteenth, a latent citation slip in b82#3's own family list, a latent README batch-count drift, and the Edit-before-Read refusal firing on the wiring agent's own second package.json of the visit), with the same-wave version-pin re-verification returning clean
+- source: `memory/2026-09-08.md` @ "关键经验（第八十三批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the first exp1 edit mangled the experiments file's import block — a void slipped into the import lines; caught on the immediate reread and fixed in the same breath | the reread after every structural edit is the factory check — the mangled block would have died at typecheck, the reread closed it before any run (the b55 residue class) | process |
+| the SECOND edit into the same file deleted the entire import block — the replacement scope swallowed what it was splicing into; restored from the reread in the same minute | an edit's replacement scope is checked against the file's own declaration list before it is issued — two residue convictions in one delivery is the reread made constant, not a new rule | process |
+| the T8 draft asserted shortestSupersequence(4).minLength === 4 — four letters cannot contain four mutually distinct orders; the honest contract is null (the search runs and finds nothing). Recomputed and corrected BEFORE the first run | the anchor is recomputed from the object's own combinatorics before the assertion is written — the shipped trial pins the corrected contract live: below-quartet limits are NAMED and rejected (SUPERSEQUENCE-LIMIT-BELOW-QUARTET) and shortestSupersequence(4) === null on every suite run (fix the anchor, not the machine — the b13#7 law's face, pre-caught) | process |
+| the single-sourcing edit left a const COS2PI8 alias standing at two call sites beside the new quantum.ts source — residue of the very dedup the edit was making; found on the reread and removed | a single-sourcing edit greps its own old name before it lands done — the constant now has exactly one spelling in the tree; the residue class's smallest face, caught by the same factory check | process |
+| the new rejection tests were written used-first, import-later — symbols referenced before the import block named them, a guaranteed typecheck red had the gate run mid-edit; fixed in the same minute | imports land with the code that uses them in the same edit — the landing face is a TS2552/TS2305 death at the repo's typecheck the moment it ships, and the gate never had to say it | process |
+| debug-eig.ts was deleted with rm — the house red line prefers trash (recoverable beats gone forever), but trash is not installed in this Git Bash; executed only after the zero-reference grep verified the file had no importers (the deletion-channel note, founding entry — no in-registry family to count, grepped before enrolling) | deletions ride the recoverable channel when the environment has one; when it does not, the pre-deletion zero-reference grep is the guard that makes rm honest — the placement/deletion-channel discipline note | toolchain |
+| [conviction of a shipped defect, v0.2.0] the cmat kernels answered dimension mismatch and malformed grids with a silently corrupted NaN grid — cmatAdd/cmatTraceProd/cmatMaxAbsDiff on mismatched dims, cmatTrace/cmatScale on ragged re/im grids, no signal at all (instrumentTP and vectorToParams the same class) | the requireWellFormed/requireSameDim guards name the precondition at every public kernel and the NamedError codes (cmat/dim-mismatch, cmat/malformed-grid, cmat/dim-not-even) anchor the conviction: the rejection block asserts each by name on every suite run — the NaN grid is dead | dimension-slot |
+| [conviction of shipped prose, v0.2.0] theory.md carried TWO Honest boundaries sections — the second contradicted the v0.2.0 machine verdicts the report had since rendered, stale prose outliving its own data; deleted in the F face | a doc's boundaries section is a copy of the machine's verdicts — theory.md now carries exactly one Honest boundaries section whose claims are the rendered report's own; the surviving section is needle-pinned and the census's E3 live-checks it on every run | process |
+| the RNG freeze-anchor probe was attempted twice as tsx -e with a relative import under Git Bash — silent both times (the b14#4/b38#1/b46#1 line; the family's next sighting by its own count, the last recorded ordinal the seventh at b49#0) | the in-repo Write-tool probe file plus run-and-delete — the scratch-file rule executed on the third attempt; the -e route stays banned for anything that imports .ts because its failure mode is silent | toolchain |
+| the first gate authentication piped the npm test output through tail — the exit-code-masking family's fourteenth sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#1, b81#2, b82#3 the thirteen in-registry before it), an attempted one: caught in self-review, killed on sight, and re-run with NO pipe for the true exit code (0) | a display pipe is still a masking pipe — the gate's code is read from the command itself, output trimmed on a separate read; the attempt took no verdict from the pipe | toolchain |
+| the new tests' first draft needed two self-caught corrections — assert.throws cannot catch a rejected Promise (the async trial needed rejects), and a dead-export probe was left as a floating Promise; both fixed on the draft's own reread before the suite ran | async trials assert on rejects(), and every probe's Promise is awaited (an unhandled rejection can ride a green run) — the pre-machine reread is the factory check for both faces | process |
+| [conviction of a shipped defect, v0.2.0] Rng.pick([]) returned undefined cast to T — a forged witness value from an empty domain, consumed downstream as a real draw | RNG_EMPTY_PICK names the empty domain at entry and the smuggling trial fires it on every suite run — the forged value is dead at the reject | wrong-object |
+| [conviction of a shipped defect, v0.2.0] linearFindBest([]) answered an empty scores array with a forged index 0 — a confident lie where no best exists | GROVER_EMPTY_SCORES refuses the empty array by name; the trial holds it on every run | wrong-object |
+| [conviction of a shipped defect, v0.2.0] SzegedyWalk.initialState accepted a wrong-length mu and built silent NaN amplitudes — the unitarity monitor downstream would have certified garbage | WALK_MU_SHAPE names the shape precondition at entry and the trial fires on every suite run — the unitarity monitor never sees the lie because the lie never gets built | dimension-slot |
+| [conviction of a shipped defect, v0.2.0] chainFromGraph accepted an out-of-range neighbor and the Float64Array out-of-bounds WRITE was silently dropped — the chain's row never knew | WALK_NEIGHBOR_RANGE rejects the out-of-range neighbor by name on every suite run — the typed array no longer eats the write | dimension-slot |
+| [conviction of a shipped defect, v0.2.0] luSolve/hittingTime/jacobiEigenvalues answered dimension mismatch with silent NaN solutions — linear algebra that never disagrees, never alarms | LINALG_SHAPE names every wrong-shape entry (solve, eigenvalues, hitting time, target range) and the trials fire on every suite run | dimension-slot |
+| [conviction of a shipped defect, v0.2.0] the OBM matchers swallowed an out-of-bounds neighbor (the Uint8Array out-of-bounds READ) and forged undefined as a number on a short rank vector | OBM_INSTANCE_SHAPE and OBM_RANK_SHAPE name both faces at entry — instance shape and rank shape — and the trials fire on every suite run | wrong-object |
+| [wiring agent, this batch] the wiring visit's first census suite run was piped (npm test 2>&1 | tail -40; echo EXIT) — the exit-code-masking family's fifteenth sighting, ONE ROW after the fourteenth, attempted by the agent that had come to enforce the rule: tail printed the two failures while EXIT echoed tail's own 0 | re-issued with no pipe for the DIRECT code (1 — the expected pre-wiring red) in the next breath; the rule is a pre-flight checklist item, not knowledge — the family's own registrar is not immune, and the two failures the pipe did show were real output, the masked verdict was not | toolchain |
+| [latent registry defect, convicted at wiring] batch 82's exit-code-masking citation list named b81#2 and b81#3 as the eleventh and twelfth sightings where the registry's own rows are b81#1 and b81#2 — b81#3 is the lockfile-intent row, no pipe in it; caught by grepping the family's count BEFORE enrolling this batch's own sighting | the citation corrected in place (b81#1, b81#2 — the eleventh and twelfth); family counts and keys are grepped from the registry's own text, never recalled — the discipline this row executes is the one that caught it | citation-drift |
+| [latent doc defect, convicted at wiring] the README's headline still read 81 batches / 543 errors where the registry carried 82/565 before this batch — the wave-1 wiring's registry edit never re-synced the README face; caught reading the repo before touching it | the headline corrected to the live count (83 batches / 586 errors with this batch) in the same edit — B7/B8 hold contexts and headings, E7 holds the census's description, and the README is none of these: the count is re-derived from the registry at every wiring visit (the b79#6 doc-face line) | process |
+| [wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides), the refusal firing on the wiring agent's own second package.json of the visit hours after the burial package.json's Read-first edit had landed cleanly; nothing damaged landed | the refusal is the guard: Read before Edit is a fixed step PER FILE, regardless of how recently that file or any other was displayed by other means — the second attempt after a real Read landed cleanly (the b48#2/b53#0/b67#4/b82#6/b82#20 line, seventh sighting of the class, third by a wiring agent) | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..82 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (565 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 565 = repo sum 565)
-- PASS — W-4 declared totals 82 batches / 565 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (61 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (57 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..83 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (586 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 586 = repo sum 586)
+- PASS — W-4 declared totals 83 batches / 586 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (63 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (58 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 565 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 586 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

@@ -22,17 +22,23 @@ test("G5: the pre-flight card covers every family sighted in the last ten batche
 
 test("G5 bites: a card that omits a recent family is convicted by name", async () => {
   const registry = await loadLiveRegistry();
-  const cards = [buildRiskCard("burial-record", registry.errors)]; // every other repo's card missing
+  // the fixture follows the DATA: the repo that owns the LATEST batch can
+  // never age out of the ten-batch window, and burial-record owns it every
+  // wiring batch (the b50#4 lesson's shape — the dtc-clock fixture this
+  // replaced aged out at batch 83, its last sighting b73 falling below the
+  // moved horizon with nothing in-window left to omit)
+  const latestBatch = Math.max(...registry.errors.map((e) => e.batch));
+  const fixtureRepo = registry.errors.find((e) => e.batch === latestBatch)!.repo;
+  const cards = [buildRiskCard(fixtureRepo, registry.errors)]; // every other repo's card missing
   const problems = checkPreflightCoverage(cards, registry.errors, registry.batchCount);
   assert.ok(problems.some((p) => /no card at all/.test(p)), problems.join("; "));
   // and a card with a hole: strip the card's FIRST family — the most-recently
   // sighted, so the fixture follows the live data instead of hardcoding a
-  // family that ages out of the ten-batch window (the b50#4 lesson's shape)
-  const dtc = buildRiskCard("dtc-clock", registry.errors);
-  const victim = dtc.rows[0]!.family;
-  const holed = { repo: "dtc-clock", rows: dtc.rows.filter((r) => r.family !== victim) };
-  const all = [holed, ...cards.filter((c) => c.repo !== "dtc-clock")];
-  const holes = checkPreflightCoverage(all, registry.errors, registry.batchCount);
+  // family (or a repo) that ages out of the ten-batch window
+  const wired = buildRiskCard(fixtureRepo, registry.errors);
+  const victim = wired.rows[0]!.family;
+  const holed = { repo: fixtureRepo, rows: wired.rows.filter((r) => r.family !== victim) };
+  const holes = checkPreflightCoverage([holed], registry.errors, registry.batchCount);
   assert.ok(holes.some((p) => new RegExp(`omits[^;]*${victim}`).test(p)), holes.join("; "));
 });
 

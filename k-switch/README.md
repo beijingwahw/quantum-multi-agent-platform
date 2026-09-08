@@ -63,9 +63,25 @@ d = 4; k = 4 at d = 4 — four pairwise-anticommuting unitaries need d = 4).
 
 ```
 npm install
-npm test        # 29/29
+npm test        # 35/35
 npm run repro   # 5 reports in out/reports/
 ```
+
+## v0.3.0 — the quality wave (math frozen, results bit-identical)
+
+No new mathematics and no changed number: every report re-renders
+byte-identical. Type hardening (the `as never` test casts and the one
+`as unknown as` are gone; the census entry `kind` union no longer carries
+the never-emitted `"mixed"`), a named error surface
+(`src/kswitch/errors.ts` — every public throw carries a code; out-of-range
+gate indices and sub-quartet supersequence limits are named and rejected,
+with smuggling-trial tests), single-sourcing (sched3/sched4 and exp1 now
+import the shared `cmatMul`/`cmatDagger`/experiment kernels instead of
+carrying byte-identical private copies; the |+⟩⟨+| scheduling input is one
+exported `plusPlus()`), and dead-code settlement (the zero-reference
+collateral surplus in `cmat.ts`, three unused `Rng` methods, and
+`randomQubit` are deleted; the census-registered cmat lineage file itself
+stays).
 
 ## Honest boundaries
 

@@ -4,11 +4,9 @@
  * W*(1/√2) at exactly cos²(π/8); the noise threshold at exactly η = 1/√2;
  * measurement-angle grid confirming the z-basis optimum within the rotated family.
  */
-import { runProtocol, bobAngleBranch } from "../src/game/quantum.js";
+import { runProtocol, bobAngleBranch, COS2_PI_8 } from "../src/game/quantum.js";
 import { wChannelAB, wChannelBA, wMixed, wNoisy, wStar } from "../src/process/construct.js";
 import { table, writeReport } from "./report.js";
-
-const COS2PI8 = (Math.cos(Math.PI / 8) ** 2);
 
 function run(): void {
   const failures: string[] = [];
@@ -19,7 +17,7 @@ function run(): void {
     { name: "mixed (1/4)·1", w: wMixed(), expect: 0.5, tol: 1e-12 },
     { name: "channel A≺B", w: wChannelAB(), expect: 0.75, tol: 1e-12 },
     { name: "channel B≺A", w: wChannelBA(), expect: 0.5, tol: 1e-12 },
-    { name: "W*(1/√2)", w: wStar(Math.SQRT1_2), expect: COS2PI8, tol: 1e-12 },
+    { name: "W*(1/√2)", w: wStar(Math.SQRT1_2), expect: COS2_PI_8, tol: 1e-12 },
   ];
   for (const a of anchors) {
     const p = runProtocol(a.w);
@@ -33,7 +31,7 @@ function run(): void {
   const noiseRows: string[][] = [];
   for (const eta of [0, 0.25, 0.5, Math.SQRT1_2, 0.8, 1]) {
     const p = runProtocol(wNoisy(eta));
-    const linear = 0.5 + eta * (COS2PI8 - 0.5);
+    const linear = 0.5 + eta * (COS2_PI_8 - 0.5);
     noiseRows.push([eta.toFixed(6), p.pSuccess.toFixed(12), linear.toFixed(12), (p.pSuccess - 0.75 >= -1e-12 ? "≥" : "<") + " 3/4"]);
     if (Math.abs(p.pSuccess - linear) > 1e-12) failures.push(`noise eta=${eta}: nonlinear (${p.pSuccess} vs ${linear})`);
   }
@@ -54,7 +52,7 @@ function run(): void {
     angles.push([theta.toFixed(6), p.toFixed(12), closed.toFixed(12)]);
     if (Math.abs(p - closed) > 1e-12) failures.push(`angle ${theta}: ${p} != closed form ${closed}`);
   }
-  if (best.theta > 1e-9 || Math.abs(best.p - COS2PI8) > 1e-12) {
+  if (best.theta > 1e-9 || Math.abs(best.p - COS2_PI_8) > 1e-12) {
     failures.push(`angle grid: optimum at theta=${best.theta} (expected 0), p=${best.p}`);
   }
 
@@ -63,8 +61,8 @@ function run(): void {
     `The OCB protocol on the process Born rule P = Tr[W (M^A ⊗ M^B)], exact complex arithmetic:\n\n` +
     table(["process", "P(x=b) (b'=0)", "P(y=a) (b'=1)", "p_success", "anchor"], rows) +
     `\n\n**Anchors**: the causal channel A≺B delivers EXACTLY the classical cap 3/4 (Bob reads a off the ` +
-    `identity channel, Alice stays blind); W*(1/√2) delivers exactly cos²(π/8) = ${COS2PI8.toFixed(12)} — ` +
-    `both branches at ½(1+1/√2). The gap over 3/4 is ${(COS2PI8 - 0.75).toFixed(6)}.\n\n` +
+    `identity channel, Alice stays blind); W*(1/√2) delivers exactly cos²(π/8) = ${COS2_PI_8.toFixed(12)} — ` +
+    `both branches at ½(1+1/√2). The gap over 3/4 is ${(COS2_PI_8 - 0.75).toFixed(6)}.\n\n` +
     `## Noise sweep (white-noise blend, linear in η by the Born rule)\n\n` +
     table(["η", "p_success (executed)", "linear law", "vs 3/4"], noiseRows) +
     `\n\n**Threshold exactly η* = 1/√2**: at η = 0.707107 the success crosses the causal bound — ` +
@@ -76,7 +74,7 @@ function run(): void {
 
   if (failures.length > 0) throw new Error(`exp3 failures:\n${failures.map((f) => `- ${f}`).join("\n")}`);
   const file = writeReport("exp3-quantum.md", body);
-  console.log(`exp3 done -> ${file} — W* p_success = ${COS2PI8.toFixed(12)}`);
+  console.log(`exp3 done -> ${file} — W* p_success = ${COS2_PI_8.toFixed(12)}`);
 }
 
 run();

@@ -20,7 +20,7 @@
  *
  * Referee: exact maximum matching via Kuhn's augmenting-path algorithm.
  */
-import { Rng } from "../core/rng.js";
+import type { Rng } from "../core/rng.js";
 export interface ObmInstance {
     /** Offline workers 0..n-1. */
     readonly n: number;
@@ -30,10 +30,10 @@ export interface ObmInstance {
 /** Exact maximum matching size of the final graph (Kuhn's algorithm). */
 export declare function kuhnMaxMatching(inst: ObmInstance): number;
 export interface MatchResult {
-    size: number;
-    reads: number;
+    readonly size: number;
+    readonly reads: number;
     /** For the quantum variant: number of arrivals where the search disagreed with the exact rule. */
-    disagreements: number;
+    readonly disagreements: number;
 }
 /** The cascade adversary: arrivals in pairs (v ~ {u_1, u_2}; w ~ {u_1}); greedy with
  *  lowest-index ties matches exactly half; uniform ties do better; ranking 3/4. */
@@ -56,13 +56,3 @@ export declare function rankingMatch(inst: ObmInstance, rng: Rng, mode: "linear"
  * exact enumerators (kv-tight) can drive the same decision rule.
  */
 export declare function rankingMatchWithRank(inst: ObmInstance, rank: readonly number[], mode: "linear" | "grover", rng: Rng): MatchResult;
-/** Expected reads for one arrival under each mode (for the ledger table). */
-export declare function arrivalReadProfile(n: number): {
-    linear: number;
-};
-/** Convenience: run a bank of instances and aggregate mean competitive ratios. */
-export declare function ratioBank(makeInstance: (seed: number) => ObmInstance, seeds: number[], algo: (inst: ObmInstance, rng: Rng) => MatchResult): {
-    meanRatio: number;
-    minRatio: number;
-    meanReads: number;
-};

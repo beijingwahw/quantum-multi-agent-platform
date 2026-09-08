@@ -23,7 +23,7 @@ The letter's clause — "no-signaling 关税逐条记着" — was priced inside 
 | N4 | exactness tag is EXACT or DATA |
 | N5 | ids unique |
 
-The renderer refuses to print an illegal schedule; the tests include eight smuggling trials (unpriced item, marketing zero, dead anchor, illegal tag, duplicate id — v0.1.0's five; plus v0.2.0's counterfeit monotonicity certificate on an anchor-preserving non-monotone perturbation, a fake inflection table that passes the monotonicity gate but is named by the convexity gate, and a counterfeit "twin path" shifted 1e-18 — beyond float sight, not exact sight), each named and rejected.
+The renderer refuses to print an illegal schedule; the tests include eight smuggling trials (unpriced item, marketing zero, dead anchor, illegal tag, duplicate id — v0.1.0's five; plus v0.2.0's counterfeit monotonicity certificate on an anchor-preserving non-monotone perturbation, a fake inflection table that passes the monotonicity gate but is named by the convexity gate, and a counterfeit "twin path" shifted 1e-18 — beyond float sight, not exact sight), each named and rejected. Since v0.3.0 every kernel refusal carries a named error code (`RefusalError`, message text frozen), the seeded RNG stream is anchored bit-for-bit against frozen constants, and the source carries no unwitnessed dead exports — the core imports only what a witness or the renderer consumes.
 
 ## Honest boundary
 
@@ -35,6 +35,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 21/21 — checker, eight witnesses, correlator machinery, interior theorem, smuggling trials, entry guard
+npm test        # 27/27 — checker, eight witnesses, correlator machinery, interior theorem, smuggling trials, coded refusals, entry guard
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

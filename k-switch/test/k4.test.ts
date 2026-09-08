@@ -22,6 +22,7 @@ import {
 import { commutatorDev, randomState } from "../src/kswitch/promise.js";
 import { Rng } from "../src/kswitch/rng.js";
 import { chainDistinguishability4 } from "../src/kswitch/sched4.js";
+import { plusPlus } from "../src/kswitch/sched3.js";
 import {
   algorithm1,
   distinguishabilityMatrix,
@@ -195,8 +196,8 @@ describe("T5 the TCA+21 Hadamard face at d=2", () => {
 
 describe("T6 the k=4 scheduling contact surface", () => {
   it("all 24 fixed orders D = 1/sqrt(2) (survives); switch D = sqrt(10)/6 != 1/2 (halving breaks)", () => {
-    const input = { dim: 2, re: [[0.5, 0.5], [0.5, 0.5]], im: [[0, 0], [0, 0]] } as const;
-    const r = chainDistinguishability4(input as never);
+    // the shared |+><+| input — the same single source exp5 uses
+    const r = chainDistinguishability4(plusPlus());
     for (const f of r.fixed) assert.ok(Math.abs(f.d - Math.SQRT1_2) < 1e-12, `${f.label}: ${f.d}`);
     assert.ok(Math.abs(r.switchD - Math.sqrt(10) / 6) < 1e-12, `switch D ${r.switchD}`);
     assert.ok(Math.abs(r.switchD - 0.5) > 1e-9, "halving law must NOT hold at k=4");

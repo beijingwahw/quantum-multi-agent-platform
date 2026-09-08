@@ -10,10 +10,11 @@
  * mean; the classical estimator is Monte Carlo sampling of the same stream.
  */
 import type { BucketBrigadeQram } from "./bucket.js";
+import { reject } from "../core/errors.js";
 
 export interface StreamState {
-  re: Float64Array;
-  im: Float64Array;
+  readonly re: Float64Array;
+  readonly im: Float64Array;
 }
 
 /** Prepare |0...0> on address x bus, apply H^{(n)} on the address, then query. */
@@ -38,6 +39,8 @@ export function streamMean(qram: BucketBrigadeQram): number {
 
 /** Classical Monte Carlo estimate of the stream mean: draws = number of bus samples (query count). */
 export function monteCarloMean(qram: BucketBrigadeQram, draws: number, rand: () => number): { estimate: number; queries: number } {
+  // v0.3.0: draws = 0 used to return estimate NaN (0/0); named rejection.
+  if (!Number.isInteger(draws) || draws < 1) reject("STREAM_DRAWS", "draws >= 1 bus samples");
   let hits = 0;
   for (let i = 0; i < draws; i++) {
     const a = Math.floor(rand() * qram.numCells);

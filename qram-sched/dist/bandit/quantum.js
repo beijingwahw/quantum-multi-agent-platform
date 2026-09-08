@@ -22,6 +22,7 @@
  * the quadratic query law inside the replay model.
  */
 import { Rng } from "../core/rng.js";
+import { reject } from "../core/errors.js";
 import { qaeDistribution, qaeEstimate, qaeQueries } from "../ae/ampest.js";
 /** Draw one amplitude-estimation outcome for true amplitude p with m phase qubits, from the exact distribution. */
 export function sampleQae(p, m, rng) {
@@ -42,6 +43,20 @@ export function sampleQae(p, m, rng) {
  * O(1/Delta), loose enough to keep the wrong-commit rate near zero.
  */
 export function quantumReplayRun(means, horizon, seed, mStart = 3, mMax = 13, mStep = 1) {
+    // v0.3.0 entry contract: the same bank shape the classical schedulers check.
+    // A single arm (k = 1) stays LEGAL: gap is NaN there, never commits early,
+    // and the run ends committed to the only arm with regret 0 (anchored in tests).
+    if (means.length < 1)
+        reject("BANDIT_NO_ARMS", "at least one arm is required");
+    for (const m of means) {
+        if (!(m >= 0 && m <= 1))
+            reject("BANDIT_MEANS_RANGE", "Bernoulli means must live in [0,1]");
+    }
+    if (!Number.isInteger(horizon) || horizon < 0)
+        reject("BANDIT_ARG_RANGE", "horizon must be an integer >= 0");
+    if (!Number.isInteger(mStart) || mStart < 1 || !Number.isInteger(mStep) || mStep < 1 || !Number.isInteger(mMax) || mMax < mStart) {
+        reject("BANDIT_ARG_RANGE", "phase-register schedule: mStart >= 1, mStep >= 1, mMax >= mStart");
+    }
     const k = means.length;
     const rng = new Rng(seed);
     const best = Math.max(...means);
@@ -69,6 +84,14 @@ export function quantumReplayRun(means, horizon, seed, mStart = 3, mMax = 13, mS
  * the replay model.
  */
 export function classicalReplayQueries(delta, k, failureProb) {
+    // v0.3.0: delta <= 0, k < 1 or failureProb outside (0,1) used to return
+    // Infinity/NaN/absurd sample counts silently.
+    if (!(delta > 0))
+        reject("BANDIT_ARG_RANGE", "arm gap delta > 0");
+    if (!Number.isInteger(k) || k < 1)
+        reject("BANDIT_ARG_RANGE", "k >= 1 arms");
+    if (!(failureProb > 0 && failureProb < 1))
+        reject("BANDIT_ARG_RANGE", "failure probability in (0,1)");
     // Separating arms with gap delta by binomial concentration:
     // N ~ ln(2k/failure) / (2 * (delta/2)^2) samples per arm (Hoeffding).
     return Math.ceil((Math.log((2 * k) / failureProb)) / (2 * (delta / 2) ** 2)) * k;

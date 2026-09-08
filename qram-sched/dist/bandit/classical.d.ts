@@ -1,11 +1,11 @@
 export interface BanditRun {
     /** Cumulative regret vs the best arm in hindsight (means known to the referee, not the algorithm). */
-    regret: number;
+    readonly regret: number;
     /** Total live plays (each consumes a task; classical exploration burns these). */
-    plays: number;
+    readonly plays: number;
     /** Inner-loop oracle reads of the score table (the compute ledger). */
-    oracleReads: number;
-    decisions: Uint8Array;
+    readonly oracleReads: number;
+    readonly decisions: Uint8Array;
 }
 /** UCB1 on k Bernoulli arms with true means, horizon T. */
 export declare function ucb1Run(means: readonly number[], horizon: number, seed: number): BanditRun;

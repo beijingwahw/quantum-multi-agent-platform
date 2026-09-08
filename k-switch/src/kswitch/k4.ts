@@ -28,6 +28,7 @@
 import { cmatKron, cmatMul, cmatZero, type CMat } from "../core/cmat.js";
 import { I2, X2, Y2, Z2, randomState, randomUnitary } from "./promise.js";
 import { Rng } from "./rng.js";
+import { KSwitchError } from "./errors.js";
 
 /** All 24 permutations of (0,1,2,3), indexed 0..23; sgn = (-1)^inv. */
 export const S4: ReadonlyArray<{ readonly seq: readonly [number, number, number, number]; readonly inv: number; readonly even: boolean }> = (() => {
@@ -228,7 +229,8 @@ export function pauliName(m: CMat): string {
 export interface QuadCensusEntry {
   readonly indices: readonly [number, number, number, number];
   readonly names: readonly string[];
-  readonly kind: "commuting" | "anticommuting" | "mixed";
+  /** "mixed" quadruples are counted in QuadCensus.mixed, never emitted as entries. */
+  readonly kind: "commuting" | "anticommuting";
   /** product Pauli of the identity order (phase-invariant name), with kind. */
   readonly productName: string;
   /** max deviation of order-products from (+1 resp. sgn(pi)) * identity-order product over all 24 orders. */
@@ -260,7 +262,7 @@ export function pauliQuadCensus(): QuadCensus {
           const boxes: Quad = [PAULIS4[indices[0]]!.mat, PAULIS4[indices[1]]!.mat, PAULIS4[indices[2]]!.mat, PAULIS4[indices[3]]!.mat];
           const pairs: ReadonlyArray<[number, number]> = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
           const signs = pairs.map(([a, b]) => pauliCommuteSign(boxes[a] as CMat, boxes[b] as CMat));
-          if (signs.includes(0)) throw new Error(`non-Pauli pair at ${indices.toString()}`);
+          if (signs.includes(0)) throw new KSwitchError("CENSUS-NON-PAULI-PAIR", `a census pair at ${indices.toString()} neither commutes nor anticommutes — the PAULIS4 table is corrupt`);
           const allC = signs.every((s) => s === 1);
           const allA = signs.every((s) => s === -1);
           const names: readonly string[] = indices.map((x) => PAULIS4[x]!.name);
@@ -335,7 +337,7 @@ export function matchedBlindPair(psi: { re: number[]; im: number[] }): MatchedPa
   const anti = anticommutingQuad();
   const pa = orderedProduct4(anti, [0, 1, 2, 3]);
   const gRef = pauliReference(pa);
-  if (gRef === null) throw new Error("anticommuting product is not a Pauli ray — cannot construct matched pair");
+  if (gRef === null) throw new KSwitchError("MATCHED-PAIR-GENERATOR-NOT-PAULI", "anticommuting product is not a Pauli ray — cannot construct matched pair");
   const comm = rotationsOf(gRef.mat);
   const pc = orderedProduct4(comm, [0, 1, 2, 3]);
   let worst = 0;
@@ -355,7 +357,8 @@ export function matchedBlindPair(psi: { re: number[]; im: number[] }): MatchedPa
   return { comm, anti, commProduct: pauliName(pc), antiProduct: pauliName(pa), maxTraceDistance: worst };
 }
 
-/** Phase-invariant Pauli reference of m: the PAULIS4 entry proportional to m, or null. */export function pauliReference(m: CMat): { readonly name: string; readonly mat: CMat } | null {
+/** Phase-invariant Pauli reference of m: the PAULIS4 entry proportional to m, or null. */
+export function pauliReference(m: CMat): { readonly name: string; readonly mat: CMat } | null {
   // a Pauli ray is q·P for a unit phase q ∈ {1, i, -1, -i} — try all four
   const phases: ReadonlyArray<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1]];
   for (const [qc, qs] of phases) {

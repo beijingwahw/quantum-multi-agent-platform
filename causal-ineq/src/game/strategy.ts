@@ -25,8 +25,8 @@
  * The payoff is still only the process Born rule: P = Tr[W (M^A ⊗ M^B)],
  * evaluated element by element — no shortcuts inside this module.
  */
-import { cmatKron, cmatPartialTraceSecond, cmatTraceProd, type CMat } from "../core/cmat.js";
-import type { GameProbabilities } from "./quantum.js";
+import { cmatKron, cmatPartialTraceSecond, cmatTraceProd, NamedError, type CMat } from "../core/cmat.js";
+import { pSuccessOf, type GameProbabilities } from "./quantum.js";
 
 export type Axis = readonly [number, number, number];
 
@@ -118,6 +118,9 @@ export function rankOneProjector(re: readonly number[], im: readonly number[]): 
  * and has genuinely entangled elements for 0 < q < 1.
  */
 export function entangledInstrumentPair(q: number, phi0re: readonly number[], phi0im: readonly number[], phi1re: readonly number[], phi1im: readonly number[]): InstrumentPair {
+  if (phi0re.length !== 2 || phi0im.length !== 2 || phi1re.length !== 2 || phi1im.length !== 2) {
+    throw new NamedError("strategy/schmidt-vector-dim", `entangledInstrumentPair: Schmidt vectors must be C^2 (got lengths ${phi0re.length}/${phi0im.length}/${phi1re.length}/${phi1im.length})`);
+  }
   const s0 = Math.sqrt(q);
   const s1 = Math.sqrt(1 - q);
   const psi0re = [s0 * (phi0re[0] as number), s0 * (phi0re[1] as number), s1 * (phi1re[0] as number), s1 * (phi1re[1] as number)];
@@ -156,7 +159,7 @@ export function strategyPayoff(w: CMat, builder: InstrumentBuilder): GameProbabi
   }
   const pAliceGuesses = pAliceSum / 4;
   const pBobGuesses = pBobSum / 4;
-  return { pAliceGuesses, pBobGuesses, pSuccess: 0.5 * pAliceGuesses + 0.5 * pBobGuesses };
+  return { pAliceGuesses, pBobGuesses, pSuccess: pSuccessOf(pAliceGuesses, pBobGuesses) };
 }
 
 /**
@@ -201,6 +204,9 @@ export function strategyBranchTables(w: CMat, builder: InstrumentBuilder): Branc
 }
 
 /** TP conformance deviation: || sum_x Tr_out[M_x] - 1 ||_max (the family-F_q ticket is 0). */export function instrumentTP(pair: InstrumentPair): number {
+  for (const m of pair) {
+    if (m.dim !== 4) throw new NamedError("strategy/cj-element-not-qubit", `instrumentTP: CJ element dim ${m.dim} != 4 (family F_q lives on qubit input ⊗ output)`);
+  }
   const tot = cmatPartialTraceSecond(pair[0]);
   const t1 = cmatPartialTraceSecond(pair[1]);
   let d = 0;
@@ -326,6 +332,9 @@ export function randomStrategyParams(rng: () => number): StrategyParams {
 
 const NUMS_PER_SLOT = 10; // axis(3) + sharp(1) + prep0(3) + prep1(3)
 
+/** Alice 2 slots + Bob 4 slots, 10 numbers each — the strategy-vector length every caller must supply. */
+export const STRATEGY_VECTOR_LENGTH = 60;
+
 function partyToVector(p: PartyParams): number[] {
   const out: number[] = [];
   for (let k = 0; k < p.axis.length; k++) {
@@ -334,7 +343,7 @@ function partyToVector(p: PartyParams): number[] {
   return out;
 }
 
-/** Flatten a strategy to 60 numbers (Alice 2 slots + Bob 4 slots, 10 each). */
+/** Flatten a strategy to STRATEGY_VECTOR_LENGTH numbers (Alice 2 slots + Bob 4 slots, 10 each). */
 export function paramsToVector(params: StrategyParams): number[] {
   return [...partyToVector(params.alice), ...partyToVector(params.bob)];
 }
@@ -345,6 +354,9 @@ export function paramsToVector(params: StrategyParams): number[] {
  * the Bloch ball. Every rebuilt point is a legal instrument family member.
  */
 export function vectorToParams(v: readonly number[]): StrategyParams {
+  if (v.length !== STRATEGY_VECTOR_LENGTH) {
+    throw new NamedError("strategy/vector-length", `vectorToParams: vector length ${v.length} != ${STRATEGY_VECTOR_LENGTH} (Alice 2 slots + Bob 4 slots, 10 numbers each)`);
+  }
   const buildParty = (offset: number, slots: number): PartyParams => {
     const axis: Axis[] = [];
     const sharp: number[] = [];

@@ -16,9 +16,8 @@ import { boundReport, closedFormProductPayoff, decompositionIdentity, lemmaViola
 import { checkValidity } from "../src/process/validity.js";
 import { wStar } from "../src/process/construct.js";
 import { wBiased } from "../src/process/ocb12.js";
+import { COS2_PI_8 } from "../src/game/quantum.js";
 import { table, writeReport } from "./report.js";
-
-const COS2PI8 = Math.cos(Math.PI / 8) ** 2;
 
 function run(): void {
   const failures: string[] = [];
@@ -57,7 +56,7 @@ function run(): void {
   // --- the bound, executed ------------------------------------------------
   const ocb = ocbStrategy();
   const br = boundReport(coeff, ocb);
-  if (Math.abs(br.pSuccessBound - COS2PI8) > 1e-12) failures.push(`bound ${br.pSuccessBound} != cos^2(pi/8)`);
+  if (Math.abs(br.pSuccessBound - COS2_PI_8) > 1e-12) failures.push(`bound ${br.pSuccessBound} != cos^2(pi/8)`);
   if (Math.abs(br.slack) > 1e-12) failures.push(`OCB does not attain the bound (slack ${br.slack})`);
   let minSlack = Infinity;
   const rngB = mulberry32(4242);
@@ -75,12 +74,12 @@ function run(): void {
     const r = hillClimb(payoff, paramsToVector(randomStrategyParams(rngS)), rngS, 40);
     bestSweep = Math.max(bestSweep, r.value);
   }
-  if (bestSweep > COS2PI8 + 1e-9) failures.push(`sweep exceeded cos^2(pi/8): ${bestSweep}`);
+  if (bestSweep > COS2_PI_8 + 1e-9) failures.push(`sweep exceeded cos^2(pi/8): ${bestSweep}`);
   let returned = 0;
   for (let i = 0; i < 20; i++) {
     const start = ocbParamsVector().map((x) => x + 0.15 * (2 * rngS() - 1));
     const r = hillClimb(payoff, start, rngS, 80);
-    if (COS2PI8 - r.value < 1e-9) returned++;
+    if (COS2_PI_8 - r.value < 1e-9) returned++;
   }
   if (returned < 18) failures.push(`perturbed-OCB return rate ${returned}/20 unexpectedly low`);
 
@@ -113,7 +112,7 @@ function run(): void {
       ["branch bound b'=0 (Alice guesses): ½(1+c2)", br.pABound.toFixed(12)],
       ["branch bound b'=1 (Bob guesses): ½(1+c1)", br.pBBound.toFixed(12)],
       ["p_success bound at c1=c2=1/√2", br.pSuccessBound.toFixed(12)],
-      ["cos²(π/8)", COS2PI8.toFixed(12)],
+      ["cos²(π/8)", COS2_PI_8.toFixed(12)],
       ["OCB protocol slack (bound − executed)", br.slack.toExponential(2)],
       ["min slack over 200 random strategies", minSlack.toFixed(6)],
     ],
@@ -131,10 +130,10 @@ function run(): void {
     boundTable +
     `\n\nP_A ≤ ½(1+c2) and P_B ≤ ½(1+c1) hold independently (every input to the chain is a PSD/TP\n` +
     `lemma — see src/game/certificate.ts header); both are ATTAINED simultaneously by the OCB\n` +
-    `z/x protocol, so within F_q on W* the supremum is exactly cos²(π/8) = ${COS2PI8.toFixed(12)}.\n\n` +
+    `z/x protocol, so within F_q on W* the supremum is exactly cos²(π/8) = ${COS2_PI_8.toFixed(12)}.\n\n` +
     `## Multistart sweep (deterministic, seed-fixed)\n\n` +
     `${STARTS} random starts + coordinate line-search (40 passes, 60 parameters each): best found\n` +
-    `${bestSweep.toFixed(12)}, i.e. ${(COS2PI8 - bestSweep).toExponential(2)} BELOW the bound — nothing exceeds it.\n` +
+    `${bestSweep.toFixed(12)}, i.e. ${(COS2_PI_8 - bestSweep).toExponential(2)} BELOW the bound — nothing exceeds it.\n` +
     `Perturbed-OCB restarts return to the optimum ${returned}/20 times; a restart that fell short would\n` +
     `land strictly below the bound — the certificate, not the search, carries the claim.\n\n` +
     `## The biased OCB functional — LC25 anchor, executed\n\n` +
@@ -152,7 +151,7 @@ function run(): void {
 
   if (failures.length > 0) throw new Error(`exp4 failures:\n${failures.map((f) => `- ${f}`).join("\n")}`);
   const file = writeReport("exp4-optimality.md", body);
-  console.log(`exp4 done -> ${file} — sup within F_q = cos²(π/8) (bound tight, sweep best ${(COS2PI8 - bestSweep).toExponential(2)} below)`);
+  console.log(`exp4 done -> ${file} — sup within F_q = cos²(π/8) (bound tight, sweep best ${(COS2_PI_8 - bestSweep).toExponential(2)} below)`);
 }
 
 run();

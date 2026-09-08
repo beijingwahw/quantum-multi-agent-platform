@@ -6,8 +6,14 @@
  *    spectral referee on discriminant matrices of reversible chains.
  * Zero dependencies; everything double precision.
  */
+import { reject } from "./errors.js";
 /** Solve A x = b for a square nonsingular A. A is consumed (factored in place); b is copied. */
 export function luSolve(n, a, b) {
+    // v0.3.0: dimension mismatch used to read out of bounds and return a silent
+    // NaN solution; it is now a named rejection.
+    if (a.length !== n * n || b.length !== n) {
+        reject("LINALG_SHAPE", `luSolve: a must be n*n and b must be n (got ${a.length}, ${b.length} for n=${n})`);
+    }
     const x = Float64Array.from(b);
     const piv = new Int32Array(n);
     for (let i = 0; i < n; i++)
@@ -24,7 +30,7 @@ export function luSolve(n, a, b) {
             }
         }
         if (bestAbs === 0)
-            throw new Error("luSolve: singular matrix");
+            reject("LINALG_SINGULAR", "luSolve: singular matrix");
         if (best !== k) {
             for (let j = 0; j < n; j++) {
                 const t = a[k * n + j];
@@ -67,6 +73,14 @@ export function luSolve(n, a, b) {
  * by startMu (mass on targets contributes 0: already absorbed).
  */
 export function hittingTime(n, p, targets, startMu) {
+    if (p.length !== n * n || startMu.length !== n) {
+        reject("LINALG_SHAPE", `hittingTime: p must be n*n and startMu must be n (got ${p.length}, ${startMu.length} for n=${n})`);
+    }
+    for (const t of targets) {
+        if (!Number.isInteger(t) || t < 0 || t >= n) {
+            reject("LINALG_SHAPE", `hittingTime: target ${t} outside states [0, n=${n})`);
+        }
+    }
     const transient = [];
     for (let i = 0; i < n; i++)
         if (!targets.has(i))
@@ -91,6 +105,9 @@ export function hittingTime(n, p, targets, startMu) {
 }
 /** Eigenvalues (ascending) of a real symmetric n x n matrix via cyclic Jacobi. Consumes a copy. */
 export function jacobiEigenvalues(n, matrixIn, sweeps = 100) {
+    if (matrixIn.length !== n * n) {
+        reject("LINALG_SHAPE", `jacobiEigenvalues: matrix must be n*n (got ${matrixIn.length} for n=${n})`);
+    }
     const a = Float64Array.from(matrixIn);
     for (let sweep = 0; sweep < sweeps; sweep++) {
         let off = 0;

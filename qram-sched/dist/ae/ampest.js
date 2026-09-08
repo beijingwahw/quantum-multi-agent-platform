@@ -17,14 +17,33 @@
  *    Carlo's Theta(1/eps^2) samples — the quadratic precision law.
  */
 import { Rng } from "../core/rng.js";
+import { reject } from "../core/errors.js";
 /** Success probability of k Grover iterates with good fraction p (2-plane closed form). */
 export function groverSuccessClosedForm(p, k) {
+    if (!(p >= 0 && p <= 1))
+        reject("AE_P_RANGE", "p in [0,1] for the Grover closed form");
+    if (!Number.isInteger(k) || k < 0)
+        reject("AE_K_RANGE", "k >= 0 Grover iterations");
     const theta = Math.asin(Math.sqrt(p));
     return Math.sin((2 * k + 1) * theta) ** 2;
 }
 /** Full-space Grover simulation over N = 2^q items, t of them marked. Referee for the closed form. */
 export function groverFullSpace(q, marked, k) {
+    if (!Number.isInteger(q) || q < 1 || q > 30) {
+        reject("AE_FULLSPACE_PARAMS", "groverFullSpace: q address bits in [1,30]");
+    }
     const n = 2 ** q;
+    const seen = new Set();
+    for (const m of marked) {
+        if (!Number.isInteger(m) || m < 0 || m >= n) {
+            reject("AE_FULLSPACE_PARAMS", `groverFullSpace: marked index ${m} outside [0, N=${n})`);
+        }
+        if (seen.has(m))
+            reject("AE_FULLSPACE_PARAMS", `groverFullSpace: duplicate marked index ${m}`);
+        seen.add(m);
+    }
+    if (!Number.isInteger(k) || k < 0)
+        reject("AE_FULLSPACE_PARAMS", "groverFullSpace: k >= 0 iterations");
     const re = new Float64Array(n);
     const im = new Float64Array(n);
     // A = H^{(q)} applied to |0...0>: uniform superposition.
@@ -60,7 +79,9 @@ export function groverFullSpace(q, marked, k) {
 /** Distribution of QPE register outcomes j for amplitude estimation of p with m phase qubits. */
 export function qaeDistribution(p, m) {
     if (!(p > 0 && p < 1))
-        throw new Error("p in (0,1) for QAE (0 and 1 are read off trivially)");
+        reject("AE_P_RANGE", "p in (0,1) for QAE (0 and 1 are read off trivially)");
+    if (!Number.isInteger(m) || m < 1 || m > 30)
+        reject("AE_M_RANGE", "m in [1,30] phase qubits");
     const M = 2 ** m;
     const theta = Math.asin(Math.sqrt(p));
     // Joint state on phase register x good/bad, after H^m and controlled-G^x:
@@ -111,6 +132,11 @@ export function qaeDistribution(p, m) {
 }
 /** p_hat value for register outcome j. */
 export function qaeEstimate(j, m) {
+    if (!Number.isInteger(m) || m < 1 || m > 30)
+        reject("AE_M_RANGE", "m in [1,30] phase qubits");
+    if (!Number.isInteger(j) || j < 0 || j >= 2 ** m) {
+        reject("AE_REGISTER_RANGE", `outcome j in [0, 2^m) (got ${j} for m=${m})`);
+    }
     return Math.sin((Math.PI * j) / 2 ** m) ** 2;
 }
 /** Median absolute error of QAE with m phase qubits for true amplitude p. */
@@ -134,10 +160,18 @@ export function qaeMedianError(p, m) {
 }
 /** Oracle queries used by one QAE run with m phase qubits (controlled powers 2^0..2^{m-1}). */
 export function qaeQueries(m) {
+    if (!Number.isInteger(m) || m < 1 || m > 30)
+        reject("AE_M_RANGE", "m in [1,30] phase qubits");
     return 2 ** m - 1;
 }
 /** Monte Carlo median absolute error for estimating p with s samples, over trials runs. */
 export function mcMedianError(p, s, trials, seed) {
+    if (!(p >= 0 && p <= 1))
+        reject("AE_P_RANGE", "p in [0,1] for Monte Carlo");
+    // v0.3.0: s = 0 used to return NaN and trials = 0 an undefined median; named rejection.
+    if (!Number.isInteger(s) || s < 1 || !Number.isInteger(trials) || trials < 1) {
+        reject("AE_MC_PARAMS", "s >= 1 samples and trials >= 1");
+    }
     const rng = new Rng(seed);
     const errs = [];
     for (let t = 0; t < trials; t++) {

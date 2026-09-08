@@ -5,6 +5,6 @@
     "declaration": false,
     "rootDir": "."
   },
-  "include": ["src/**/*", "test/**/*", "experiments/**/*", "debug-eig.ts"],
+  "include": ["src/**/*", "test/**/*", "experiments/**/*"],
   "exclude": ["node_modules", "out"]
 }

@@ -20,7 +20,8 @@
  *
  * Referee: exact maximum matching via Kuhn's augmenting-path algorithm.
  */
-import { Rng } from "../core/rng.js";
+import type { Rng } from "../core/rng.js";
+import { reject } from "../core/errors.js";
 import { durHoyerFindBest, groverFindMarked } from "./grover.js";
 
 export interface ObmInstance {
@@ -30,8 +31,29 @@ export interface ObmInstance {
   readonly arrivals: ReadonlyArray<readonly number[]>;
 }
 
+/**
+ * Structural integrity of an online-matching instance (v0.3.0): every arrival
+ * list must name integer workers inside [0, n). Out-of-range indices used to
+ * read typed arrays out of bounds — silently marking the arrival "taken"
+ * (Uint8Array OOB reads are undefined) instead of failing.
+ */
+function checkObmInstance(inst: ObmInstance): void {
+  if (!Number.isInteger(inst.n) || inst.n < 1) {
+    reject("OBM_INSTANCE_SHAPE", `n >= 1 workers required (got ${inst.n})`);
+  }
+  for (let a = 0; a < inst.arrivals.length; a++) {
+    const nb = inst.arrivals[a] as readonly number[];
+    for (const w of nb) {
+      if (!Number.isInteger(w) || w < 0 || w >= inst.n) {
+        reject("OBM_INSTANCE_SHAPE", `arrival ${a} lists worker ${w} outside [0, n=${inst.n})`);
+      }
+    }
+  }
+}
+
 /** Exact maximum matching size of the final graph (Kuhn's algorithm). */
 export function kuhnMaxMatching(inst: ObmInstance): number {
+  checkObmInstance(inst);
   const matchOfWorker = new Int32Array(inst.n).fill(-1);
   const tryAssign = (arrival: number, visited: Uint8Array): boolean => {
     const nb = inst.arrivals[arrival] as readonly number[];
@@ -54,15 +76,16 @@ export function kuhnMaxMatching(inst: ObmInstance): number {
 }
 
 export interface MatchResult {
-  size: number;
-  reads: number;
+  readonly size: number;
+  readonly reads: number;
   /** For the quantum variant: number of arrivals where the search disagreed with the exact rule. */
-  disagreements: number;
+  readonly disagreements: number;
 }
 
 /** The cascade adversary: arrivals in pairs (v ~ {u_1, u_2}; w ~ {u_1}); greedy with
  *  lowest-index ties matches exactly half; uniform ties do better; ranking 3/4. */
 export function cascadeInstance(pairs: number): ObmInstance {
+  if (!Number.isInteger(pairs) || pairs < 1) reject("MATCH_ARG_RANGE", "pairs >= 1");
   const n = 2 * pairs;
   const arrivals: number[][] = [];
   for (let i = 0; i < pairs; i++) {
@@ -74,6 +97,9 @@ export function cascadeInstance(pairs: number): ObmInstance {
 
 /** Erdos-Renyi arrival bank. */
 export function randomInstance(n: number, arrivals: number, p: number, rng: Rng): ObmInstance {
+  if (!Number.isInteger(n) || n < 1) reject("MATCH_ARG_RANGE", "n >= 1 workers");
+  if (!Number.isInteger(arrivals) || arrivals < 0) reject("MATCH_ARG_RANGE", "arrivals >= 0");
+  if (!(p >= 0 && p <= 1)) reject("MATCH_ARG_RANGE", "edge probability p in [0,1]");
   const list: number[][] = [];
   for (let a = 0; a < arrivals; a++) {
     const nb: number[] = [];
@@ -89,6 +115,7 @@ export function randomInstance(n: number, arrivals: number, p: number, rng: Rng)
  *  uniform-tie variant via Grover sampling (distribution-identical) or falls
  *  back to the exact rule on bounded-error misses (charged). */
 export function greedyMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grover", tie: "lowest" | "uniform" | "highest" = "uniform"): MatchResult {
+  checkObmInstance(inst);
   const taken = new Uint8Array(inst.n);
   let size = 0;
   let reads = 0;
@@ -154,6 +181,12 @@ export function rankingMatchWithRank(
   mode: "linear" | "grover",
   rng: Rng,
 ): MatchResult {
+  checkObmInstance(inst);
+  // v0.3.0: a short rank array used to read `undefined as number` for missing
+  // workers — every unranked arrival silently looked unmatchable.
+  if (rank.length !== inst.n) {
+    reject("OBM_RANK_SHAPE", `rank must carry one entry per worker (got ${rank.length} for n=${inst.n})`);
+  }
   const taken = new Uint8Array(inst.n);
   let size = 0;
   let reads = 0;
@@ -202,31 +235,4 @@ export function rankingMatchWithRank(
     }
   }
   return { size, reads, disagreements };
-}
-
-/** Expected reads for one arrival under each mode (for the ledger table). */
-export function arrivalReadProfile(n: number): { linear: number } {
-  return { linear: n };
-}
-
-/** Convenience: run a bank of instances and aggregate mean competitive ratios. */
-export function ratioBank(
-  makeInstance: (seed: number) => ObmInstance,
-  seeds: number[],
-  algo: (inst: ObmInstance, rng: Rng) => MatchResult,
-): { meanRatio: number; minRatio: number; meanReads: number } {
-  let sumRatio = 0;
-  let minRatio = Infinity;
-  let sumReads = 0;
-  for (const seed of seeds) {
-    const inst = makeInstance(seed);
-    const rng = new Rng(seed ^ 0x5f356495);
-    const opt = kuhnMaxMatching(inst);
-    const res = algo(inst, rng);
-    const ratio = opt > 0 ? res.size / opt : 1;
-    sumRatio += ratio;
-    if (ratio < minRatio) minRatio = ratio;
-    sumReads += res.reads;
-  }
-  return { meanRatio: sumRatio / seeds.length, minRatio, meanReads: sumReads / seeds.length };
 }

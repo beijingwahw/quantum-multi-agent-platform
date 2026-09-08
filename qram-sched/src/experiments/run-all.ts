@@ -18,6 +18,7 @@ import { main as exp3 } from "./exp3-ae.js";
 import { main as exp4 } from "./exp4-regret.js";
 import { main as exp5 } from "./exp5-matching.js";
 import { main as exp6 } from "./exp6-kvv.js";
+import { reject } from "../core/errors.js";
 import { rmSync, mkdirSync } from "node:fs";
 
 const t0 = Date.now();
@@ -40,5 +41,5 @@ for (const [name, main] of experiments) {
   console.log(`rendered: ${name}`);
 }
 
-if (rendered !== experiments.length) throw new Error(`rendered ${rendered}/${experiments.length} experiments`);
+if (rendered !== experiments.length) reject("REPRO_INCOMPLETE", `rendered ${rendered}/${experiments.length} experiments`);
 console.log(`\nAll ${rendered} experiments complete in ${((Date.now() - t0) / 1000).toFixed(1)}s. Reports in out/reports/.`);

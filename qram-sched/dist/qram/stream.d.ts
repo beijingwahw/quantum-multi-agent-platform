@@ -11,8 +11,8 @@
  */
 import type { BucketBrigadeQram } from "./bucket.js";
 export interface StreamState {
-    re: Float64Array;
-    im: Float64Array;
+    readonly re: Float64Array;
+    readonly im: Float64Array;
 }
 /** Prepare |0...0> on address x bus, apply H^{(n)} on the address, then query. */
 export declare function encodeUniformStream(qram: BucketBrigadeQram): StreamState;

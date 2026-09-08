@@ -5,6 +5,7 @@
  * program, so a test's import never executes the render.
  */
 import { pathToFileURL } from "node:url";
+import { refuse } from "../core/errors.js";
 import { fDecimal, fToNumber } from "../kernel/rational.js";
 import { convexityCertificate, monoCertificate, MONO_GRID_N } from "../kernel/theorem.js";
 import { TARIFF } from "../kernel/ledger.js";
@@ -57,7 +58,7 @@ function main(): void {
       ...violations.map((v) => `${v.row} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`NO-SIGNALING TARIFF REJECTED — the schedule does not clear customs:\n${reasons.join("\n")}`);
+    refuse("TARIFF_REJECTED", `NO-SIGNALING TARIFF REJECTED — the schedule does not clear customs:\n${reasons.join("\n")}`);
   }
   const path = writeReport("the-nosignal-tariff.md", renderSchedule());
   console.log(`no-signaling tariff rendered -> ${path}`);

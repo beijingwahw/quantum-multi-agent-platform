@@ -23,7 +23,9 @@
  * coherent noise on the stored amplitudes is a strictly harder model (see
  * Arunachalam et al., New J. Phys. 17, 123010 (2015)) and is not simulated.
  */
-/** Architecture for the error-exposure ledger. */
+/**
+ * Architecture for the error-exposure ledger. "fanout" drives the full tree.
+ */
 export type QramArch = "bucket-brigade" | "fanout";
 /** Number of routing nodes whose failure can corrupt a single query. */
 export declare function activeNodes(arch: QramArch, addressBits: number): number;

@@ -1,29 +1,27 @@
-/**
- * Online bipartite matching: tasks arrive online, workers are the known side
- * (Karp-Vazirani-Vazirani, STOC 1990).
- *
- * - Greedy with uniform tie-breaking: matches each arrival to a uniformly
- *   random available neighbor. Worst case 1/2 (cited).
- * - RANKING (KVV): a uniformly random permutation of workers; each arrival
- *   takes its available neighbor of best (lowest) rank. (1 - 1/e)-competitive
- *   and optimal among randomized algorithms (KVV 1990; Devanur-Jain-Kleinberg
- *   primal-dual proof, SODA 2013). Since v0.2.0 the KVV tight instances are
- *   EXECUTED in-repo (see kv-tight.ts, EXP6): E[RANKING on D_n] hits
- *   (1-1/e)n + 1 - 2/e exactly (three independent exact kernels), and the
- *   deterministic phase adversary pins greedy at exactly n/2.
- * - Quantum layer: the per-arrival inner search (best-ranked available
- *   neighbor) served by Durr-Hoyer Grover search instead of a linear scan.
- *   Same decision rule; reads O(n) -> O(sqrt(n) log n); bit-identical
- *   decisions whenever the bounded-error search does not miss (agreement
- *   rates reported). Competitive ratios are information-theoretic caps that
- *   quantum inner search cannot change.
- *
- * Referee: exact maximum matching via Kuhn's augmenting-path algorithm.
- */
-import { Rng } from "../core/rng.js";
+import { reject } from "../core/errors.js";
 import { durHoyerFindBest, groverFindMarked } from "./grover.js";
+/**
+ * Structural integrity of an online-matching instance (v0.3.0): every arrival
+ * list must name integer workers inside [0, n). Out-of-range indices used to
+ * read typed arrays out of bounds — silently marking the arrival "taken"
+ * (Uint8Array OOB reads are undefined) instead of failing.
+ */
+function checkObmInstance(inst) {
+    if (!Number.isInteger(inst.n) || inst.n < 1) {
+        reject("OBM_INSTANCE_SHAPE", `n >= 1 workers required (got ${inst.n})`);
+    }
+    for (let a = 0; a < inst.arrivals.length; a++) {
+        const nb = inst.arrivals[a];
+        for (const w of nb) {
+            if (!Number.isInteger(w) || w < 0 || w >= inst.n) {
+                reject("OBM_INSTANCE_SHAPE", `arrival ${a} lists worker ${w} outside [0, n=${inst.n})`);
+            }
+        }
+    }
+}
 /** Exact maximum matching size of the final graph (Kuhn's algorithm). */
 export function kuhnMaxMatching(inst) {
+    checkObmInstance(inst);
     const matchOfWorker = new Int32Array(inst.n).fill(-1);
     const tryAssign = (arrival, visited) => {
         const nb = inst.arrivals[arrival];
@@ -49,6 +47,8 @@ export function kuhnMaxMatching(inst) {
 /** The cascade adversary: arrivals in pairs (v ~ {u_1, u_2}; w ~ {u_1}); greedy with
  *  lowest-index ties matches exactly half; uniform ties do better; ranking 3/4. */
 export function cascadeInstance(pairs) {
+    if (!Number.isInteger(pairs) || pairs < 1)
+        reject("MATCH_ARG_RANGE", "pairs >= 1");
     const n = 2 * pairs;
     const arrivals = [];
     for (let i = 0; i < pairs; i++) {
@@ -59,6 +59,12 @@ export function cascadeInstance(pairs) {
 }
 /** Erdos-Renyi arrival bank. */
 export function randomInstance(n, arrivals, p, rng) {
+    if (!Number.isInteger(n) || n < 1)
+        reject("MATCH_ARG_RANGE", "n >= 1 workers");
+    if (!Number.isInteger(arrivals) || arrivals < 0)
+        reject("MATCH_ARG_RANGE", "arrivals >= 0");
+    if (!(p >= 0 && p <= 1))
+        reject("MATCH_ARG_RANGE", "edge probability p in [0,1]");
     const list = [];
     for (let a = 0; a < arrivals; a++) {
         const nb = [];
@@ -75,6 +81,7 @@ export function randomInstance(n, arrivals, p, rng) {
  *  uniform-tie variant via Grover sampling (distribution-identical) or falls
  *  back to the exact rule on bounded-error misses (charged). */
 export function greedyMatch(inst, rng, mode, tie = "uniform") {
+    checkObmInstance(inst);
     const taken = new Uint8Array(inst.n);
     let size = 0;
     let reads = 0;
@@ -136,6 +143,12 @@ export function rankingMatch(inst, rng, mode) {
  * exact enumerators (kv-tight) can drive the same decision rule.
  */
 export function rankingMatchWithRank(inst, rank, mode, rng) {
+    checkObmInstance(inst);
+    // v0.3.0: a short rank array used to read `undefined as number` for missing
+    // workers — every unranked arrival silently looked unmatchable.
+    if (rank.length !== inst.n) {
+        reject("OBM_RANK_SHAPE", `rank must carry one entry per worker (got ${rank.length} for n=${inst.n})`);
+    }
     const taken = new Uint8Array(inst.n);
     let size = 0;
     let reads = 0;
@@ -186,26 +199,4 @@ export function rankingMatchWithRank(inst, rank, mode, rng) {
         }
     }
     return { size, reads, disagreements };
-}
-/** Expected reads for one arrival under each mode (for the ledger table). */
-export function arrivalReadProfile(n) {
-    return { linear: n };
-}
-/** Convenience: run a bank of instances and aggregate mean competitive ratios. */
-export function ratioBank(makeInstance, seeds, algo) {
-    let sumRatio = 0;
-    let minRatio = Infinity;
-    let sumReads = 0;
-    for (const seed of seeds) {
-        const inst = makeInstance(seed);
-        const rng = new Rng(seed ^ 0x5f356495);
-        const opt = kuhnMaxMatching(inst);
-        const res = algo(inst, rng);
-        const ratio = opt > 0 ? res.size / opt : 1;
-        sumRatio += ratio;
-        if (ratio < minRatio)
-            minRatio = ratio;
-        sumReads += res.reads;
-    }
-    return { meanRatio: sumRatio / seeds.length, minRatio, meanReads: sumReads / seeds.length };
 }

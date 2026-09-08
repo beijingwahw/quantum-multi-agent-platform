@@ -14,6 +14,8 @@
  * cross-multiplications, exact either way.
  */
 
+import { refuse } from "../core/errors.js";
+
 export interface Frac {
   readonly n: bigint;
   readonly d: bigint; // > 0
@@ -22,7 +24,7 @@ export interface Frac {
 export function fr(n: bigint | number, d: bigint | number = 1n): Frac {
   const bn = typeof n === "bigint" ? n : BigInt(n);
   const bd = typeof d === "bigint" ? d : BigInt(d);
-  if (bd === 0n) throw new Error("fr: zero denominator");
+  if (bd === 0n) refuse("FR_ZERO_DENOMINATOR", "fr: zero denominator");
   if (bd < 0n) {
     return { n: -bn, d: -bd };
   }
@@ -37,10 +39,9 @@ export const fAdd = (a: Frac, b: Frac): Frac => ({ n: a.n * b.d + b.n * a.d, d: 
 export const fSub = (a: Frac, b: Frac): Frac => ({ n: a.n * b.d - b.n * a.d, d: a.d * b.d });
 export const fMul = (a: Frac, b: Frac): Frac => ({ n: a.n * b.n, d: a.d * b.d });
 export const fDiv = (a: Frac, b: Frac): Frac => {
-  if (b.n === 0n) throw new Error("fDiv: zero divisor");
+  if (b.n === 0n) refuse("FDIV_ZERO_DIVISOR", "fDiv: zero divisor");
   return b.n < 0n ? { n: -a.n * b.d, d: a.d * -b.n } : { n: a.n * b.d, d: a.d * b.n };
 };
-export const fNeg = (a: Frac): Frac => ({ n: -a.n, d: a.d });
 export const fIsZero = (a: Frac): boolean => a.n === 0n;
 export const fIsNeg = (a: Frac): boolean => a.n < 0n;
 export const fCmp = (a: Frac, b: Frac): number => {
@@ -48,8 +49,6 @@ export const fCmp = (a: Frac, b: Frac): number => {
   const r = b.n * a.d;
   return l < r ? -1 : l > r ? 1 : 0;
 };
-/** 1/a, a != 0. */
-export const fRecip = (a: Frac): Frac => fDiv(F_ONE, a);
 
 /** Decimal rendering by exact long division (no rounding of the last digit). */
 export function fDecimal(a: Frac, digits: number): string {
@@ -70,9 +69,9 @@ export function fDecimal(a: Frac, digits: number): string {
 /** Parse a decimal string ("0.0025", "9e-22") into an exact Frac. */
 export function frDec(s: string): Frac {
   const m = /^(-?)(\d+)(?:\.(\d+))?(?:e(-?\d+))?$/i.exec(s.trim());
-  if (m === null) throw new Error(`frDec: cannot parse "${s}"`);
+  if (m === null) refuse("FRDEC_UNPARSEABLE", `frDec: cannot parse "${s}"`);
   const [, signRaw, intRaw, fracRaw, expRaw] = m;
-  if (signRaw === undefined || intRaw === undefined) throw new Error(`frDec: cannot parse "${s}"`);
+  if (signRaw === undefined || intRaw === undefined) refuse("FRDEC_UNPARSEABLE", `frDec: cannot parse "${s}"`);
   const exp = expRaw !== undefined ? Number(expRaw) : 0;
   const digits = BigInt(intRaw + (fracRaw ?? ""));
   const power = exp - (fracRaw ?? "").length;
@@ -100,16 +99,15 @@ export interface Ivl {
 }
 
 export const ivl = (lo: Frac, hi: Frac): Ivl => {
-  if (fCmp(lo, hi) > 0) throw new Error("ivl: lo > hi");
+  if (fCmp(lo, hi) > 0) refuse("IVL_LO_ABOVE_HI", "ivl: lo > hi");
   return { lo, hi };
 };
 export const iOf = (a: Frac): Ivl => ({ lo: a, hi: a });
 export const iAdd = (a: Ivl, b: Ivl): Ivl => ({ lo: fAdd(a.lo, b.lo), hi: fAdd(a.hi, b.hi) });
 export const iSub = (a: Ivl, b: Ivl): Ivl => ({ lo: fSub(a.lo, b.hi), hi: fSub(a.hi, b.lo) });
-export const iNeg = (a: Ivl): Ivl => ({ lo: fNeg(a.hi), hi: fNeg(a.lo) });
 /** Multiply by a NONNEGATIVE rational scalar. */
 export const iScaleNonneg = (a: Ivl, s: Frac): Ivl => {
-  if (fIsNeg(s)) throw new Error("iScaleNonneg: negative scalar");
+  if (fIsNeg(s)) refuse("ISCALE_NEGATIVE_SCALAR", "iScaleNonneg: negative scalar");
   return { lo: fMul(a.lo, s), hi: fMul(a.hi, s) };
 };
 export const iMul = (a: Ivl, b: Ivl): Ivl => {
@@ -124,7 +122,7 @@ export const iMul = (a: Ivl, b: Ivl): Ivl => {
 };
 /** Divide by an interval KNOWN to be strictly positive. */
 export const iDivPos = (a: Ivl, b: Ivl): Ivl => {
-  if (fIsNeg(b.lo) || fIsZero(b.lo)) throw new Error("iDivPos: divisor not strictly positive");
+  if (fIsNeg(b.lo) || fIsZero(b.lo)) refuse("IDIV_DIVISOR_NOT_POSITIVE", "iDivPos: divisor not strictly positive");
   return { lo: fDiv(a.lo, b.hi), hi: fDiv(a.hi, b.lo) };
 };
 export const iWidth = (a: Ivl): Frac => fSub(a.hi, a.lo);
@@ -144,7 +142,7 @@ const LN_TERMS = 64; // tail <= (1/2)^64/65 ~ 8.4e-22 per reduction
 function negLnMantissa(m: Frac): Ivl {
   const t = fSub(F_ONE, m);
   const tf = t;
-  if (fIsNeg(tf) || fIsZero(tf)) throw new Error("negLnMantissa: t out of (0,1/2]");
+  if (fIsNeg(tf) || fIsZero(tf)) refuse("NEGLN_MANTISSA_DOMAIN", "negLnMantissa: t out of (0,1/2]");
   let s = F_ZERO;
   let tk = tf; // t^k at k = 1
   for (let k = 1; k <= LN_TERMS; k++) {
@@ -175,7 +173,7 @@ export const LN2: Ivl = (() => {
  */
 export function negLn(x: Frac): Ivl {
   if (fCmp(x, F_ZERO) <= 0 || fCmp(x, F_ONE) >= 0) {
-    throw new Error("negLn: x outside (0,1)");
+    refuse("NEGLN_DOMAIN", "negLn: x outside (0,1)");
   }
   let m = x;
   let e = 0;
@@ -205,7 +203,7 @@ export function negLn(x: Frac): Ivl {
 export function h2Closed(q: Frac): Ivl {
   if (fIsZero(q)) return iOf(F_ZERO);
   if (fCmp(q, F_HALF) === 0) return iOf(F_ONE);
-  if (fCmp(q, F_ZERO) <= 0 || fCmp(q, F_ONE) >= 0) throw new Error("h2Closed: q outside [0,1]");
+  if (fCmp(q, F_ZERO) <= 0 || fCmp(q, F_ONE) >= 0) refuse("H2CLOSED_DOMAIN", "h2Closed: q outside [0,1]");
   const oneMinusQ = fSub(F_ONE, q);
   const numer = iAdd(iScaleNonneg(negLn(q), q), iScaleNonneg(negLn(oneMinusQ), oneMinusQ));
   return iDivPos(numer, LN2);
@@ -223,7 +221,7 @@ const SERIES_TERMS = 512; // handles d^2 up to (19/20)^2 with tail < 1e-30
 export function h2Series(q: Frac): Ivl {
   if (fCmp(q, F_HALF) === 0) return iOf(F_ONE);
   if (fCmp(q, F_ZERO) <= 0 || fCmp(q, F_ONE) >= 0) {
-    throw new Error("h2Series: q outside (0,1) with q != 1/2");
+    refuse("H2SERIES_DOMAIN", "h2Series: q outside (0,1) with q != 1/2");
   }
   const d = fSub(F_ONE, fMul(fr(2), q)); // 1 - 2q, in (-1,1) \ {0}
   const d2 = fMul(d, d); // in (0,1)

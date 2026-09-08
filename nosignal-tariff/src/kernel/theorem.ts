@@ -33,7 +33,6 @@ import {
   fDiv,
   fMul,
   fSub,
-  fDecimal,
   fr,
   iAdd,
   iDivPos,
@@ -98,12 +97,8 @@ export const netSeriesIvl = (p: Frac): Ivl => netOnPath(p, h2Series);
 
 export function monoGridPoints(): Frac[] {
   const pts: Frac[] = [];
-  for (let i = 0; i <= MONO_GRID_N; i++) pts.push(fDiv(fr0(i), fr0(MONO_GRID_N)));
+  for (let i = 0; i <= MONO_GRID_N; i++) pts.push(fDiv(fr(i), fr(MONO_GRID_N)));
   return pts;
-}
-
-function fr0(x: number): Frac {
-  return { n: BigInt(x), d: 1n };
 }
 
 export interface MonoCert {
@@ -211,18 +206,18 @@ function computeConvex(): ConvexCert {
   let secondDerivMaxDist = F_ZERO;
 
   for (let j = 1; j < MONO_GRID_N; j++) {
-    const p = fDiv(fr0(j), fr0(MONO_GRID_N));
-    const q = fDiv(fSub(F_ONE, p), fr0(2));
+    const p = fDiv(fr(j), fr(MONO_GRID_N));
+    const q = fDiv(fSub(F_ONE, p), fr(2));
     const fwd = netClosedIvl(fAdd(p, h));
     const mid = netClosedIvl(p);
     const bwd = netClosedIvl(fSub(p, h));
 
     // sampled first difference quotient (h divides the exact rational scalar)
-    const quot = iScaleNonneg(iSub(fwd, bwd), fDiv(F_ONE, fMul(fr0(2), h)));
+    const quot = iScaleNonneg(iSub(fwd, bwd), fDiv(F_ONE, fMul(fr(2), h)));
     if (fCmp(quot.lo, F_ZERO) <= 0) quotientsPositive = false;
     // citation: net'(p) = (1/4) log2((1-q)/q) = (1/4) * (-ln(q/(1-q))) / ln2
     const ratio = fDiv(q, fSub(F_ONE, q)); // in (0,1) for p > 0
-    const formula = iDivPos(negLn(ratio), iScaleNonneg(LN2, fr0(4)));
+    const formula = iDivPos(negLn(ratio), iScaleNonneg(LN2, fr(4)));
     if (fCmp(formula.lo, F_ZERO) <= 0) formulaPositive = false;
     const dist = iDist(quot, formula);
     if (fCmp(dist, derivMaxDist) > 0) derivMaxDist = dist;
@@ -230,7 +225,7 @@ function computeConvex(): ConvexCert {
     // sampled second difference quotient / h^2 vs citation net''(p)
     const ddq = iScaleNonneg(iSub(iAdd(fwd, bwd), iAdd(mid, mid)), fDiv(F_ONE, fMul(h, h)));
     const q1m = fMul(q, fSub(F_ONE, q));
-    const second = iDivPos(iOf(F_ONE), iMul(iScaleNonneg(LN2, fr0(8)), iOf(q1m)));
+    const second = iDivPos(iOf(F_ONE), iMul(iScaleNonneg(LN2, fr(8)), iOf(q1m)));
     if (fCmp(second.lo, F_ZERO) <= 0) secondFormulaPositive = false;
     const dist2 = iDist(ddq, second);
     if (fCmp(dist2, secondDerivMaxDist) > 0) secondDerivMaxDist = dist2;
@@ -255,6 +250,3 @@ function computeConvex(): ConvexCert {
     inflectionCells,
   };
 }
-
-/** Decimal helper for reports and quoted constants. */
-export const dec = (a: Frac, digits = 6): string => fDecimal(a, digits);

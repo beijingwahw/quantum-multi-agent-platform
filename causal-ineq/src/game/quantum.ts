@@ -21,6 +21,14 @@
  */
 import { cmatKron4, cmatTraceProd, type CMat } from "../core/cmat.js";
 
+/** cos²(π/8) = ½(1+1/√2) — the game value on W*(1/√2). Single source: tests and experiments import this. */
+export const COS2_PI_8 = Math.cos(Math.PI / 8) ** 2;
+
+/** The game's branch mix, p_success = ½ P(x=b) + ½ P(y=a) — the definition itself, single-sourced. */
+export function pSuccessOf(pAliceGuesses: number, pBobGuesses: number): number {
+  return 0.5 * pAliceGuesses + 0.5 * pBobGuesses;
+}
+
 /** Real-basis qubit projector |v><v| for v in {e0, e1, |+>, |->}. */
 function proj(v: readonly [number, number]): CMat {
   return {
@@ -79,7 +87,7 @@ export function runProtocol(w: CMat): GameProbabilities {
   // each branch: average over the 4 (a,b) combos
   const pAliceGuesses = pAliceSum / 4;
   const pBobGuesses = pBobSum / 4;
-  return { pAliceGuesses, pBobGuesses, pSuccess: 0.5 * pAliceGuesses + 0.5 * pBobGuesses };
+  return { pAliceGuesses, pBobGuesses, pSuccess: pSuccessOf(pAliceGuesses, pBobGuesses) };
 }
 
 /** Branch success under a rotated Bob measurement for b'=1 (axis in the x-z plane, theta = 0 is z). */

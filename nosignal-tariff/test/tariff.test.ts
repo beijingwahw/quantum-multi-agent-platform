@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkTariff, runWitnesses } from "../src/kernel/audit.js";
-import { TARIFF, type TariffRow } from "../src/kernel/ledger.js";
+import { checkTariff, runWitnesses, type UntrustedTariffRow } from "../src/kernel/audit.js";
+import { TARIFF } from "../src/kernel/ledger.js";
 import { SINGLET, cacheLeakage, bMarginal, measureQubit0 } from "../src/kernel/nosignal.js";
 import { partialTrace } from "../src/core/channels.js";
 import { identity, mScale } from "../src/core/cmat.js";
 
-function smuggle(mutate: (rows: TariffRow[]) => void): TariffRow[] {
-  const copy = JSON.parse(JSON.stringify(TARIFF)) as TariffRow[];
+/** Contraband crosses the boundary as a corrupted row replacement — exactly
+ * what the untrusted type is shaped for; no cast needed to mutate it. */
+function smuggle(mutate: (rows: UntrustedTariffRow[]) => void): UntrustedTariffRow[] {
+  const copy: UntrustedTariffRow[] = JSON.parse(JSON.stringify(TARIFF));
   mutate(copy);
   return copy;
 }
@@ -56,7 +58,7 @@ describe("T2 the correlator machinery", () => {
 describe("T3 smuggling trials — customs rejects contraband by name", () => {
   it("N1: an item without a price is rejected", () => {
     const contraband = smuggle((rows) => {
-      (rows[0] as { price: string }).price = "";
+      rows[0] = { ...rows[0]!, price: "" };
     });
     const hit = checkTariff(contraband).find((v) => v.law === "N1");
     assert.ok(hit, "expected an N1 violation");
@@ -65,7 +67,7 @@ describe("T3 smuggling trials — customs rejects contraband by name", () => {
 
   it("N2: an unwitnessed zero is marketing, rejected", () => {
     const contraband = smuggle((rows) => {
-      (rows[2] as { witness: string }).witness = "W-TRUST";
+      rows[2] = { ...rows[2]!, witness: "W-TRUST" };
     });
     const hit = checkTariff(contraband).find((v) => v.law === "N2");
     assert.ok(hit, "expected an N2 violation");
@@ -74,7 +76,7 @@ describe("T3 smuggling trials — customs rejects contraband by name", () => {
 
   it("N3: a dead anchor is rejected", () => {
     const contraband = smuggle((rows) => {
-      (rows[1] as { anchors: readonly string[] }).anchors = ["ghost-repo"];
+      rows[1] = { ...rows[1]!, anchors: ["ghost-repo"] };
     });
     const hit = checkTariff(contraband).find((v) => v.law === "N3");
     assert.ok(hit, "expected an N3 violation");
@@ -83,7 +85,7 @@ describe("T3 smuggling trials — customs rejects contraband by name", () => {
 
   it("N4: an illegal exactness tag is rejected", () => {
     const contraband = smuggle((rows) => {
-      (rows[3] as { exactness: string }).exactness = "TRUST-ME";
+      rows[3] = { ...rows[3]!, exactness: "TRUST-ME" };
     });
     const hit = checkTariff(contraband).find((v) => v.law === "N4");
     assert.ok(hit, "expected an N4 violation");
@@ -91,7 +93,7 @@ describe("T3 smuggling trials — customs rejects contraband by name", () => {
 
   it("N5: a duplicated id is rejected", () => {
     const contraband = smuggle((rows) => {
-      (rows[4] as { id: string }).id = "T1";
+      rows[4] = { ...rows[4]!, id: "T1" };
     });
     const hit = checkTariff(contraband).find((v) => v.law === "N5");
     assert.ok(hit, "expected an N5 violation");
@@ -101,7 +103,7 @@ describe("T3 smuggling trials — customs rejects contraband by name", () => {
 describe("T4 the renderer refuses to print an illegal schedule", () => {
   it("the smuggled schedule fails the checker the renderer gates on", () => {
     const contraband = smuggle((rows) => {
-      (rows[0] as { price: string }).price = "";
+      rows[0] = { ...rows[0]!, price: "" };
     });
     const violations = checkTariff(contraband);
     assert.ok(violations.length > 0);

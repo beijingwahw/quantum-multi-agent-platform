@@ -1,11 +1,3 @@
-/**
- * Minimal dense linear algebra used by the classical referees:
- *  - luSolve: Gaussian elimination with partial pivoting, for expected hitting
- *    times of Markov chains via the fundamental matrix (I - Q) tau = 1.
- *  - jacobiEigenvalues: cyclic Jacobi for real symmetric matrices, for the
- *    spectral referee on discriminant matrices of reversible chains.
- * Zero dependencies; everything double precision.
- */
 /** Solve A x = b for a square nonsingular A. A is consumed (factored in place); b is copied. */
 export declare function luSolve(n: number, a: Float64Array, b: Float64Array): Float64Array;
 /** Expected hitting time of a Markov chain to an absorbing target SET, from a start distribution.

@@ -1,8 +1,9 @@
-/**
- * Deterministic seeded RNG (mulberry32). Every experiment and every stochastic
- * referee in this repository draws randomness exclusively from instances of
- * this class, so any reported number can be regenerated bit-for-bit from a seed.
- */
+/** Replay-stream seed derivation (single source, v0.3.0 face C): bank seed -> stream seed.
+ *  Previously the literal 0x5f356495 appeared independently in matching.ts and
+ *  kv-tight.ts (byte-identical copies); the replay referee and the replayed
+ *  kernels must share ONE convention, so the constant lives here and callers
+ *  import it. */
+export declare const REPLAY_SEED_XOR = 1597334677;
 export declare class Rng {
     readonly seed: number;
     private state;

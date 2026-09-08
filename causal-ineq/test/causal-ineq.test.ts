@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hermitianExtremeEig, cmatEye, cmatMaxAbsDiff } from "../src/core/cmat.js";
+import { cmatAdd, cmatEye, cmatMaxAbsDiff, cmatPartialTraceSecond, cmatScale, cmatTrace, cmatTraceProd, hermitianExtremeEig, NamedError } from "../src/core/cmat.js";
 import { checkValidity, patternAllowed } from "../src/process/validity.js";
 import { wChannelAB, wChannelBA, wForbiddenF1, wForbiddenF3, wMixed, wNotPSD, wNoisy, wStar } from "../src/process/construct.js";
 import { sweepDeterministic } from "../src/game/classical.js";
-import { bobAngleBranch, runProtocol } from "../src/game/quantum.js";
-import { buildStrategy, hillClimb, mulberry32, ocbParamsVector, ocbStrategy, paramsToVector, randomEntangledPair, randomStrategyParams, strategyPayoff } from "../src/game/strategy.js";
+import { bobAngleBranch, runProtocol, COS2_PI_8 } from "../src/game/quantum.js";
+import { buildStrategy, entangledInstrumentPair, hillClimb, instrumentTP, mulberry32, ocbParamsVector, ocbStrategy, paramsToVector, randomEntangledPair, randomStrategyParams, strategyPayoff, vectorToParams } from "../src/game/strategy.js";
 import { adjudicate, boundReport, closedFormProductPayoff, decompositionIdentity, lemmaViolations, wStarCoefficients } from "../src/game/certificate.js";
 import { compareWithOCB12, equivalenceReport, equivalenceVerdict, ocb12ClosedFormTables, wBiased, wLC25, wOCB12, wOCB12TamperedCoeff, wOCB12TamperedPauli } from "../src/process/ocb12.js";
-
-const COS2PI8 = Math.cos(Math.PI / 8) ** 2;
 
 describe("eigensolver anchors (real-symmetric Jacobi via doubling)", () => {
   it("known spectra", () => {
@@ -21,6 +19,47 @@ describe("eigensolver anchors (real-symmetric Jacobi via doubling)", () => {
     const y = { dim: 2, re: [[0, 0], [0, 0]], im: [[0, -1], [1, 0]] };
     const ey = hermitianExtremeEig(y);
     assert.ok(Math.abs(ey.max - 1) < 1e-12 && Math.abs(ey.min + 1) < 1e-12);
+    // anchor absorbed from the retired debug-eig.ts scratch: the causal channel
+    // W^{A≺B} = (1/2·1)^A1 ⊗ |Φ><Φ|^{A2B1} ⊗ 1^{B2} has spectrum exactly {0, 1}
+    const ab = hermitianExtremeEig(wChannelAB());
+    assert.ok(Math.abs(ab.max - 1) < 1e-12, `max ${ab.max}`);
+    assert.ok(Math.abs(ab.min) < 1e-12, `min ${ab.min}`);
+  });
+});
+
+describe("kernel rejections — every illegal input NAMED, never a silent NaN", () => {
+  const isNamed = (code: string) => (e: unknown): boolean => e instanceof NamedError && e.code === code;
+
+  it("binary kernel dimension mismatches are rejected by name (NaN grid is dead)", () => {
+    const eye2 = cmatEye(2);
+    const eye4 = cmatEye(4);
+    // before the guards these returned a silently corrupted NaN grid (v0.2.0 defect class)
+    assert.throws(() => cmatAdd(eye2, eye4), isNamed("cmat/dim-mismatch"));
+    assert.throws(() => cmatTraceProd(eye2, eye4), isNamed("cmat/dim-mismatch"));
+    assert.throws(() => cmatMaxAbsDiff(eye2, eye4), isNamed("cmat/dim-mismatch"));
+    // legal operands still pass through bit-identically
+    assert.equal(cmatAdd(eye2, eye2).re[0]![0], 2);
+  });
+
+  it("malformed grids and odd-dim partial traces are rejected by name", () => {
+    const ragged = { dim: 2, re: [[1]], im: [[0, 0], [0, 0]] };
+    assert.throws(() => cmatTrace(ragged), isNamed("cmat/malformed-grid"));
+    assert.throws(() => cmatScale(ragged, 2), isNamed("cmat/malformed-grid"));
+    assert.throws(() => cmatPartialTraceSecond(cmatEye(3)), isNamed("cmat/dim-not-even"));
+  });
+
+  it("strategy machinery rejects non-qubit CJ elements, short vectors, and off-span processes by name", () => {
+    assert.throws(() => instrumentTP([cmatEye(2), cmatEye(2)]), isNamed("strategy/cj-element-not-qubit"));
+    assert.throws(() => vectorToParams([1, 2, 3]), isNamed("strategy/vector-length"));
+    assert.equal(paramsToVector(vectorToParams(ocbParamsVector())).length, 60);
+    assert.throws(
+      () => decompositionIdentity(wForbiddenF1(), ocbStrategy(), { pAliceGuesses: 0, pBobGuesses: 0 }),
+      isNamed("certificate/off-span-process"),
+    );
+    assert.throws(
+      () => entangledInstrumentPair(0.5, [1, 0], [0, 0], [1, 0], [0]),
+      isNamed("strategy/schmidt-vector-dim"),
+    );
   });
 });
 
@@ -84,9 +123,9 @@ describe("T3 the violation, executed", () => {
     assert.ok(Math.abs(ab.pAliceGuesses - 0.5) < 1e-12);
     assert.ok(Math.abs(ab.pSuccess - 0.75) < 1e-12);
     const star = runProtocol(wStar(Math.SQRT1_2));
-    assert.ok(Math.abs(star.pAliceGuesses - COS2PI8) < 1e-12);
-    assert.ok(Math.abs(star.pBobGuesses - COS2PI8) < 1e-12);
-    assert.ok(Math.abs(star.pSuccess - COS2PI8) < 1e-12);
+    assert.ok(Math.abs(star.pAliceGuesses - COS2_PI_8) < 1e-12);
+    assert.ok(Math.abs(star.pBobGuesses - COS2_PI_8) < 1e-12);
+    assert.ok(Math.abs(star.pSuccess - COS2_PI_8) < 1e-12);
   });
 
   it("branch probabilities normalize to 1 on valid processes", () => {
@@ -103,7 +142,7 @@ describe("T3 the violation, executed", () => {
   it("noise threshold exactly eta = 1/sqrt(2), linear in eta", () => {
     for (const eta of [0, 0.25, 0.5, Math.SQRT1_2, 0.8, 1]) {
       const p = runProtocol(wNoisy(eta)).pSuccess;
-      const linear = 0.5 + eta * (COS2PI8 - 0.5);
+      const linear = 0.5 + eta * (COS2_PI_8 - 0.5);
       assert.ok(Math.abs(p - linear) < 1e-12, `eta=${eta}`);
     }
     assert.ok(Math.abs(runProtocol(wNoisy(Math.SQRT1_2)).pSuccess - 0.75) < 1e-12);
@@ -119,7 +158,7 @@ describe("T3 the violation, executed", () => {
       if (p > best.p) best = { theta, p };
     }
     assert.ok(best.theta < 1e-9 || Math.abs(best.theta - Math.PI) < 1e-9, `theta ${best.theta}`);
-    assert.ok(Math.abs(best.p - COS2PI8) < 1e-12);
+    assert.ok(Math.abs(best.p - COS2_PI_8) < 1e-12);
     const closed = bobAngleBranch(wStar(Math.SQRT1_2), Math.PI / 4);
     assert.ok(Math.abs(closed - (0.5 * (1 + Math.SQRT1_2 * Math.cos(Math.PI / 4)))) < 1e-12);
   });
@@ -154,7 +193,7 @@ describe("T4 optimality beyond the rotated-measurement family", () => {
 
   it("the qubit-family bound is cos²(π/8), attained by the OCB protocol; sweep never exceeds it", () => {
     const br = boundReport(coeff, ocbStrategy());
-    assert.ok(Math.abs(br.pSuccessBound - COS2PI8) < 1e-12);
+    assert.ok(Math.abs(br.pSuccessBound - COS2_PI_8) < 1e-12);
     assert.ok(Math.abs(br.slack) < 1e-12, `OCB slack ${br.slack}`);
     const rng = mulberry32(606);
     const payoff = (p: Parameters<typeof buildStrategy>[0]) => closedFormProductPayoff(coeff, p).pSuccess;
@@ -162,9 +201,9 @@ describe("T4 optimality beyond the rotated-measurement family", () => {
     for (let i = 0; i < 24; i++) {
       best = Math.max(best, hillClimb(payoff, paramsToVector(randomStrategyParams(rng)), rng, 24).value);
     }
-    assert.ok(best <= COS2PI8 + 1e-9, `sweep best ${best}`);
+    assert.ok(best <= COS2_PI_8 + 1e-9, `sweep best ${best}`);
     const perturbed = ocbParamsVector().map((x) => x + 0.1 * (2 * rng() - 1));
-    assert.ok(Math.abs(hillClimb(payoff, perturbed, rng, 60).value - COS2PI8) < 1e-9);
+    assert.ok(Math.abs(hillClimb(payoff, perturbed, rng, 60).value - COS2_PI_8) < 1e-9);
   });
 
   it("the biased OCB functional saturates LC25's (1+α+√(1+α²))/2 on S_OCB,α", () => {
@@ -194,7 +233,7 @@ describe("T5 the OCB12 equivalence, machine-checked", () => {
   it("payoff tables agree between the two derivations (Born rule vs eq. (26) closed forms)", () => {
     const rep = equivalenceReport();
     assert.ok(rep.tablesVsClosedForm < 1e-12, `table deviation ${rep.tablesVsClosedForm}`);
-    assert.ok(Math.abs(runProtocol(wOCB12()).pSuccess - COS2PI8) < 1e-12);
+    assert.ok(Math.abs(runProtocol(wOCB12()).pSuccess - COS2_PI_8) < 1e-12);
     // closed-form tables themselves sum to 1 per (a,b) row
     const t = ocb12ClosedFormTables();
     for (let b = 0; b < 2; b++) {

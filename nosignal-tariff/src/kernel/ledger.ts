@@ -23,7 +23,6 @@ export interface TariffRow {
 /** Headline constants — the witnesses re-derive these from physics, never copy. */
 export const QUOTED_CACHE_LEAK = 2.3e-16; // rounding floor of the 24-axis zero
 export const QUOTED_ORDER_BLIND = 1.7e-16;
-export const QUOTED_HJW_TV = 0.0;
 export const QUOTED_NET_P0 = 0.0;
 export const QUOTED_NET_P05 = 0.094360938;
 export const QUOTED_NET_P1 = 0.5;

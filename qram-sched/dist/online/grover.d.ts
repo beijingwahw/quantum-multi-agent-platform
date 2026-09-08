@@ -11,8 +11,8 @@
  */
 import type { Rng } from "../core/rng.js";
 export interface SearchResult {
-    index: number;
-    reads: number;
+    readonly index: number;
+    readonly reads: number;
 }
 /** Linear scan for the minimum under a strict-less comparator; reads = N. */
 export declare function linearFindBest<T>(scores: ArrayLike<T>, less: (x: T, y: T) => boolean): SearchResult;

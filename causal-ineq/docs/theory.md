@@ -162,15 +162,6 @@ pattern rule is derived not transcribed; no physical implementation claimed
 F_q is proven in-repo, optimality over arbitrary dimensions is LC25's theorem
 (cited).
 
-## Honest boundaries
-
-As in the README: W\* is constructed not quoted (unitary equivalence to OCB12's
-explicit W not claimed); the quantum-on-causal cap is cited not re-proven; the
-pattern rule is derived not transcribed; no physical implementation claimed
-(the switch does not violate causal inequalities — VDL23); the maximal
-violation is open and our optimality is only within the rotated-measurement
-family.
-
 ## Bibliography
 
 See README — every id web-verified from two independent sources (OCB12 by

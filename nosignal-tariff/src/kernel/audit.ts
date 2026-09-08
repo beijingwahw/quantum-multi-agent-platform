@@ -56,7 +56,7 @@ import {
   type TariffRow,
 } from "./ledger.js";
 
-export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
+const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
 export interface Violation {
   readonly row: string;
@@ -177,11 +177,11 @@ function witnessSchedule(): WitnessResult {
     const p = i / 10;
     const v = net(p);
     grid.push(v);
-    if (Math.abs(v - (QUOTED_NET_GRID[i - 1] as number)) > 1e-9) gridOk = false;
+    if (Math.abs(v - QUOTED_NET_GRID[i - 1]!) > 1e-9) gridOk = false;
   }
   const full = [net(0), ...grid, net(1)];
   for (let i = 1; i < full.length; i++) {
-    if ((full[i] as number) <= (full[i - 1] as number)) monoOk = false;
+    if (full[i]! <= full[i - 1]!) monoOk = false;
   }
   const ok = anchorsOk && gridOk && monoOk;
   return {

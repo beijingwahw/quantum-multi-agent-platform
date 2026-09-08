@@ -4,17 +4,12 @@
  * Receiver = machine register. The law is discovered by the machine and
  * reported as found.
  */
-import { chainDistinguishability } from "../src/kswitch/sched3.js";
-import { cmatZero } from "../src/core/cmat.js";
+import { chainDistinguishability, plusPlus } from "../src/kswitch/sched3.js";
 import { table, writeReport } from "./report.js";
 
 function run(): void {
-  // input: |+> — sensitive to both X and Z writes
-  const input = cmatZero(2);
-  input.re[0]![0] = 0.5;
-  input.re[0]![1] = 0.5;
-  input.re[1]![0] = 0.5;
-  input.re[1]![1] = 0.5;
+  // input: |+> — sensitive to both X and Z writes (the shared single source)
+  const input = plusPlus();
 
   const r = chainDistinguishability(input);
   const best = Math.max(...r.fixed.map((f) => f.d));

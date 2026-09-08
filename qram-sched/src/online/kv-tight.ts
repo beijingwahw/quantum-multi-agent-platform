@@ -35,11 +35,12 @@
  */
 import type { ObmInstance } from "./matching.js";
 import { greedyMatch, kuhnMaxMatching, rankingMatchWithRank } from "./matching.js";
-import { Rng } from "../core/rng.js";
+import { Rng, REPLAY_SEED_XOR } from "../core/rng.js";
+import { reject } from "../core/errors.js";
 
 /** MonotoneG: arrival j has the suffix neighborhood {v_j, ..., v_{n-1}}. */
 export function monotoneInstance(n: number): ObmInstance {
-  if (n < 1 || n > 4096) throw new Error("n in [1,4096]");
+  if (!Number.isInteger(n) || n < 1 || n > 4096) reject("MATCH_ARG_RANGE", "n in [1,4096]");
   const arrivals: number[][] = [];
   for (let j = 0; j < n; j++) {
     const nb: number[] = [];
@@ -51,6 +52,8 @@ export function monotoneInstance(n: number): ObmInstance {
 
 /** MonotoneG under a uniformly random worker relabeling tau (a D_n member). */
 export function sampleDnMember(n: number, rng: Rng): ObmInstance {
+  // v0.3.0: this public entry previously had no input check at all.
+  if (!Number.isInteger(n) || n < 1 || n > 4096) reject("MATCH_ARG_RANGE", "n in [1,4096]");
   const tau = rng.shuffle(Array.from({ length: n }, (_, i) => i));
   const arrivals: number[][] = [];
   for (let j = 0; j < n; j++) arrivals.push(tau.slice(j).sort((a, b) => a - b));
@@ -59,7 +62,7 @@ export function sampleDnMember(n: number, rng: Rng): ObmInstance {
 
 /** d(m): derangement numbers, exact (d(0)=1, d(1)=0, d(m)=(m-1)(d(m-1)+d(m-2))). */
 export function derangement(m: number): bigint {
-  if (m < 0 || m > 5000) throw new Error("m in [0,5000]");
+  if (!Number.isInteger(m) || m < 0 || m > 5000) reject("MATCH_ARG_RANGE", "m in [0,5000]");
   if (m === 0) return 1n;
   let dPrev = 1n; // d(0)
   let dCur = 0n; // d(1)
@@ -79,7 +82,7 @@ function factorial(m: number): bigint {
 
 /** Feige arXiv:1812.11774, Corollary 21: E[RANKING on D_n] = ((n+1)! - d(n+1) - d(n)) / n!. */
 export function feigeRankingExpectation(n: number): number {
-  if (n < 1 || n > 1024) throw new Error("n in [1,1024]");
+  if (!Number.isInteger(n) || n < 1 || n > 1024) reject("MATCH_ARG_RANGE", "n in [1,1024]");
   const numerator = factorial(n + 1) - derangement(n + 1) - derangement(n);
   // BigInt division with 18 kept digits: factorials overflow double precision
   // beyond n ~ 18, so the ratio is computed exactly in BigInt first.
@@ -93,7 +96,7 @@ export function feigeRankingExpectation(n: number): number {
  * is Heap's algorithm. Limited to n <= 9 (362880 permutations).
  */
 export function rankingExpectationExhaustive(n: number): number {
-  if (n < 1 || n > 9) throw new Error("exhaustive enumeration limited to n <= 9");
+  if (!Number.isInteger(n) || n < 1 || n > 9) reject("MATCH_ARG_RANGE", "exhaustive enumeration limited to n <= 9");
   const rank = Array.from({ length: n }, (_, i) => i);
   const shared = new Rng(0); // 'linear' mode consumes no randomness; one dummy for all runs
   const inst = monotoneInstance(n);
@@ -133,7 +136,7 @@ export function rankingExpectationExhaustive(n: number): number {
  * Carlo in EXP6/tests — the KVV Lemma 13 consequence).
  */
 export function greedyUniformExpectationExact(n: number): number {
-  if (n < 1 || n > 24) throw new Error("subset DP limited to n <= 24");
+  if (!Number.isInteger(n) || n < 1 || n > 24) reject("MATCH_ARG_RANGE", "subset DP limited to n <= 24");
   let states = new Map<number, number>([[0, 1]]);
   let expected = 0;
   for (let j = 0; j < n; j++) {
@@ -170,7 +173,7 @@ export type DeterministicTieBreak = "lowest" | "highest";
  * matches exactly n/2 while OPT = n (phase 2 to S, phase 1 to the complement).
  */
 export function deterministicGreedyHalfInstance(n: number, rule: DeterministicTieBreak): ObmInstance {
-  if (n < 2 || n % 2 !== 0) throw new Error("n must be even");
+  if (!Number.isInteger(n) || n < 2 || n % 2 !== 0) reject("MATCH_EVEN_N", "n must be even");
   const half = n / 2;
   const all = Array.from({ length: n }, (_, i) => i);
   const arrivals: number[][] = [];
@@ -358,7 +361,7 @@ export function verifyQueryLedger(inst: ObmInstance, claim: LedgerClaim, seeds: 
   let size = 0;
   let disagreements = 0;
   for (let s = 0; s < seeds; s++) {
-    const rng = new Rng(s ^ 0x5f356495);
+    const rng = new Rng(s ^ REPLAY_SEED_XOR);
     const res = rankingMatchWithRank(
       inst,
       rng.shuffle(Array.from({ length: inst.n }, (_, i) => i)),

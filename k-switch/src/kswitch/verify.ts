@@ -17,6 +17,7 @@ import {
   uniformControl4,
 } from "./k4.js";
 import { distinguishabilityMatrix, hadamardCensus, shortestSupersequence, ORDERS4 } from "./hadamard4.js";
+import { KSwitchError } from "./errors.js";
 
 export interface VerifyResult {
   readonly ok: boolean;
@@ -145,7 +146,7 @@ export function verifySupersequenceClaim(claim: SupersequenceClaim): VerifyResul
     return { ok: false, reason: `SUPERSEQUENCE-COUNTERFEIT: witness "${claim.witness}" misses order(s) ${labels} as subsequences` };
   }
   const truth = shortestSupersequence(9);
-  if (truth === null) return { ok: false, reason: "SUPERSEQUENCE-COUNTERFEIT: machine search failed — internal error" };
+  if (truth === null) throw new KSwitchError("SUPERSEQUENCE-SEARCH-FAILED", "the exhaustive machine search returned nothing up to length 9 — the search kernel is broken");
   if (claim.length < truth.minLength) {
     return {
       ok: false,

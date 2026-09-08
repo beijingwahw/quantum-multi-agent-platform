@@ -100,6 +100,18 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   // adjudicated: whether the member re-converges (or drops the file entirely)
   // is the appeal court's call.
   { repo: "phase-law", file: "rng.ts", reason: "the v0.6.0 dead-export purge removed this member's unused rng exports (the E face of the quality wave; the template-era cmat/states/measures/channels files were deleted outright and read NOT-PRESENT); re-convergence is the appeal court's call" },
+  // -- the batch-83 wave append (the absorption law's first execution, the
+  // v0.3.0 E face) ------------------------------------------------------------
+  // nosignal-tariff's absorption sweep deleted the dead faces the canon still
+  // carries: states.ts wholesale (reads NOT-PRESENT, a legal status — no row
+  // needed, the phase-law precedent) and the unused exports of the four
+  // surviving family files, so their bytes diverge from the canon. Registered
+  // as debt, not adjudicated: whether the canon sheds its own dead faces (or
+  // the member re-converges) is the appeal court's call.
+  { repo: "nosignal-tariff", file: "cmat.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused cmat exports (21 dead faces, grep-verified zero-reference; states.ts was deleted outright and reads NOT-PRESENT); the canon's face is untouched above the deletions; re-convergence is the appeal court's call" },
+  { repo: "nosignal-tariff", file: "channels.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused channels exports (4 dead faces, grep-verified zero-reference); the canon's face is untouched above the deletions; re-convergence is the appeal court's call" },
+  { repo: "nosignal-tariff", file: "measures.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused measures exports (4 dead faces, grep-verified zero-reference); the canon's face is untouched above the deletions; re-convergence is the appeal court's call" },
+  { repo: "nosignal-tariff", file: "rng.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused rng exports (4 dead faces, grep-verified zero-reference); the canon's face is untouched above the deletions; re-convergence is the appeal court's call" },
 ];
 
 export type FamilyStatus =

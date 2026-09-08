@@ -31,13 +31,13 @@
  * claim adjudicator used by the smuggling trials — a "violation" without a
  * certificate is NAMED and REJECTED, never silently averaged in.
  */
-import { cmatAdd, cmatKron, cmatMaxAbsDiff, cmatTraceProd, cmatEye, type CMat } from "../core/cmat.js";
+import { cmatAdd, cmatKron, cmatTraceProd, cmatEye, NamedError, type CMat } from "../core/cmat.js";
 import { PAULI, pauliCoefficients, checkValidity } from "../process/validity.js";
 import { instrumentTP, type Axis, type InstrumentBuilder, type InstrumentPair, type StrategyParams } from "./strategy.js";
+import { pSuccessOf } from "./quantum.js";
 
 const I = PAULI[0] as CMat;
 const X = PAULI[1] as CMat;
-const Y = PAULI[2] as CMat;
 const Z = PAULI[3] as CMat;
 
 /** W* coefficient pair (c1 on T1 = Z^A2 Z^B1, c2 on T2 = Z^A1 X^B1 Z^B2). */
@@ -137,7 +137,7 @@ export function functionalPayoff(coeff: WStarCoefficients, builder: InstrumentBu
   }
   const pAlice = pA / 16;
   const pBob = pB / 16;
-  return { pAliceGuesses: pAlice, pBobGuesses: pBob, pSuccess: 0.5 * pAlice + 0.5 * pBob };
+  return { pAliceGuesses: pAlice, pBobGuesses: pBob, pSuccess: pSuccessOf(pAlice, pBob) };
 }
 
 export interface LemmaReport {
@@ -200,18 +200,18 @@ export function boundReport(coeff: WStarCoefficients, builder: InstrumentBuilder
   return {
     pABound,
     pBBound,
-    pSuccessBound: 0.5 * pABound + 0.5 * pBBound,
+    pSuccessBound: pSuccessOf(pABound, pBBound),
     pAExecuted: fp.pAliceGuesses,
     pBExecuted: fp.pBobGuesses,
     pSuccessExecuted: fp.pSuccess,
-    slack: 0.5 * pABound + 0.5 * pBBound - fp.pSuccess,
+    slack: pSuccessOf(pABound, pBBound) - fp.pSuccess,
   };
 }
 
 /** Identity check: full Born-rule payoff vs functional decomposition. */
 export function decompositionIdentity(w: CMat, builder: InstrumentBuilder, fullPayoff: { pAliceGuesses: number; pBobGuesses: number }): number {
   const coeff = wStarCoefficients(w);
-  if (coeff.offSpan > 1e-12) throw new Error(`decompositionIdentity: W not in span{1,T1,T2} (off-span ${coeff.offSpan})`);
+  if (coeff.offSpan > 1e-12) throw new NamedError("certificate/off-span-process", `decompositionIdentity: W not in span{1,T1,T2} (off-span ${coeff.offSpan})`);
   const fp = functionalPayoff(coeff, builder);
   return Math.max(Math.abs(fp.pAliceGuesses - fullPayoff.pAliceGuesses), Math.abs(fp.pBobGuesses - fullPayoff.pBobGuesses));
 }
@@ -246,7 +246,7 @@ export function closedFormProductPayoff(coeff: WStarCoefficients, params: Strate
   }
   const pAlice = pA / 16;
   const pBob = pB / 16;
-  return { pAliceGuesses: pAlice, pBobGuesses: pBob, pSuccess: 0.5 * pAlice + 0.5 * pBob };
+  return { pAliceGuesses: pAlice, pBobGuesses: pBob, pSuccess: pSuccessOf(pAlice, pBob) };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,12 +289,4 @@ export function adjudicate(claim: Claim, tol = 1e-9): ClaimVerdict {
     }
   }
   return { accepted: reasons.length === 0, reasons, executedValue: claim.executedPayoff.pSuccess };
-}
-
-// re-exported matrix constants for the equivalence module (single source)
-export const MATS = { I, X, Y, Z } as const;
-
-/** Elementwise certificate: max |a − b| (used by the OCB12 equivalence face). */
-export function elementwiseDeviation(a: CMat, b: CMat): number {
-  return cmatMaxAbsDiff(a, b);
 }

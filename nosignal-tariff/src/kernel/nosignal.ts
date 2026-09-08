@@ -72,7 +72,7 @@ export function randomBUnitary(seed: number): (r: CMat) => CMat {
   const c = [rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1];
   const n = Math.sqrt(c[0]! * c[0]! + c[1]! * c[1]! + c[2]! * c[2]!) || 1;
   const t = rng() * Math.PI;
-  const [x, y, z] = [c[0] as number / n, c[1] as number / n, c[2] as number / n];
+  const [x, y, z] = [c[0]! / n, c[1]! / n, c[2]! / n];
   const ct = Math.cos(t);
   const st = Math.sin(t);
   // U = ct I + i st (x X + y Y + z Z)
@@ -100,8 +100,8 @@ export function randomBCPTP(seed: number, envDim: number): (r: CMat) => CMat {
   for (let bOut = 0; bOut < 2; bOut++) {
     for (let e = 0; e < envDim; e++) {
       for (let bIn = 0; bIn < 2; bIn++) {
-        const v = V.V.re[((bOut * envDim + e) * 2 + bIn)] as number;
-        const vi = V.V.im[((bOut * envDim + e) * 2 + bIn)] as number;
+        const v = V.V.re[((bOut * envDim + e) * 2 + bIn)]!;
+        const vi = V.V.im[((bOut * envDim + e) * 2 + bIn)]!;
         // input index (a, bIn): all a
         for (let a = 0; a < 2; a++) {
           const row = ((a * 2 + bOut) * envDim + e);
@@ -151,7 +151,8 @@ export function tetraStructureDeviation(): number {
 // --- C2: the order register --------------------------------------------------
 
 export function orderBlindnessMax(): number {
-  const plus = { rows: 2, cols: 2, re: Float64Array.from([0.5, 0.5, 0.5, 0.5]), im: new Float64Array(4) } as CMat;
+  const plus = mat(2, 2);
+  plus.re.fill(0.5);
   const basis = (i: number): CMat => {
     const m = mat(2, 2);
     m.re[i * 2 + i] = 1;
@@ -170,7 +171,7 @@ export function orderBlindnessMax(): number {
       const s = readoutSlices(sc, plus, x);
       // the CONTROL MARGINAL (2x2), not joint elements — P(c=0) is the
       // diagonal of the receiver's own register
-      return [(s.control.re[0] as number), (s.control.re[3] as number)] as const;
+      return [s.control.re[0]!, s.control.re[3]!] as const;
     });
     for (const a of dists) {
       for (const b of dists) {

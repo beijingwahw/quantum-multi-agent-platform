@@ -1,6 +1,6 @@
 export interface CxVec {
-    re: Float64Array;
-    im: Float64Array;
+    readonly re: Float64Array;
+    readonly im: Float64Array;
 }
 /** Success probability of k Grover iterates with good fraction p (2-plane closed form). */
 export declare function groverSuccessClosedForm(p: number, k: number): number;
