@@ -5,26 +5,14 @@
  */
 
 import { type CMat, mat, mMul, mDagger } from './cmat.js';
+import { DtcError } from './errors.js';
 
 /** Subsystem dimensions must be positive integers — validated once at the
  * channel boundary, never per cell of the hot loops. */
 function checkDims(fn: string, dims: readonly number[]): void {
   for (const d of dims) {
-    if (!Number.isInteger(d) || d <= 0) throw new Error(`${fn}: subsystem dims must be positive integers, got ${d}`);
+    if (!Number.isInteger(d) || d <= 0) throw new DtcError("E/DOMAIN", `${fn}: subsystem dims must be positive integers, got ${d}`);
   }
-}
-
-/** Apply a CPTP map given its Kraus operators: Σ K ρ K†. */
-export function applyKraus(rho: CMat, kraus: readonly CMat[]): CMat {
-  const out = mat(rho.rows, rho.cols);
-  for (const k of kraus) {
-    const kr = mMul(mMul(k, rho), mDagger(k));
-    for (let i = 0; i < out.re.length; i++) {
-      out.re[i] = out.re[i]! + kr.re[i]!;
-      out.im[i] = out.im[i]! + kr.im[i]!;
-    }
-  }
-  return out;
 }
 
 /** Apply a single unitary: U ρ U†. */
@@ -43,9 +31,9 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   // an out-of-range traced-out index would compare undefined !== undefined and
   // silently drop the constraint — refuse it at the boundary instead
   for (const t of traceOut) {
-    if (!Number.isInteger(t) || t < 0 || t >= m) throw new Error(`partialTrace: traced-out subsystem index ${t} out of range for ${m} subsystems`);
+    if (!Number.isInteger(t) || t < 0 || t >= m) throw new DtcError("E/DOMAIN", `partialTrace: traced-out subsystem index ${t} out of range for ${m} subsystems`);
   }
-  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) throw new Error('dims do not match rho');
+  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) throw new DtcError("E/SHAPE", 'dims do not match rho');
   const keep = dims.map((_, i) => i).filter((i) => !traceOut.includes(i));
   const keptDims = keep.map((i) => dims[i]!);
   const dOut = keptDims.reduce((a, b) => a * b, 1);
@@ -92,20 +80,6 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   return out;
 }
 
-/** Depolarizing channel on dimension d: (1-p)ρ + p I/d. */
-export function depolarize(rho: CMat, p: number): CMat {
-  const d = rho.rows;
-  const out = mat(d, d);
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      const diag = i === j ? 1 / d : 0;
-      out.re[i * d + j] = (1 - p) * rho.re[i * d + j]! + p * diag;
-      out.im[i * d + j] = (1 - p) * rho.im[i * d + j]!;
-    }
-  }
-  return out;
-}
-
 export interface ReadoutOutcome {
   /** probability of each joint computational-basis outcome on measured registers */
   probs: number[];
@@ -123,7 +97,7 @@ export function marginalProbs(rho: CMat, dims: readonly number[], measure: reado
   // an out-of-range measured index would contribute nothing and silently
   // reshape the outcome distribution — refuse it at the boundary
   for (const i of measure) {
-    if (!Number.isInteger(i) || i < 0 || i >= m) throw new Error(`marginalProbs: measured subsystem index ${i} out of range for ${m} subsystems`);
+    if (!Number.isInteger(i) || i < 0 || i >= m) throw new DtcError("E/DOMAIN", `marginalProbs: measured subsystem index ${i} out of range for ${m} subsystems`);
   }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;
@@ -165,13 +139,13 @@ export function filterBasisDigit(
   const m = dims.length;
   checkDims('filterBasisDigit', dims);
   if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
-    throw new Error(`filterBasisDigit: subsystem index ${sys} out of range for ${m} subsystems`);
+    throw new DtcError("E/DOMAIN", `filterBasisDigit: subsystem index ${sys} out of range for ${m} subsystems`);
   }
   const dsys = dims[sys]!;
   // an out-of-range digit would filter out every basis state and silently
   // return a zero conditional instead of an error
   if (!Number.isInteger(digit) || digit < 0 || digit >= dsys) {
-    throw new Error(`filterBasisDigit: digit ${digit} out of range for subsystem dimension ${dsys}`);
+    throw new DtcError("E/DOMAIN", `filterBasisDigit: digit ${digit} out of range for subsystem dimension ${dsys}`);
   }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;

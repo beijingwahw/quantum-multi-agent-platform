@@ -18,33 +18,27 @@ import { type CMat, type CVec, eigHermitian, identity, kron, mat, mAdd, mDagger,
 import { applyKraus, applyUnitary, filterBasisDigit, partialTrace } from "../core/channels.js";
 import { vonNeumannEntropy } from "../core/measures.js";
 import { vecToRho } from "../core/states.js";
+import { DomainError, requireEps, requireGamma, requireRate, requireStep } from "../core/errors.js";
 
 export const GAMMA = 0.25;
 export const DATA_DIM = 2;
 export const FULL_DIM = 4;
 
-/** Pi_W = |1><1| ⊗ I — the world projector (basis order: world ⊗ data). */
-export function worldProjector(): CMat {
-  const m = mat(FULL_DIM, FULL_DIM);
-  for (let k = 0; k < DATA_DIM; k++) m.re[(DATA_DIM + k) * FULL_DIM + (DATA_DIM + k)] = 1;
-  return m;
-}
-
-/** Pi_perp = |0><0| ⊗ I. */
-export function complementProjector(): CMat {
-  const m = mat(FULL_DIM, FULL_DIM);
-  for (let k = 0; k < DATA_DIM; k++) m.re[k * FULL_DIM + k] = 1;
-  return m;
-}
-
-/** The Kraus pair of the law (world damping toward 1, identity on data). */
-export function lawKraus(gamma: number = GAMMA): CMat[] {
+/** The world-bit damping Kraus pair (2x2): damping INTO the world bit 1. */
+function worldKrausPair(gamma: number): CMat[] {
+  requireGamma("worldKrausPair", gamma);
   const k0w = mat(2, 2);
   k0w.re[0 * 2 + 0] = Math.sqrt(1 - gamma);
   k0w.re[1 * 2 + 1] = 1;
   const k1w = mat(2, 2);
-  k1w.re[1 * 2 + 0] = Math.sqrt(gamma); // row 1, col 0: |1><0| moves |0> into the world
-  return [kron(k0w, identity(DATA_DIM)), kron(k1w, identity(DATA_DIM))];
+  k1w.re[1 * 2 + 0] = Math.sqrt(gamma);
+  return [k0w, k1w];
+}
+
+/** The Kraus pair of the law (world damping toward 1, identity on data) —
+ * the single-sourced construction: worldKrausPair ⊗ I_data. */
+export function lawKraus(gamma: number = GAMMA): CMat[] {
+  return worldKrausPair(gamma).map((k) => kron(k, identity(DATA_DIM)));
 }
 
 export function applyLaw(rho: CMat, gamma: number = GAMMA): CMat {
@@ -144,7 +138,7 @@ export function randomUnitary(rng: Rng, d: number): CMat {
     let nrm = 0;
     for (let i = 0; i < d; i++) nrm += v.re[i]! * v.re[i]! + v.im[i]! * v.im[i]!;
     nrm = Math.sqrt(nrm);
-    if (nrm < 1e-12) throw new Error("randomUnitary: degenerate draw");
+    if (nrm < 1e-12) throw new DomainError("randomUnitary:degenerate-draw", "randomUnitary: degenerate draw");
     const phase = rng() * 2 * Math.PI;
     const c = Math.cos(phase) / nrm;
     const s = Math.sin(phase) / nrm;
@@ -204,6 +198,7 @@ export function randomCptpKraus(rng: Rng, d: number, envDim: number): CMat[] {
 
 /** The perturbed law Phi_eps = (1-eps) Phi + eps N as one application. */
 export function applyPerturbed(rho: CMat, nKraus: readonly CMat[], eps: number, gamma: number = GAMMA): CMat {
+  requireEps("applyPerturbed", eps);
   const viaLaw = applyKraus(rho, lawKraus(gamma));
   const viaN = applyKraus(rho, nKraus);
   return mAdd(mScale(viaLaw, 1 - eps), mScale(viaN, eps));
@@ -211,6 +206,7 @@ export function applyPerturbed(rho: CMat, nKraus: readonly CMat[], eps: number, 
 
 /** The exact algebra bound on asymptotic leakage under the perturbed law. */
 export function perturbedLeakageBound(eps: number, gamma: number = GAMMA): number {
+  requireEps("perturbedLeakageBound", eps);
   return eps / (1 - (1 - eps) * (1 - gamma));
 }
 
@@ -223,11 +219,15 @@ export function h2(q: number): number {
 /** Two-rate escape chain (classical, on the world bit): W -> perp at rate r,
  * perp -> W at rate gamma. In-world probability after k steps from W. */
 export function twoRateInWorld(k: number, r: number, gamma: number = GAMMA): number {
+  requireStep("twoRateInWorld", k);
+  requireRate("twoRateInWorld", r);
   const wStar = gamma / (r + gamma);
   return wStar + (1 - r - gamma) ** k * (1 - wStar);
 }
 
 export function twoRateRecursion(k: number, r: number, gamma: number = GAMMA): number {
+  requireStep("twoRateRecursion", k);
+  requireRate("twoRateRecursion", r);
   let w = 1;
   for (let step = 0; step < k; step++) w = (1 - r) * w + gamma * (1 - w);
   return w;
@@ -329,7 +329,12 @@ export function stationaryInWorld(r: number, gamma: number = GAMMA): number {
   return gamma / (gamma + r);
 }
 
-/** The Boltzmann logistic occupancy 1/(1+e^{−βΔE}) — what w* becomes thermally. */
+/** The Boltzmann logistic occupancy 1/(1+e^{−βΔE}) — what w* becomes thermally.
+ * Single source for the p_b factor at bit-identical precision. Constraint:
+ * bathGibbs and collisionRates deliberately keep their own arrangements
+ * (q = e^{−βΔE}/(1+e^{−βΔE}) and s²·e^{−βΔE}/(1+e^{−βΔE)}) — the
+ * cancellation-free forms for small probabilities; merging them into calls
+ * of this trades relative precision where the readings live. */
 export function boltzmannOccupancy(betaGap: number): number {
   return 1 / (1 + Math.exp(-betaGap));
 }
@@ -339,12 +344,20 @@ export function boltzmannOccupancy(betaGap: number): number {
  * computed first — the naive 1 - w(K) underflows at small r: float64 floors at
  * 2.2e-16, the thermal readings go far below). */
 export function escapeAtHorizon(K: number, r: number, gamma: number = GAMMA): number {
+  requireStep("escapeAtHorizon", K);
+  requireRate("escapeAtHorizon", r);
   const leakShare = r / (gamma + r);
   return leakShare * (1 - Math.pow(1 - r - gamma, K));
 }
 
 /** The design rule: the βΔE that holds escape <= δ over horizon K. */
 export function escapeDesignRuleBeta(K: number, delta: number, gamma: number = GAMMA): number {
+  if (!(K > 0) || !(delta > 0)) {
+    throw new DomainError(
+      "escapeDesignRuleBeta:range",
+      `escapeDesignRuleBeta: horizon and delta must be positive, got K=${K}, delta=${delta}`,
+    );
+  }
   return Math.log((K * gamma) / delta);
 }
 
@@ -476,7 +489,7 @@ export function collisionBlockMixing(
   ss0: number,
   ww0: number,
 ): { ss: number; ww: number } {
-  const pB = 1 / (1 + Math.exp(-betaGap));
+  const pB = boltzmannOccupancy(betaGap);
   const qB = 1 - pB;
   const lam = Math.pow(1 - Math.sin(theta) ** 2, n);
   const tot = ss0 + ww0;
@@ -608,7 +621,9 @@ export function schmidtPurification(rho: CMat): { vec: CVec; joint: CMat; mDim: 
     const lam = values[k]!;
     if (lam > 1e-12) pairs.push({ lam, vec: vectors[k]! });
   }
-  if (pairs.length === 0) throw new Error("schmidtPurification: state has no weight");
+  if (pairs.length === 0) {
+    throw new DomainError("schmidtPurification:zero-state", "schmidtPurification: state has no weight");
+  }
   const mDim = pairs.length;
   const psi: CVec = {
     n: rho.rows * mDim,
@@ -737,19 +752,12 @@ export function holderHarvest(rho: CMat): HolderRungs {
  * Tight: a 2-dimensional weight banks the straddler's full 1 bit. */
 export function catalystCap(dCatalyst: number): number {
   if (!Number.isInteger(dCatalyst) || dCatalyst < 1) {
-    throw new Error(`catalystCap: catalyst dimension must be a positive integer, got ${dCatalyst}`);
+    throw new DomainError(
+      "catalystCap:dim-range",
+      `catalystCap: catalyst dimension must be a positive integer, got ${dCatalyst}`,
+    );
   }
   return Math.log2(dCatalyst);
-}
-
-/** The world-bit damping Kraus pair (2x2): damping INTO the world bit 1. */
-function worldKrausPair(gamma: number): CMat[] {
-  const k0w = mat(2, 2);
-  k0w.re[0 * 2 + 0] = Math.sqrt(1 - gamma);
-  k0w.re[1 * 2 + 1] = 1;
-  const k1w = mat(2, 2);
-  k1w.re[1 * 2 + 0] = Math.sqrt(gamma);
-  return [k0w, k1w];
 }
 
 export const TWO_WORLD_DIM = 8;
@@ -823,6 +831,7 @@ export function bothOutside(rho: CMat): number {
 /** Each world's own face keeps the exact single geometric, whatever the
  * correlations: leak_X(k) = (1-gamma)^k leak_X(0). */
 export function singleWorldLeak(k: number, leak0: number, gamma: number = GAMMA): number {
+  requireStep("singleWorldLeak", k);
   return Math.pow(1 - gamma, k) * leak0;
 }
 
@@ -832,6 +841,7 @@ export function singleWorldLeak(k: number, leak0: number, gamma: number = GAMMA)
  * intersection structure is genuinely two-scale whenever any outside mass
  * sits at t=0. */
 export function joinLeakage(k: number, a0: number, b0: number, c0: number, gamma: number = GAMMA): number {
+  requireStep("joinLeakage", k);
   const qa = Math.pow(1 - gamma, k) * a0;
   const qb = Math.pow(1 - gamma, k) * b0;
   const qab = Math.pow(1 - gamma, 2 * k) * c0;
@@ -845,9 +855,7 @@ export function joinLeakage(k: number, a0: number, b0: number, c0: number, gamma
 export function accumulatedLeakageBound(epsSeq: readonly number[], leak0: number, gamma: number = GAMMA): number {
   let b = leak0;
   for (const eps of epsSeq) {
-    if (!(eps >= 0) || eps >= 1) {
-      throw new Error(`accumulatedLeakageBound: eps must lie in [0,1), got ${eps}`);
-    }
+    requireEps("accumulatedLeakageBound", eps);
     b = b * (1 - eps) * (1 - gamma) + eps;
   }
   return b;

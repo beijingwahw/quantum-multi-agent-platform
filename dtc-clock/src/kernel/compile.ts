@@ -23,13 +23,6 @@ export interface RevGate {
   readonly wires: readonly number[]; // NOT:[t] CNOT:[c,t] TOFFOLI:[c1,c2,t] FREDKIN:[c,s1,s2]
 }
 
-/** The gate as a basis permutation: index -> index (bit i of the index = wire i). */
-export function gatePermutation(g: RevGate, m: number): Int32Array {
-  const perm = new Int32Array(1 << m);
-  for (let x = 0; x < 1 << m; x++) perm[x] = applyGate(g, x);
-  return perm;
-}
-
 export function applyGate(g: RevGate, x: number): number {
   switch (g.kind) {
     case "NOT":
@@ -102,8 +95,6 @@ export function classicalAfter(gates: readonly RevGate[], x: number, k: number):
 // ---------------------------------------------------------------------------
 
 export const MUL_WIRES = 13;
-export const MUL_INPUT_MASK = 0b1111; // a1 a0 b1 b0
-export const MUL_OUT_SHIFT = 4; // p3..p0 at bits 4..7
 
 export function multiplierCircuit(): RevGate[] {
   const a1 = 0;

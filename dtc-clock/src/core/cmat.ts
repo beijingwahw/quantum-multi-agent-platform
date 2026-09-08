@@ -8,6 +8,8 @@
  * complex-eigensolver implementation entirely.
  */
 
+import { DtcError } from './errors.js';
+
 export interface CVec {
   readonly n: number;
   readonly re: Float64Array;
@@ -41,15 +43,6 @@ export function identity(d: number): CMat {
   return m;
 }
 
-export function vAdd(a: CVec, b: CVec): CVec {
-  const r = vec(a.n);
-  for (let i = 0; i < a.n; i++) {
-    r.re[i] = a.re[i]! + b.re[i]!;
-    r.im[i] = a.im[i]! + b.im[i]!;
-  }
-  return r;
-}
-
 export function vScale(a: CVec, s: number): CVec {
   const r = vec(a.n);
   for (let i = 0; i < a.n; i++) {
@@ -79,18 +72,6 @@ export function vNormalize(a: CVec): CVec {
   return nrm === 0 ? a : vScale(a, 1 / nrm);
 }
 
-/** |a><b| */
-export function outer(a: CVec, b: CVec): CMat {
-  const m = mat(a.n, b.n);
-  for (let i = 0; i < a.n; i++) {
-    for (let j = 0; j < b.n; j++) {
-      m.re[i * b.n + j] = a.re[i]! * b.re[j]! + a.im[i]! * b.im[j]!;
-      m.im[i * b.n + j] = a.im[i]! * b.re[j]! - a.re[i]! * b.im[j]!;
-    }
-  }
-  return m;
-}
-
 export function mAdd(a: CMat, b: CMat): CMat {
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
@@ -110,7 +91,7 @@ export function mScale(a: CMat, s: number): CMat {
 }
 
 export function mMul(a: CMat, b: CMat): CMat {
-  if (a.cols !== b.rows) throw new Error(`shape mismatch ${a.rows}x${a.cols} * ${b.rows}x${b.cols}`);
+  if (a.cols !== b.rows) throw new DtcError("E/SHAPE", `shape mismatch ${a.rows}x${a.cols} * ${b.rows}x${b.cols}`);
   const m = mat(a.rows, b.cols);
   const bn = b.cols;
   for (let i = 0; i < a.rows; i++) {
@@ -141,7 +122,7 @@ export function mDagger(a: CMat): CMat {
 }
 
 export function mTrace(a: CMat): { re: number; im: number } {
-  if (a.rows !== a.cols) throw new Error('trace requires square');
+  if (a.rows !== a.cols) throw new DtcError("E/SHAPE", 'trace requires square');
   let re = 0;
   let im = 0;
   for (let i = 0; i < a.rows; i++) {
@@ -187,32 +168,13 @@ export function vKron(a: CVec, b: CVec): CVec {
 }
 
 export function kronAll(mats: CMat[]): CMat {
-  if (mats.length === 0) throw new Error('kronAll needs >=1 matrix');
+  if (mats.length === 0) throw new DtcError("E/DOMAIN", 'kronAll needs >=1 matrix');
   return mats.reduce((acc, m) => kron(acc, m));
 }
 
-export function vecToMat(v: CVec): CMat {
-  const m = mat(v.n, 1);
-  m.re.set(v.re);
-  m.im.set(v.im);
-  return m;
-}
-
 export function matToVec(m: CMat): CVec {
-  if (m.cols !== 1) throw new Error('matToVec requires column');
+  if (m.cols !== 1) throw new DtcError("E/SHAPE", 'matToVec requires column');
   return { n: m.rows, re: m.re.slice(), im: m.im.slice() };
-}
-
-export function isHermitian(a: CMat, tol = 1e-12): boolean {
-  if (a.rows !== a.cols) return false;
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = i; j < a.cols; j++) {
-      const dr = a.re[i * a.cols + j]! - a.re[j * a.cols + i]!;
-      const di = a.im[i * a.cols + j]! + a.im[j * a.cols + i]!;
-      if (Math.abs(dr) > tol || Math.abs(di) > tol) return false;
-    }
-  }
-  return true;
 }
 
 export function matEq(a: CMat, b: CMat, tol = 1e-12): boolean {
@@ -410,8 +372,12 @@ export function eigVecsFromValues(
       out[cluster[j]!] = block[j]!;
     }
   }
-  if (out.some((v) => v === null)) throw new Error('eigVecsFromValues: incomplete eigenspace');
-  return out as Float64Array[];
+  const result: Float64Array[] = [];
+  for (const v of out) {
+    if (v === null) throw new DtcError("E/SOLVER", 'eigVecsFromValues: incomplete eigenspace');
+    result.push(v);
+  }
+  return result;
 }
 
 /**
@@ -419,7 +385,7 @@ export function eigVecsFromValues(
  * Uses the 2n x 2n real embedding whose eigenvalues come in exact pairs.
  */
 export function eigenvaluesHermitian(h: CMat): Float64Array {
-  if (h.rows !== h.cols) throw new Error('eigenvalues require square Hermitian');
+  if (h.rows !== h.cols) throw new DtcError("E/SHAPE", 'eigenvalues require square Hermitian');
   const n = h.rows;
   const N = 2 * n;
   const emb = buildEmbedding(h, n, N);
@@ -436,7 +402,7 @@ export function eigenvaluesHermitian(h: CMat): Float64Array {
  * accepted only if it reconstructs H: Σ λ v v† = H to 1e-8.
  */
 export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] } {
-  if (h.rows !== h.cols) throw new Error('eig requires square Hermitian');
+  if (h.rows !== h.cols) throw new DtcError("E/SHAPE", 'eig requires square Hermitian');
   const n = h.rows;
   const N = 2 * n;
   const emb = buildEmbedding(h, n, N);
@@ -493,7 +459,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] }
       v = { re: v.re.map((x) => x / nrm), im: v.im.map((x) => x / nrm) };
       basis.push(v);
     }
-    if (basis.length < m) throw new Error('eigHermitian: complex basis extraction failed');
+    if (basis.length < m) throw new DtcError("E/SOLVER", 'eigHermitian: complex basis extraction failed');
     for (const v of basis) {
       outValues.push(lam);
       outVectors.push(colFrom(v.re, v.im));
@@ -512,7 +478,7 @@ export function eigHermitian(h: CMat): { values: Float64Array; vectors: CMat[] }
   for (let k = 0; k < h.re.length; k++) {
     err += Math.abs(recon.re[k]! - h.re[k]!) + Math.abs(recon.im[k]! - h.im[k]!);
   }
-  if (err > 1e-8) throw new Error(`eigHermitian: reconstruction failed (err=${err.toExponential(2)})`);
+  if (err > 1e-8) throw new DtcError("E/SOLVER", `eigHermitian: reconstruction failed (err=${err.toExponential(2)})`);
   return { values, vectors };
 }
 
@@ -581,11 +547,11 @@ export function sqrtPSD(a: CMat): CMat {
 /** Rebuild a Hermitian matrix from its spectral decomposition. */
 export function fromSpectral(values: Float64Array, vectors: CMat[]): CMat {
   const first = vectors[0];
-  if (first === undefined) throw new Error('fromSpectral: empty spectral list');
+  if (first === undefined) throw new DtcError("E/DOMAIN", 'fromSpectral: empty spectral list');
   const n = first.rows;
   // values and vectors are parallel lists, one per eigenpair of the n x n matrix
   if (values.length !== n || vectors.length !== n) {
-    throw new Error(`fromSpectral: expected ${n} values and vectors, got ${values.length}/${vectors.length}`);
+    throw new DtcError("E/SHAPE", `fromSpectral: expected ${n} values and vectors, got ${values.length}/${vectors.length}`);
   }
   const out = mat(n, n);
   for (let k = 0; k < n; k++) {

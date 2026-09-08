@@ -50,7 +50,7 @@ in the ground state AND mid-walk.
 
 **T5 — the graduated boundary and amplification (v0.2.0).** The DTC
 eternal-clock face of the epoch-4 claim is no longer open at the model
-layer: dtc-clock (v0.20.0) shipped the certificate layer (TC14 the tariff
+layer: dtc-clock (v0.21.0) shipped the certificate layer (TC14 the tariff
 0 < 5 < 9 < 43.02 kT·ln2 units, TC17 the winner) and route-price (v0.2.0)
 receipted it with independent cross-checks (W-E). This repo's own face of
 the graduation is the independent THIRD path: the tariff ordering re-derived
@@ -102,7 +102,7 @@ bandwidth, against the Mandelstam–Tamm floor pi/(2·sigma_E) = pi.
   semantics), not compute.
 - **The DTC "eternal clock" face: GRADUATED at the model layer (v0.2.0).**
   The v0.1.0 boundary ("stays open — no certificate layer exists") is now
-  false in this workspace and is retired honestly: dtc-clock v0.20.0
+  false in this workspace and is retired honestly: dtc-clock v0.21.0
   executed the beat-clocks-general-computation face (cargo fidelity exactly
   1 at every tick, TC6) and the thermodynamic certificate (TC12 zero net
   work on the ideal beat, TC14 the legislated tariff, TC17 the winner —

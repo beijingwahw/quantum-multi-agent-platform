@@ -26,11 +26,11 @@
  *      computation for this reason (cited, not re-proved here).
  */
 
-import { type CMat, type CVec, mat, mMul, mDagger, identity, vInner } from '../core/cmat.js';
+import { type CMat, type CVec, mat, mMul, mDagger, mScale, identity, vInner, kron } from '../core/cmat.js';
 import { applyKraus } from '../core/channels.js';
 import { equatorial, equatorialRho, PAULI_X, PAULI_Y, PAULI_Z, fromVec, randomPureState } from '../core/states.js';
 import type { Rng } from '../core/rng.js';
-import { applyLocalRho, expPauli } from '../core/gates.js';
+import { applyLocalRho, expPauli, mulVec } from '../core/gates.js';
 
 export const TRAP_ANGLES: readonly number[] = Array.from({ length: 8 }, (_, k) => (k * Math.PI) / 4);
 
@@ -117,20 +117,8 @@ export function rejectionLowerBound(kraus: readonly CMat[]): number {
 
 /** The X-attack family {√(1−q) I, √q X}: acceptance exactly 1 − q/2 — bound is tight. */
 export function xAttack(q: number): CMat[] {
-  const scale = (p: CMat, s: number): CMat => {
-    const m = mat(2, 2);
-    for (let k = 0; k < 4; k++) {
-      m.re[k] = p.re[k]! * s;
-      m.im[k] = p.im[k]! * s;
-    }
-    return m;
-  };
-  return [scale(identity(2), Math.sqrt(1 - q)), scale(PAULI_X, Math.sqrt(q))];
-}
-
-/** Z-attack {Z}: acceptance exactly 0 — the trap is a perfect Z-detector. */
-export function zAttack(): CMat[] {
-  return [PAULI_Z];
+  if (!(q >= 0 && q <= 1)) throw new Error(`QV_PROBABILITY: xAttack q must be in [0,1], got ${q}`);
+  return [mScale(identity(2), Math.sqrt(1 - q)), mScale(PAULI_X, Math.sqrt(q))];
 }
 
 /** Random CPTP map via a random isometry: k Kraus operators = row blocks of V (2k×2, V†V = I₂). */
@@ -188,7 +176,7 @@ export function randomChannel(rng: Rng, k: number): CMat[] {
   const err =
     Math.abs(tp.re[0]! - 1) + Math.abs(tp.re[3]! - 1) + Math.abs(tp.re[1]!) + Math.abs(tp.re[2]!) +
     Math.abs(tp.im[0]!) + Math.abs(tp.im[3]!);
-  if (err > 1e-10) throw new Error(`randomChannel not TP (err=${err})`);
+  if (err > 1e-10) throw new Error(`QV_NOT_TP: randomChannel produced a non-trace-preserving map (err=${err})`);
   return kraus;
 }
 
@@ -201,7 +189,7 @@ export function multiTrapAcceptance(kraus: readonly CMat[], t: number): number {
 export function garbageBlindSpot(rng: Rng): { trapAcceptance: number; garbageFidelity: number } {
   const theta = TRAP_ANGLES[3]!; // the 8-angle grid is fixed above — index 3 is in range
   const garbage = randomPureState(2, rng);
-  let joint = kronRho(equatorialRho(theta), fromVec(garbage));
+  let joint = kron(equatorialRho(theta), fromVec(garbage));
   const u = mMul(expPauli([rng.normal(), rng.normal(), 0]), expPauli([0, rng.normal(), rng.normal()]));
   joint = applyLocalRho(joint, 2, 1, u); // attack on garbage qubit only
   const pPlus = measurePlusProbQ0(joint, theta);
@@ -223,38 +211,4 @@ function measurePlusProbQ0(rho: CMat, theta: number): number {
     p += vInner(v, mulVec(rho, v)).re;
   }
   return p;
-}
-
-function kronRho(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          out.re[ri * out.cols + ci] = out.re[ri * out.cols + ci]! + (ar * b.re[p * b.cols + q]! - ai * b.im[p * b.cols + q]!);
-          out.im[ri * out.cols + ci] = out.im[ri * out.cols + ci]! + (ar * b.im[p * b.cols + q]! + ai * b.re[p * b.cols + q]!);
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function mulVec(m: CMat, v: CVec): CVec {
-  const out: CVec = { n: m.rows, re: new Float64Array(m.rows), im: new Float64Array(m.rows) };
-  for (let i = 0; i < m.rows; i++) {
-    let re = 0;
-    let im = 0;
-    for (let j = 0; j < m.cols; j++) {
-      re += m.re[i * m.cols + j]! * v.re[j]! - m.im[i * m.cols + j]! * v.im[j]!;
-      im += m.re[i * m.cols + j]! * v.im[j]! + m.im[i * m.cols + j]! * v.re[j]!;
-    }
-    out.re[i] = re;
-    out.im[i] = im;
-  }
-  return out;
 }

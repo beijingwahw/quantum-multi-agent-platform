@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 85;
-export const DECLARED_TOTAL_ERRORS = 644;
+export const DECLARED_TOTAL_BATCHES = 86;
+export const DECLARED_TOTAL_ERRORS = 658;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4053,6 +4053,86 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "[wiring agent, this batch] the G-board resolution rows were drafted from the intended category filings before the machine's own family classifier ever saw the new batch's texts — four rows carried incidental phrase collisions ('one-coin' code readers and a 'latent corrosion' route both landing in the runner family, a controls-tally phrase landing in the count family, a tool-rule phrase landing in the anchor family), and the census suite's FIRST run convicted the drifted resolution by name (the runner family's tier against a gate-held latest) — the same sequencing class the previous batch's wiring had already been convicted of once, one batch later",
         right: "the classifier runs over every new wrong-text BEFORE any resolution tier is written, and the row follows its verdict — the notes now carry the machine's filings with each collision confessed in place (the lesson booked twice consecutively: the rule is a per-batch checklist item, not a memory)",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 86,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the quality wave's FIFTH batch wiring (qverify 0.2.0->0.3.0, stable-world 0.6.0->0.7.0, dsic-noether 0.3.0->0.4.0, dtc-clock 0.20.0->0.21.0 — four gates green in each): fourteen errors across four classes, born enrolled and born audited on both boards — the version-pin cross-repo family's b80#7 founding RECURRED and CLOSED IN THE SAME BREATH (vacuum-compiler's live two-ground audit re-broken by this very wave's dtc-clock 0.20.0->0.21.0 upgrade, all six citing-tree needles repaired test/docs/README/experiments before any other act, the sibling repo's four gates green on the repair); the lockfile drift family repaired across THREE repos in one wave (dsic-noether's 0.4.0 as the known family's repayment, stable-world's 0.1.0 residual and dtc-clock's 0.11.0 residual — nine bumps deep — both CONVICTED by their own new permanent regression anchors); the sanctioned-channel family struck twice more (the twenty-second and twenty-third sightings, both node -e file edits, the second against the shared kernel's own lineage root), the absorption law's first VIOLATION sighted in the very wave executing it (an invented replacement standing where the law demands a pure delete), and one typecheck conviction beside them; the wiring agent's own TWO slips booked with them (a stale-registration layout and a remembered hard count, both convicted by the census suite at its own runs — the b85#35 class one batch later)",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十六批" },
+    errors: [
+      {
+        wrong: "the chsh.ts edit went through node -e fs.writeFileSync — the sanctioned-channel family's twenty-second sighting (the nineteenth b79#0, the twentieth b81#4, the twenty-first b85#12/b85#20 the batch before): the regex-driven write mis-fired and left a DUPLICATE local kron standing in src/protocol/chsh.ts, the corruption surfacing in the very act; the Write/Edit-only iron rule broken in the wave that booked it three times",
+        right: "the duplicate kron removed by the Edit tool in the immediate fix, the file re-verified whole and every gate re-run green — code edits travel by Write/Edit on a Read file only, and a scripted write's clean exit certifies nothing about the text it left behind",
+        category: "toolchain",
+      },
+      {
+        wrong: "two first-draft assertions were wrong about the numbers they certified: cramerRate's mean was demanded EXACTLY zero where the value comes from a numerical maximizer (the true claim is at least zero and under 1e-12), and the depolarize identity check used Object.is where +0/-0 non-diagonal inertia legitimately diverges — both dying red at the suite's first run",
+        right: "the assertions relaxed to the honest bound (at least zero and under 1e-12) and the identity recorded with === — an assertion is written from the arithmetic's own tolerance structure, never from the hope that the digits land exact; the suite re-run green",
+        category: "statistics",
+      },
+      {
+        wrong: "the first quality.test.ts draft still carried placeholder residue — scaffold text standing where the trials needed to be, rewritten before any gate ever ran",
+        right: "the suite rewritten whole before the gates — placeholder scaffolding never reaches the machine (drafts land finished or not at all)",
+        category: "process",
+      },
+      {
+        wrong: "one edit truncated cmat.ts's tail through node -e fs.write — the sanctioned-channel family's twenty-third sighting (the twenty-second one repo earlier in the same wave, the nineteenth through twenty-first the batch before): the shared-kernel lineage root's own core file, verified complete only AFTER the act",
+        right: "the file verified intact and every later edit through Write/Edit on Read files — an after-the-fact completeness check certifies the recovery, never the channel; the rule has no core-file exception",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect] stable-world's package-lock.json carried version 0.1.0 at both slots against package.json's 0.6.0 — five minor versions of drift, the b85#32-34 lockfile family's next own-repo face, never checked by any gate that verified the manifest only",
+        right: "both slots pinned to the live 0.7.0 with the new T11 regression anchor 'the books agree' refusing the drift on every suite run — the books now check themselves",
+        category: "citation-drift",
+      },
+      {
+        wrong: "the dead-export scan's grep filter produced false DEAD? positives — type-annotation USES were excluded by the pattern, defaming live exports as dead and nearly deleting them",
+        right: "manual re-verification against each flagged symbol before any cut — only rAbs/rToNum were truly dead; a survey's filter is itself data, and its verdicts are checked, never trusted",
+        category: "process",
+      },
+      {
+        wrong: "one edit was issued off a Bash cat view — a shell view is not a Read, and the read-state tracker refused it outright (the b48#2/b53#0/b67#4/b83#20 line, the eighth refusal)",
+        right: "the real Read then the clean Edit, nothing damaged — the refusal IS the guard; read state is earned by the Read tool only",
+        category: "process",
+      },
+      {
+        wrong: "a Windows backslash form survived inside one grep -v exclusion — the deletion sweep's filter silently kept matching the file it meant to exclude, a false-clean read standing where a residue lived",
+        right: "the grep re-ran by bare FILENAME before the cut — platform-specific separators defeat literal patterns; query with the portable form, or the sweep sweeps nothing",
+        category: "toolchain",
+      },
+      {
+        wrong: "the outer deletion's first cut INVENTED a replacement outerAA where the absorption law demands a pure delete — subtraction dressed as addition, the law's first violation sighting in the very wave executing it",
+        right: "restored and re-cut as the pure deletion — the absorption law's E branch deletes the dead face, it does not rename it; what has no references gets no successor",
+        category: "process",
+      },
+      {
+        wrong: "the binomialUpperTail deletion left the function private with a void call suppression standing in for the cut — the deletion half-done, its residue silenced rather than removed",
+        right: "re-cut as the pure delete — suppression is not deletion; a dead face goes whole or not at all",
+        category: "process",
+      },
+      {
+        wrong: "the rng.ts Object.assign refactor missed pick — TS2741 convicted the incomplete interface on the spot",
+        right: "pick landed with the refactor in the same fix — the typecheck gate did its job at the draft's first breath",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect] dtc-clock's package-lock.json carried version 0.11.0 at both slots against package.json's 0.20.0 — NINE version bumps of drift, the lockfile family's widest residual yet, the gates having verified the manifest only",
+        right: "both slots pinned to the live 0.21.0 with the permanent regression test asserting package.json and BOTH lock slots carry one version — the books check themselves on every suite run",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[wiring agent, this batch] the first anchors/enrollment layout registered the two lockfile needles (stable-world/package-lock.json :: 0.7.0, dtc-clock/package-lock.json :: 0.21.0) with NO enrollment row sitting on them — A1 convicted both as STALE registrations at the census suite's first run (the b85#35 derivation class: the layout drafted from the b85#32-34 precedent without running the symmetry check first)",
+        right: "the two conviction rows moved onto their books-agree regression anchors (the stronger guards — each repo's own suite reads the manifest and both lock slots live on every run) and the two lockfile registrations pruned in the same breath; the A1 symmetry check runs over every new registration BEFORE the batch is declared wired",
+        category: "process",
+      },
+      {
+        wrong: "[wiring agent, this batch] the repair-state hard count was first written 174 against the 175 the board carries (six new HELD verdicts, not five) — the census suite's own assertion convicted the drift on the spot",
+        right: "175 landed with the re-count in the same fix — a hard figure is recomputed from the board it names before it is written, never remembered (the count-prose law's test face)",
         category: "process",
       },
     ],

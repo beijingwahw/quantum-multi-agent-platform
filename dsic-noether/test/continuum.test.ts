@@ -10,6 +10,7 @@ import {
   pIsZero,
   pMono,
   pMul,
+  pInteg,
   pScale,
   pSub,
   pSubst,
@@ -27,6 +28,7 @@ import {
   type Rat,
 } from "../src/continuum/poly.js";
 import * as gl from "../src/continuum/green-laffont.js";
+import { KernelError } from "../src/core/errors.js";
 import { Rng } from "../src/core/rng.js";
 
 describe("T0 the polynomial engine (continuum arithmetic)", () => {
@@ -73,6 +75,68 @@ describe("T0 the polynomial engine (continuum arithmetic)", () => {
 
   it("variable mismatch between operands THROWS (dimension accounting is the caller's)", () => {
     assert.throws(() => pAdd(pZero(["a"]), pZero(["b"])), /mismatch/);
+  });
+
+  it("SMUGGLING TRIAL: every kernel public entry's illegal input is rejected with a NAMED error code (not a crash, not silence)", () => {
+    const code = (e: unknown): string | undefined => (e instanceof KernelError ? e.code : undefined);
+    const vars = ["x", "y"];
+    assert.throws(() => rat(1, 0), (e: unknown) => code(e) === "rat/zero-denominator");
+    assert.throws(() => rDiv(rat(1), rat(0)), (e: unknown) => code(e) === "rdiv/zero-divisor");
+    assert.throws(() => pVar(vars, 2), (e: unknown) => code(e) === "poly/index-range");
+    assert.throws(() => pVar(vars, -1), (e: unknown) => code(e) === "poly/index-range");
+    assert.throws(() => pDeriv(pZero(vars), -1), (e: unknown) => code(e) === "poly/index-range");
+    assert.throws(() => pInteg(pZero(vars), 2), (e: unknown) => code(e) === "poly/index-range");
+    assert.throws(() => pMono(vars, [1], rat(1)), (e: unknown) => code(e) === "poly/arity");
+    assert.throws(() => pSubstAll(pZero(vars), [0, 1], [pZero(vars)]), (e: unknown) => code(e) === "poly/arity");
+    assert.throws(() => pEval(pZero(vars), [rat(1)]), (e: unknown) => code(e) === "poly/arity");
+    // the variable-mismatch channel keeps its message anchor (above) AND gains a code
+    assert.throws(
+      () => pAdd(pZero(["a"]), pZero(["b"])),
+      (e: unknown) => code(e) === "poly/var-mismatch",
+    );
+  });
+
+  it("SMUGGLING TRIAL: the CONVICTION channel is distinct (poly/identity-failed); family, gauge, control, and K4 entries reject by NAME", () => {
+    // a forged identity is a MATHEMATICAL verdict — its code is distinct from
+    // every validation rejection above
+    let caught: unknown;
+    try {
+      pAssertZero(pVar(["s", "y"], 0), "forged identity");
+    } catch (e) {
+      caught = e;
+    }
+    assert.ok(caught instanceof KernelError && caught.code === "poly/identity-failed", String(caught));
+    // family entries:
+    assert.throws(() => gl.makeFamily(1), (e: unknown) => e instanceof KernelError && e.code === "family/n-range");
+    assert.throws(() => gl.xOther(gl.makeFamily(3), -1), (e: unknown) => e instanceof KernelError && e.code === "family/other-index-range");
+    assert.throws(() => gl.xOther(gl.makeFamily(3), 2), (e: unknown) => e instanceof KernelError && e.code === "family/other-index-range");
+    // gauge entries:
+    assert.throws(
+      () => gl.gaugeOrbitDerivative(3, pZero(["a", "b", "c"])),
+      (e: unknown) => e instanceof KernelError && e.code === "gauge/arity",
+    );
+    assert.throws(
+      () => gl.gaugeOrbitDerivative(2, pZero(["z", "t", "o0", "eps"])),
+      (e: unknown) => e instanceof KernelError && e.code === "gauge/vars",
+    );
+    assert.throws(
+      () => gl.nonlinearTwoParamGauge(gl.makeFamily(2), rat(1), rat(1)),
+      (e: unknown) => e instanceof KernelError && e.code === "gauge/n-range",
+    );
+    // control entries (the decreasing rule's witness leaving [0,1] / not paying):
+    assert.throws(
+      () => gl.decreasingProfitableDeviation(rat(1, 2), rat(2), rat(1, 2), rat(0)),
+      (e: unknown) => e instanceof KernelError && e.code === "control/level-range",
+    );
+    assert.throws(
+      () => gl.decreasingProfitableDeviation(rat(1, 2), rat(1), rat(9, 10), rat(-1, 2)),
+      (e: unknown) => e instanceof KernelError && e.code === "control/not-profitable",
+    );
+    // the K4 pair entry keeps its winning-region contract by name:
+    assert.throws(
+      () => gl.secondPriceEnvelopePair(rat(1, 5), rat(2, 5), rat(1, 2)),
+      (e: unknown) => e instanceof KernelError && e.code === "second-price/region",
+    );
   });
 });
 

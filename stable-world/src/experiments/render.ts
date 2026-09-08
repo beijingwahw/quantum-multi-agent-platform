@@ -8,12 +8,13 @@ import { pathToFileURL } from "node:url";
 import { BOARD } from "../kernel/board.js";
 import { checkBoard, runWitnesses } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
+import { DomainError } from "../core/errors.js";
 
 function renderBoard(): string {
   const violations = checkBoard();
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the board is illegal — refusing to print it:\n${lines.join("\n")}`);
+    throw new DomainError("render:illegal-board", `the board is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
   const out: string[] = [];
   out.push("# THE STABLE WORLD — the desired world as the stable solution of the law, one page\n");

@@ -17,8 +17,8 @@ import {
 import { xebWallRow, uniformFalseAcceptMC, shadowWallRow } from '../protocol/samplewall.js';
 import { randomCircuit, circuitProbs } from '../core/gates.js';
 import { fromVec, randomPureState } from '../core/states.js';
+import { depolarize } from '../core/channels.js';
 import { makeRng } from '../core/rng.js';
-import type { CMat } from '../core/cmat.js';
 import { pathToFileURL } from "node:url";
 
 export function main(): void {
@@ -30,8 +30,7 @@ export function main(): void {
     for (const q of [0, 0.3]) {
       const target = randomPureState(1 << n, rng);
       const pure = fromVec(target);
-      const d = pure.rows;
-      const mixed = q === 0 ? pure : mixDepolarized(pure, q, d);
+      const mixed = q === 0 ? pure : depolarize(pure, q);
       const bias = shadowBias(mixed, n);
       biasRows.push([String(n), fmt(q, 2), sci(bias)]);
     }
@@ -41,7 +40,7 @@ export function main(): void {
   const n = 3;
   const qDep = 0.3;
   const target = randomPureState(1 << n, rng);
-  const rho = mixDepolarized(fromVec(target), qDep, 1 << n);
+  const rho = depolarize(fromVec(target), qDep);
   const mc = fidelityShadowMC(rho, target, n, 50000, rng);
   const closed = (1 - qDep) + qDep / (1 << n);
   const z = (mc.mean - closed) / mc.stdErr;
@@ -252,18 +251,6 @@ Lowe et al. (arXiv:2207.14438) prove matching single-copy lower bounds; Fu
 and arXiv:2405.00789 document why positive XEB alone certifies nothing.
 `,
   );
-}
-
-function mixDepolarized(rho: CMat, q: number, d: number): CMat {
-  const out = { rows: d, cols: d, re: new Float64Array(d * d), im: new Float64Array(d * d) };
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      out.re[i * d + j] = (1 - q) * rho.re[i * d + j]!;
-      out.im[i * d + j] = (1 - q) * rho.im[i * d + j]!;
-    }
-    out.re[i * d + i] = out.re[i * d + i]! + q / d;
-  }
-  return out;
 }
 
 function fitSlope(curve: Array<{ layers: number; fReturn: number }>): number {

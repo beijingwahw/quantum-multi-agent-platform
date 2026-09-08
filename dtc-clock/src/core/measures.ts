@@ -5,6 +5,7 @@
  */
 
 import { type CMat, eigenvaluesHermitian, mAdd, mMul, mScale, sqrtPSD } from './cmat.js';
+import { DtcError } from './errors.js';
 
 /** Tr ρ for Hermitian ρ. */
 export function traceReal(rho: CMat): number {
@@ -53,13 +54,13 @@ export interface EnsembleItem {
  */
 export function holevo(items: readonly EnsembleItem[]): number {
   const first = items[0];
-  if (first === undefined) throw new Error('holevo: empty ensemble');
+  if (first === undefined) throw new DtcError("E/DOMAIN", 'holevo: empty ensemble');
   const d = first.state.rows;
   const avg = mat0(d);
   let wsum = 0;
   for (const it of items) {
     if (it.state.rows !== d || it.state.cols !== d) {
-      throw new Error('holevo: every ensemble state must share one dimension');
+      throw new DtcError("E/SHAPE", 'holevo: every ensemble state must share one dimension');
     }
     wsum += it.weight;
     for (let k = 0; k < d * d; k++) {
@@ -67,7 +68,7 @@ export function holevo(items: readonly EnsembleItem[]): number {
       avg.im[k] = avg.im[k]! + it.weight * it.state.im[k]!;
     }
   }
-  if (Math.abs(wsum - 1) > 1e-9) throw new Error('ensemble weights must sum to 1');
+  if (Math.abs(wsum - 1) > 1e-9) throw new DtcError("E/DOMAIN", 'ensemble weights must sum to 1');
   const sAvg = vonNeumannEntropy(avg);
   let sSum = 0;
   for (const it of items) sSum += it.weight * vonNeumannEntropy(it.state);

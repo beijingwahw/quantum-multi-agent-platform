@@ -197,6 +197,6 @@ own-report terms convicted on sight.
 npm ci && npm test && npm run repro
 ```
 
-78/78 tests; seven reports rebuilt in about a second and a half. Seeded,
+85/85 tests; seven reports rebuilt in about a second and a half. Seeded,
 zero runtime dependencies, TypeScript strict + NodeNext. Reports land in
 `out/reports/`. Citations (web-verified): [docs/citations.md](docs/citations.md).

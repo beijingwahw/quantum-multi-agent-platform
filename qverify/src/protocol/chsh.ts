@@ -19,7 +19,7 @@
  *      but CHSH-local — CHSH verification is sufficient, not necessary.
  */
 
-import { type CMat, eigenvaluesHermitian, mat, mMul, sqrtPSD } from '../core/cmat.js';
+import { type CMat, eigenvaluesHermitian, mat, mMul, kron, sqrtPSD } from '../core/cmat.js';
 import { PAULIS, PAULI_Y } from '../core/states.js';
 import { partialTransposeQ } from '../core/gates.js';
 import { makeRng, type Rng } from '../core/rng.js';
@@ -30,7 +30,7 @@ export function correlationT(rho: CMat): number[][] {
   for (let i = 0; i < 3; i++) {
     const si = PAULIS[i]!;
     for (let j = 0; j < 3; j++) {
-      const op = kron2(si, PAULIS[j]!);
+      const op = kron(si, PAULIS[j]!);
       const prod = mMul(rho, op);
       // Tr(ρ σ⊗σ) is real for Hermitian ρ
       let tr = 0;
@@ -39,7 +39,7 @@ export function correlationT(rho: CMat): number[][] {
         tr += prod.re[k * 4 + k]!;
         tim += prod.im[k * 4 + k]!;
       }
-      if (Math.abs(tim) > 1e-10) throw new Error('correlation not real');
+      if (Math.abs(tim) > 1e-10) throw new Error('QV_IMAGINARY_TRACE: correlation not real (input not Hermitian?)');
       t[i]![j] = tr;
     }
   }
@@ -169,7 +169,7 @@ export function sampleProjectiveOutcomes(
   const pb = projector(b);
   for (let m = 0; m < 2; m++) {
     for (let n = 0; n < 2; n++) {
-      const op = kron2(m === 0 ? pa.plus : pa.minus, n === 0 ? pb.plus : pb.minus);
+      const op = kron(m === 0 ? pa.plus : pa.minus, n === 0 ? pb.plus : pb.minus);
       const prod = mMul(rho, op);
       probs.push(prod.re[0]! + prod.re[5]! + prod.re[10]! + prod.re[15]!);
     }
@@ -209,7 +209,7 @@ function projector(d: readonly number[]): { plus: CMat; minus: CMat } {
 /** Concurrence of a two-qubit state via the spin-flip construction. */
 export function concurrence(rho: CMat): number {
   // ρ̃ = (Y⊗Y) ρ* (Y⊗Y); eigenvalues of ρ ρ̃ via the similar Hermitian √ρ ρ̃ √ρ
-  const yy = kron2(PAULI_Y, PAULI_Y);
+  const yy = kron(PAULI_Y, PAULI_Y);
   const conj = mat(4, 4);
   for (let i = 0; i < 16; i++) conj.im[i] = -rho.im[i]!;
   conj.re.set(rho.re);
@@ -248,21 +248,3 @@ export function classicalGameWinRate(): number {
   return best;
 }
 
-function kron2(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          out.re[ri * out.cols + ci] = out.re[ri * out.cols + ci]! + (ar * b.re[p * b.cols + q]! - ai * b.im[p * b.cols + q]!);
-          out.im[ri * out.cols + ci] = out.im[ri * out.cols + ci]! + (ar * b.im[p * b.cols + q]! + ai * b.re[p * b.cols + q]!);
-        }
-      }
-    }
-  }
-  return out;
-}

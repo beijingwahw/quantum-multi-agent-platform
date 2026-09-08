@@ -12,7 +12,8 @@ import {
   garbageBlindSpot,
 } from '../protocol/traps.js';
 import { makeRng } from '../core/rng.js';
-import type { CMat } from '../core/cmat.js';
+import { identity } from '../core/cmat.js';
+import { PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.js';
 import { pathToFileURL } from "node:url";
 
 export function main(): void {
@@ -39,10 +40,10 @@ export function main(): void {
 
   // (2) tier structure: Pauli anchors
   const tiers = [
-    { name: 'I (identity)', acc: trapAcceptanceFormula([eye()]) },
-    { name: 'X', acc: trapAcceptanceFormula([pauliX()]) },
-    { name: 'Y', acc: trapAcceptanceFormula([pauliY()]) },
-    { name: 'Z', acc: trapAcceptanceFormula([pauliZ()]) },
+    { name: 'I (identity)', acc: trapAcceptanceFormula([identity(2)]) },
+    { name: 'X', acc: trapAcceptanceFormula([PAULI_X]) },
+    { name: 'Y', acc: trapAcceptanceFormula([PAULI_Y]) },
+    { name: 'Z', acc: trapAcceptanceFormula([PAULI_Z]) },
   ];
 
   // (3) tightness: X-attack family acceptance = 1 − q/2
@@ -117,26 +118,6 @@ they touch — the full FK layout interleaves traps with the computation and
 adds output checks for this reason (cited result, not re-proved here).
 `,
   );
-}
-
-function eye(): CMat {
-  const m = { rows: 2, cols: 2, re: new Float64Array([1, 0, 0, 1]), im: new Float64Array(4) };
-  return m;
-}
-
-function pauliX(): CMat {
-  const m = { rows: 2, cols: 2, re: new Float64Array([0, 1, 1, 0]), im: new Float64Array(4) };
-  return m;
-}
-
-function pauliY(): CMat {
-  const m = { rows: 2, cols: 2, re: new Float64Array(4), im: new Float64Array([0, -1, 1, 0]) };
-  return m;
-}
-
-function pauliZ(): CMat {
-  const m = { rows: 2, cols: 2, re: new Float64Array([1, 0, 0, -1]), im: new Float64Array(4) };
-  return m;
 }
 
 // batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render

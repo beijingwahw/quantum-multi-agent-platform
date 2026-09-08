@@ -7,6 +7,7 @@ import { makeRng } from '../src/core/rng.js';
 import { maximallyMixed, fromVec, bellState, wernerFidelity, schmidtState, equatorial, vKronAll } from '../src/core/states.js';
 import { EIGHT_ANGLES } from '../src/protocol/ubqc.js';
 import { traceDistance } from '../src/core/measures.js';
+import type { CMat } from '../src/core/cmat.js';
 import {
   trapAcceptanceFormula,
   trapAcceptanceDirect,
@@ -66,7 +67,7 @@ import {
   noiseCensusRow,
   dampedGuessOptimized,
 } from '../src/protocol/noise.js';
-import { applyKraus } from '../src/core/channels.js';
+import { applyKraus, depolarize } from '../src/core/channels.js';
 
 const rng = makeRng(0x7e57);
 
@@ -112,10 +113,12 @@ test('T2: three-way acceptance agreement + bound holds on 40 random channels', (
 });
 
 test('T2: Pauli tier anchors — I:1, X:½, Y:½, Z:0', () => {
-  const eye2 = { rows: 2, cols: 2, re: Float64Array.from([1, 0, 0, 1]), im: new Float64Array(4) } as never;
-  const px = { rows: 2, cols: 2, re: Float64Array.from([0, 1, 1, 0]), im: new Float64Array(4) } as never;
-  const py = { rows: 2, cols: 2, re: new Float64Array(4), im: Float64Array.from([0, -1, 1, 0]) } as never;
-  const pz = { rows: 2, cols: 2, re: Float64Array.from([1, 0, 0, -1]), im: new Float64Array(4) } as never;
+  // independent literals (NOT states.PAULI_*): the hand-written matrices
+  // cross-examine the Pauli constructors the formula itself consumes
+  const eye2: CMat = { rows: 2, cols: 2, re: Float64Array.from([1, 0, 0, 1]), im: new Float64Array(4) };
+  const px: CMat = { rows: 2, cols: 2, re: Float64Array.from([0, 1, 1, 0]), im: new Float64Array(4) };
+  const py: CMat = { rows: 2, cols: 2, re: new Float64Array(4), im: Float64Array.from([0, -1, 1, 0]) };
+  const pz: CMat = { rows: 2, cols: 2, re: Float64Array.from([1, 0, 0, -1]), im: new Float64Array(4) };
   assert.ok(Math.abs(trapAcceptanceFormula([eye2]) - 1) < 1e-12);
   assert.ok(Math.abs(trapAcceptanceFormula([px]) - 0.5) < 1e-12);
   assert.ok(Math.abs(trapAcceptanceFormula([py]) - 0.5) < 1e-12);
@@ -195,7 +198,7 @@ test('T4a: shadow unbiasedness by exact enumeration (n=2,3; pure + depolarized)'
   for (const n of [2, 3]) {
     const target = makeTarget(n);
     assert.ok(shadowBias(fromVec(target), n) < 1e-12, `pure n=${n}`);
-    const mixed = mixDepol(fromVec(target), 0.25, 1 << n);
+    const mixed = depolarize(fromVec(target), 0.25);
     assert.ok(shadowBias(mixed, n) < 1e-12, `mixed n=${n}`);
   }
 });
@@ -204,7 +207,7 @@ test('T4a: fidelity estimator MC matches (1−q)+q/2ⁿ within 4σ', () => {
   const n = 3;
   const target = makeTarget(n);
   const q = 0.3;
-  const rho = mixDepol(fromVec(target), q, 1 << n);
+  const rho = depolarize(fromVec(target), q);
   const mc = fidelityShadowMC(rho, target, n, 20000, rng);
   const closed = (1 - q) + q / (1 << n);
   assert.ok(Math.abs(mc.mean - closed) < 4 * mc.stdErr + 1e-4, `mean=${mc.mean} closed=${closed}`);
@@ -432,7 +435,7 @@ test('T4+: shadow exact moments — mean = closed form, batch std = σ/√N', ()
   const n = 3;
   const target = makeTarget(n);
   const q = 0.3;
-  const rho = mixDepol(fromVec(target), q, 1 << n);
+  const rho = depolarize(fromVec(target), q);
   const exact = shadowFidelityExact(rho, target, n);
   const closed = (1 - q) + q / (1 << n);
   assert.ok(Math.abs(exact.mean - closed) < 1e-12);
@@ -528,16 +531,4 @@ function makeTarget(n: number): { n: number; re: Float64Array; im: Float64Array 
   // product of distinct equatorial states — entanglement-free but phase-rich
   const qs = Array.from({ length: n }, (_, q) => equatorial(EIGHT_ANGLES[(q * 3) % 8]!));
   return vKronAll(qs);
-}
-
-function mixDepol(rho: { rows: number; cols: number; re: Float64Array; im: Float64Array }, q: number, d: number) {
-  const out = { rows: d, cols: d, re: new Float64Array(d * d), im: new Float64Array(d * d) };
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      out.re[i * d + j] = (1 - q) * rho.re[i * d + j]!;
-      out.im[i * d + j] = (1 - q) * rho.im[i * d + j]!;
-    }
-    out.re[i * d + i] = out.re[i * d + i]! + q / d;
-  }
-  return out;
 }

@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 85
-- errors: 644
+- batches: 86
+- errors: 658
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 13 | 234 |
+| burial-record | 14 | 248 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,14 +43,14 @@
 
 | category | errors |
 | --- | --- |
-| process | 213 |
-| toolchain | 113 |
+| process | 220 |
+| toolchain | 117 |
 | wrong-object | 84 |
-| statistics | 53 |
+| statistics | 54 |
 | machine-overruled | 47 |
 | dimension-slot | 47 |
+| citation-drift | 30 |
 | conjugation | 29 |
-| citation-drift | 28 |
 | anchor-blindspot | 18 |
 | bogus-comparison | 12 |
 
@@ -1380,15 +1380,37 @@
 | [latent registry defect, convicted at wiring] the burial record's own package-lock.json carried version 0.4.0 at both slots — the 0.5.0 morning bump (the B9 memory-structure delivery) verified package.json and never the lock face, the same residual one repo over from the census's own | both slots pinned to the live 0.5.0 with the census E3 needle holding them on every run — the lock is grepped after every bump, no exceptions for the registry's own repo | citation-drift |
 | [wiring agent, this batch] the G-board resolution rows were drafted from the intended category filings before the machine's own family classifier ever saw the new batch's texts — four rows carried incidental phrase collisions ('one-coin' code readers and a 'latent corrosion' route both landing in the runner family, a controls-tally phrase landing in the count family, a tool-rule phrase landing in the anchor family), and the census suite's FIRST run convicted the drifted resolution by name (the runner family's tier against a gate-held latest) — the same sequencing class the previous batch's wiring had already been convicted of once, one batch later | the classifier runs over every new wrong-text BEFORE any resolution tier is written, and the row follows its verdict — the notes now carry the machine's filings with each collision confessed in place (the lesson booked twice consecutively: the rule is a per-batch checklist item, not a memory) | process |
 
+### Batch 86 — burial-record (2026-09-08)
+
+- context: the quality wave's FIFTH batch wiring (qverify 0.2.0->0.3.0, stable-world 0.6.0->0.7.0, dsic-noether 0.3.0->0.4.0, dtc-clock 0.20.0->0.21.0 — four gates green in each): fourteen errors across four classes, born enrolled and born audited on both boards — the version-pin cross-repo family's b80#7 founding RECURRED and CLOSED IN THE SAME BREATH (vacuum-compiler's live two-ground audit re-broken by this very wave's dtc-clock 0.20.0->0.21.0 upgrade, all six citing-tree needles repaired test/docs/README/experiments before any other act, the sibling repo's four gates green on the repair); the lockfile drift family repaired across THREE repos in one wave (dsic-noether's 0.4.0 as the known family's repayment, stable-world's 0.1.0 residual and dtc-clock's 0.11.0 residual — nine bumps deep — both CONVICTED by their own new permanent regression anchors); the sanctioned-channel family struck twice more (the twenty-second and twenty-third sightings, both node -e file edits, the second against the shared kernel's own lineage root), the absorption law's first VIOLATION sighted in the very wave executing it (an invented replacement standing where the law demands a pure delete), and one typecheck conviction beside them; the wiring agent's own TWO slips booked with them (a stale-registration layout and a remembered hard count, both convicted by the census suite at its own runs — the b85#35 class one batch later)
+- source: `memory/2026-09-08.md` @ "关键经验（第八十六批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| the chsh.ts edit went through node -e fs.writeFileSync — the sanctioned-channel family's twenty-second sighting (the nineteenth b79#0, the twentieth b81#4, the twenty-first b85#12/b85#20 the batch before): the regex-driven write mis-fired and left a DUPLICATE local kron standing in src/protocol/chsh.ts, the corruption surfacing in the very act; the Write/Edit-only iron rule broken in the wave that booked it three times | the duplicate kron removed by the Edit tool in the immediate fix, the file re-verified whole and every gate re-run green — code edits travel by Write/Edit on a Read file only, and a scripted write's clean exit certifies nothing about the text it left behind | toolchain |
+| two first-draft assertions were wrong about the numbers they certified: cramerRate's mean was demanded EXACTLY zero where the value comes from a numerical maximizer (the true claim is at least zero and under 1e-12), and the depolarize identity check used Object.is where +0/-0 non-diagonal inertia legitimately diverges — both dying red at the suite's first run | the assertions relaxed to the honest bound (at least zero and under 1e-12) and the identity recorded with === — an assertion is written from the arithmetic's own tolerance structure, never from the hope that the digits land exact; the suite re-run green | statistics |
+| the first quality.test.ts draft still carried placeholder residue — scaffold text standing where the trials needed to be, rewritten before any gate ever ran | the suite rewritten whole before the gates — placeholder scaffolding never reaches the machine (drafts land finished or not at all) | process |
+| one edit truncated cmat.ts's tail through node -e fs.write — the sanctioned-channel family's twenty-third sighting (the twenty-second one repo earlier in the same wave, the nineteenth through twenty-first the batch before): the shared-kernel lineage root's own core file, verified complete only AFTER the act | the file verified intact and every later edit through Write/Edit on Read files — an after-the-fact completeness check certifies the recovery, never the channel; the rule has no core-file exception | toolchain |
+| [conviction of a shipped defect] stable-world's package-lock.json carried version 0.1.0 at both slots against package.json's 0.6.0 — five minor versions of drift, the b85#32-34 lockfile family's next own-repo face, never checked by any gate that verified the manifest only | both slots pinned to the live 0.7.0 with the new T11 regression anchor 'the books agree' refusing the drift on every suite run — the books now check themselves | citation-drift |
+| the dead-export scan's grep filter produced false DEAD? positives — type-annotation USES were excluded by the pattern, defaming live exports as dead and nearly deleting them | manual re-verification against each flagged symbol before any cut — only rAbs/rToNum were truly dead; a survey's filter is itself data, and its verdicts are checked, never trusted | process |
+| one edit was issued off a Bash cat view — a shell view is not a Read, and the read-state tracker refused it outright (the b48#2/b53#0/b67#4/b83#20 line, the eighth refusal) | the real Read then the clean Edit, nothing damaged — the refusal IS the guard; read state is earned by the Read tool only | process |
+| a Windows backslash form survived inside one grep -v exclusion — the deletion sweep's filter silently kept matching the file it meant to exclude, a false-clean read standing where a residue lived | the grep re-ran by bare FILENAME before the cut — platform-specific separators defeat literal patterns; query with the portable form, or the sweep sweeps nothing | toolchain |
+| the outer deletion's first cut INVENTED a replacement outerAA where the absorption law demands a pure delete — subtraction dressed as addition, the law's first violation sighting in the very wave executing it | restored and re-cut as the pure deletion — the absorption law's E branch deletes the dead face, it does not rename it; what has no references gets no successor | process |
+| the binomialUpperTail deletion left the function private with a void call suppression standing in for the cut — the deletion half-done, its residue silenced rather than removed | re-cut as the pure delete — suppression is not deletion; a dead face goes whole or not at all | process |
+| the rng.ts Object.assign refactor missed pick — TS2741 convicted the incomplete interface on the spot | pick landed with the refactor in the same fix — the typecheck gate did its job at the draft's first breath | toolchain |
+| [conviction of a shipped defect] dtc-clock's package-lock.json carried version 0.11.0 at both slots against package.json's 0.20.0 — NINE version bumps of drift, the lockfile family's widest residual yet, the gates having verified the manifest only | both slots pinned to the live 0.21.0 with the permanent regression test asserting package.json and BOTH lock slots carry one version — the books check themselves on every suite run | citation-drift |
+| [wiring agent, this batch] the first anchors/enrollment layout registered the two lockfile needles (stable-world/package-lock.json :: 0.7.0, dtc-clock/package-lock.json :: 0.21.0) with NO enrollment row sitting on them — A1 convicted both as STALE registrations at the census suite's first run (the b85#35 derivation class: the layout drafted from the b85#32-34 precedent without running the symmetry check first) | the two conviction rows moved onto their books-agree regression anchors (the stronger guards — each repo's own suite reads the manifest and both lock slots live on every run) and the two lockfile registrations pruned in the same breath; the A1 symmetry check runs over every new registration BEFORE the batch is declared wired | process |
+| [wiring agent, this batch] the repair-state hard count was first written 174 against the 175 the board carries (six new HELD verdicts, not five) — the census suite's own assertion convicted the drift on the spot | 175 landed with the re-count in the same fix — a hard figure is recomputed from the board it names before it is written, never remembered (the count-prose law's test face) | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..85 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (644 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 644 = repo sum 644)
-- PASS — W-4 declared totals 85 batches / 644 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (67 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (60 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..86 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (658 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 658 = repo sum 658)
+- PASS — W-4 declared totals 86 batches / 658 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (69 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (61 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 644 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 658 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

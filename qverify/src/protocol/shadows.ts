@@ -13,7 +13,7 @@
  *      factor per qubit).
  */
 
-import { type CMat, type CVec, mat, mDagger, identity } from '../core/cmat.js';
+import { type CMat, type CVec, mat, mDagger, identity, kron } from '../core/cmat.js';
 import { applyLocalRho } from '../core/gates.js';
 import { HADAMARD } from '../core/states.js';
 import type { Rng } from '../core/rng.js';
@@ -86,7 +86,7 @@ export function expectedShadow(rho: CMat, n: number): CMat {
           const m = mat(2, 2);
           m.re[0] = bit === 0 ? 2 : -1;
           m.re[3] = bit === 0 ? -1 : 2;
-          snap = kron2(snap, m);
+          snap = kron(snap, m);
         }
         const snapBack = rotateRhoAll(snap, n, assignment, true);
         const w = p / 3 ** n;
@@ -197,21 +197,3 @@ export function fidelityShadowMC(
   return { mean, stdErr: Math.sqrt(varr / shots) };
 }
 
-function kron2(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          out.re[ri * out.cols + ci] = out.re[ri * out.cols + ci]! + (ar * b.re[p * b.cols + q]! - ai * b.im[p * b.cols + q]!);
-          out.im[ri * out.cols + ci] = out.im[ri * out.cols + ci]! + (ar * b.im[p * b.cols + q]! + ai * b.re[p * b.cols + q]!);
-        }
-      }
-    }
-  }
-  return out;
-}

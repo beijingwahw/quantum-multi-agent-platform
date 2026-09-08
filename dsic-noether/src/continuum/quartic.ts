@@ -79,6 +79,7 @@ import {
   type Rat,
 } from "./poly.js";
 import { makeFamily, randomGauge, type Family } from "./green-laffont.js";
+import { KernelError } from "../core/errors.js";
 
 // ---------------------------------------------------------------------------
 // PART A: the uncoupled quartic family — the chain, executed
@@ -353,7 +354,7 @@ export interface TopCoeffWitness {
  * for d = 1..3; d-uniformity is the monomial argument i + j = 2d, i,j <= d
  * => i = j = d (each mixed pair lands strictly below 2d). */
 export function certTopCoeffSlice(d: number): TopCoeffWitness {
-  if (d < 1 || d > 4) throw new Error(`certTopCoeffSlice: d in 1..4 required, got ${d}`);
+  if (d < 1 || d > 4) throw new KernelError("cert/d-range", `certTopCoeffSlice: d in 1..4 required, got ${d}`);
   const cvars: string[] = [];
   for (let k = 0; k <= d; k++) cvars.push(`p${k}`);
   for (let k = 0; k <= d; k++) cvars.push(`q${k}`);
@@ -431,7 +432,7 @@ export interface DegreeVerdict {
  * solution needs e + 2d = rhsDegree with d = 0 forcing e = 0 (constants have
  * constant difference). Refuted iff NO pair survives. */
 export function certDegreeArithmetic(rhsDegree: number): DegreeVerdict {
-  if (rhsDegree < 0 || !Number.isInteger(rhsDegree)) throw new Error("certDegreeArithmetic: nonnegative integer degree required");
+  if (rhsDegree < 0 || !Number.isInteger(rhsDegree)) throw new KernelError("cert/degree-invalid", "certDegreeArithmetic: nonnegative integer degree required");
   const feasible: Array<[number, number]> = [];
   for (let d = 0; 2 * d <= rhsDegree; d++) {
     const e = rhsDegree - 2 * d;
@@ -489,17 +490,29 @@ export function certControlDegreeThree(): { verdict: DegreeVerdict; solutionResi
   return { verdict, solutionResidual: pSub(lhs, rhs) };
 }
 
+/** The quadratic family's restricted affine allocation on the others-fixed
+ * line theta = (s, o), n = 2 — the SINGLE SOURCE for the control below and
+ * the smuggling trial (they share the construction, their verdicts differ).
+ * Exact identities (independently anchored in the test tree): x1 + x2 = 1
+ * (capacity) and x2 - x1 = o - s (the linear FOC difference). */
+export function certQuadraticLine(): { x1: Poly; x2: Poly } {
+  const vars = ["s", "o"];
+  const s = pVar(vars, 0);
+  const o = pVar(vars, 1);
+  return {
+    x1: pAdd(pSub(pScale(s, rat(1, 2)), pScale(o, rat(1, 2))), pConst(vars, rat(1, 2))),
+    x2: pAdd(pSub(pScale(o, rat(1, 2)), pScale(s, rat(1, 2))), pConst(vars, rat(1, 2))),
+  };
+}
+
 /** Control 2: the QUADRATIC family's FOC difference is LINEAR
  * (x_2 - x_1 = theta_2 - theta_1) and its restricted affine allocation
  * satisfies it exactly — the certificate convicts the cubic FOC only, and
  * the linear shape is soluble (the affine solution exists, residual 0). */
 export function certControlQuadratic(): { focResidual: Poly; solutionExists: boolean } {
-  const vars = ["s", "o"];
-  const s = pVar(vars, 0);
-  const o = pVar(vars, 1);
-  // n = 2 quadratic closed form on the others-fixed line theta = (t, obar):
-  const x1 = pAdd(pSub(pScale(s, rat(1, 2)), pScale(o, rat(1, 2))), pConst(vars, rat(1, 2)));
-  const x2 = pAdd(pSub(pScale(o, rat(1, 2)), pScale(s, rat(1, 2))), pConst(vars, rat(1, 2)));
+  const { x1, x2 } = certQuadraticLine();
+  const o = pVar(x1.vars, 1);
+  const s = pVar(x1.vars, 0);
   const focResidual = pSub(pSub(x2, x1), pSub(o, s));
   return { focResidual, solutionExists: pIsZero(focResidual) };
 }
@@ -507,11 +520,9 @@ export function certControlQuadratic(): { focResidual: Poly; solutionExists: boo
 /** The SMUGGLING TRIAL helper: the quadratic family's affine allocation,
  * counterfeited as quartic-efficient — the FOC residual that convicts it. */
 export function fakeAffineFOCResidual(): Poly {
-  const vars = ["s", "o"];
-  const s = pVar(vars, 0);
-  const o = pVar(vars, 1);
-  const x1 = pAdd(pSub(pScale(s, rat(1, 2)), pScale(o, rat(1, 2))), pConst(vars, rat(1, 2)));
-  const x2 = pAdd(pSub(pScale(o, rat(1, 2)), pScale(s, rat(1, 2))), pConst(vars, rat(1, 2)));
+  const { x1, x2 } = certQuadraticLine();
+  const o = pVar(x1.vars, 1);
+  const s = pVar(x1.vars, 0);
   const x1c = pMul(x1, pMul(x1, x1));
   const x2c = pMul(x2, pMul(x2, x2));
   return pSub(pSub(x2c, x1c), pSub(o, s));

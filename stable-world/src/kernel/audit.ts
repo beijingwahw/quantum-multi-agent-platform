@@ -119,6 +119,11 @@ import {
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
+/** kT·ln2 per bit at 300 K and at 10 mK — quoted from route-price D1-P1
+ * (single source: W-E's tariff table and W-O's residual pricing share it). */
+const KT_LN2_300K = 2.87098e-21;
+const KT_LN2_10MK = 9.56993e-26;
+
 export interface Violation {
   readonly row: string;
   readonly law: string;
@@ -405,14 +410,12 @@ function witnessTariff(): WitnessResult {
   }
   okParts.push(worstDual <= 1e-12);
   // the quoted schedule (route-price D1-P1): kT ln2 per bit at two temperatures
-  const E300 = 2.87098e-21;
-  const E10mK = 9.56993e-26;
-  const ratio = E300 / E10mK;
+  const ratio = KT_LN2_300K / KT_LN2_10MK;
   okParts.push(Math.abs(ratio / 30000 - 1) <= 1e-3);
   const rows: string[] = [];
   for (const q of [0.1, 0.25, 0.5, 0.75]) {
     const bits = h2(q);
-    rows.push(`q̄=${q}: ${bits.toFixed(6)} bits -> ${(bits * E300).toExponential(4)} J @300K, ${(bits * E10mK).toExponential(4)} J @10mK`);
+    rows.push(`q̄=${q}: ${bits.toFixed(6)} bits -> ${(bits * KT_LN2_300K).toExponential(4)} J @300K, ${(bits * KT_LN2_10MK).toExponential(4)} J @10mK`);
   }
   const ok = okParts.every(Boolean);
   return {
@@ -1033,7 +1036,7 @@ function witnessHolderRungs(): WitnessResult {
     gapMin = Math.min(gapMin, rungs.cRelInput - rungs.bitsConditional);
     gapMax = Math.max(gapMax, rungs.cRelInput - rungs.bitsConditional);
   }
-  const E300 = 2.87098e-21; // kT ln2 @300 K, quoted from route-price D1-P1
+  const E300 = KT_LN2_300K; // kT ln2 @300 K, quoted from route-price D1-P1
   const ok =
     worstDiag <= 1e-12 &&
     worstSpec <= 1e-9 &&

@@ -43,6 +43,7 @@
  */
 import { type CMat, basisVec, kron, vKron } from "../core/cmat.js";
 import { vecToRho } from "../core/states.js";
+import { DtcError } from "../core/errors.js";
 import { vonNeumannEntropy } from "../core/measures.js";
 import { popcount, type RevGate } from "./compile.js";
 import { polarizedRho } from "./beat.js";
@@ -714,14 +715,6 @@ export function binomialPmfClosed(n: number, q: number): Float64Array {
   return out;
 }
 
-/** P(Bin(n, q) >= threshold), the finite binomial sum. */
-export function binomialUpperTail(n: number, threshold: number, q: number): number {
-  const pmf = binomialPmfClosed(n, q);
-  let acc = 0;
-  for (let k = Math.ceil(threshold); k <= n; k++) acc += pmf[k]!;
-  return acc;
-}
-
 /** The machine road: the passive w-marginal after t periods (no repair). */
 export function maskPopcountMarginal(n: number, p: number, t: number): Float64Array {
   const binom = binomRowLocal(n);
@@ -1162,7 +1155,7 @@ export function centralBinomialSumRational(m: number): BigRational {
 
 /** The general-n law c_2(n) = (n-1) C(n-2, (n-2)/2) / 2^(n-2), exact (even n >= 4). */
 export function secondOrderGeneralRational(n: number): BigRational {
-  if (n < 4 || n % 2 !== 0) throw new Error(`secondOrderGeneralRational: even n >= 4 required, got ${n}`);
+  if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", `secondOrderGeneralRational: even n >= 4 required, got ${n}`);
   return { num: BigInt(n - 1) * binomialBig(n - 2, (n - 2) / 2), den: 2n ** BigInt(n - 2) };
 }
 
@@ -1253,7 +1246,7 @@ export function applyQ3Big(n: number, dim: number, x: readonly bigint[]): bigint
 
 /** The two faces of c_3: the plain quotient and the FIRST level-repulsion sum (exact rationals). */
 export function thirdOrderFaces(n: number): { quotient: BigRational; repulsion: BigRational } {
-  if (n < 4 || n % 2 !== 0) throw new Error(`thirdOrderFaces: even n >= 4 required, got ${n}`);
+  if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", `thirdOrderFaces: even n >= 4 required, got ${n}`);
   const dim = n / 2;
   const m = (w: number): bigint => binomialBig(n, w);
   const u = Array.from({ length: dim }, (_, w) => BigInt(n - 2 * w));
@@ -1368,10 +1361,10 @@ export function repulsionShare(n: number): BigRational {
  * rational (k = 1..dim-1, mode j = 2k+1): [2n(n-1) C(n-2,m) C(dim-1,k)]^2
  * / (2(2k) * C(n,2k+1) 2^(n-1) * n 2^(n-1)). */
 export function repulsionAddendClosedRational(n: number, k: number): BigRational {
-  if (n < 4 || n % 2 !== 0) throw new Error(`repulsionAddendClosedRational: even n >= 4 required, got ${n}`);
+  if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", `repulsionAddendClosedRational: even n >= 4 required, got ${n}`);
   const dim = n / 2;
   const m = (n - 2) / 2;
-  if (k < 1 || k > dim - 1) throw new Error(`k out of the odd-mode range 1..dim-1`);
+  if (k < 1 || k > dim - 1) throw new DtcError("E/DOMAIN", `k out of the odd-mode range 1..dim-1`);
   const cpl = 2n * BigInt(n) * BigInt(n - 1) * binomialBig(n - 2, m) * binomialBig(dim - 1, k);
   const den = 2n * BigInt(2 * k) * binomialBig(n, 2 * k + 1) * 2n ** BigInt(n - 1) * BigInt(n) * 2n ** BigInt(n - 1);
   return { num: cpl * cpl, den };
@@ -1383,7 +1376,7 @@ export function repulsionAddendClosedRational(n: number, k: number): BigRational
  * (TC41's exact heart: the share reduces to central binomials only). */
 export function modeRatioFactorResidue(n: number, k: number): bigint {
   if (n < 4 || n % 2 !== 0 || k < 1 || k > n / 2 - 1) {
-    throw new Error("modeRatioFactorResidue: even n >= 4, k in 1..dim-1");
+    throw new DtcError("E/DOMAIN", "modeRatioFactorResidue: even n >= 4, k in 1..dim-1");
   }
   const dim = n / 2;
   const j = dim - 1 - k;
@@ -1428,7 +1421,7 @@ export function correctionConstant(n: number): number {
  * A(n) = C(n-2,m)/2^(n-2), P(n) = 9n(n-1)/(2(n-2)) — with
  * share(n) = P(n)·A(n)·S(n)/4 EXACTLY (algebraic in the TC40 forms). */
 export function shareChainPieces(n: number): { S: number; A: number; P: number; chainShare: number } {
-  if (n < 4 || n % 2 !== 0) throw new Error("shareChainPieces: even n >= 4 required");
+  if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", "shareChainPieces: even n >= 4 required");
   const dim = n / 2;
   const m = (n - 2) / 2;
   const lf: number[] = [0];
@@ -1461,7 +1454,7 @@ export function sigmaFirst(n: number): number {
  * relative there, W-Z) and clean through n = 2^19 (the drift's return at
  * 2^20 is the recurrences' own ulp random walk — stated, not hidden). */
 export function shareFloatIncremental(n: number): number {
-  if (n < 4 || n % 2 !== 0) throw new Error("shareFloatIncremental: even n >= 4 required");
+  if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", "shareFloatIncremental: even n >= 4 required");
   const dim = n / 2;
   const m = (n - 2) / 2;
   const lnC2 = (() => {
@@ -1539,7 +1532,7 @@ export function richardsonLimit(values: ReadonlyArray<{ n: number; v: number }>,
  * odd mode's vv, uu, and |cpl| must match. Returns the worst violation
  * (0n when all hold). */
 export function couplingClosedFormResidue(n: number, j: number): bigint {
-  if (n < 4 || n % 2 !== 0 || j < 3 || j % 2 === 0) throw new Error("couplingClosedFormResidue: even n >= 4, odd j >= 3");
+  if (n < 4 || n % 2 !== 0 || j < 3 || j % 2 === 0) throw new DtcError("E/DOMAIN", "couplingClosedFormResidue: even n >= 4, odd j >= 3");
   const dim = n / 2;
   const m = (n - 2) / 2;
   const u = Array.from({ length: dim }, (_, w) => BigInt(n - 2 * w));

@@ -13,6 +13,8 @@
  * matching variable lists (the mAdd lesson — mismatches throw, never blend).
  */
 
+import { KernelError } from "../core/errors.js";
+
 export interface Rat {
   readonly n: bigint;
   readonly d: bigint; // > 0, gcd(|n|, d) = 1; zero is {0, 1}
@@ -32,7 +34,7 @@ export function gcdBig(a: bigint, b: bigint): bigint {
 export function rat(n: bigint | number, d: bigint | number = 1n): Rat {
   let bn = typeof n === "bigint" ? n : BigInt(n);
   let bd = typeof d === "bigint" ? d : BigInt(d);
-  if (bd === 0n) throw new Error("rat: zero denominator");
+  if (bd === 0n) throw new KernelError("rat/zero-denominator", "rat: zero denominator");
   if (bd < 0n) {
     bn = -bn;
     bd = -bd;
@@ -55,14 +57,11 @@ export function rMul(a: Rat, b: Rat): Rat {
   return rat(a.n * b.n, a.d * b.d);
 }
 export function rDiv(a: Rat, b: Rat): Rat {
-  if (b.n === 0n) throw new Error("rDiv: zero divisor");
+  if (b.n === 0n) throw new KernelError("rdiv/zero-divisor", "rDiv: zero divisor");
   return rat(a.n * b.d, a.d * b.n);
 }
 export function rNeg(a: Rat): Rat {
   return { n: -a.n, d: a.d };
-}
-export function rAbs(a: Rat): Rat {
-  return a.n < 0n ? rNeg(a) : a;
 }
 export function rIsZero(a: Rat): boolean {
   return a.n === 0n;
@@ -71,9 +70,6 @@ export function rCmp(a: Rat, b: Rat): number {
   const l = a.n * b.d;
   const r = b.n * a.d;
   return l < r ? -1 : l > r ? 1 : 0;
-}
-export function rToNum(a: Rat): number {
-  return Number(a.n) / Number(a.d);
 }
 export function rStr(a: Rat): string {
   return a.d === 1n ? a.n.toString() : `${a.n}/${a.d}`;
@@ -100,7 +96,10 @@ function sameVars(a: readonly string[], b: readonly string[]): boolean {
 
 export function pAssertSame(a: Poly, b: Poly, what: string): void {
   if (!sameVars(a.vars, b.vars)) {
-    throw new Error(`${what}: variable mismatch [${a.vars.join(",")}] vs [${b.vars.join(",")}]`);
+    throw new KernelError(
+      "poly/var-mismatch",
+      `${what}: variable mismatch [${a.vars.join(",")}] vs [${b.vars.join(",")}]`,
+    );
   }
 }
 
@@ -115,7 +114,7 @@ export function pConst(vars: readonly string[], c: Rat): Poly {
 }
 
 export function pVar(vars: readonly string[], idx: number): Poly {
-  if (idx < 0 || idx >= vars.length) throw new Error(`pVar: index ${idx} out of range`);
+  if (idx < 0 || idx >= vars.length) throw new KernelError("poly/index-range", `pVar: index ${idx} out of range`);
   const exps = new Array<number>(vars.length).fill(0);
   exps[idx] = 1;
   const mono = new Map<string, Rat>();
@@ -124,7 +123,7 @@ export function pVar(vars: readonly string[], idx: number): Poly {
 }
 
 export function pMono(vars: readonly string[], exps: readonly number[], c: Rat): Poly {
-  if (exps.length !== vars.length) throw new Error("pMono: exponent arity mismatch");
+  if (exps.length !== vars.length) throw new KernelError("poly/arity", "pMono: exponent arity mismatch");
   const mono = new Map<string, Rat>();
   if (!rIsZero(c)) mono.set(keyOf(exps), c);
   return { vars, mono };
@@ -154,7 +153,9 @@ export function pIsZero(p: Poly): boolean {
 export function pAssertZero(p: Poly, what: string): void {
   if (!pIsZero(p)) {
     const terms = [...p.mono.entries()].map(([k, c]) => `${rStr(c)}·[${k}]`).join(" + ");
-    throw new Error(`identity FAILED: ${what} — residual ${terms}`);
+    // the CONVICTION channel: a forged identity (nonzero polynomial) is
+    // convicted here — mathematically distinct from every validation code
+    throw new KernelError("poly/identity-failed", `identity FAILED: ${what} — residual ${terms}`);
   }
 }
 
@@ -210,7 +211,7 @@ export function pMul(a: Poly, b: Poly): Poly {
 
 /** Partial derivative with respect to variable idx. */
 export function pDeriv(p: Poly, idx: number): Poly {
-  if (idx < 0 || idx >= p.vars.length) throw new Error(`pDeriv: index ${idx} out of range`);
+  if (idx < 0 || idx >= p.vars.length) throw new KernelError("poly/index-range", `pDeriv: index ${idx} out of range`);
   const out = new Map<string, Rat>();
   for (const [k, c] of p.mono) {
     const e = k.split(",").map(Number);
@@ -227,7 +228,7 @@ export function pDeriv(p: Poly, idx: number): Poly {
 /** Indefinite integral in variable idx (integration constant 0): term-wise
  * sigma^k -> sigma^(k+1)/(k+1). */
 export function pInteg(p: Poly, idx: number): Poly {
-  if (idx < 0 || idx >= p.vars.length) throw new Error(`pInteg: index ${idx} out of range`);
+  if (idx < 0 || idx >= p.vars.length) throw new KernelError("poly/index-range", `pInteg: index ${idx} out of range`);
   const out = new Map<string, Rat>();
   for (const [k, c] of p.mono) {
     const e = k.split(",").map(Number);
@@ -273,7 +274,7 @@ function polyPower(q: Poly, power: number): Poly {
  * Sequential single substitutions compose wrongly when the replacements
  * share variables — the quarter-turn check was convicted exactly so. */
 export function pSubstAll(p: Poly, idxs: readonly number[], qs: readonly Poly[]): Poly {
-  if (idxs.length !== qs.length) throw new Error("pSubstAll: arity mismatch");
+  if (idxs.length !== qs.length) throw new KernelError("poly/arity", "pSubstAll: arity mismatch");
   for (const q of qs) pAssertSame(p, q, "pSubstAll");
   let out = pZero(p.vars);
   const arity = p.vars.length;
@@ -305,7 +306,7 @@ export function pSubstRat(p: Poly, idx: number, c: Rat): Poly {
 
 /** Exact evaluation at a rational point. */
 export function pEval(p: Poly, pt: readonly Rat[]): Rat {
-  if (pt.length !== p.vars.length) throw new Error("pEval: point arity mismatch");
+  if (pt.length !== p.vars.length) throw new KernelError("poly/arity", "pEval: point arity mismatch");
   let acc = R0;
   for (const [k, c] of p.mono) {
     const e = k.split(",").map(Number);

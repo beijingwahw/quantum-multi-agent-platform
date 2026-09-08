@@ -24,26 +24,19 @@
  * only the optimal individual-clone channel, which is exact.
  */
 
-import { type CMat, type CVec, mat, identity, vInner, mMul, mDagger } from '../core/cmat.js';
+import { type CMat, mat, identity, vInner, mMul, mDagger, mScale } from '../core/cmat.js';
 import { equatorial, fromVec, PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.js';
 import { TRAP_ANGLES, trapAcceptanceDirect } from './traps.js';
 import { helstromTwo } from './attacks.js';
+import { mulVec } from '../core/gates.js';
 
 /** Kraus operators of the shrink-(2/3) channel. */
 export function shrinkChannelKraus(): CMat[] {
-  const scale = (p: CMat, s: number): CMat => {
-    const m = mat(2, 2);
-    for (let k = 0; k < 4; k++) {
-      m.re[k] = p.re[k]! * s;
-      m.im[k] = p.im[k]! * s;
-    }
-    return m;
-  };
   return [
-    scale(identity(2), Math.sqrt(3 / 4)),
-    scale(PAULI_X, Math.sqrt(1 / 12)),
-    scale(PAULI_Y, Math.sqrt(1 / 12)),
-    scale(PAULI_Z, Math.sqrt(1 / 12)),
+    mScale(identity(2), Math.sqrt(3 / 4)),
+    mScale(PAULI_X, Math.sqrt(1 / 12)),
+    mScale(PAULI_Y, Math.sqrt(1 / 12)),
+    mScale(PAULI_Z, Math.sqrt(1 / 12)),
   ];
 }
 
@@ -131,17 +124,3 @@ export function shrinkTrapAcceptanceAveraged(): number {
   return trapAcceptanceDirect(shrinkChannelKraus());
 }
 
-function mulVec(m: CMat, v: CVec): CVec {
-  const out: CVec = { n: m.rows, re: new Float64Array(m.rows), im: new Float64Array(m.rows) };
-  for (let i = 0; i < m.rows; i++) {
-    let re = 0;
-    let im = 0;
-    for (let j = 0; j < m.cols; j++) {
-      re += m.re[i * m.cols + j]! * v.re[j]! - m.im[i * m.cols + j]! * v.im[j]!;
-      im += m.re[i * m.cols + j]! * v.im[j]! + m.im[i * m.cols + j]! * v.re[j]!;
-    }
-    out.re[i] = re;
-    out.im[i] = im;
-  }
-  return out;
-}

@@ -34,8 +34,9 @@ import {
   mMul,
   mTrace,
 } from "../core/cmat.js";
-import { PAULI_X, PAULI_Y, PAULI_Z, vecToRho } from "../core/states.js";
+import { PAULI_X, PAULI_Z, vecToRho } from "../core/states.js";
 import { applyUnitary } from "../core/channels.js";
+import { DtcError } from "../core/errors.js";
 import { type Rng } from "../core/rng.js";
 
 export interface EchoParams {
@@ -106,14 +107,6 @@ export function siteZ(n: number, i: number): CMat {
 export function siteX(n: number, i: number): CMat {
   return sitePauli(n, i, PAULI_X);
 }
-export function siteY(n: number, i: number): CMat {
-  return sitePauli(n, i, PAULI_Y);
-}
-
-/** Xbar = Prod_i X_i (the global flip). */
-export function globalFlip(n: number): CMat {
-  return kronAll(Array.from({ length: n }, () => PAULI_X));
-}
 
 /** Max |entry| of a matrix — the deviation metric used across this repo. */
 export function maxAbs(m: CMat): number {
@@ -132,7 +125,7 @@ export function polarizedRho(n: number): CMat {
 export function expectation(rho: CMat, o: CMat): number {
   const tr = mTrace(mMul(rho, o));
   if (Math.abs(tr.im) > 1e-12) {
-    throw new Error(`imaginary expectation ${tr.im} beyond rounding — wrong physical object`);
+    throw new DtcError("E/WRONG-OBJECT", `imaginary expectation ${tr.im} beyond rounding — wrong physical object`);
   }
   return tr.re;
 }
@@ -142,13 +135,6 @@ export function magnetization(rho: CMat, n: number): number {
   let acc = 0;
   for (let i = 0; i < n; i++) acc += expectation(rho, siteZ(n, i));
   return acc / n;
-}
-
-/** Evolve rho through k drive periods: rho_k = F^k rho F^+. */
-export function strobedRho(rho: CMat, f: CMat, k: number): CMat {
-  let out = rho;
-  for (let t = 0; t < k; t++) out = applyUnitary(out, f);
-  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -377,7 +363,7 @@ export function cliffBisect(
   let a = lo;
   let b = hi;
   if (!protectedAt(a) || protectedAt(b)) {
-    throw new Error(`cliff bracket wrong at J=${j}: protected(lo)=${protectedAt(a)} protected(hi)=${protectedAt(b)}`);
+    throw new DtcError("E/BRACKET", `cliff bracket wrong at J=${j}: protected(lo)=${protectedAt(a)} protected(hi)=${protectedAt(b)}`);
   }
   for (let i = 0; i < iterations; i++) {
     const mid = (a + b) / 2;
@@ -583,7 +569,7 @@ export function dephasedEchoSample(rng: Rng, delta: number, k: number): number {
  * the kernel, averaged — E[m~(k)] must equal (cos 2 delta)^k. Domain
  * k <= 16 (the ensemble is exponential). */
 export function dephasedEchoExpectationExact(delta: number, k: number): number {
-  if (k < 1 || k > 16) throw new Error("dephasedEchoExpectationExact: 1 <= k <= 16 (the ensemble is exponential)");
+  if (k < 1 || k > 16) throw new DtcError("E/DOMAIN", "dephasedEchoExpectationExact: 1 <= k <= 16 (the ensemble is exponential)");
   const seq = 1 << k;
   const signs = new Float64Array(k);
   let sum = 0;

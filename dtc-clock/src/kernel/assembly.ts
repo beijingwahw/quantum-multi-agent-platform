@@ -40,6 +40,7 @@ import {
   sigmaFirstIncremental,
   thirdOrderClosed,
 } from "./armor.js";
+import { DtcError } from "../core/errors.js";
 
 // ---------------------------------------------------------------------------
 // TC44: the exact transfer and the S-face constant
@@ -84,7 +85,7 @@ export function arcThirdOrderFace(n: number, sigma1: number): number {
  * is valid on the small-n grid (n <= 16, the TC38 domain) — larger n's
  * BigInt vectors overflow the Number conversion. */
 export function arcClosureRelative(n: number, sigma1: number): number {
-  if (n > 16) throw new Error("arcClosureRelative: the exact c3 path is small-n only (n <= 16)");
+  if (n > 16) throw new DtcError("E/DOMAIN", "arcClosureRelative: the exact c3 path is small-n only (n <= 16)");
   const face = arcThirdOrderFace(n, sigma1);
   return thirdOrderClosed(n) / face - 1;
 }
@@ -96,7 +97,7 @@ export function arcClosureRelative(n: number, sigma1: number): number {
 /** The exact edge mass m_k = (2k+1)C(2k,k)/(2·4^k·k) as a lowest-terms
  * BigInt rational (m_1 = 3/4, m_2 = 15/32). */
 export function edgeMassRational(k: number): { num: bigint; den: bigint } {
-  if (k < 1) throw new Error("edgeMassRational: k >= 1 required");
+  if (k < 1) throw new DtcError("E/DOMAIN", "edgeMassRational: k >= 1 required");
   let c = 1n;
   for (let i = 0; i < k; i++) c = (c * BigInt(2 * k - i)) / BigInt(i + 1);
   const num = BigInt(2 * k + 1) * c;
@@ -115,7 +116,7 @@ export function edgeMassRational(k: number): { num: bigint; den: bigint } {
  * m_{k} = m_{k-1}·(2k+1)(k-1)/(2k^2) from the exact m_1 = 3/4 (a direct
  * BigInt->Number conversion of the exact rational overflows past k ~ 500). */
 export function edgeMassFloat(k: number): number {
-  if (k < 1) throw new Error("edgeMassFloat: k >= 1 required");
+  if (k < 1) throw new DtcError("E/DOMAIN", "edgeMassFloat: k >= 1 required");
   let m = 0.75;
   for (let j = 2; j <= k; j++) m = (m * (2 * j + 1) * (j - 1)) / (2 * j * j);
   return m;
@@ -138,7 +139,9 @@ export function edgeNextOrder(k: number): number {
 
 /** The second next-order law: (E_k·sqrt(pi)·k^{3/2} - 3/8)·k -> -11/128
  * (exact rational, derived from the central-binomial expansion and the
- * midpoint Taylor; float noise dominates for k >> 3·10^4). */
+ * midpoint Taylor; float noise dominates for k >> 3·10^4). Single source:
+ * every live use of the coefficient goes through this constant (the value
+ * -11/128 is exactly representable — a power-of-two denominator). */
 export const EDGE_SECOND_COEFF = -11 / 128;
 
 /** Euler–Maclaurin zeta for s > 1 (the values feeding the zeta-face).
@@ -171,7 +174,7 @@ export interface EdgeSeries {
  * zeta values, leaving a remainder series that converges like k^{-7/2}. */
 export function edgeSeriesAccelerated(K: number): EdgeSeries {
   const c32 = 0.375 / Math.sqrt(Math.PI);
-  const bTerm = ((-11 / 128) * 0.375) / Math.sqrt(Math.PI);
+  const bTerm = (EDGE_SECOND_COEFF * 0.375) / Math.sqrt(Math.PI);
   let m = 0.75;
   let remainder = 0;
   let spotWorst = 0;
@@ -193,11 +196,10 @@ export function edgeSeriesAccelerated(K: number): EdgeSeries {
 }
 
 /** Phi1 = kappa - zeta_m with the bracket: |Phi1| is the cutoff face's
- * subleading constant (machine-measured, closed form open). */
-export function cutoffFace(sigma1: number, series: EdgeSeries): { phi1: number; kappa: number; zetaM: number } {
-  const kappa = kappaFromSigma(sigma1);
-  return { phi1: kappa - series.zetaM, kappa, zetaM: series.zetaM };
-}
+ * subleading constant (machine-measured, closed form open). (v0.21.0
+ * dead-code sweep: the never-referenced cutoffFace wrapper is gone —
+ * phi1Face below is the live path that assembles this decomposition with
+ * its certified bracket.) */
 
 /** The F-function face: F(k,D) = D·s_k/m_k (log-space; f(k/D)·(1+o(1)),
  * f(0) = 1 — the O(1) shift of the cutoff renormalizes 2/sqrt(pi) to
@@ -236,7 +238,7 @@ export function fFunctionFace(d: number, k: number): number {
  * per-step quotient recurrences (every intermediate O(1) — no log-factorial
  * table), summed by log1p log-sum-exp. */
 export function scaledModeSumIncremental(d: number): number {
-  if (d < 2 || d % 1 !== 0) throw new Error("scaledModeSumIncremental: integer D >= 2 required");
+  if (d < 2 || d % 1 !== 0) throw new DtcError("E/DOMAIN", "scaledModeSumIncremental: integer D >= 2 required");
   let lnA = 0;
   let lnB = Math.log(2 * d);
   let lnS = -Infinity;
@@ -268,13 +270,13 @@ export function kappaRoadCrossDeviation(d: number): number {
 export function edgeSeriesTailBound(K: number, probeStep = 997): { c2Bound: number; tail: number; zetaTrunc: number } {
   let c2Bound = 0;
   for (let k = 1000; k <= 100000; k += probeStep) {
-    const r = edgeDiff(k) * Math.sqrt(Math.PI) * Math.pow(k, 1.5) - 0.375 + 11 / (128 * k);
+    const r = edgeDiff(k) * Math.sqrt(Math.PI) * Math.pow(k, 1.5) - 0.375 - EDGE_SECOND_COEFF / k;
     c2Bound = Math.max(c2Bound, Math.abs(r) * k * k);
   }
   const tail = c2Bound * (2 / 5) * Math.pow(K, -2.5);
   const zetaTrunc =
     0.375 / Math.sqrt(Math.PI) * Math.abs(zetaEM(1.5, 60) - zetaEM(1.5, 120)) +
-    Math.abs(((-11 / 128) * 0.375) / Math.sqrt(Math.PI)) * Math.abs(zetaEM(2.5, 60) - zetaEM(2.5, 120));
+    Math.abs((EDGE_SECOND_COEFF * 0.375) / Math.sqrt(Math.PI)) * Math.abs(zetaEM(2.5, 60) - zetaEM(2.5, 120));
   return { c2Bound, tail, zetaTrunc };
 }
 

@@ -81,6 +81,7 @@
  */
 
 import type { Rng } from "../core/rng.js";
+import { KernelError } from "../core/errors.js";
 import {
   pAdd,
   pAssertSame,
@@ -119,12 +120,12 @@ import {
 export interface Family {
   readonly n: number;
   readonly vars: readonly string[]; // ["s","t","o0",...,"o{n-2}", ...extra]
-  readonly sIdx: number; // always 0
-  readonly tIdx: number; // always 1
+  readonly sIdx: 0; // literal: the own-report coordinate is ALWAYS first
+  readonly tIdx: 1; // literal: the true-type coordinate is ALWAYS second
 }
 
 export function makeFamily(n: number, extraVars: readonly string[] = []): Family {
-  if (n < 2) throw new Error("makeFamily: n >= 2 required");
+  if (n < 2) throw new KernelError("family/n-range", "makeFamily: n >= 2 required");
   const vars = ["s", "t"];
   for (let j = 0; j < n - 1; j++) vars.push(`o${j}`);
   return { n, vars: [...vars, ...extraVars], sIdx: 0, tIdx: 1 };
@@ -160,7 +161,7 @@ export function xOwn(f: Family): Poly {
  * others' cross sum excludes it (an early draft divided by the full sum and
  * left o_j at (n-2)/n — the envelope residual convicted it at -o/4). */
 export function xOther(f: Family, j: number): Poly {
-  if (j < 0 || j >= f.n - 1) throw new Error(`xOther: index ${j} out of range`);
+  if (j < 0 || j >= f.n - 1) throw new KernelError("family/other-index-range", `xOther: index ${j} out of range`);
   return pSub(
     pAdd(pScale(pVar(f.vars, 2 + j), rat(f.n - 1, f.n)), pConst(f.vars, rat(1, f.n))),
     pScale(pAdd(pVar(f.vars, f.sIdx), othersSumNoSelf(f, j)), rat(1, f.n)),
@@ -328,10 +329,10 @@ export function gaugeOrbitDerivative(n: number, g: Poly): Poly {
   const f = makeFamily(n, ["eps"]);
   const epsIdx = f.vars.length - 1;
   if (g.vars.length !== f.vars.length) {
-    throw new Error("gaugeOrbitDerivative: gauge polynomial arity mismatch");
+    throw new KernelError("gauge/arity", "gaugeOrbitDerivative: gauge polynomial arity mismatch");
   }
   for (let i = 0; i < f.vars.length; i++) {
-    if (g.vars[i] !== f.vars[i]) throw new Error("gaugeOrbitDerivative: gauge variable mismatch");
+    if (g.vars[i] !== f.vars[i]) throw new KernelError("gauge/vars", "gaugeOrbitDerivative: gauge variable mismatch");
   }
   const pEps = pAdd(grovesPayment(f), pMul(pVar(f.vars, epsIdx), g));
   return pDeriv(deviationGain(f, pEps), epsIdx);
@@ -361,7 +362,7 @@ export function randomGauge(f: Family, rng: Rng, terms: number): Poly {
  * others' types nonlinearly; the solver must read BOTH parameters off any
  * DSIC payment carrying it, coefficient-exact). */
 export function nonlinearTwoParamGauge(f: Family, alpha: Rat, beta: Rat): Poly {
-  if (f.n < 3) throw new Error("nonlinearTwoParamGauge: n >= 3 required");
+  if (f.n < 3) throw new KernelError("gauge/n-range", "nonlinearTwoParamGauge: n >= 3 required");
   const o0 = pVar(f.vars, 2);
   const o1 = pVar(f.vars, 3);
   return pAdd(pScale(pMul(o0, o1), alpha), pScale(pMul(pMul(o0, o0), o0), beta));
@@ -471,9 +472,9 @@ export function decreasingProfitableDeviation(t: Rat, c: Rat, d: Rat, beta: Rat)
   const gain = rMul(rNeg(slope), rSub(s, t));
   const level = rSub(d, rMul(c, s));
   if (rCmp(level, rat(0)) < 0 || rCmp(level, rat(1)) > 0) {
-    throw new Error(`decreasing control: allocation level ${rStr(level)} left [0,1]`);
+    throw new KernelError("control/level-range", `decreasing control: allocation level ${rStr(level)} left [0,1]`);
   }
-  if (rCmp(gain, rat(0)) <= 0) throw new Error("decreasing control: witness not profitable");
+  if (rCmp(gain, rat(0)) <= 0) throw new KernelError("control/not-profitable", "decreasing control: witness not profitable");
   return { s, gain };
 }
 
@@ -628,12 +629,12 @@ export function diamondSideIdentities(): {
   const denEntries: Array<readonly [string, Rat]> = [];
   for (const [k, c] of pulled.mono) {
     const e = k.split(",").map(Number);
-    if ((e[0] as number) !== 0) throw new Error("diamondSideIdentities: x survived the pullback");
+    if ((e[0] as number) !== 0) throw new KernelError("diamond/pullback-survivor", "diamondSideIdentities: x survived the pullback");
     numEntries.push([k, c]);
   }
   for (const [k, c] of denPulled.mono) {
     const e = k.split(",").map(Number);
-    if ((e[0] as number) !== 0) throw new Error("diamondSideIdentities: x survived the pullback");
+    if ((e[0] as number) !== 0) throw new KernelError("diamond/pullback-survivor", "diamondSideIdentities: x survived the pullback");
     denEntries.push([k, c]);
   }
   const numY = pFromMonomials(vars, numEntries);
@@ -669,7 +670,7 @@ export function diamondSideSimpson(n: number): number {
  * equals the type step exactly (x = 1 throughout) — bitwise. */
 export function secondPriceEnvelopePair(theta1: Rat, theta1Prime: Rat, theta2: Rat): { uDiff: Rat; xStep: Rat; ok: boolean } {
   if (rCmp(theta1, theta2) <= 0 || rCmp(theta1Prime, theta2) <= 0) {
-    throw new Error("secondPriceEnvelopePair: both reports must stay in the winning region");
+    throw new KernelError("second-price/region", "secondPriceEnvelopePair: both reports must stay in the winning region");
   }
   const u = (th: Rat): Rat => rSub(th, theta2);
   const uDiff = rSub(u(theta1Prime), u(theta1));

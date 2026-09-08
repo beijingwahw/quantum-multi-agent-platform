@@ -6,6 +6,7 @@
  * by construction, not by silence).
  */
 import type { Rng } from "../core/rng.js";
+import { KernelError } from "../core/errors.js";
 import { randomInstance } from "./instance.js";
 import type { GrovesWorld } from "./groves.js";
 import { allocationAt } from "./groves.js";
@@ -30,5 +31,5 @@ export function buildWorld(rng: Rng, n: number, agent: number, k: number): Grove
     }
     if (allUnique) return w;
   }
-  throw new Error("buildWorld: could not satisfy unique-argmax guard");
+  throw new KernelError("world/tie-guard", "buildWorld: could not satisfy unique-argmax guard");
 }

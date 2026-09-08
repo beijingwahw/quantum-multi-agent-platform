@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { makeRng } from "../src/core/rng.js";
-import { isUnitary, mAdd, mMul, mDagger } from "../src/core/cmat.js";
+import { DtcError } from "../src/core/errors.js";
+import { isUnitary, mAdd, mMul, mDagger, mat, fromSpectral } from "../src/core/cmat.js";
+import { marginalProbs } from "../src/core/channels.js";
+import { PLUS, vecToRho } from "../src/core/states.js";
 import {
   alternationDeviation,
   chainLifetimeCensus,
@@ -14,6 +17,7 @@ import {
   dephasedEchoMean,
   dephasedLifetimeCrossing,
   echoFloquet,
+  expectation,
   flipIdentityDeviation,
   heatingRelaxation,
   isolatedEchoLifetime,
@@ -1071,6 +1075,93 @@ describe("smuggling trials — every law bites", () => {
       () => renderBoard([forged({ id: "SM9", family: "poetry" as never })]),
       /SM9 \[L1\]/,
     );
+  });
+});
+
+describe("v0.21.0 — the named error surface (every refusal carries its code)", () => {
+  const codeOf = (fn: () => unknown): string => {
+    try {
+      fn();
+    } catch (e) {
+      assert.ok(e instanceof DtcError, `a refusal must be a DtcError, got ${String(e)}`);
+      assert.ok(e instanceof Error, "DtcError is an Error");
+      assert.equal(e.name, "DtcError");
+      assert.ok(e.message.startsWith(`[${e.code}]`), `message carries the [${e.code}] tag: ${e.message}`);
+      return e.code;
+    }
+    throw new Error("the illegal input was NOT refused — the guard is missing");
+  };
+
+  it("E/DOMAIN fires by name: out-of-range index, out-of-domain k, odd n", () => {
+    const rho2 = vecToRho(PLUS); // a 2x2 state, dims [2] — index 3 is out of range
+    assert.equal(codeOf(() => marginalProbs(rho2, [2], [3])), "E/DOMAIN");
+    assert.equal(codeOf(() => dephasedEchoExpectationExact(0.1, 17)), "E/DOMAIN");
+    assert.equal(codeOf(() => secondOrderGeneralRational(5)), "E/DOMAIN");
+    assert.equal(codeOf(() => arcClosureRelative(32, -0.49)), "E/DOMAIN");
+  });
+
+  it("E/SHAPE fires by name: matrix shape mismatches", () => {
+    assert.equal(codeOf(() => mMul(mat(2, 2), mat(3, 1))), "E/SHAPE");
+    const v = mat(2, 1);
+    v.re[0] = 1;
+    assert.equal(codeOf(() => fromSpectral(new Float64Array([1, 2]), [v, v, v])), "E/SHAPE");
+  });
+
+  it("E/WRONG-OBJECT fires by name: imaginary expectation, non-real pack, degenerate vacuum", () => {
+    const o = mat(2, 2);
+    o.im[0] = 1; // a non-Hermitian observable: <+|O|+> = i/2
+    assert.equal(codeOf(() => expectation(vecToRho(PLUS), o)), "E/WRONG-OBJECT");
+    const complex = mat(2, 2);
+    complex.im[3] = 1;
+    assert.equal(codeOf(() => realSymmetricPack(complex)), "E/WRONG-OBJECT");
+    // J=h=0: every eigenvalue 0 — no unique vacuum to tombstone
+    assert.equal(codeOf(() => tombstoneCensus(4, 0, 0, 1)), "E/WRONG-OBJECT");
+  });
+
+  it("E/BRACKET fires by name: cliffBisect refuses a bracket with no cliff inside (the code W-I's catch keys on)", () => {
+    // lo=0.05, hi=0.1 are BOTH protected at this J (the cliff sits near 0.34)
+    // — the bracket does not isolate anything, and the refusal is named
+    assert.equal(codeOf(() => cliffBisect(6, 1.2, 60, 0.5, 0.05, 0.1, 2)), "E/BRACKET");
+  });
+
+  it("E/BOARD fires by name: the renderer's refusal carries the board code", async () => {
+    const { renderBoard } = await import("../src/experiments/render.js");
+    const base = BOARD[0]!;
+    assert.equal(
+      codeOf(() => renderBoard([{ ...base, id: "SM10", family: "poetry" as never }])),
+      "E/BOARD",
+    );
+  });
+});
+
+describe("v0.21.0 — the W-U single-source bit-anchor (the deleted local shareFloat duplicate)", () => {
+  it("shareFloat(24)/shareFloat(1024) reproduce the pre-edit captured values exactly; the extrapolation lands on 9/8", () => {
+    // captured from armor.ts BEFORE the audit.ts local-duplicate deletion
+    // (out/anchor-sharefloat.json): the two roads were expression-identical,
+    // so the single-source edit must reproduce these bits
+    assert.equal(shareFloat(24), 1.012015313230259);
+    assert.equal(shareFloat(1024), 1.1077831462892902);
+    const s24 = shareFloat(24);
+    const s1024 = shareFloat(1024);
+    const extrapolation = s1024 + (s1024 - s24) / (Math.sqrt(1024 / 24) - 1);
+    assert.ok(Math.abs(extrapolation - 1.125) <= 2e-3, `extrapolation ${extrapolation}`);
+    assert.ok(Math.abs(extrapolation - 1.1250948430677739) < 1e-12, "the captured extrapolation bit-anchor");
+  });
+});
+
+describe("v0.21.0 — the version-pin hygiene (the lockfile drift conviction)", () => {
+  it("package.json and BOTH package-lock.json version slots carry the same version (the b85-family residual, anchored)", () => {
+    const read = (p: string): string =>
+      readFileSync(resolve(process.cwd(), p), "utf8");
+    const pkg = JSON.parse(read("package.json")) as { version: string };
+    const lockTop = JSON.parse(read("package-lock.json")) as { version: string };
+    const lockRoot = (JSON.parse(read("package-lock.json")) as {
+      packages: { "": { version: string } };
+    }).packages[""];
+    // the lockfile carried 0.11.0 at BOTH slots for nine package.json
+    // versions — this anchor convicts any recurrence
+    assert.equal(lockTop.version, pkg.version, "lockfile top-level version slot");
+    assert.equal(lockRoot.version, pkg.version, 'lockfile packages[""] version slot');
   });
 });
 

@@ -18,11 +18,14 @@
  *      and Holevo χ over the full 8^n ensemble.
  */
 
-import { type CMat, mat } from '../core/cmat.js';
+import { type CMat, mat, kron } from '../core/cmat.js';
 import { fromVec, equatorial, maximallyMixed } from '../core/states.js';
 import { traceDistance, holevo, type EnsembleItem } from '../core/measures.js';
+import { TRAP_ANGLES } from './traps.js';
 
-export const EIGHT_ANGLES: readonly number[] = Array.from({ length: 8 }, (_, k) => (k * Math.PI) / 4);
+/** The UBQC angle group Θ = {kπ/4} — the SAME 8-angle equatorial grid as the
+ * trap secrets (TRAP_ANGLES); single-sourced there since v0.3.0. */
+export const EIGHT_ANGLES: readonly number[] = TRAP_ANGLES;
 export const PAD_ANGLES: readonly number[] = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
 
 /** Server view of the received qubits for a fixed pad vector: ⊗_v |+_{θ_v+φ_v}⟩⟨·|. */
@@ -30,9 +33,9 @@ export function serverViewPure(thetas: readonly number[], phis: readonly number[
   let rho: CMat | null = null;
   for (let v = 0; v < thetas.length; v++) {
     const single = fromVec(equatorial(thetas[v]! + phis[v]!));
-    rho = rho === null ? single : kron2(rho, single);
+    rho = rho === null ? single : kron(rho, single);
   }
-  if (rho === null) throw new Error('need >=1 qubit');
+  if (rho === null) throw new Error('QV_EMPTY_INPUT: serverViewPure needs >=1 qubit');
   return rho;
 }
 
@@ -135,37 +138,12 @@ export function noPadLeakage(n: number): { maxTraceDistance: number; chiBits: nu
   let worst = 0;
   // all-pairs trace distance is 64·64/2 for n=2; for n=3 compare against the all-zero secret only (states are product: distance factors exactly)
   const anchor = states[0];
-  if (anchor === undefined) throw new Error('noPadLeakage: empty ensemble');
+  if (anchor === undefined) throw new Error('QV_EMPTY_INPUT: noPadLeakage: empty ensemble');
   for (const s of states) worst = Math.max(worst, traceDistance(anchor, s));
   const items: EnsembleItem[] = states.map((state, i) => ({ key: String(i), state, weight: 1 / total }));
   return { maxTraceDistance: worst, chiBits: holevo(items) };
 }
 
-/** Exact expected server view under pads, for the identity check ρ = I/2^n. */
-export function expectedServerView(thetas: readonly number[]): CMat {
-  return serverViewMixed(thetas);
-}
-
 export function mixedCompare(rho: CMat, n: number): number {
   return traceDistance(rho, maximallyMixed(1 << n));
-}
-
-function kron2(a: CMat, b: CMat): CMat {
-  const out = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      if (ar === 0 && ai === 0) continue;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q = 0; q < b.cols; q++) {
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q;
-          out.re[ri * out.cols + ci] = out.re[ri * out.cols + ci]! + (ar * b.re[p * b.cols + q]! - ai * b.im[p * b.cols + q]!);
-          out.im[ri * out.cols + ci] = out.im[ri * out.cols + ci]! + (ar * b.im[p * b.cols + q]! + ai * b.re[p * b.cols + q]!);
-        }
-      }
-    }
-  }
-  return out;
 }

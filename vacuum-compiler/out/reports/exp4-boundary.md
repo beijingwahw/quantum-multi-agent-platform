@@ -35,7 +35,7 @@ read-only against their shipped reports and package versions:
 
 | citation | verdict | crimes |
 | --- | --- | --- |
-| dtc-clock TC14 (v0.20.0) | ACCEPTED | — |
+| dtc-clock TC14 (v0.21.0) | ACCEPTED | — |
 | route-price W-E (v0.2.0) | ACCEPTED | — |
 
 ## B. the amplification census (exact rationals + seeded MC)

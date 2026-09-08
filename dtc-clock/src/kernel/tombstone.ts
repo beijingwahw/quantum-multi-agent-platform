@@ -20,6 +20,7 @@
  * real-symmetric case — H is real by construction (Paulis only).
  */
 import { type CMat, type CVec, identity, mAdd, mMul, mScale } from "../core/cmat.js";
+import { DtcError } from "../core/errors.js";
 import { siteX, siteZ, expectation } from "./beat.js";
 
 /** Transverse-field Ising chain H = -J sum Z_i Z_{i+1} - h sum X_i (open). */
@@ -39,7 +40,7 @@ export function realSymmetricPack(m: CMat): Float64Array {
   for (let i = 0; i < m.rows; i++) {
     for (let j = 0; j < m.cols; j++) {
       if (Math.abs(m.im[i * m.cols + j]!) > 1e-12) {
-        throw new Error("realSymmetricPack on a non-real matrix — wrong object");
+        throw new DtcError("E/WRONG-OBJECT", "realSymmetricPack on a non-real matrix — wrong object");
       }
       a[i * m.cols + j] = m.re[i * m.cols + j]!;
     }
@@ -178,7 +179,7 @@ export function tombstoneCensus(n: number, j: number, h: number, tMax: number): 
     }
   }
   const gap = eig.values[1]! - eig.values[0]!;
-  if (!(gap > 1e-9)) throw new Error("degenerate ground state — the tombstone needs a unique vacuum");
+  if (!(gap > 1e-9)) throw new DtcError("E/WRONG-OBJECT", "degenerate ground state — the tombstone needs a unique vacuum");
 
   const observables: CMat[] = [];
   for (let i = 0; i < n; i++) observables.push(siteX(n, i), siteZ(n, i));
@@ -224,7 +225,7 @@ export function tombstoneCensus(n: number, j: number, h: number, tMax: number): 
         sim += tim * ot[k * dim + j]!;
       }
     }
-    if (Math.abs(sim) > 1e-9) throw new Error("imaginary expectation beyond rounding — wrong object");
+    if (Math.abs(sim) > 1e-9) throw new DtcError("E/WRONG-OBJECT", "imaginary expectation beyond rounding — wrong object");
     return sre;
   };
 

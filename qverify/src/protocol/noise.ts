@@ -40,6 +40,7 @@ import { applyKraus } from '../core/channels.js';
 
 /** Kraus operators of the amplitude-damping channel at damping γ ∈ [0,1]. */
 export function amplitudeDampingKraus(gamma: number): CMat[] {
+  if (!(gamma >= 0 && gamma <= 1)) throw new Error(`QV_PROBABILITY: amplitudeDampingKraus gamma must be in [0,1], got ${gamma}`);
   const e0 = mat(2, 2);
   e0.re[0] = 1;
   e0.re[3] = Math.sqrt(1 - gamma);
@@ -50,6 +51,7 @@ export function amplitudeDampingKraus(gamma: number): CMat[] {
 
 /** Kraus operators of the phase-damping (pure dephasing) channel: (1−γ)ρ + γ ZρZ. */
 export function phaseDampingKraus(gamma: number): CMat[] {
+  if (!(gamma >= 0 && gamma <= 1)) throw new Error(`QV_PROBABILITY: phaseDampingKraus gamma must be in [0,1], got ${gamma}`);
   const eye = mat(2, 2);
   eye.re[0] = Math.sqrt(1 - gamma);
   eye.re[3] = eye.re[0];

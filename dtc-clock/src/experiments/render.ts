@@ -53,13 +53,14 @@ import {
 import { joulePrices, tariffTable, TARIFF_CRITERION } from "../kernel/thermo.js";
 import { tombstoneCensus } from "../kernel/tombstone.js";
 import { makeRng } from "../core/rng.js";
+import { DtcError } from "../core/errors.js";
 import { writeReport } from "./report.js";
 
 export function renderBoard(board: readonly BoardRow[] = BOARD): string {
   const violations = checkBoard(board);
   if (violations.length > 0) {
     const lines = violations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
-    throw new Error(`the board is illegal — refusing to print it:\n${lines.join("\n")}`);
+    throw new DtcError("E/BOARD", `the board is illegal — refusing to print it:\n${lines.join("\n")}`);
   }
   const out: string[] = [];
   out.push(

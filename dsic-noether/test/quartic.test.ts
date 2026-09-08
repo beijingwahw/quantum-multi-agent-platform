@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   pAdd,
   pAssertZero,
+  pConst,
   pIsZero,
   pMono,
   pMul,
@@ -18,6 +19,7 @@ import {
 } from "../src/continuum/poly.js";
 import * as gl from "../src/continuum/green-laffont.js";
 import * as q from "../src/continuum/quartic.js";
+import { KernelError } from "../src/core/errors.js";
 import { Rng } from "../src/core/rng.js";
 
 describe("T9-A the chain closes on the uncoupled quartic family (v = tau^3 a - a^4/4)", () => {
@@ -164,5 +166,21 @@ describe("T9-B the no-polynomial certificate: the COUPLED quartic stage cannot h
     assert.throws(() => {
       pAssertZero(residual, "forged coupled-quartic FOC");
     }, /FAILED/);
+  });
+
+  it("the shared quadratic line (single source): x1 + x2 = 1 and x2 - x1 = o - s exactly — independent anchors for the control and the trial that share it", () => {
+    const { x1, x2 } = q.certQuadraticLine();
+    const vars = x1.vars;
+    pAssertZero(pSub(pAdd(x1, x2), pConst(vars, rat(1))), "capacity: x1 + x2 = 1");
+    pAssertZero(
+      pSub(pSub(x2, x1), pSub(pVar(vars, 1), pVar(vars, 0))),
+      "linear FOC difference: x2 - x1 = o - s",
+    );
+  });
+
+  it("SMUGGLING TRIAL: the certificate's own entries reject illegal inputs by NAME (codes cert/d-range and cert/degree-invalid)", () => {
+    assert.throws(() => q.certTopCoeffSlice(0), (e: unknown) => e instanceof KernelError && e.code === "cert/d-range");
+    assert.throws(() => q.certTopCoeffSlice(5), (e: unknown) => e instanceof KernelError && e.code === "cert/d-range");
+    assert.throws(() => q.certDegreeArithmetic(-1), (e: unknown) => e instanceof KernelError && e.code === "cert/degree-invalid");
   });
 });

@@ -7,19 +7,7 @@
 
 import { type CMat, type CVec, mat, mMul, mDagger, identity } from './cmat.js';
 import type { Rng } from './rng.js';
-import { PAULI_X, PAULI_Y, PAULI_Z } from './states.js';
-
-/** Ry(θ) = [[cos θ/2, −sin θ/2], [sin θ/2, cos θ/2]] (real). */
-export function rotY(theta: number): CMat {
-  const m = mat(2, 2);
-  const c = Math.cos(theta / 2);
-  const s = Math.sin(theta / 2);
-  m.re[0] = c;
-  m.re[1] = -s;
-  m.re[2] = s;
-  m.re[3] = c;
-  return m;
-}
+import { PAULI_X, PAULI_Y, PAULI_Z, fromVec, equatorial } from './states.js';
 
 /** Rz(θ) = diag(e^{−iθ/2}, e^{iθ/2}). */
 export function rotZ(theta: number): CMat {
@@ -181,7 +169,7 @@ export function runCircuitVec(circuit: RandomCircuit): CVec {
   cur.re[0] = 1;
   for (const op of circuit.ops) {
     if (op.kind === 'u1') {
-      if (!op.u) throw new Error('u1 op without unitary');
+      if (!op.u) throw new Error('QV_OP_NO_UNITARY: runCircuitVec met a u1 op without its unitary');
       cur = applyLocalVec(cur, circuit.n, op.qubits[0]!, op.u);
     } else {
       // cz ops always carry two qubits (CircuitOp contract)
@@ -240,35 +228,6 @@ export function mirrorCircuit(circuit: RandomCircuit): RandomCircuit {
   return { n: circuit.n, layers, ops };
 }
 
-/** Full-register operator for a single-qubit gate via Kron (small n only). */
-export function localOperator(n: number, q: number, u: CMat): CMat {
-  let acc = identity(1);
-  for (let i = 0; i < n; i++) acc = i === q ? kronM(acc, u) : kronM(acc, identity(2));
-  return acc;
-}
-
-function kronM(a: CMat, b: CMat): CMat {
-  const m = mat(a.rows * b.rows, a.cols * b.cols);
-  for (let i = 0; i < a.rows; i++) {
-    for (let j = 0; j < a.cols; j++) {
-      const ar = a.re[i * a.cols + j]!;
-      const ai = a.im[i * a.cols + j]!;
-      if (ar === 0 && ai === 0) continue;
-      for (let p = 0; p < b.rows; p++) {
-        for (let q2 = 0; q2 < b.cols; q2++) {
-          const br = b.re[p * b.cols + q2]!;
-          const bi = b.im[p * b.cols + q2]!;
-          const ri = i * b.rows + p;
-          const ci = j * b.cols + q2;
-          m.re[ri * m.cols + ci] = m.re[ri * m.cols + ci]! + (ar * br - ai * bi);
-          m.im[ri * m.cols + ci] = m.im[ri * m.cols + ci]! + (ar * bi + ai * br);
-        }
-      }
-    }
-  }
-  return m;
-}
-
 /** Partial transpose over subsystem `t` (0-based, qubits only). */
 export function partialTransposeQ(rho: CMat, n: number, t: number): CMat {
   const d = rho.rows;
@@ -299,37 +258,34 @@ export function partialTransposeQ(rho: CMat, n: number, t: number): CMat {
 
 /** Measurement projectors |±_δ⟩⟨±_δ| for equatorial basis δ. */
 export function equatorialProjector(delta: number): { plus: CMat; minus: CMat } {
-  const v = equatorialState(delta);
-  const plus = mat(2, 2);
-  for (let i = 0; i < 2; i++) {
-    for (let j = 0; j < 2; j++) {
-      plus.re[i * 2 + j] = v.re[i]! * v.re[j]! + v.im[i]! * v.im[j]!;
-      plus.im[i * 2 + j] = v.im[i]! * v.re[j]! - v.re[i]! * v.im[j]!;
-    }
-  }
-  const minus = mat(2, 2);
-  const mv = equatorialState(delta + Math.PI);
-  for (let i = 0; i < 2; i++) {
-    for (let j = 0; j < 2; j++) {
-      minus.re[i * 2 + j] = mv.re[i]! * mv.re[j]! + mv.im[i]! * mv.im[j]!;
-      minus.im[i * 2 + j] = mv.im[i]! * mv.re[j]! - mv.re[i]! * mv.im[j]!;
-    }
-  }
-  return { plus, minus };
-}
-
-function equatorialState(delta: number): CVec {
-  const v = { n: 2, re: new Float64Array(2), im: new Float64Array(2) };
-  v.re[0] = 1 / Math.SQRT2;
-  v.re[1] = Math.cos(delta) / Math.SQRT2;
-  v.im[1] = Math.sin(delta) / Math.SQRT2;
-  return v;
+  return { plus: fromVec(equatorial(delta)), minus: fromVec(equatorial(delta + Math.PI)) };
 }
 
 /** Product of a list of 2×2 (or square) matrices in order. */
 export function mulAll(ms: readonly CMat[]): CMat {
-  if (ms.length === 0) throw new Error('mulAll needs >=1 matrix');
+  if (ms.length === 0) throw new Error('QV_EMPTY_PRODUCT: mulAll needs >=1 matrix');
   return ms.reduce((acc, m) => mMul(acc, m));
+}
+
+/**
+ * Matrix–vector product m·v. SINGLE SOURCE since v0.3.0: traps/attacks/cloner
+ * each carried a private byte-identical copy — merged here (bit-isomorphism
+ * anchored in test/quality.test.ts). cmat.ts keeps only matrix–matrix mMul
+ * (the family canon is byte-frozen; this is the qverify-side export).
+ */
+export function mulVec(m: CMat, v: CVec): CVec {
+  const out: CVec = { n: m.rows, re: new Float64Array(m.rows), im: new Float64Array(m.rows) };
+  for (let i = 0; i < m.rows; i++) {
+    let re = 0;
+    let im = 0;
+    for (let j = 0; j < m.cols; j++) {
+      re += m.re[i * m.cols + j]! * v.re[j]! - m.im[i * m.cols + j]! * v.im[j]!;
+      im += m.re[i * m.cols + j]! * v.im[j]! + m.im[i * m.cols + j]! * v.re[j]!;
+    }
+    out.re[i] = re;
+    out.im[i] = im;
+  }
+  return out;
 }
 
 export { PAULI_X, PAULI_Y, PAULI_Z };

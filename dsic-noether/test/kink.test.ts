@@ -96,6 +96,16 @@ describe("T10 jump regime: the second-price kink as two polynomial patches", () 
       pAssertZero(res, "all-pay losing-patch envelope");
     }, /FAILED/);
   });
+
+  it("NEGATIVE CONTROL on the readoff's clean check (single-sourced onto the kernel's monomial census): first price's own-report payment is convicted as dirty", () => {
+    // first price's winning payment p = s carries an own-report monomial —
+    // the single-sourced clean check must convict it, and must keep the
+    // second-price winning patch (p = w) clean under the SAME census
+    const fp = k.firstPricePatches();
+    assert.ok(!k.patchReadoff(fp.win).clean, "the s-monomial in first price's payment escaped the clean check");
+    const sp = k.secondPricePatches();
+    assert.ok(k.patchReadoff(sp.win).clean, "the second-price winning patch was wrongly convicted");
+  });
 });
 
 describe("T10 continuity regime: the capacity wall of the quadratic family (types widened to [1/2, 5/2])", () => {

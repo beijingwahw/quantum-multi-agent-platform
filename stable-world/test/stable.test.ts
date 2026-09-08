@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkBoard, runWitnesses } from "../src/kernel/audit.js";
@@ -8,7 +8,7 @@ import { makeRng } from "../src/core/rng.js";
 import { maximallyMixed, randomStateVec, vecToRho } from "../src/core/states.js";
 import { traceDistance, vonNeumannEntropy } from "../src/core/measures.js";
 import { identity, kron, mat, matEq, mAdd, mDagger, mMul, mScale, basisVec, eigHermitian, vAdd, vKron, vScale, vec } from "../src/core/cmat.js";
-import { applyUnitary } from "../src/core/channels.js";
+import { applyUnitary, filterBasisDigit } from "../src/core/channels.js";
 import {
   GAMMA,
   H_PLANCK,
@@ -69,6 +69,7 @@ import {
   twoWorldLawKraus,
 } from "../src/kernel/law.js";
 import { partialTrace } from "../src/core/channels.js";
+import { DomainError } from "../src/core/errors.js";
 
 /** BoardRow with readonly stripped: smuggle deep-copies the board, so
  * in-place mutation of the copy is the whole point of the harness. */
@@ -955,5 +956,127 @@ describe("T10 the accumulated law-error — time-dependent eps_t", () => {
     const con = accumulatedLeakageBound(constant, 1, GAMMA);
     assert.ok(alt < 0.51 * con, `alternating ${alt} vs constant ${con}`);
     assert.ok(Math.abs(con - perturbedLeakageBound(0.1, GAMMA)) <= 1e-9);
+  });
+});
+
+describe("T11 the code-quality wave — kernel boundaries, single sources, honest books", () => {
+  it("the kernel boundary refuses illegal gamma by name (no silent NaN channels)", () => {
+    for (const bad of [2, -0.1, Number.NaN]) {
+      assert.throws(
+        () => lawKraus(bad),
+        (err: unknown) => err instanceof DomainError && err.code === "worldKrausPair:gamma-range",
+        `lawKraus(${bad}) must refuse by name`,
+      );
+      assert.throws(() => twoWorldLawKraus(bad), /gamma must lie in \[0,1\]/, `twoWorldLawKraus(${bad}) must refuse`);
+      assert.throws(() => applyLaw(maximallyMixed(4), bad), /gamma must lie in \[0,1\]/);
+    }
+    // the boundary values are LEGAL channels: 0 (do-nothing) and 1 (full damping)
+    for (const g of [0, 1]) {
+      let completeness = mat(4, 4);
+      for (const k of lawKraus(g)) completeness = mAdd(completeness, mMul(mDagger(k), k));
+      assert.ok(matEq(completeness, identity(4), 1e-14), `gamma=${g} must stay CPTP`);
+      let completeness8 = mat(8, 8);
+      for (const k of twoWorldLawKraus(g)) completeness8 = mAdd(completeness8, mMul(mDagger(k), k));
+      assert.ok(matEq(completeness8, identity(8), 1e-14), `two-world gamma=${g} must stay CPTP`);
+    }
+  });
+
+  it("perturbation weights and escape pricers reject out-of-range inputs by name", () => {
+    const rho = maximallyMixed(4);
+    for (const badEps of [1.5, -0.01]) {
+      assert.throws(() => applyPerturbed(rho, lawKraus(GAMMA), badEps), /eps must lie in \[0,1\)/);
+      assert.throws(() => perturbedLeakageBound(badEps), /eps must lie in \[0,1\)/);
+      assert.throws(() => accumulatedLeakageBound([badEps], 1, GAMMA), /eps must lie in \[0,1\)/);
+    }
+    assert.throws(() => escapeAtHorizon(-1, 0.1), /non-negative integer/);
+    assert.throws(() => escapeAtHorizon(2.5, 0.1), /non-negative integer/);
+    assert.throws(() => escapeAtHorizon(10, -0.2), /rate must be >= 0/);
+    assert.throws(() => twoRateRecursion(1.5, 0.1), /non-negative integer/);
+    assert.throws(() => twoRateInWorld(10, Number.NaN), /rate must be >= 0/);
+    assert.throws(() => escapeDesignRuleBeta(1e6, -1), /must be positive/);
+    assert.throws(() => singleWorldLeak(-2, 0.5), /non-negative integer/);
+  });
+
+  it("every kernel refusal is a DomainError with a stable greppable code", () => {
+    const cases: Array<{ fire: () => void; code: string }> = [
+      { fire: () => lawKraus(Number.NaN), code: "worldKrausPair:gamma-range" },
+      { fire: () => mMul(mat(2, 2), mat(3, 3)), code: "mMul:shape" },
+      {
+        fire: () => partialTrace(mat(2, 2), [2, 2], [5]),
+        code: "partialTrace:index",
+      },
+      {
+        fire: () => filterBasisDigit(mat(4, 4), [2, 2], 0, 7),
+        code: "filterBasisDigit:digit",
+      },
+      { fire: () => catalystCap(0), code: "catalystCap:dim-range" },
+    ];
+    for (const { fire, code } of cases) {
+      assert.throws(
+        fire,
+        (err: unknown) => err instanceof DomainError && err.code === code && err.name === "DomainError",
+        `expected a DomainError with code ${code}`,
+      );
+    }
+  });
+
+  it("lawKraus is the single-sourced world pair: an independent hand build matches bit-exactly", () => {
+    // the dual-check discipline: rebuild the Kraus pair from scratch and
+    // demand ZERO tolerance — the merge must be bit-isomorphic
+    for (const g of [0, 0.25, 0.7, 1]) {
+      const k0w = mat(2, 2);
+      k0w.re[0 * 2 + 0] = Math.sqrt(1 - g);
+      k0w.re[1 * 2 + 1] = 1;
+      const k1w = mat(2, 2);
+      k1w.re[1 * 2 + 0] = Math.sqrt(g);
+      const pair = lawKraus(g);
+      assert.ok(matEq(pair[0]!, kron(k0w, identity(2)), 0), `K0 bit-exact at gamma=${g}`);
+      assert.ok(matEq(pair[1]!, kron(k1w, identity(2)), 0), `K1 bit-exact at gamma=${g}`);
+    }
+  });
+
+  it("the logistic single source: boltzmannOccupancy is the block-mixing pB, bit for bit", () => {
+    for (const b of [0, 1, 3, 10, 40, -2, 23.9962]) {
+      assert.ok(boltzmannOccupancy(b) === 1 / (1 + Math.exp(-b)), `bit drift at betaGap=${b}`);
+    }
+    // and the merged closed form still tracks the machine trajectory exactly
+    const rng = makeRng(111);
+    for (const beta of [1, 5]) {
+      for (const th of [0.6, 0.3]) {
+        const rho = vecToRho(randomStateVec(rng, 4));
+        const ss0 = rho.re[1]!;
+        const ww0 = rho.re[2 * 4 + 3]!;
+        let cur = rho;
+        for (let n = 1; n <= 5; n++) {
+          cur = applyCollision(cur, th, beta);
+          const exp = collisionBlockMixing(n, th, beta, ss0, ww0);
+          assert.ok(Math.abs(cur.re[1]! - exp.ss) <= 1e-15);
+          assert.ok(Math.abs(cur.re[2 * 4 + 3]! - exp.ww) <= 1e-15);
+        }
+      }
+    }
+  });
+
+  it("the books agree: package.json and package-lock.json carry one version", () => {
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
+      version: string;
+      name: string;
+    };
+    const lock = JSON.parse(readFileSync(resolve(process.cwd(), "package-lock.json"), "utf8")) as {
+      version?: string;
+      name?: string;
+      packages?: Record<string, { version?: string }>;
+    };
+    assert.ok(typeof lock.version === "string" && lock.version === pkg.version, `lock root version ${String(lock.version)} != package.json ${pkg.version}`);
+    const self = lock.packages?.[""]?.version;
+    assert.ok(self === pkg.version, `lock self version ${String(self)} != package.json ${pkg.version}`);
+  });
+
+  it("the seeded RNG is bit-reproducible across instances, normals included", () => {
+    const a = makeRng(4242);
+    const b = makeRng(4242);
+    for (let i = 0; i < 50; i++) assert.ok(a() === b(), `uniform stream drifted at ${i}`);
+    for (let i = 0; i < 20; i++) assert.ok(a.normal() === b.normal(), `normal stream drifted at ${i}`);
+    assert.ok(typeof a.normal() === "number");
   });
 });

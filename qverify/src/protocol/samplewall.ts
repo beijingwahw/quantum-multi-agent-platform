@@ -36,8 +36,9 @@ import { xebSelfConsistency } from './xeb.js';
 
 /** Hoeffding sample count for a bounded statistic: N = ⌈R² ln(1/δ)/(2τ²)⌉. */
 export function hoeffdingN(range: number, delta: number, margin: number): number {
-  if (margin <= 0) throw new Error('hoeffdingN: margin must be positive');
-  if (!(delta > 0 && delta < 1)) throw new Error('hoeffdingN: delta must be in (0,1)');
+  if (margin <= 0) throw new Error(`QV_MARGIN: hoeffdingN margin must be positive, got ${margin}`);
+  if (!(delta > 0 && delta < 1)) throw new Error(`QV_DELTA: hoeffdingN delta must be in (0,1), got ${delta}`);
+  if (!(range > 0)) throw new Error(`QV_RANGE: hoeffdingN range R must be positive, got ${range}`);
   return Math.ceil((range * range * Math.log(1 / delta)) / (2 * margin * margin));
 }
 
@@ -47,6 +48,10 @@ export function hoeffdingN(range: number, delta: number, margin: number): number
  * Deterministic golden-section maximization (the objective is concave in s).
  */
 export function cramerRate(values: readonly number[], probs: readonly number[], tau: number): number {
+  if (values.length === 0) throw new Error('QV_EMPTY_INPUT: cramerRate needs >=1 value');
+  if (probs.length !== values.length) {
+    throw new Error(`QV_LENGTH_MISMATCH: cramerRate needs one probability per value, got ${probs.length} for ${values.length} values`);
+  }
   const vmax = Math.max(...values);
   const logM = (s: number): number => {
     // stable log-sum-exp: shift by s·v_max so no term overflows for large s
@@ -99,6 +104,10 @@ export interface XebWallRow {
  * uniform-rejection test against the circuit distribution p.
  */
 export function xebWallRow(p: Float64Array, lambdaTarget: number, delta: number): XebWallRow {
+  if (!(lambdaTarget > 0 && lambdaTarget <= 1)) {
+    throw new Error(`QV_SIGNAL: xebWallRow lambdaTarget must be in (0,1], got ${lambdaTarget}`);
+  }
+  if (!(delta > 0 && delta < 1)) throw new Error(`QV_DELTA: xebWallRow delta must be in (0,1), got ${delta}`);
   const dim = p.length;
   const selfValue = xebSelfConsistency(p); // C = 2ⁿΣp² − 1
   let pMax = 0;
@@ -111,7 +120,7 @@ export function xebWallRow(p: Float64Array, lambdaTarget: number, delta: number)
   }
   const threshold = (lambdaTarget * selfValue) / 2;
   const rate = cramerRate(values, probs, threshold);
-  if (rate <= 0) throw new Error('xebWallRow: non-positive rate (threshold unreachable?)');
+  if (rate <= 0) throw new Error(`QV_RATE: xebWallRow non-positive Cramér rate ${rate} (threshold unreachable?)`);
   return {
     lambdaTarget,
     delta,
@@ -162,7 +171,9 @@ export interface ShadowWallRow {
 
 /** Shadow-fidelity sample wall from the exact per-shot moments. */
 export function shadowWallRow(exact: { mean: number; variance: number; min: number; max: number }, epsilon: number, delta: number): ShadowWallRow {
-  if (exact.variance <= 0) throw new Error('shadowWallRow: degenerate variance');
+  if (exact.variance <= 0) throw new Error(`QV_VARIANCE: shadowWallRow degenerate variance ${exact.variance}`);
+  if (!(epsilon > 0)) throw new Error(`QV_MARGIN: shadowWallRow epsilon must be positive, got ${epsilon}`);
+  if (!(delta > 0 && delta < 1)) throw new Error(`QV_DELTA: shadowWallRow delta must be in (0,1), got ${delta}`);
   return {
     mean: exact.mean,
     variance: exact.variance,

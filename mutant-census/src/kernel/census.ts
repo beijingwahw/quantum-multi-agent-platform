@@ -126,6 +126,30 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   { repo: "ent-clearing", file: "rng.ts", reason: "the v0.3.0 quality sweep replaced the `as Rng` cast construction with an Object.assign shape (the bit stream byte-identical, the A face of the wave); the canon still casts; re-convergence is the appeal court's call" },
   { repo: "choice-lang", file: "cmat.ts", reason: "the v0.3.0 absorption sweep deleted this member's uncalled solver faces (the Jacobi and inverse-iteration eigensolvers, 601 -> 155 lines — the twin survives in qverify/src/core/cmat.ts and the canon); re-convergence is the appeal court's call" },
   { repo: "choice-lang", file: "rng.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused rng exports (int/normal/pick/fmt — the live consumers draw bare doubles, the bit stream byte-identical); re-convergence is the appeal court's call" },
+  // -- the batch-86 wave appends (the quality wave's fifth batch, the E/A/D
+  // faces of stable-world 0.7.0 and dtc-clock 0.21.0) ------------------------
+  // BOTH former full members (byte-identical to the canon in all five family
+  // files) pared their kernels in the same wave: stable-world — the lineage
+  // ROOT the canon was byte-copied from — deleted its dead exports (states
+  // 13, cmat 9, channels 2, measures 2, rng 3, the fidelity/Holevo faces
+  // among them carrying silent clamping guards) and cleared its two casts
+  // (rng's Object.assign shape, cmat's narrowed loop); dtc-clock deleted 23
+  // dead exports across its tree (states 8, cmat 4, channels 2, rng 1, with
+  // measures touched by the same quality faces). The full-member count drops
+  // four -> two (letter-audit and switch-sched stand). Registered as debt,
+  // not adjudicated: whether the canon sheds its own dead faces (or the
+  // members re-converge — the ROOT divergence the first of its kind) is the
+  // appeal court's call.
+  { repo: "stable-world", file: "cmat.ts", reason: "the v0.7.0 quality sweep deleted this member's dead cmat exports (9 zero-reference faces) and narrowed the Float64Array cast loop (the A face); the canon's algorithmic faces are untouched between the deletions; re-convergence is the appeal court's call (the lineage root pared while the canon stands — the family's first rootward divergence)" },
+  { repo: "stable-world", file: "states.ts", reason: "the v0.7.0 quality sweep deleted this member's dead states exports (13 zero-reference faces); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
+  { repo: "stable-world", file: "channels.ts", reason: "the v0.7.0 quality sweep deleted this member's dead channels exports (2 zero-reference faces); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
+  { repo: "stable-world", file: "measures.ts", reason: "the v0.7.0 quality sweep deleted this member's dead measures exports (2 zero-reference faces, fidelity/holeho among them with their silent clamping guards — the shared-family kernel absorbed their deletion as c-class, priced not settled); re-convergence is the appeal court's call" },
+  { repo: "stable-world", file: "rng.ts", reason: "the v0.7.0 quality sweep deleted this member's unused rng exports (3 zero-reference faces) and replaced the `as Rng` cast with an Object.assign shape (the bit stream byte-identical, the A face); the canon still casts; re-convergence is the appeal court's call" },
+  { repo: "dtc-clock", file: "cmat.ts", reason: "the v0.21.0 quality sweep deleted this member's dead cmat exports (4 zero-reference faces) and cleared its real casts (the A/D faces); the canon's algorithmic faces are untouched between the deletions; re-convergence is the appeal court's call" },
+  { repo: "dtc-clock", file: "states.ts", reason: "the v0.21.0 quality sweep deleted this member's dead states exports (8 zero-reference faces); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
+  { repo: "dtc-clock", file: "channels.ts", reason: "the v0.21.0 quality sweep deleted this member's dead channels exports (2 zero-reference faces); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
+  { repo: "dtc-clock", file: "rng.ts", reason: "the v0.21.0 quality sweep deleted this member's unused rng export (1 zero-reference face) and refactored the construction to the Object.assign shape (the bit stream byte-identical); re-convergence is the appeal court's call" },
+  { repo: "dtc-clock", file: "measures.ts", reason: "the v0.21.0 quality sweep's faces touched this member's measures copy (the dead-export and cast-clearance passes); the canon's algorithmic faces are untouched; re-convergence is the appeal court's call" },
 ];
 
 export type FamilyStatus =

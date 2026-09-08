@@ -12,7 +12,8 @@ import {
   utility,
   welfareGap,
 } from "../src/mech/groves.js";
-import { directDeviationMax, rochetScan, utilityOneForm, type RuledWorld } from "../src/mech/rochet.js";
+import { directDeviationMax, rochetScan, ruleAllocation, utilityOneForm, type RuledWorld } from "../src/mech/rochet.js";
+import { KernelError } from "../src/core/errors.js";
 import {
   closednessClosedForm,
   closednessComputed,
@@ -45,6 +46,23 @@ describe("T0 combinatorics and kernels", () => {
     const biased = (a: number, b: number): number => (a - b) * 7 + (a < b ? 1 : 0);
     assert.ok(maxTriangleImbalance(4, biased) > 0);
     assert.ok(cycleScan(4, biased).max > 0);
+  });
+
+  it("simpleCycles rejects K > 7 by NAME (factorial blow-up guard, code cycles/k-limit)", () => {
+    assert.throws(() => simpleCycles(8), (e: unknown) => e instanceof KernelError && e.code === "cycles/k-limit");
+  });
+
+  it("the rule dispatch is exhaustive over RuleKind: all four kinds dispatch on one world; anti-efficient and second-best differ from efficient", () => {
+    const rng = new Rng(208);
+    const base = buildWorld(rng, 3, 1, 5);
+    const allocOf = (rule: RuledWorld["rule"]): string => ruleAllocation({ ...base, rule }, 0).join(",");
+    const eff = allocOf("efficient");
+    const anti = allocOf("anti-efficient");
+    const sb = allocOf("second-best");
+    const greedy = allocOf("greedy"); // every branch dispatches — no throw, no silent fall-through
+    assert.equal(greedy.split(",").length, 3, "greedy dispatched and allocated one item per agent");
+    assert.notEqual(eff, anti, "anti-efficient must differ from efficient (the unique-argmax guard)");
+    assert.notEqual(eff, sb, "the runner-up assignment must differ from the optimum");
   });
 });
 

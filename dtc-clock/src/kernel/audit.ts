@@ -61,6 +61,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { makeRng } from "../core/rng.js";
+import { DtcError } from "../core/errors.js";
 import { BOARD, type BoardRow, type Family } from "./board.js";
 import {
   alternationDeviation,
@@ -147,6 +148,7 @@ import {
   edgeNextOrder,
   edgeSeriesAccelerated,
   edgeSeriesTailBound,
+  EDGE_SECOND_COEFF,
   fFunctionFace,
   phi1Face,
   phi1GridStructure,
@@ -453,7 +455,11 @@ export function runWitnesses(): WitnessResult[] {
     for (const j of [0.6, 2.4]) {
       try {
         cliffBisect(6, j, 500, 0.5, 0.05, 0.6, 4);
-      } catch {
+      } catch (e) {
+        // only the NAMED bracket refusal is the probed outcome; anything
+        // else (a TypeError, a solver failure) must surface, never be
+        // swallowed — the zero-silent-catch law
+        if (!(e instanceof DtcError) || e.code !== "E/BRACKET") throw e;
         cliffEverywhere = false;
       }
     }
@@ -804,27 +810,12 @@ export function runWitnesses(): WitnessResult[] {
     const sumNum = a1.num * a2.den + a2.num * a1.den;
     const sumDen = a1.den * a2.den;
     const faceOk = faces6.repulsion.num * sumDen === sumNum * faces6.repulsion.den;
-    // the horizon push: monotone past the crossing, 9/8 extrapolation stable
-    const logFactTab: number[] = [0];
-    const logFact = (x: number): number => {
-      while (logFactTab.length <= x) logFactTab.push(logFactTab[logFactTab.length - 1]! + Math.log(logFactTab.length));
-      return logFactTab[x]!;
-    };
-    const logBinom = (a: number, b: number): number => logFact(a) - logFact(b) - logFact(a - b);
-    const shareFloat = (n: number): number => {
-      const dim = n / 2;
-      const m = (n - 2) / 2;
-      const lnC = logBinom(n - 2, m);
-      let lnr = -Infinity;
-      for (let k = 1; k <= dim - 1; k++) {
-        const lnCk =
-          2 * (Math.log(2 * n * (n - 1)) + lnC + logBinom(dim - 1, k)) -
-          (Math.log(2 * (2 * k)) + logBinom(n, 2 * k + 1) + 2 * (n - 1) * Math.LN2 + Math.log(n));
-        lnr = lnr === -Infinity ? lnCk : Math.log(Math.exp(lnr) + Math.exp(lnCk));
-      }
-      const lnc2 = Math.log(n - 1) + lnC - (n - 2) * Math.LN2;
-      return (9 * Math.exp(lnr)) / (2 * (n - 2) * Math.exp(lnc2));
-    };
+    // the horizon push: monotone past the crossing, 9/8 extrapolation stable.
+    // (v0.21.0 single-source: this witness's share values come from the ONE
+    // exported shareFloat — the local log-fact duplicate that used to shadow
+    // it here was expression-identical, and the bit-anchor on file pins the
+    // values the deletion must reproduce: share(24) = 1.012015313230259,
+    // share(1024) = 1.1077831462892902, extrapolation 1.1250948430677739)
     const s24 = shareFloat(24);
     const s1024 = shareFloat(1024);
     const extrapolation = s1024 + (s1024 - s24) / (Math.sqrt(1024 / 24) - 1); // a/sqrt(n) one-step
@@ -948,17 +939,16 @@ export function runWitnesses(): WitnessResult[] {
       Math.abs(s1 - -0.4896664762) <= 1e-7 &&
       Math.abs(kappaRoad - kappa) <= 1e-3 &&
       Math.abs(nextLim - 0.375) <= 1e-6 &&
-      Math.abs(secondAt(8192) - -11 / 128) <= 2e-3 &&
+      Math.abs(secondAt(8192) - EDGE_SECOND_COEFF) <= 2e-3 &&
       closureDeclining &&
       Math.abs(series.zetaM - -0.306852819) <= 1e-6 &&
       series.spotChecks <= 1e-12 &&
       Math.abs(phi1) <= 6e-7 &&
       zetaFixOk &&
-      fEdge > 0.999;
-    out.push({
+      fEdge > 0.999;    out.push({
       witness: "W-Y",
       ok,
-      detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${-11 / 128} exact), sum(E) = ${series.sumE.toFixed(9)} (WITH THE v0.20.0 zetaEM SIGN FIX — the N=60/120/240 agreement ${zetaFixOk ? "witnessed at ~1e-10" : "FAILED"}, where the v0.19.0 road erred at N^-s) so zeta_m = ${series.zetaM.toFixed(9)} and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} — INSIDE TC47's certified bracket (the v0.19.0 '-4.547e-4 nonzero' claim RETIRED as the sign bug's artifact); the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,
+      detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${EDGE_SECOND_COEFF} exact), sum(E) = ${series.sumE.toFixed(9)} (WITH THE v0.20.0 zetaEM SIGN FIX — the N=60/120/240 agreement ${zetaFixOk ? "witnessed at ~1e-10" : "FAILED"}, where the v0.19.0 road erred at N^-s) so zeta_m = ${series.zetaM.toFixed(9)} and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} — INSIDE TC47's certified bracket (the v0.19.0 '-4.547e-4 nonzero' claim RETIRED as the sign bug's artifact); the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,
     });
   }
 

@@ -654,7 +654,6 @@ export function yFlipReadCensus(
 }
 
 /**
-/**
  * v0.4.0 — THE T1 WALL (the honest endpoint): amplitude damping on clock
  * qubit 0 (rate gamma per period). Damping MERGES the orbit — |1> -> |0> —
  * so the sector lock that absorbs Pauli noise CANNOT survive: the branch

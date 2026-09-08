@@ -53,6 +53,7 @@ import {
   pEval,
   pInteg,
   pIsZero,
+  pMonomialsUsing,
   pMul,
   pScale,
   pSub,
@@ -122,16 +123,15 @@ export function patchGrovesResidual(patch: Patch): Poly {
 
 /** [I] per patch: the gauge readoff p - (fiber integral of the envelope
  * integrand) — the integrand is 0 on constant-rule patches, so the readoff is
- * p itself; clean iff p carries no own-report monomial. */
+ * p itself; clean iff p carries no own-report monomial. The clean check is
+ * the KERNEL's monomial census (pMonomialsUsing on the own-report index) —
+ * single-sourced with the classifier's conviction channel, never re-rolled
+ * per file. */
 export function patchReadoff(patch: Patch): { readoff: Poly; clean: boolean } {
   const integrand = pSubst(pMul(pVar(KINK_VARS, 1), pDeriv(patch.x, 0)), 1, pVar(KINK_VARS, 0));
   const integ = pInteg(integrand, 0);
   const readoff = pSub(patch.p, integ);
-  let clean = true;
-  for (const k of readoff.mono.keys()) {
-    if (Number(k.split(",")[0]) > 0) clean = false;
-  }
-  return { readoff, clean };
+  return { readoff, clean: pMonomialsUsing(readoff, 0) === 0 };
 }
 
 /** The exact jumps at the kink s = w, evaluated from the patch polynomials. */
@@ -408,16 +408,13 @@ export function wallGridWitness(wVal: Rat, steps: number): {
 
 /** Interior-patch [I] readoff for the wall family: the integrand
  * (s - x)*dx/ds integrated in s — the nontrivial Poincare step this regime
- * contributes (the jump regime's patches were constant). */
+ * contributes (the jump regime's patches were constant). Clean check as
+ * above: the kernel's monomial census on the own-report index. */
 export function wallGaugeReadoff(): { readoff: Poly; clean: boolean } {
   const patch = wallInteriorPatch();
   const t = pVar(KINK_VARS, 1);
   const integrand = pSubst(pMul(pSub(t, patch.x), pDeriv(patch.x, 0)), 1, pVar(KINK_VARS, 0));
   const integ = pInteg(integrand, 0);
   const readoff = pSub(patch.p, integ);
-  let clean = true;
-  for (const k of readoff.mono.keys()) {
-    if (Number(k.split(",")[0]) > 0) clean = false;
-  }
-  return { readoff, clean };
+  return { readoff, clean: pMonomialsUsing(readoff, 0) === 0 };
 }

@@ -5,6 +5,7 @@
  * bitwise exact, which is the point of this prototype.
  */
 import type { Rng } from "../core/rng.js";
+import { KernelError } from "../core/errors.js";
 
 export interface Instance {
   readonly n: number;
@@ -111,5 +112,5 @@ export function randomInstance(n: number, rng: Rng): Instance {
     const res = bestAllocation(values, agents);
     if (res.welfare > res.runnerUp) return { n, values };
   }
-  throw new Error("randomInstance: could not avoid welfare ties");
+  throw new KernelError("instance/tie-guard", "randomInstance: could not avoid welfare ties");
 }

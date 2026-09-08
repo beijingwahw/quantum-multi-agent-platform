@@ -2,9 +2,7 @@
 
 export interface Rng {
   (): number;
-  int(maxExclusive: number): number;
   normal(): number;
-  pick<T>(items: readonly T[]): T;
 }
 
 export function makeRng(seed: number): Rng {
@@ -16,10 +14,8 @@ export function makeRng(seed: number): Rng {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const rng = next as Rng;
-  rng.int = (maxExclusive: number): number => Math.floor(next() * maxExclusive);
   let spare: number | null = null;
-  rng.normal = (): number => {
+  const normal = (): number => {
     if (spare !== null) {
       const v = spare;
       spare = null;
@@ -37,14 +33,6 @@ export function makeRng(seed: number): Rng {
     spare = v * f;
     return u * f;
   };
-  rng.pick = <T>(items: readonly T[]): T => {
-    if (items.length === 0) throw new Error('rng.pick: empty collection');
-    return items[rng.int(items.length)]!;
-  };
-  return rng;
-}
-
-export function fmt(x: number, digits = 6): string {
-  if (!Number.isFinite(x)) return String(x);
-  return x.toFixed(digits);
+  // Object.assign types the augmentation structurally — no cast needed
+  return Object.assign(next, { normal });
 }

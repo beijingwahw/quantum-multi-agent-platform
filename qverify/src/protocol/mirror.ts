@@ -13,21 +13,9 @@
  */
 
 import { type CMat, mat } from '../core/cmat.js';
+import { depolarize } from '../core/channels.js';
 import { applyLocalRho, randomCircuit, mirrorCircuit, type RandomCircuit, type CircuitOp } from '../core/gates.js';
 import type { Rng } from '../core/rng.js';
-
-function depolarizeRho(rho: CMat, lambda: number): CMat {
-  const d = rho.rows;
-  const out = mat(d, d);
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      out.re[i * d + j] = (1 - lambda) * rho.re[i * d + j]!;
-      out.im[i * d + j] = (1 - lambda) * rho.im[i * d + j]!;
-    }
-    out.re[i * d + i] = out.re[i * d + i]! + lambda / d;
-  }
-  return out;
-}
 
 function applyOpRho(rho: CMat, n: number, op: CircuitOp): CMat {
   if (op.kind === 'u1') {
@@ -39,7 +27,7 @@ function applyOpRho(rho: CMat, n: number, op: CircuitOp): CMat {
   const qa = op.qubits[0]!; // cz ops always carry two qubits (CircuitOp contract)
   const qb = op.qubits[1]!;
   const d = rho.rows;
-  const out = { rows: d, cols: d, re: rho.re.slice(), im: rho.im.slice() } as CMat;
+  const out: CMat = { rows: d, cols: d, re: rho.re.slice(), im: rho.im.slice() };
   const inQuadrant = (idx: number): boolean =>
     ((idx >> (n - 1 - qa)) & 1) === 1 && ((idx >> (n - 1 - qb)) & 1) === 1;
   for (let row = 0; row < d; row++) {
@@ -63,7 +51,7 @@ export function mirrorReturnProb(circuit: RandomCircuit, lambda: number): number
   let rho: CMat = zero;
   for (const layer of circuit.layers) {
     for (const op of layer) rho = applyOpRho(rho, n, op);
-    rho = depolarizeRho(rho, lambda);
+    rho = depolarize(rho, lambda);
   }
   const mirror = mirrorCircuit(circuit);
   for (const layer of mirror.layers) {

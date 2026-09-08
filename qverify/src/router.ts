@@ -41,6 +41,9 @@ export function exactReplayAffordable(qubits: number): boolean {
 }
 
 export function routeVerification(req: VerifyRequest): TierDecision {
+  if (!Number.isInteger(req.qubits) || req.qubits < 1) {
+    throw new Error(`QV_QUBITS: routeVerification needs >=1 qubit, got ${req.qubits}`);
+  }
   if (!req.sampling && exactReplayAffordable(req.qubits)) {
     return {
       tier: 'local-exact',

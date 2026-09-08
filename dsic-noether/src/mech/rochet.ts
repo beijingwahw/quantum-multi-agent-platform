@@ -10,6 +10,7 @@
  * exactness/monotonicity in machine-exhibitable ways.
  */
 import { cycleScan } from "../core/cycles.js";
+import { KernelError } from "../core/errors.js";
 import { permutations } from "./instance.js";
 import type { GrovesWorld } from "./groves.js";
 import { allocationAt, wMinusI } from "./groves.js";
@@ -51,33 +52,49 @@ function greedyAlloc(w: GrovesWorld, report: readonly number[]): number[] {
 
 /** Allocation of the rule at report k (deterministic tie-breaks).
  * "second-best" = the runner-up assignment: the approximate solver that is
- * one step from optimal — the quantum-mech T5 villain, cast as a rule. */
+ * one step from optimal — the quantum-mech T5 villain, cast as a rule.
+ * The dispatch is an EXHAUSTIVE switch over RuleKind with a never-audit:
+ * adding a kind without dispatching it is a COMPILE error, not a silent
+ * fall-through into another rule's branch (the old if-chain fell through to
+ * anti-efficient for any unrecognized kind). */
 export function ruleAllocation(w: RuledWorld, k: number): readonly number[] {
-  if (w.rule === "greedy") return greedyAlloc(w, w.reports[k] as readonly number[]);
-  if (w.rule === "second-best") return allocationAt(w, k).allocRunnerUp;
-  const eff = allocationAt(w, k);
-  if (w.rule === "efficient") return eff.alloc;
-  // anti-efficient: worst permutation by reported welfare
-  const profile: number[][] = [];
-  let next = 0;
-  for (let a = 0; a < w.n; a++) {
-    if (a === w.i) profile.push([...(w.reports[k] as readonly number[])]);
-    else {
-      profile.push([...w.othersBids[next] as readonly number[]]);
-      next++;
+  switch (w.rule) {
+    case "greedy":
+      return greedyAlloc(w, w.reports[k] as readonly number[]);
+    case "second-best":
+      return allocationAt(w, k).allocRunnerUp;
+    case "efficient":
+      return allocationAt(w, k).alloc;
+    case "anti-efficient": {
+      // worst permutation by reported welfare
+      const profile: number[][] = [];
+      let next = 0;
+      for (let a = 0; a < w.n; a++) {
+        if (a === w.i) profile.push([...(w.reports[k] as readonly number[])]);
+        else {
+          profile.push([...w.othersBids[next] as readonly number[]]);
+          next++;
+        }
+      }
+      let worst: number[] = [];
+      let worstW = Infinity;
+      for (const p of permutations(w.n)) {
+        let s = 0;
+        for (let a = 0; a < w.n; a++) s += (profile[a] as number[])[p[a] as number] as number;
+        if (s < worstW) {
+          worstW = s;
+          worst = p;
+        }
+      }
+      return worst;
+    }
+    default: {
+      // unreachable by construction: every RuleKind is dispatched above, and
+      // the never-assignment below convicts any future omission at compile time
+      const unhandled: never = w.rule;
+      throw new KernelError("rule/unhandled-kind", `ruleAllocation: unhandled rule kind ${String(unhandled)}`);
     }
   }
-  let worst: number[] = [];
-  let worstW = Infinity;
-  for (const p of permutations(w.n)) {
-    let s = 0;
-    for (let a = 0; a < w.n; a++) s += (profile[a] as number[])[p[a] as number] as number;
-    if (s < worstW) {
-      worstW = s;
-      worst = p;
-    }
-  }
-  return worst;
 }
 
 /** The allocation 1-form omega(a -> b) = a(x(b)) - a(x(a)) (no payments yet):

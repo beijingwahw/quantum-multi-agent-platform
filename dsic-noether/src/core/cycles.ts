@@ -9,13 +9,15 @@
  * cycles (node counts here stay <= 6).
  */
 
+import { KernelError } from "./errors.js";
+
 export type EdgeForm = (a: number, b: number) => number;
 
 /** All simple cycles on node set {0..K-1}, each as an index cycle
  * [i0, i1, ..., ik-1] meaning i0 -> i1 -> ... -> ik-1 -> i0. K!-ish growth:
  * assert K <= 7 before enumerating. */
 export function simpleCycles(k: number): number[][] {
-  if (k > 7) throw new Error(`simpleCycles: K=${k} too large (factorial blow-up)`);
+  if (k > 7) throw new KernelError("cycles/k-limit", `simpleCycles: K=${k} too large (factorial blow-up)`);
   const out: number[][] = [];
   const used = new Array<boolean>(k).fill(false);
   const path: number[] = [];

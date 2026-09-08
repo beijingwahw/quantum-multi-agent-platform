@@ -23,9 +23,10 @@
  */
 
 import { type CMat, type CVec, mat, mAdd, mMul, mDagger, identity, isHermitian, eigHermitian, fromSpectral, mScale, vInner } from '../core/cmat.js';
-import { equatorial, fromVec, KET0, KET1, PLUS, MINUS } from '../core/states.js';
+import { equatorial, fromVec, KET0, KET1, PLUS, MINUS, PAULIS } from '../core/states.js';
 import { traceDistance } from '../core/measures.js';
 import { makeRng } from '../core/rng.js';
+import { mulVec } from '../core/gates.js';
 import { randomChannel, TRAP_ANGLES } from './traps.js';
 
 /** Helstrom success probability for two states with priors (½,½). */
@@ -50,7 +51,7 @@ export function equatorialPairHelstromClosed(): number {
 export function helstromTwoOptimize(rho0: CMat, rho1: CMat, starts = 16): number {
   const diff = mAdd(rho0, mScale(rho1, -1));
   const t: number[] = [];
-  for (const p of paulis2()) {
+  for (const p of PAULIS) {
     const prod = mMul(p, diff);
     t.push(prod.re[0]! + prod.re[3]!);
   }
@@ -113,7 +114,7 @@ export function prettyGoodMeasurement(states: readonly CVec[], weights: readonly
   const first = states[0];
   // a mismatched weights vector would silently read undefined and emit NaN effects
   if (first === undefined || weights.length !== states.length) {
-    throw new Error(`prettyGoodMeasurement: expected one weight per state, got ${weights.length} for ${states.length} states`);
+    throw new Error(`QV_WEIGHT_MISMATCH: prettyGoodMeasurement expected one weight per state, got ${weights.length} for ${states.length} states`);
   }
   const k = states.length;
   const d = first.n;
@@ -125,7 +126,7 @@ export function prettyGoodMeasurement(states: readonly CVec[], weights: readonly
       G.im[i] = G.im[i]! + weights[a]! * psiMats[a]!.im[i]!;
     }
   }
-  if (!isHermitian(G, 1e-12)) throw new Error('G not Hermitian');
+  if (!isHermitian(G, 1e-12)) throw new Error('QV_NOT_HERMITIAN: prettyGoodMeasurement Gram matrix G not Hermitian');
   const { values, vectors } = eigHermitian(G);
   const invSqrtVals = Float64Array.from(values, (v) => (v > 1e-12 ? 1 / Math.sqrt(v) : 0));
   const GinvSqrt = fromSpectral(invSqrtVals, vectors);
@@ -211,30 +212,3 @@ export function commitRevealMC(trials: number, seed: number): { acceptance: numb
   return { acceptance: mean, stdErr: Math.sqrt(varr / trials) };
 }
 
-function paulis2(): CMat[] {
-  const x = mat(2, 2);
-  x.re[1] = 1;
-  x.re[2] = 1;
-  const y = mat(2, 2);
-  y.im[1] = -1;
-  y.im[2] = 1;
-  const z = mat(2, 2);
-  z.re[0] = 1;
-  z.re[3] = -1;
-  return [x, y, z];
-}
-
-function mulVec(m: CMat, v: CVec): CVec {
-  const out: CVec = { n: m.rows, re: new Float64Array(m.rows), im: new Float64Array(m.rows) };
-  for (let i = 0; i < m.rows; i++) {
-    let re = 0;
-    let im = 0;
-    for (let j = 0; j < m.cols; j++) {
-      re += m.re[i * m.cols + j]! * v.re[j]! - m.im[i * m.cols + j]! * v.im[j]!;
-      im += m.re[i * m.cols + j]! * v.im[j]! + m.im[i * m.cols + j]! * v.re[j]!;
-    }
-    out.re[i] = re;
-    out.im[i] = im;
-  }
-  return out;
-}
