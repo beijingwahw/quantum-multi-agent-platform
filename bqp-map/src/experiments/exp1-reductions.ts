@@ -10,6 +10,7 @@
  * G: Ising encoding parity: Q(z) = (2C-total)^2 per state, ground state == DP
  */
 import { Rng } from "../core/rng.js";
+import { randInts } from "../core/stats.js";
 import { minMakespanP2, totalOf } from "../reductions/makespan.js";
 import { partitionEquivHolds, partitionYes } from "../reductions/partition.js";
 import {
@@ -25,10 +26,6 @@ import { johnsonOptimal } from "../reductions/johnson.js";
 import { isingGroundStateParity, isingIdentityHolds } from "../reductions/ising.js";
 import { table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
-
-function randInts(rng: Rng, n: number, lo: number, hi: number): number[] {
-  return Array.from({ length: n }, () => lo + rng.int(hi - lo + 1));
-}
 
 function run(): void {
   const rng = new Rng(2026090501);

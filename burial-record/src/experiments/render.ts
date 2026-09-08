@@ -1,13 +1,39 @@
 /**
- * Renders THE BURIAL RECORD — twenty-three batches, every error in two columns.
+ * Renders THE BURIAL RECORD — every batch the registry carries, every error
+ * in two columns (the count lives in the data, never in this comment).
  *
  * Entry guard (batch 21's own lesson): rendering fires only when this file is
  * the invoked program, so a test's import never executes the render.
  */
 import { pathToFileURL } from "node:url";
 import { BURIAL_RECORD, CATEGORIES } from "../kernel/registry.js";
-import { censusByCategory, censusByRepo, checkBurial, runWitnesses } from "../kernel/audit.js";
+import { censusByCategory, censusByRepo, checkBurial, runWitnesses, type Violation, type WitnessResult } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
+
+/** the renderer's refusal, by name (v0.6.0's error face): an illegal
+ * registry is not rendered, and the rejection is distinguishable from any
+ * incidental crash a caller might otherwise catch by accident. */
+export class IllegalRegistryError extends Error {
+  constructor(reasons: readonly string[]) {
+    super(`BURIAL RECORD REJECTED — the record does not bury cleanly:\n${reasons.join("\n")}`);
+    this.name = "IllegalRegistryError";
+  }
+}
+
+/** the render's gate as a pure function — the same verdict main() acts on,
+ * testable without executing the render (the entry guard keeps the write
+ * out of the trial). */
+export function assertBuriesCleanly(violations: readonly Violation[], witnesses: readonly WitnessResult[]): void {
+  if (violations.length > 0 || witnesses.some((w) => !w.pass)) {
+    // the renderer refuses to print an illegal registry — the bookkeeping is
+    // a gate, not a decoration
+    const reasons = [
+      ...violations.map((v) => `batch ${v.batch} [${v.law}]: ${v.detail}`),
+      ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
+    ];
+    throw new IllegalRegistryError(reasons);
+  }
+}
 
 export function renderRegistry(): string {
   const lines: string[] = [];
@@ -60,17 +86,7 @@ export function renderRegistry(): string {
 }
 
 function main(): void {
-  const violations = checkBurial();
-  const witnesses = runWitnesses();
-  if (violations.length > 0 || witnesses.some((w) => !w.pass)) {
-    // the renderer refuses to print an illegal registry — the bookkeeping is
-    // a gate, not a decoration
-    const reasons = [
-      ...violations.map((v) => `batch ${v.batch} [${v.law}]: ${v.detail}`),
-      ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
-    ];
-    throw new Error(`BURIAL RECORD REJECTED — the record does not bury cleanly:\n${reasons.join("\n")}`);
-  }
+  assertBuriesCleanly(checkBurial(), runWitnesses());
   const path = writeReport("the-burial-record.md", renderRegistry());
   console.log(`burial record rendered -> ${path}`);
 }

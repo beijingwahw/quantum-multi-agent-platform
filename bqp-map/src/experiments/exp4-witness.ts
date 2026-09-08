@@ -9,7 +9,8 @@
  *    has max off-diagonal EXACTLY -Gamma; +kappa XX lifts it to EXACTLY +kappa
  */
 import { Rng } from "../core/rng.js";
-import { fitSlope, table, writeReport } from "./report.js";
+import { fitSlope } from "../core/stats.js";
+import { table, writeReport } from "./report.js";
 import { hoeffdingCoverage, quantumEnergyExact, quantumEnergySampled, soundness } from "../witness/verify.js";
 import { stoqDichotomy } from "../witness/stoq.js";
 import { totalOf } from "../reductions/makespan.js";

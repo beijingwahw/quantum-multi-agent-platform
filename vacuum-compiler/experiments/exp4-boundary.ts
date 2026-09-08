@@ -82,7 +82,7 @@ function run(): void {
   // the sibling citations, re-audited against shipped reports (read-only)
   const genuineCitations = [
     { repo: "dtc-clock", version: "0.21.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
-    { repo: "route-price", version: "0.2.0", witness: "W-E", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
+    { repo: "route-price", version: "0.2.1", witness: "W-E", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" as const },
   ];
   const auditRows: string[][] = [];
   for (const c of genuineCitations) {
@@ -184,7 +184,7 @@ function run(): void {
     "",
     "dtc-clock TC14 (v0.19.0) legislated, at matched depth 11: DTC-clocked Bennett 0 <",
     "DTC as-built 5 < irreversible Boolean 9 < FK spectral clock 43.02 — the FK entry",
-    "quoted from THIS repo's T4 static mode. route-price W-E (v0.2.0) re-priced the",
+    "quoted from THIS repo's T4 static mode. route-price W-E (v0.2.1) re-priced the",
     "same ordering on its own netlist. The third path below re-decides every",
     "comparison against (T+1)·log2(T+1) by exact integer arithmetic:",
     "(T+1)·log2(T+1) < c ⟺ (T+1)^(T+1) < 2^c (BigInt) — floats are display-only.",

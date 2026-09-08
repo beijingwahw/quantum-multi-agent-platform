@@ -14,6 +14,9 @@ command (`repo: npm run script` — verified to exist).
 
 ## The laws (machine-enforced, `src/kernel/audit.ts`)
 
+- **L0** — every verdict tag is one of the legal vocabulary, single-sourced
+  in `src/kernel/ledger.ts` (`LEGAL_VERDICTS` — the type union and the
+  runtime list are one declaration).
 - **L1** — a row quoting a number must book a cost. The visitor's sentence,
   executable.
 - **L2** — a row without numbers must be OPEN: unpriced rows are routes, not
@@ -21,7 +24,10 @@ command (`repo: npm run script` — verified to exist).
 - **L3/L4** — every atlas anchor id and verdict tag exists in
   `bqp-map/src/atlas/entries.ts` (the book cannot drift from the atlas).
 - **L5** — every appeal command is a real script in a real repo on disk
-  (the court of appeal is callable, not decorative).
+  (the court of appeal is callable, not decorative). The appeal manifest is
+  VALIDATED, never cast-trusted: a malformed package.json or a non-table
+  `scripts` member is booked as a named L5 violation — the checker does not
+  crash on smuggled input.
 - **L6** — five arithmetic witnesses re-derive headline costs from scratch,
   independently of the repos that first produced them:
   - W-A: ledger identity 1/P = N/t (exact grid);
@@ -32,15 +38,18 @@ command (`repo: npm run script` — verified to exist).
   - W-E: the h₂ reconciliation anchor h₂(0.025) ≈ 0.168661.
 
 The renderer REFUSES to print an illegal ledger: if any law fails,
-`npm run repro` throws with the violations by name. `npm test` includes
-smuggling tests — a number without a cost, and a numberless row with a
-confident verdict — and asserts the checker rejects each by claim id and law.
+`npm run repro` throws with the violations by name. `npm test` includes the
+smuggling docket — a number without a cost, a numberless row with a
+confident verdict, a runtime-smuggled illegal verdict (L0), a forged atlas
+anchor (L3), forged and missing appeals (L5), and a malformed appeal
+manifest that must be BOOKED, never a crash — each convicted by claim id
+and law.
 
 ## Quickstart
 
 ```
 npm ci
-npm test          # 5/5
+npm test          # 12/12
 npm run repro     # renders out/reports/the-ledger.md, or throws
 ```
 

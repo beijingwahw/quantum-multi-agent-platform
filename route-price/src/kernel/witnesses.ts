@@ -48,6 +48,17 @@ export interface WitnessResult {
   readonly detail: string;
 }
 
+/** Boltzmann's constant, J/K — exact by the 2019 SI definition. The single
+ * source: W-A's Landauer floor and W-E's joule faces quote the same exact
+ * constant (was two identical literals before v0.2.1 — one law, one number). */
+const K_B = 1.380649e-23;
+
+/** The T4 uncertain-readout schedule — expected erasure bits per clocked
+ * readout cycle at depth T, (T+1)·log2(T+1). The single source: W-A meters
+ * eternity with it and W-E's tariff prices the FK spectral row by it (was
+ * two identical inline formulas — one law, one definition). */
+const t4Erasure = (T: number): number => (T + 1) * Math.log2(T + 1);
+
 // ---------------------------------------------------------------------------
 // W-A — the Landauer floor, two-path: k exact, ln2 by quadrature, metered eternity.
 // ---------------------------------------------------------------------------
@@ -62,7 +73,6 @@ function ln2Quadrature(steps: number): number {
 }
 
 function witnessLandauer(): WitnessResult {
-  const K_B = 1.380649e-23; // J/K — exact by the 2019 SI definition
   // path 1: the closed form
   const ln2Closed = Math.LN2;
   // path 2: ln2 as the quadrature of 1/x over [1,2] (midpoint rule)
@@ -73,10 +83,9 @@ function witnessLandauer(): WitnessResult {
   const e10mK = K_B * 0.01 * ln2Closed;
   const ratioOk = Math.abs(e300 / e10mK - 30000) < 1e-6;
 
-  const bits = (T: number): number => (T + 1) * Math.log2(T + 1);
-  const b10 = bits(10);
-  const b100 = bits(100);
-  const b1000 = bits(1000);
+  const b10 = t4Erasure(10);
+  const b100 = t4Erasure(100);
+  const b1000 = t4Erasure(1000);
   const meteredOk = b10 < b100 && b100 < b1000;
 
   return {
@@ -410,7 +419,7 @@ export interface ReversibleGate {
  *   wires 8..12  garbage u1 u2 u3 c1 c2 (nonzero after the run — the tariff)
  */
 export const MULTIPLIER_WIRES = 13;
-export const MULTIPLIER_GARBAGE_WIRES = [8, 9, 10, 11, 12] as const;
+const MULTIPLIER_GARBAGE_WIRES = [8, 9, 10, 11, 12] as const;
 export const MULTIPLIER_NETLIST: readonly ReversibleGate[] = [
   { controls: [0, 2], target: 4 }, // p0 = a0 & b0
   { controls: [0, 3], target: 8 }, // u1 = a0 & b1
@@ -433,6 +442,23 @@ export function applyNetlist(netlist: readonly ReversibleGate[], s: number): num
     if (fire) state ^= 1 << g.target;
   }
   return state;
+}
+
+/** Worst-case garbage bits the own netlist leaves over the 16 computational
+ * inputs — the tariff's as-built row. The single source: W-D's garbage census
+ * and W-E's re-priced table count the same physical wires (was two identical
+ * loops — one census, one count). */
+function multiplierGarbageWorst(): number {
+  let worst = 0;
+  for (let a = 0; a < 4; a++) {
+    for (let b = 0; b < 4; b++) {
+      const s1 = applyNetlist(MULTIPLIER_NETLIST, a | (b << 2));
+      let g = 0;
+      for (const w of MULTIPLIER_GARBAGE_WIRES) g += (s1 >> w) & 1;
+      worst = Math.max(worst, g);
+    }
+  }
+  return worst;
 }
 
 // ---------------------------------------------------------------------------
@@ -473,18 +499,14 @@ function witnessBeatRegister(): WitnessResult {
   // (4) the compiled cargo: 16/16 integer-exact, bijection on the full cube,
   //     bitwise self-reset under reversal, garbage census = 5 wires
   let wrong = 0;
-  let worstGarbage = 0;
   for (let a = 0; a < 4; a++) {
     for (let b = 0; b < 4; b++) {
-      const s0 = a | (b << 2);
-      const s1 = applyNetlist(MULTIPLIER_NETLIST, s0);
+      const s1 = applyNetlist(MULTIPLIER_NETLIST, a | (b << 2));
       const p = (s1 >> 4) & 15;
       if (p !== a * b) wrong++;
-      let g = 0;
-      for (const w of MULTIPLIER_GARBAGE_WIRES) g += (s1 >> w) & 1;
-      worstGarbage = Math.max(worstGarbage, g);
     }
   }
+  const worstGarbage = multiplierGarbageWorst();
   const dim = 1 << MULTIPLIER_WIRES;
   const seen = new Set<number>();
   let resetFails = 0;
@@ -517,7 +539,6 @@ function witnessBeatRegister(): WitnessResult {
 // ---------------------------------------------------------------------------
 
 function witnessEnergyCertificate(): WitnessResult {
-  const K_B = 1.380649e-23; // J/K — exact by the 2019 SI definition
   const ln2 = ln2Quadrature(1 << 20);
 
   // (1) zero net work on the ideal beat: <H_zz>(k) constant along the orbit
@@ -555,18 +576,10 @@ function witnessEnergyCertificate(): WitnessResult {
   //     criterion (per-run erasure in kT*ln2 units at equal error) recomputed
   //     with THIS netlist's garbage census and THIS ln2 quadrature
   const bennett = 0; // uncomputed + deterministic delivery: a known outcome reads for free
-  let asBuilt = 0;
-  for (let a = 0; a < 4; a++) {
-    for (let b = 0; b < 4; b++) {
-      const s1 = applyNetlist(MULTIPLIER_NETLIST, a | (b << 2));
-      let g = 0;
-      for (const w of MULTIPLIER_GARBAGE_WIRES) g += (s1 >> w) & 1;
-      asBuilt = Math.max(asBuilt, g);
-    }
-  }
+  const asBuilt = multiplierGarbageWorst();
   const irreversible = 4 + 5; // the Boolean rival: 4 input wires + 5 internal nodes
   const depth = MULTIPLIER_NETLIST.length;
-  const fkSpectral = (depth + 1) * Math.log2(depth + 1); // the T4 uncertain-readout schedule
+  const fkSpectral = t4Erasure(depth); // the T4 uncertain-readout schedule
   const tariffOk = bennett < asBuilt && asBuilt < irreversible && irreversible < fkSpectral && asBuilt === 5;
   const joules5 = asBuilt * K_B * 300 * ln2;
   const joules9 = irreversible * K_B * 0.01 * ln2;

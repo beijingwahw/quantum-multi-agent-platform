@@ -11,7 +11,7 @@ export interface C {
 
 export const c = (re: number, im = 0): C => ({ re, im });
 
-export const cadd = (a: C, b: C): C => ({ re: a.re + b.re, im: a.im + b.im });
+const cadd = (a: C, b: C): C => ({ re: a.re + b.re, im: a.im + b.im });
 
 export const cmul = (a: C, b: C): C => ({
   re: a.re * b.re - a.im * b.im,
@@ -20,7 +20,7 @@ export const cmul = (a: C, b: C): C => ({
 
 export const cconj = (a: C): C => ({ re: a.re, im: -a.im });
 
-export const cscale = (s: number, a: C): C => ({ re: s * a.re, im: s * a.im });
+const cscale = (s: number, a: C): C => ({ re: s * a.re, im: s * a.im });
 
 export const cabs2 = (a: C): number => a.re * a.re + a.im * a.im;
 

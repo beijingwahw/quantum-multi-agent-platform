@@ -12,10 +12,10 @@ describe("T5 atlas discipline", () => {
 
   it("atlas covers the verdict taxonomy broadly", () => {
     const groups = verdictGroups();
-    const populated = VERDOC_ORDER.filter((v) => (groups.get(v) as unknown[]).length > 0);
+    const populated = VERDOC_ORDER.filter((v) => groups[v].length > 0);
     assert.ok(populated.length >= 7, `only ${populated.length} verdicts populated`);
-    for (const must of ["P-EXACT", "CONDITIONAL-WALL", "QUERY-WALL", "HW-WAIT", "INFO-WALL", "VERIFICATION-GAP", "HEURISTIC", "MECHANISM-SETTLED"]) {
-      assert.ok((groups.get(must) as unknown[]).length >= 1, `${must} missing`);
+    for (const must of ["P-EXACT", "CONDITIONAL-WALL", "QUERY-WALL", "HW-WAIT", "INFO-WALL", "VERIFICATION-GAP", "HEURISTIC", "MECHANISM-SETTLED"] as const) {
+      assert.ok(groups[must].length >= 1, `${must} missing`);
     }
   });
 

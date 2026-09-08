@@ -1,6 +1,6 @@
 {
   "name": "depreciation-ledger",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claim #17, promoted to a build gate. The visitor's only conduct rule — 'the depreciation of the other universes must be booked' — was enrolled as an atlas claim with the postselection ledger as its execution clause. This repo makes the rule a CHECKER: the seventeen claims of the visitor's letter, rendered as one two-column book (number column | cost column | verdict | appeal command), with the meta-law enforced by machine — a row that quotes a number without booking a cost fails the build; a row without costs may not quote numbers at all. Cross-checks: every atlas anchor exists in bqp-map entries.ts with a legal verdict tag; every appeal command exists in the target repo's package.json; five independent arithmetic witnesses re-derive headline costs from scratch (the ledger identity 1/P = N/t, the restart-optimality threshold density solved by bisection against (3-sqrt(2))/4, the 256-strategy classical CHSH census cap at exactly 2, the Grover restart optimum E* at N=256 t=1, and the h2 reconciliation anchor) so the ledger's own numbers are two-path, not transcribed",
   "type": "module",
   "engines": {

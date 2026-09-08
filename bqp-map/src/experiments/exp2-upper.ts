@@ -9,11 +9,11 @@
  *    P2||Cmax instance finds the exact DP optimum with ~sqrt(2^n) queries
  */
 import { Rng } from "../core/rng.js";
-import { median } from "../core/stats.js";
+import { fitSlope, median } from "../core/stats.js";
 import { groverRun } from "../upper/grover.js";
 import { arrayValuation, dhMin, type Valuation } from "../upper/dhmin.js";
 import { minMakespanP2, totalOf } from "../reductions/makespan.js";
-import { fitSlope, table, writeReport } from "./report.js";
+import { table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
 function schedulingValuation(nums: readonly number[]): Valuation {

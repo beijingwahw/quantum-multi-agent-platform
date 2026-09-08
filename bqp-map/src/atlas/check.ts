@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Rng } from "../core/rng.js";
+import { randInts } from "../core/stats.js";
 import { partitionEquivHolds } from "../reductions/partition.js";
 import { bruteForceThreePartition, genPromiseInstance, genYesInstance, threePartitionEquivHolds } from "../reductions/threepartition.js";
 import { fptasRatio } from "../reductions/fptas.js";
@@ -30,16 +31,12 @@ import { stoqDichotomy } from "../witness/stoq.js";
 import { postselectCount, postselectSearch } from "../genealogy/postselect.js";
 import { nosignalTrial, singletAnchors } from "../genealogy/nosignal.js";
 import { ATLAS } from "./entries.js";
-import { REQUIRED_CERTS, VERDOC_ORDER, type AtlasEntry } from "./types.js";
+import { REQUIRED_CERTS, type AtlasEntry, type Verdict } from "./types.js";
 
 export interface MachineCheck {
   id: string;
   pass: boolean;
   detail: string;
-}
-
-function randInts(rng: Rng, n: number, lo: number, hi: number): number[] {
-  return Array.from({ length: n }, () => lo + rng.int(hi - lo + 1));
 }
 
 export function runMachineCertificates(seed = 20260905): MachineCheck[] {
@@ -328,12 +325,26 @@ export function checkAtlas(): AtlasCheck {
   return { violations, entries: ATLAS };
 }
 
-export function verdictGroups(): ReadonlyMap<string, AtlasEntry[]> {
-  const map = new Map<string, AtlasEntry[]>();
-  for (const v of VERDOC_ORDER) map.set(v, []);
+/**
+ * The atlas grouped by verdict, every taxonomy key present (an empty group is
+ * data: "no row carries this verdict yet"). The Record<Verdict, _> literal is
+ * compile-time exhaustive — adding a verdict tag without adding its bucket
+ * fails the build, and callers index without casts or undefined-handling.
+ */
+export function verdictGroups(): Readonly<Record<Verdict, readonly AtlasEntry[]>> {
+  const groups: Record<Verdict, AtlasEntry[]> = {
+    "P-EXACT": [],
+    "CONDITIONAL-WALL": [],
+    "QUERY-WALL": [],
+    "HW-WAIT": [],
+    "INFO-WALL": [],
+    "VERIFICATION-GAP": [],
+    HEURISTIC: [],
+    "MECHANISM-SETTLED": [],
+    OPEN: [],
+  };
   for (const e of ATLAS) {
-    const list = map.get(e.verdict) as AtlasEntry[];
-    list.push(e);
+    groups[e.verdict].push(e);
   }
-  return map;
+  return groups;
 }

@@ -59,11 +59,18 @@ import {
   type BurialBatch,
 } from "./registry.js";
 
-export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
+const WORKSPACE_ROOT = resolve(process.cwd(), "..");
+
+/** the bookkeeping laws as the checker names them in its convictions. B6 is
+ * absent by founding: the date-vs-anchor-file check it once described was
+ * folded into B5 at the record's first draft, and no conviction ever carries
+ * the dead number (v0.6.0's type face — the law tags are now a closed set
+ * the compiler guards, not a free string). */
+export type LawName = "B0" | "B1" | "B2" | "B3" | "B4" | "B5" | "B7" | "B8" | "B9";
 
 export interface Violation {
   readonly batch: number;
-  readonly law: string;
+  readonly law: LawName;
   readonly detail: string;
 }
 
@@ -91,9 +98,11 @@ function parseCountWord(word: string | undefined): number | null {
   const small = SMALL_WORDS.indexOf(word);
   if (small >= 0) return small + 1;
   const m = /^(\w+)-(\w+)$/.exec(word);
-  if (m !== null) {
-    const tens = TENS_WORDS.get(m[1]!);
-    const ones = SMALL_WORDS.indexOf(m[2]!);
+  const tensWord = m?.[1];
+  const onesWord = m?.[2];
+  if (tensWord !== undefined && onesWord !== undefined) {
+    const tens = TENS_WORDS.get(tensWord);
+    const ones = SMALL_WORDS.indexOf(onesWord);
     if (tens !== undefined && ones >= 0 && ones < 9) return tens + ones + 1;
   }
   const tens = TENS_WORDS.get(word);
@@ -103,30 +112,34 @@ function parseCountWord(word: string | undefined): number | null {
 /** All "N (delivery) errors" counts a context states, as numbers — English
  * or Chinese (v0.4.0: a count is a count in either tongue; the registry's
  * contexts are English today, the extension is law for the day they are
- * not). */
-export function statedErrorCounts(context: string): readonly number[] {
+ * not). Internal: B7 and W-5 are the only readers. */
+function statedErrorCounts(context: string): readonly number[] {
   const out: number[] = [];
   const re = /\b((?:\w+-)?\w+|\d+)\s+(?:delivery\s+)?errors\b|([一二三四五六七八九十两]+|\d+)\s*处/g;
   for (const m of context.matchAll(re)) {
-    const v = parseAnyCount(m[1] ?? m[2]!);
+    const raw = m[1] ?? m[2];
+    if (raw === undefined) continue;
+    const v = parseAnyCount(raw);
     if (v !== null) out.push(v);
   }
   return out;
 }
 
 /** All stated class counts — English "across M classes" or Chinese "M类". */
-export function statedClassCounts(context: string): readonly number[] {
+function statedClassCounts(context: string): readonly number[] {
   const out: number[] = [];
   const re = /\bacross\s+((?:\w+-)?\w+|\d+)\s+classes\b|([一二三四五六七八九十两]+|\d+)\s*类/g;
   for (const m of context.matchAll(re)) {
-    const v = parseAnyCount(m[1] ?? m[2]!);
+    const raw = m[1] ?? m[2];
+    if (raw === undefined) continue;
+    const v = parseAnyCount(raw);
     if (v !== null) out.push(v);
   }
   return out;
 }
 
 /** The unified count-word engine: digits, English words, Chinese numerals. */
-export function parseAnyCount(word: string): number | null {
+function parseAnyCount(word: string): number | null {
   return parseCountWord(word) ?? parseCnCount(word);
 }
 
@@ -142,7 +155,7 @@ const CN_DIGITS = new Map<string, number>([
   ["五", 5], ["六", 6], ["七", 7], ["八", 8], ["九", 9],
 ]);
 
-export function parseCnCount(word: string | undefined): number | null {
+function parseCnCount(word: string | undefined): number | null {
   if (word === undefined) return null;
   if (/^\d+$/.test(word)) return Number.parseInt(word, 10);
   if (word === "十") return 10;
@@ -184,6 +197,17 @@ function actualClassesOf(b: BurialBatch): number {
   return new Set(b.errors.map((e) => e.category)).size;
 }
 
+/** The full line a heading substring sits on — the established count phrase
+ * lives on that line, and both B8 and W-6 read it through here (v0.6.0's
+ * single-source face: the slice existed twice and could drift). Null where
+ * the heading is absent — B4 owns that conviction. */
+function headingLineOf(text: string, heading: string): string | null {
+  const idx = text.indexOf(heading);
+  if (idx < 0) return null;
+  const lineEnd = text.indexOf("\n", idx);
+  return text.slice(idx, lineEnd < 0 ? text.length : lineEnd);
+}
+
 export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Violation[] {
   const violations: Violation[] = [];
 
@@ -207,8 +231,8 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
       violations.push({ batch: b.batch, law: "B4", detail: `source anchor file missing: ${b.source.file}` });
     } else {
       const anchorText = readFileSync(anchorPath, "utf8");
-      const headingIdx = anchorText.indexOf(b.source.heading);
-      if (headingIdx < 0) {
+      const headingLine = headingLineOf(anchorText, b.source.heading);
+      if (headingLine === null) {
         violations.push({ batch: b.batch, law: "B4", detail: `heading "${b.source.heading}" not found in ${b.source.file}` });
       } else {
         // B8 — the memory-side count law: the lesson heading's established
@@ -216,8 +240,6 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
         // (b45#9 slipped through exactly here: the registry was fixed and
         // the memory prose was not). Only the established phrase is parsed —
         // free prose may count anything.
-        const lineEnd = anchorText.indexOf("\n", headingIdx);
-        const headingLine = anchorText.slice(headingIdx, lineEnd < 0 ? anchorText.length : lineEnd);
         const delivery = statedDeliveryCounts(headingLine);
         if (delivery.errors !== null && delivery.errors !== b.errors.length) {
           violations.push({
@@ -236,7 +258,7 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
       }
     }
     for (const [i, e] of b.errors.entries()) {
-      if (!(CATEGORIES as readonly string[]).includes(e.category)) {
+      if (!CATEGORIES.includes(e.category)) {
         violations.push({ batch: b.batch, law: "B0", detail: `error ${i + 1}: illegal category "${e.category}"` });
       }
       if (e.wrong.trim().length === 0 || e.right.trim().length === 0) {
@@ -244,7 +266,7 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
       }
     }
     // B7 — stated counts equal carried counts (prose is a copy of the data)
-    const actualClasses = new Set(b.errors.map((e) => e.category)).size;
+    const actualClasses = actualClassesOf(b);
     for (const stated of statedErrorCounts(b.context)) {
       if (stated !== b.errors.length) {
         violations.push({
@@ -302,8 +324,8 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
  * sections (双段 visits, addenda, name cards) — visit-number "uniqueness" is
  * NOT an invariant and its first draft false-convicted the historical
  * two-section visits; the laws below hold only what is true. */
-export function memoryStructureViolations(text: string): Array<{ law: string; detail: string }> {
-  const v: Array<{ law: string; detail: string }> = [];
+export function memoryStructureViolations(text: string): Array<{ law: LawName; detail: string }> {
+  const v: Array<{ law: LawName; detail: string }> = [];
   const lines = text.split("\n");
   const seenHeadings = new Map<string, number>();
   const seenLessons = new Map<string, number>();
@@ -369,7 +391,7 @@ function witnessNumbering(): WitnessResult {
 }
 
 function witnessRepoCensus(): WitnessResult {
-  const direct = countBy(BURIAL_RECORD, (b) => b.repo, (b) => b.errors.length);
+  const direct = censusByRepo();
   // second path: JSON round-trip (a genuine serialization boundary), then count
   const cloned = JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
   const second = countBy(cloned, (b) => b.repo, (b) => b.errors.length);
@@ -384,8 +406,7 @@ function witnessRepoCensus(): WitnessResult {
 }
 
 function witnessCategoryCensus(): WitnessResult {
-  const direct = new Map<string, number>();
-  for (const b of BURIAL_RECORD) for (const e of b.errors) direct.set(e.category, (direct.get(e.category) ?? 0) + 1);
+  const direct = censusByCategory();
   const cloned = JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
   const second = new Map<string, number>();
   for (const b of cloned) for (const e of b.errors) second.set(e.category, (second.get(e.category) ?? 0) + 1);
@@ -415,7 +436,7 @@ function witnessStatedCounts(): WitnessResult {
   let stated = 0;
   for (const b of BURIAL_RECORD) stated += statedErrorCounts(b.context).length + statedClassCounts(b.context).length;
   const bad = BURIAL_RECORD.filter((b) => {
-    const classes = new Set(b.errors.map((e) => e.category)).size;
+    const classes = actualClassesOf(b);
     return (
       statedErrorCounts(b.context).some((s) => s !== b.errors.length) ||
       statedClassCounts(b.context).some((s) => s !== classes)
@@ -436,10 +457,8 @@ function witnessHeadingCounts(): WitnessResult {
     const p = resolve(WORKSPACE_ROOT, b.source.file);
     if (!existsSync(p)) continue; // B4 owns the missing-file case
     const text = readFileSync(p, "utf8");
-    const idx = text.indexOf(b.source.heading);
-    if (idx < 0) continue; // B4 owns the missing-heading case
-    const lineEnd = text.indexOf("\n", idx);
-    const line = text.slice(idx, lineEnd < 0 ? text.length : lineEnd);
+    const line = headingLineOf(text, b.source.heading);
+    if (line === null) continue; // B4 owns the missing-heading case
     const d = statedDeliveryCounts(line);
     if (d.errors === null) continue;
     stated++;

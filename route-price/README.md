@@ -15,6 +15,7 @@ One dossier per OPEN row of `../bqp-map/src/atlas/entries.ts`:
 
 | law | content |
 | --- | --- |
+| R0 | the dossier must be a dossier at all — every column the deeper laws dereference arrives with the promised shape; an unreadable column or element is named and excused, because a crash is not a rejection |
 | R1 | every milestone books a price; every price line carries an amount — numbers never travel without costs |
 | R2 | the only expressible verdict is `OPEN-ROUTE` — **this repo cannot settle anything, by construction** |
 | R3 | every milestone names its own falsifier — a route without a failure mode is marketing |
@@ -23,7 +24,7 @@ One dossier per OPEN row of `../bqp-map/src/atlas/entries.ts`:
 | R6 | every dossier anchors to a row that exists in the atlas |
 | R7 | every executed milestone pairs its sibling certificate with a PASSING cross-check witness of this repo — a price claimed without its own re-derivation is a counterfeit certificate, rejected by name |
 
-The renderer refuses to print an illegal dossier; the tests include smuggling trials that inject an unpriced milestone, a falsifier-free milestone, a settled verdict, a dead citation, a counterfeit certificate citing a witness that does not exist, and an execution hanging off a repo that is missing on disk — each must be rejected by name.
+The renderer refuses to print an illegal dossier — and since v0.2.1 the refusal itself is a named, coded error (`DossierRejectedError`, code `DOSSIER_REJECTED`) carrying the violations and witness failures structured, not just as prose. The tests include smuggling trials that inject an unpriced milestone, a falsifier-free milestone, a settled verdict, a dead citation, a counterfeit certificate citing a witness that does not exist, an execution hanging off a repo that is missing on disk, a dossier with no milestones column, a milestone whose price column is not a string, and a malformed execution record — each must be rejected by name (the last three under the shape law R0: the checker names what it cannot read instead of crashing on it).
 
 ## The witnesses (src/kernel/witnesses.ts)
 

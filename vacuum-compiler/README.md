@@ -51,7 +51,7 @@ in the ground state AND mid-walk.
 **T5 — the graduated boundary and amplification (v0.2.0).** The DTC
 eternal-clock face of the epoch-4 claim is no longer open at the model
 layer: dtc-clock (v0.21.0) shipped the certificate layer (TC14 the tariff
-0 < 5 < 9 < 43.02 kT·ln2 units, TC17 the winner) and route-price (v0.2.0)
+0 < 5 < 9 < 43.02 kT·ln2 units, TC17 the winner) and route-price (v0.2.1)
 receipted it with independent cross-checks (W-E). This repo's own face of
 the graduation is the independent THIRD path: the tariff ordering re-derived
 on OUR conventions in exact integer arithmetic ((T+1)^(T+1) vs 2^c — no
@@ -107,7 +107,7 @@ bandwidth, against the Mandelstam–Tamm floor pi/(2·sigma_E) = pi.
   1 at every tick, TC6) and the thermodynamic certificate (TC12 zero net
   work on the ideal beat, TC14 the legislated tariff, TC17 the winner —
   the FK spectral-clock entry of that table is THIS repo's T4 static mode,
-  quoted); route-price v0.2.0 receipted it with independent cross-checks
+  quoted); route-price v0.2.1 receipted it with independent cross-checks
   (W-D/W-E, the tariff re-priced on its own netlist). This repo's own
   contribution is the third-path exact cross-check of T5 — read-only
   citations to the siblings' shipped certificates, no code import. The

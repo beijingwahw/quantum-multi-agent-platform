@@ -2,7 +2,7 @@
  * Renders THE LEDGER — the visitor's seventeen claims, both columns, one page.
  */
 import { LEDGER } from "../kernel/ledger.js";
-import { checkLedger, runWitnesses } from "../kernel/audit.js";
+import { checkLedger, quotesNumbers, runWitnesses } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
@@ -25,7 +25,9 @@ function main(): void {
   lines.push("| # | epoch | claim | verdict | NUMBER column (what may be quoted) | COST column (what it costs) | appeal |");
   lines.push("| --- | --- | --- | --- | --- | --- | --- |");
   for (const r of LEDGER) {
-    const num = r.numberColumn.length > 0 ? r.numberColumn : "— (none: OPEN row) —";
+    // counted through the checker's own predicate (audit.ts): the census this
+    // page prints cannot diverge from the law checkLedger enforces
+    const num = quotesNumbers(r) ? r.numberColumn : "— (none: OPEN row) —";
     lines.push(`| ${r.claimId} | ${r.epoch} | ${r.claim} | ${r.verdict} | ${num} | ${r.costColumn} | \`${r.appealRepo}: npm run ${r.appealCommand}\` |`);
   }
 
@@ -33,7 +35,7 @@ function main(): void {
   for (const r of LEDGER) counts.set(r.verdict, (counts.get(r.verdict) ?? 0) + 1);
   lines.push("\n## Verdict census\n");
   for (const [v, c] of [...counts.entries()].sort()) lines.push(`- ${v}: ${c}`);
-  const numbered = LEDGER.filter((r) => r.numberColumn.length > 0).length;
+  const numbered = LEDGER.filter((r) => quotesNumbers(r)).length;
   lines.push(`\n${numbered}/17 rows quote numbers; every one of them books its cost on the same line. ${LEDGER.length - numbered} rows are OPEN and quote nothing — by law, not by accident.\n`);
 
   lines.push("## Arithmetic witnesses (independent re-derivations, L6)\n");

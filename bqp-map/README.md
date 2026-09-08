@@ -37,7 +37,7 @@ enrolls them as verdicts with certificates and costs, manifestos not welcome.
 Every letter-claim enrolled under the same discipline (verdict → certificate →
 wall model → cost, no manifestos; the full claim-by-claim register is rendered
 by exp6 — every claim of the letter mapped to a verdict-carrying row, no claim
-unenrolled, no row padded):
+unenrolled, no row padded); quantum-binding stays as the audit-added no-go row:
 
 - **postselect-sort** (CONDITIONAL-WALL): the many-worlds sorter is TRUE
   in-branch (fidelity 1.000000000000) and pays the depreciation ledger
@@ -110,10 +110,12 @@ unenrolled, no row padded):
   stabilization priced on both faces. The row's stated open item — an
   executable model of stability as physics — now exists; nature's
   instantiation is not claimed (choice-lang + stable-world).
-  quantum-binding stays as the audit-added no-go row.
 
 ## Layout
 
+- `src/core/` — the shared foundation: the seeded rng (every stochastic
+  referee draws from it, so numbers regenerate bit-for-bit) and the stats
+  helpers (fitSlope, hoeffdingShots, randInts — single-sourced)
 - `src/reductions/` — T1: Partition→P2||Cmax, 3-Partition→P||Cmax (both
   directions machine-checked), FPTAS dichotomy, Johnson's rule, Ising parity
 - `src/upper/` — T2: exact Grover (closed form == state-vector, 1e-12),
@@ -133,7 +135,7 @@ unenrolled, no row padded):
 
 ```
 npm install
-npm test        # 43/43 — includes re-running every machine certificate
+npm test        # 57/57 — includes re-running every machine certificate
 npm run repro   # ~4 s — rebuilds all six experiment reports + the atlas
 ```
 

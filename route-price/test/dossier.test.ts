@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DOSSIERS, type Criterion, type Dossier, type DossierVerdict, type Milestone } from "../src/kernel/dossier.js";
-import { checkDossiers, WORKSPACE_ROOT } from "../src/kernel/audit.js";
+import { checkDossiers, WORKSPACE_ROOT, type DossierInput } from "../src/kernel/audit.js";
 import { runWitnesses, MULTIPLIER_NETLIST, MULTIPLIER_WIRES, applyNetlist } from "../src/kernel/witnesses.js";
-import { renderLines } from "../src/experiments/render.js";
+import { renderLines, DossierRejectedError, DOSSIER_REJECTED } from "../src/experiments/render.js";
 import { Rng } from "../src/kernel/rng.js";
 import {
   apply,
@@ -163,6 +163,72 @@ test("the renderer refuses to print an illegal dossier", () => {
     { ...d1, milestones: [...d1.milestones, { id: "D1-M97", statement: "unpriced", anchor: "cite:MI22", falsifier: "f", price: "" }] },
   ];
   assert.throws(() => renderLines(smuggled), /DOSSIER REJECTED/);
+});
+
+test("smuggling: a dossier with no milestones column at all is rejected by name, not crashed on (R0)", () => {
+  const d1 = DOSSIERS[0] as Dossier;
+  const smuggled: readonly DossierInput[] = [{ ...d1, milestones: undefined }];
+  const v = checkDossiers(smuggled);
+  assert.equal(v.length, 1);
+  assert.equal(v[0]?.law, "R0");
+  assert.equal(v[0]?.dossierId, "D1");
+  assert.ok(v[0].detail.includes("milestones"));
+});
+
+test("smuggling: a milestone whose price column is not a string cannot crash the R1 reader (R0)", () => {
+  const d1 = DOSSIERS[0] as Dossier;
+  const smuggled: readonly DossierInput[] = [
+    {
+      ...d1,
+      milestones: [...d1.milestones.slice(1), { id: "D1-M96", statement: "shapeless", anchor: "cite:MI22", falsifier: "has one", price: 42 }],
+    },
+  ];
+  const v = checkDossiers(smuggled);
+  assert.equal(v.length, 1);
+  assert.equal(v[0]?.law, "R0");
+  assert.ok(v[0].detail.includes("D1-M96"));
+});
+
+test("smuggling: a malformed execution record is refused before R7 can crash on it (R0)", () => {
+  const d1 = DOSSIERS[0] as Dossier;
+  const target = d1.milestones[0] as Milestone; // D1-M1: legal but unexecuted
+  const smuggled: readonly DossierInput[] = [
+    {
+      ...d1,
+      milestones: [
+        // crossCheck missing — R7 would dereference it; R0 must refuse it first
+        { ...target, execution: { repo: "dtc-clock", certificate: "TC1" } },
+        ...d1.milestones.slice(1),
+      ],
+    },
+  ];
+  const v = checkDossiers(smuggled);
+  assert.equal(v.length, 1);
+  assert.equal(v[0]?.law, "R0");
+  assert.ok(v[0].detail.includes("D1-M1"));
+});
+
+test("the refusal is a named, coded error with structured reasons — not a bare message", () => {
+  const d1 = DOSSIERS[0] as Dossier;
+  const smuggled: readonly Dossier[] = [
+    {
+      ...d1,
+      milestones: [...d1.milestones, { id: "D1-M95", statement: "unpriced", anchor: "cite:MI22", falsifier: "f", price: "" }],
+    },
+  ];
+  try {
+    renderLines(smuggled);
+    assert.fail("the renderer must refuse an unpriced milestone");
+  } catch (err) {
+    assert.ok(err instanceof DossierRejectedError, `expected DossierRejectedError, got ${String(err)}`);
+    assert.equal(err.name, "DossierRejectedError");
+    assert.equal(err.code, DOSSIER_REJECTED);
+    assert.equal(err.violations.length, 1);
+    assert.equal(err.violations[0]?.law, "R1");
+    assert.equal(err.violations[0]?.dossierId, "D1");
+    assert.equal(err.witnessFailures.length, 0);
+    assert.match(err.message, /DOSSIER REJECTED[\s\S]*D1-M95/);
+  }
 });
 
 test("stability is engineered, not default: exact for compiled targets, strictly broken for random programs", () => {

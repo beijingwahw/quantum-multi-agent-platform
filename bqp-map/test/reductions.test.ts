@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Rng } from "../src/core/rng.js";
+import { randInts } from "../src/core/stats.js";
 import { bruteForceMakespanPm, minMakespanP2, minMakespanPm } from "../src/reductions/makespan.js";
 import { partitionEquivHolds, partitionYes, reducePartitionToP2 } from "../src/reductions/partition.js";
 import {
@@ -15,10 +16,6 @@ import {
 import { fptasP2, fptasRatio } from "../src/reductions/fptas.js";
 import { johnsonOptimal } from "../src/reductions/johnson.js";
 import { isingGroundStateParity, isingIdentityHolds, makespanOfZ } from "../src/reductions/ising.js";
-
-function randInts(rng: Rng, n: number, lo: number, hi: number): number[] {
-  return Array.from({ length: n }, () => lo + rng.int(hi - lo + 1));
-}
 
 describe("T1 reductions", () => {
   const rng = new Rng(11);

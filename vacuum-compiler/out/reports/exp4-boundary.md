@@ -6,7 +6,7 @@ Every number below regenerates from `npm run repro` (seeded, zero dependencies).
 
 dtc-clock TC14 (v0.19.0) legislated, at matched depth 11: DTC-clocked Bennett 0 <
 DTC as-built 5 < irreversible Boolean 9 < FK spectral clock 43.02 — the FK entry
-quoted from THIS repo's T4 static mode. route-price W-E (v0.2.0) re-priced the
+quoted from THIS repo's T4 static mode. route-price W-E (v0.2.1) re-priced the
 same ordering on its own netlist. The third path below re-decides every
 comparison against (T+1)·log2(T+1) by exact integer arithmetic:
 (T+1)·log2(T+1) < c ⟺ (T+1)^(T+1) < 2^c (BigInt) — floats are display-only.
@@ -36,7 +36,7 @@ read-only against their shipped reports and package versions:
 | citation | verdict | crimes |
 | --- | --- | --- |
 | dtc-clock TC14 (v0.21.0) | ACCEPTED | — |
-| route-price W-E (v0.2.0) | ACCEPTED | — |
+| route-price W-E (v0.2.1) | ACCEPTED | — |
 
 ## B. the amplification census (exact rationals + seeded MC)
 

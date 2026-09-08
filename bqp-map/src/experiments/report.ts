@@ -18,18 +18,12 @@ export function table(headers: readonly string[], rows: ReadonlyArray<readonly s
   return [head, sep, body].join("\n");
 }
 
-export function fitSlope(xs: readonly number[], ys: readonly number[]): number {
-  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
-  const my = ys.reduce((a, b) => a + b, 0) / ys.length;
-  let num = 0;
-  let den = 0;
-  for (let i = 0; i < xs.length; i++) {
-    num += ((xs[i] as number) - mx) * ((ys[i] as number) - my);
-    den += ((xs[i] as number) - mx) ** 2;
-  }
-  return num / den;
-}
-
+/**
+ * Fixed-decimal formatting for report prose. The former twin in core/stats.ts
+ * (toPrecision — significant digits) was DEAD (zero importers) and was
+ * deleted in the wave-7 single-sourcing face WITHOUT merging: the two
+ * conventions are semantically different, and the live one is this one.
+ */
 export function fmt(x: number, digits = 3): string {
   if (!Number.isFinite(x)) return String(x);
   return x.toFixed(digits);

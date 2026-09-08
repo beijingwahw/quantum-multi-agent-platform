@@ -6,11 +6,11 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { checkAtlas, runMachineCertificates, verdictGroups } from "../atlas/check.js";
 import { ATLAS } from "../atlas/entries.js";
-import { VERDOC_ORDER, type AtlasEntry } from "../atlas/types.js";
+import { VERDOC_ORDER, type AtlasEntry, type Verdict } from "../atlas/types.js";
 import { reportDir, table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-const VERDICT_BLURB: Readonly<Record<string, string>> = {
+const VERDICT_BLURB: Readonly<Record<Verdict, string>> = {
   "P-EXACT": "Already exactly polynomial — there is nothing left to accelerate.",
   "CONDITIONAL-WALL": "NP-hard: an exact polynomial quantum algorithm would imply NP ⊆ BQP (one shared, visible conditional).",
   "QUERY-WALL": "Black-box access is capped at quadratic — the (2q+1)²/N certificate, machine-checked.",
@@ -33,10 +33,10 @@ function run(): void {
 
   const sections: string[] = [];
   for (const verdict of VERDOC_ORDER) {
-    const list = groups.get(verdict) as AtlasEntry[];
+    const list = groups[verdict];
     if (list.length === 0) continue;
     sections.push(
-      `## ${verdict} (${list.length})\n\n${VERDICT_BLURB[verdict] as string}\n\n${table(
+      `## ${verdict} (${list.length})\n\n${VERDICT_BLURB[verdict]}\n\n${table(
         ["problem", "classical", "quantum upper", "quantum lower", "certificates"],
         list.map((e) => [e.problem, e.classical.cls, e.quantumUpper, e.quantumLower, certSummary(e)]),
       )}`,

@@ -1,25 +1,48 @@
 /**
  * Renders THE DOSSIER — the two OPEN rows' route and price, one page each.
  * The renderer refuses to print an illegal dossier: laws first, prose second.
+ * The refusal is a named, coded error (v0.2.1) — a caller catches the
+ * DossierRejectedError itself, not just its message, and reads the
+ * violations and witness failures that caused it, structured.
  */
 import { DOSSIERS, type Dossier } from "../kernel/dossier.js";
-import { checkDossiers } from "../kernel/audit.js";
-import { runWitnesses } from "../kernel/witnesses.js";
+import { checkDossiers, type Violation } from "../kernel/audit.js";
+import { runWitnesses, type WitnessResult } from "../kernel/witnesses.js";
 import { writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
+
+/** The error code — the machine-readable name of the refusal. */
+export const DOSSIER_REJECTED = "DOSSIER_REJECTED";
+
+/** The only error this module throws: the refusal to print an illegal
+ * dossier. Carries the checker's violations and the failing witnesses
+ * structured, so a caller can act on the laws by name instead of parsing
+ * prose. */
+export class DossierRejectedError extends Error {
+  readonly code = DOSSIER_REJECTED;
+  readonly violations: readonly Violation[];
+  readonly witnessFailures: readonly WitnessResult[];
+
+  constructor(violations: readonly Violation[], witnessFailures: readonly WitnessResult[]) {
+    const reasons = [
+      ...violations.map((v) => `${v.dossierId} [${v.law}]: ${v.detail}`),
+      ...witnessFailures.map((w) => `${w.name}: ${w.detail}`),
+    ];
+    super(`DOSSIER REJECTED — the route does not balance:\n${reasons.join("\n")}`);
+    this.name = "DossierRejectedError";
+    this.violations = violations;
+    this.witnessFailures = witnessFailures;
+  }
+}
 
 export function renderLines(
   dossiers: readonly Dossier[] = DOSSIERS,
   witnesses: ReturnType<typeof runWitnesses> = runWitnesses(),
 ): string[] {
   const violations = checkDossiers(dossiers);
-  const witnessOk = witnesses.every((w) => w.pass);
-  if (violations.length > 0 || !witnessOk) {
-    const reasons = [
-      ...violations.map((v) => `${v.dossierId} [${v.law}]: ${v.detail}`),
-      ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
-    ];
-    throw new Error(`DOSSIER REJECTED — the route does not balance:\n${reasons.join("\n")}`);
+  const witnessFailures = witnesses.filter((w) => !w.pass);
+  if (violations.length > 0 || witnessFailures.length > 0) {
+    throw new DossierRejectedError(violations, witnessFailures);
   }
 
   const lines: string[] = [];

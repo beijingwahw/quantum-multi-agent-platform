@@ -30,7 +30,7 @@ export const q = (n: bigint, d = 1n): Q => {
   return { n: nn / g, d: dd / g };
 };
 
-export const qAdd = (a: Q, b: Q): Q => q(a.n * b.d + b.n * a.d, a.d * b.d);
+const qAdd = (a: Q, b: Q): Q => q(a.n * b.d + b.n * a.d, a.d * b.d);
 export const qSub = (a: Q, b: Q): Q => q(a.n * b.d - b.n * a.d, a.d * b.d);
 export const qMul = (a: Q, b: Q): Q => q(a.n * b.n, a.d * b.d);
 export const qDiv = (a: Q, b: Q): Q => q(a.n * b.d, a.d * b.n);

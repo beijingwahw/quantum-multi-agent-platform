@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkBurial, memoryStructureViolations, runWitnesses, statedDeliveryCounts } from "../src/kernel/audit.js";
+import { checkBurial, memoryStructureViolations, runWitnesses, statedDeliveryCounts, type Violation, type WitnessResult } from "../src/kernel/audit.js";
+import { assertBuriesCleanly, IllegalRegistryError } from "../src/experiments/render.js";
 import {
   BURIAL_RECORD,
   DECLARED_TOTAL_BATCHES,
@@ -157,6 +158,25 @@ describe("T2 smuggling trials — the bookkeeping rejects contraband by name", (
     assert.match(hit.detail, /states 9 error/);
   });
 
+  it("B7 bilingual classes: a Chinese stated CLASS count is law (五类 legal, 九类 on five classes convicts)", () => {
+    const right = smuggle((b) => {
+      const batch45 = b.find((x) => x.batch === 45) as unknown as { context: string };
+      batch45.context = "the v0.5.0 armor dynamics delivery — 交付期十处五类, born enrolled";
+    });
+    assert.deepEqual(
+      checkBurial(right).filter((v) => v.law === "B7"),
+      [],
+      "十处五类 on ten errors five classes must not convict — both tongues agree with the data",
+    );
+    const wrongC = smuggle((b) => {
+      const batch45 = b.find((x) => x.batch === 45) as unknown as { context: string };
+      batch45.context = "the v0.5.0 armor dynamics delivery — 交付期十处九类, born enrolled";
+    });
+    const hit = checkBurial(wrongC).find((v) => v.law === "B7" && v.batch === 45);
+    assert.ok(hit, "九类 on five classes must convict");
+    assert.match(hit.detail, /states 9 classes/);
+  });
+
   it("B8: the lesson heading's stated 处 must equal the registry's carried count (the memory side of b45#9)", () => {
     const contraband = smuggle((b) => {
       const batch45 = b.find((x) => x.batch === 45) as unknown as { errors: Array<{ wrong: string; right: string; category: string }> };
@@ -188,6 +208,15 @@ describe("T2 smuggling trials — the bookkeeping rejects contraband by name", (
     assert.equal(en.classes, 5);
     const enBad = statedDeliveryCounts("### Lessons (batch 45 — nine delivery errors across five classes)");
     assert.equal(enBad.errors, 9);
+  });
+
+  it("compound Chinese numerals parse whole — the X十Y and X十 paths (二十三处 is 23, 三十处四类 is 30 and 4)", () => {
+    const compound = statedDeliveryCounts("### 关键经验（第八十七批——某仓 交付期二十三处）");
+    assert.equal(compound.errors, 23, "二十三 must parse as 23, not 2 or 3 or the truncation 2-then-3");
+    assert.equal(compound.classes, null);
+    const tens = statedDeliveryCounts("### 关键经验（第八十七批——某仓 交付期三十处四类）");
+    assert.equal(tens.errors, 30, "三十 must parse as 30");
+    assert.equal(tens.classes, 4);
   });
 });
 
@@ -246,5 +275,37 @@ describe("T3 the renderer refuses to print an illegal registry", () => {
   it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
     await import("../src/experiments/render.js");
     assert.equal(freshReportExists(), false, "importing render.ts must not write a fresh out/reports file");
+  });
+
+  it("the refusal is thrown BY NAME — IllegalRegistryError carries the conviction lines (the previously untested gate face)", () => {
+    const violations: Violation[] = [
+      { batch: 3, law: "B2", detail: "error 1: the two columns (wrong | right) must both be booked" },
+    ];
+    assert.throws(
+      () => {
+        assertBuriesCleanly(violations, []);
+      },
+      IllegalRegistryError,
+      "an illegal registry is refused by the named error, not an anonymous one",
+    );
+    assert.throws(
+      () => {
+        assertBuriesCleanly(violations, []);
+      },
+      (err: unknown) => err instanceof IllegalRegistryError && err.name === "IllegalRegistryError" && /\[B2\]/.test(err.message),
+      "the refusal names the law it convicted on",
+    );
+    const failingWitness: WitnessResult = { name: "W-4 declared totals", pass: false, detail: "recount says 87/691" };
+    assert.throws(
+      () => {
+        assertBuriesCleanly([], [failingWitness]);
+      },
+      (err: unknown) => err instanceof IllegalRegistryError && /W-4 declared totals/.test(String(err)),
+      "a failing witness is named on the same refusal",
+    );
+    // the clean registry is the gate's silence
+    assert.doesNotThrow(() => {
+      assertBuriesCleanly(checkBurial(), runWitnesses());
+    });
   });
 });

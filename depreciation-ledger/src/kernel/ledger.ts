@@ -7,13 +7,19 @@
  * visitor's conduct rule, as a build gate.
  */
 
-export type Verdict =
-  | "HEURISTIC"
-  | "HW-WAIT"
-  | "CONDITIONAL-WALL"
-  | "INFO-WALL"
-  | "MECHANISM-SETTLED"
-  | "OPEN";
+/** The verdict vocabulary, SINGLE-SOURCED: the type union IS the runtime
+ * list. audit.ts's L0 check imports this array, so the hand-kept union and
+ * the hand-kept array that used to live in two files can no longer drift. */
+export const LEGAL_VERDICTS = [
+  "HEURISTIC",
+  "HW-WAIT",
+  "CONDITIONAL-WALL",
+  "INFO-WALL",
+  "MECHANISM-SETTLED",
+  "OPEN",
+] as const;
+
+export type Verdict = (typeof LEGAL_VERDICTS)[number];
 
 export interface LedgerRow {
   readonly claimId: string;
