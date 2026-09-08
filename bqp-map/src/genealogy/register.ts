@@ -89,7 +89,7 @@ export const GENEALOGY_CLAIMS: readonly GenealogyClaim[] = [
     epoch: "4",
     claim: "Time crystals as the clock wall — zero-energy eternal beat",
     rowId: "dtc-clock",
-    note: "DTC experimentally real (MI22); zero-energy clocking stays OPEN",
+    note: "MECHANISM-SETTLED at the model layer (dtc-clock): the beat clocks universal reversible computation, zero net work on the ideal beat — hardware cells stay with MI22",
   },
   {
     id: "claim-11",
@@ -124,7 +124,7 @@ export const GENEALOGY_CLAIMS: readonly GenealogyClaim[] = [
     epoch: "5",
     claim: "'Choice' as a language primitive — the desired world as a stable solution",
     rowId: "choice-primitive",
-    note: "OPEN — no computational model exists",
+    note: "MECHANISM-SETTLED — the model exists at BOTH layers (choice-lang + stable-world); nature's instantiation not claimed",
   },
   {
     id: "claim-16",

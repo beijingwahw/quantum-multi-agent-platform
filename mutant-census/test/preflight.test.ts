@@ -60,3 +60,20 @@ test("the hot-family summary: sighted within the last three batches, and the sin
   const cold = card.rows.filter((r) => !hot.includes(r));
   assert.ok(cold.every((r) => r.latestBatch <= registry.batchCount - 3));
 });
+
+test("the reports-freshness verdict: sources moved after the last render are convicted as STALE (the repro-no-op face)", async () => {
+  const { freshnessVerdict, reportsFreshness } = await import("../src/experiments/preflight.js");
+  // the pure trials: every shape of the signal, convicted by name
+  assert.equal(freshnessVerdict(2000, 1000), "STALE", "src newer than the newest report is the repro-no-op shape");
+  assert.equal(freshnessVerdict(1000, 2000), "FRESH", "a render that postdates every source is fresh");
+  assert.equal(freshnessVerdict(1000, 1000), "FRESH", "equal mtimes: the render reflects the sources");
+  assert.equal(freshnessVerdict(1000, null), "NO-REPORTS", "sources with no render at all");
+  assert.equal(freshnessVerdict(null, 1000), "NO-SRC", "a report with no src tree to answer to");
+  // the live smoke: the census itself carries reports and a src tree, and the
+  // gatherer's fields agree with the verdict (whatever it is — the signal
+  // predicts, it does not gate; the gated face is S2's artifact check)
+  const f = reportsFreshness("mutant-census");
+  assert.ok(f.reportCount >= 1, "the census renders reports");
+  assert.ok(f.newestSrcMs !== null, "the census has a src tree");
+  assert.equal(f.verdict, freshnessVerdict(f.newestSrcMs, f.newestReportMs));
+});

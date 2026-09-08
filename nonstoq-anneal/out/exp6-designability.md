@@ -84,5 +84,5 @@ barrier as measured in exp1.
 ## Part C — scale
 
 - chain n=64, kappa=0.25, mixed w and Z fields: **YES** (vacuous=false,
-  best max-elem -0.1300, 3425 ms, formulas path only) — the decision
+  best max-elem -0.1300, 4065 ms, formulas path only) — the decision
   layer runs at DMRG scale via the O(n+|E|) exact element formulas.

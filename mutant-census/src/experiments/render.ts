@@ -10,14 +10,15 @@ import { resolve } from "node:path";
 import { MUTANTS, type MutantSpec } from "../kernel/family.js";
 import { runBattery, runKillCensus, runNegativeControls } from "../kernel/battery.js";
 import { checkCensus, checkEnrollment, checkStatedCounts, runWitnesses, witnessEnrollment, witnessFamily, witnessWorkspace } from "../kernel/audit.js";
-import { REGISTERED_DIVERGENCES } from "../kernel/census.js";
+import { REGISTERED_DIVERGENCES, EPOCH_REPOS, FAMILY_FILES } from "../kernel/census.js";
 import { ENROLLMENT, type EnrollmentRow } from "../kernel/enrollment.js";
 import { loadLiveRegistry } from "../kernel/bridge.js";
 import { ANCHOR_REGISTRY, checkAnchors, type AnchorRegistration } from "../kernel/anchors.js";
-import { witnessGenealogy } from "../kernel/genealogy.js";
+import { witnessGenealogy, catchAgentOf } from "../kernel/genealogy.js";
 import { PER_ERROR, PILOT_CLASSES, witnessEquivalence, type PerErrorSpec } from "../kernel/equiv.js";
 import { REPAIR_AUDIT, checkRepairAudit, witnessRepairAudit, type RepairRow } from "../kernel/repair.js";
 import { assertUniqueWitnessLetters, writeReport } from "./report.js";
+import { checkSelfReport, claimCensus, deriveProseReconciliation } from "../kernel/selfreport.js";
 
 /** Renders the census; exported so the gate can prove the renderer REFUSES
  * an illegal registry (it throws before printing a single row). */
@@ -66,13 +67,15 @@ export async function renderCensus(
   const out: string[] = [];
   out.push("# THE MUTANT CENSUS — the error history replayed and killed, one page\n");
   out.push(
-    "> The burial record exhumed the workspace's errors (every one in two columns). This page is the other half of that ledger: the defect classes REPLAYED as nine live mutants against the shared kernel family and its standard compositions, and killed one by one by a ten-property battery that holds for every seeded input — dual-path arithmetic, negative controls, statistical kills labeled DATA. The family's byte-identity across the workspace and the 28 epoch repos' engineering hygiene are censused LIVE on every run: an unregistered drift fails the build. And the loop is closed all the way down: EVERY error the registry carries is enrolled to the guard that kills it now (E-board, live-imported — an error without an enforcement anchor cannot be buried), and the per-error question is measured where it is decidable (J-board: the equivalent-mutant boundary, censused error by error on the pilot classes). Mutation testing and property-based testing are established fields (DEM78, JIA11, CLA00, dual-sourced in citations.md); the executable claim here is the coupling — a machine-audited error registry feeding the operator set, physics invariants as the oracle, zero dependencies. It renders only because the checker passed.\n",
+    `> The burial record exhumed the workspace's errors (every one in two columns). This page is the other half of that ledger: the defect classes REPLAYED as nine live mutants against the shared kernel family and its standard compositions, and killed one by one by a ten-property battery that holds for every seeded input — dual-path arithmetic, negative controls, statistical kills labeled DATA. The family's byte-identity across the workspace and the ${EPOCH_REPOS.length} epoch repos' engineering hygiene are censused LIVE on every run: an unregistered drift fails the build. And the loop is closed all the way down: EVERY error the registry carries is enrolled to the guard that kills it now (E-board, live-imported — an error without an enforcement anchor cannot be buried), and the per-error question is measured where it is decidable (J-board: the equivalent-mutant boundary, censused error by error on the pilot classes). Mutation testing and property-based testing are established fields (DEM78, JIA11, CLA00, dual-sourced in citations.md); the executable claim here is the coupling — a machine-audited error registry feeding the operator set, physics invariants as the oracle, zero dependencies. It renders only because the checker passed.\n`,
   );
 
   out.push("## M-board — the kill register (mutation census)\n");
   out.push("| id | defect (re-enacted) | provenance (the real error) | killer | verdict | margin |");
   out.push("| --- | --- | --- | --- | --- | --- |");
   const kills = new Map(runKillCensus(mutants).map((k) => [k.id, k] as const));
+  const killTally = new Map<string, number>();
+  for (const k of kills.values()) killTally.set(k.actual, (killTally.get(k.actual) ?? 0) + 1);
   for (const m of MUTANTS) {
     const k = kills.get(m.id);
     const margin = !k
@@ -86,13 +89,14 @@ export async function renderCensus(
   }
   out.push("");
   out.push(
-    "Nine mutants, nine kills as declared, zero survivors: six exact kills (deviations orders above tolerance), one crash kill (the family's own shape guard refusing the missing tensor identity — the way batch 24 actually died on the spot), two statistical kills (the same-event and same-denominator disciplines). Every row carries its provenance; nothing here is a toy mutant.\n",
+    `${mutants.length} mutants, ${kills.size - (killTally.get("SURVIVED") ?? 0)} kills as declared, zero survivors: ${killTally.get("EXACT-KILL") ?? 0} exact kills (deviations orders above tolerance), ${killTally.get("CRASH-KILL") ?? 0} crash kill (the family's own shape guard refusing the missing tensor identity — the way batch 24 actually died on the spot), ${killTally.get("DATA-KILL") ?? 0} statistical kills (the same-event and same-denominator disciplines). Every row carries its provenance; nothing here is a toy mutant.\n`,
   );
 
   out.push("## P-board — the property battery (property-based census)\n");
   out.push("| id | property | grade | inputs | worst | tripper |");
   out.push("| --- | --- | --- | --- | --- | --- |");
-  for (const p of runBattery()) {
+  const battery = runBattery();
+  for (const p of battery) {
     const worst = p.grade === "DATA" ? `${p.worst.toFixed(1)} sigma` : p.worst.toExponential(1);
     out.push(`| ${p.id} | ${p.name} | ${p.grade} | ${p.inputs} | ${worst} | ${p.tripper} |`);
   }
@@ -113,8 +117,26 @@ export async function renderCensus(
   out.push("| --- | --- |");
   for (const d of REGISTERED_DIVERGENCES) out.push(`| ${d.repo}/src/core/${d.file} | ${d.reason} |`);
   out.push("");
+  // the closing sentence is GENERATED from the scan (S2, v0.22.0): the shipped
+  // prose had drifted to "Ten full members ... share four of five" while the
+  // live scan carried 7 / 3-of-5 / 4-of-5 — board numbers are the witness's
+  // numbers (b36#16/b57#5), so the sentence is now a copy of the data
+  const identicalByRepo = new Map<string, number>();
+  const presentByRepo = new Map<string, number>();
+  for (const r of fam.rows) {
+    if (r.status === "NOT-PRESENT") continue;
+    presentByRepo.set(r.repo, (presentByRepo.get(r.repo) ?? 0) + 1);
+    if (r.status === "IDENTICAL") identicalByRepo.set(r.repo, (identicalByRepo.get(r.repo) ?? 0) + 1);
+  }
+  const isFullMember = (repo: string): boolean =>
+    (presentByRepo.get(repo) ?? 0) === FAMILY_FILES.length && (identicalByRepo.get(repo) ?? 0) === FAMILY_FILES.length;
+  const fullMembers = [...presentByRepo.keys()].filter(isFullMember).sort();
+  const partialClauses = [...presentByRepo.keys()]
+    .filter((repo) => !isFullMember(repo))
+    .map((repo) => `${repo} shares ${identicalByRepo.get(repo) ?? 0} of ${presentByRepo.get(repo) ?? 0}`)
+    .sort();
   out.push(
-    "Ten full members byte-identical in all five files (the eight-repo lineage plus this census); quantum-mech and qverify share four of five. The law is symmetric: an unregistered drift fails the build, and so does a stale registration — the register must match reality exactly.\n",
+    `${fullMembers.length} epoch members byte-identical in all ${FAMILY_FILES.length} files (${fullMembers.join(", ")} — plus this census itself, the canon); partial members: ${partialClauses.join(", ")}. The law is symmetric: an unregistered drift fails the build, and so does a stale registration — the register must match reality exactly.\n`,
   );
 
   out.push("## W-board — the workspace hygiene census (live)\n");
@@ -218,15 +240,15 @@ export async function renderCensus(
   for (const r of wj.rows) jTally.set(r.computed, (jTally.get(r.computed) ?? 0) + 1);
   const classCount = (cls: string): number => enrollment.filter((r) => r.category === cls && r.tier === "MUTANT-KILLED").length;
   out.push(
-    `Pilots: ${PILOT_CLASSES.map((c) => `${c} EXHAUSTIVE (${classCount(c)}/${classCount(c)} of its MUTANT-KILLED rows)`).join("; ")} — the ENTIRE mutation-killed population, censused per error. ${jTally.get("COLLAPSES") ?? 0} collapses — the prototypes' OWN history errors re-enact bit-exactly (b29#0 IS MU1, b20#0 IS MU2, b31#4 IS MU3, b24#0 IS MU4 through the crash face, b21#0 IS MU5, b31#0 IS MU6, b31#3 IS MU7, b31#5 IS MU8, b19#3 IS MU9: ALL NINE prototypes now have their provenance error as a bit-exact specimen — the class tie is the fixed point of per-error construction, nine for nine). ${jTally.get("ERROR-LEVEL") ?? 0} error-level kills — the class tie was real but coarse: conjugation gave P3/P4 their first real-error trippers and the b26#0/b28#2 TWINS; wrong-object gave three P5 readout-object kills (joint cells as marginals, the partner's outcome pinned where summing was meant, the axis unitary applied where a measurement was meant); dimension-slot gave the tensor written as a product (b13#2, P2) and the 1x1-scalar mMul scaling (b31#1 — crash face on P5, distinct from MU3's P2 face, so no collapse). ${jTally.get("EQUIVALENT") ?? 0} equivalent survivors, PROVEN not merely un-killed, and of TWO DIFFERENT SPECIES: b30#0's globally-negated ket is invisible at the density layer (representation-blindness, a one-line elementwise proof) and b5#2's unguarded 0/0 ratio lives on a degenerate branch the battery's inputs never reach (P(zero accepted) <= 0.7^60 — input-coverage blindness, a probability bound; on every exercised input the construction is the CORRECT estimator). The JIA11 phenomenon is not one wall but (at least) two. The unbuildable ${jTally.get("UNBUILDABLE") ?? 0} — the defect's home (optimizers, eigensolvers, simulators, protocols, verifiers, index conventions, calibration choices, property-internal constructions) is not a family member; no faithful re-enactment exists at this layer, and the booking says so, row by row.\n`,
+    `Pilots: ${PILOT_CLASSES.map((c) => `${c} EXHAUSTIVE (${classCount(c)}/${classCount(c)} of its MUTANT-KILLED rows)`).join("; ")} — the ENTIRE mutation-killed population, censused per error. ${jTally.get("COLLAPSES") ?? 0} collapses — the prototypes' OWN history errors re-enact bit-exactly (b29#0 IS MU1, b20#0 IS MU2, b31#4 IS MU3, b24#0 IS MU4 through the crash face, b21#0 IS MU5, b31#0 IS MU6, b31#3 IS MU7, b31#5 IS MU8, b19#3 IS MU9: ALL ${jTally.get("COLLAPSES") ?? 0} prototypes now have their provenance error as a bit-exact specimen — the class tie is the fixed point of per-error construction, ${jTally.get("COLLAPSES") ?? 0} for ${jTally.get("COLLAPSES") ?? 0}). ${jTally.get("ERROR-LEVEL") ?? 0} error-level kills — the class tie was real but coarse: conjugation gave P3/P4 their first real-error trippers and the b26#0/b28#2 TWINS; wrong-object gave three P5 readout-object kills (joint cells as marginals, the partner's outcome pinned where summing was meant, the axis unitary applied where a measurement was meant); dimension-slot gave the tensor written as a product (b13#2, P2) and the 1x1-scalar mMul scaling (b31#1 — crash face on P5, distinct from MU3's P2 face, so no collapse). ${jTally.get("EQUIVALENT") ?? 0} equivalent survivors, PROVEN not merely un-killed, and of TWO DIFFERENT SPECIES: b30#0's globally-negated ket is invisible at the density layer (representation-blindness, a one-line elementwise proof) and b5#2's unguarded 0/0 ratio lives on a degenerate branch the battery's inputs never reach (P(zero accepted) <= 0.7^60 — input-coverage blindness, a probability bound; on every exercised input the construction is the CORRECT estimator). The JIA11 phenomenon is not one wall but (at least) two. The unbuildable ${jTally.get("UNBUILDABLE") ?? 0} — the defect's home (optimizers, eigensolvers, simulators, protocols, verifiers, index conventions, calibration choices, property-internal constructions) is not a family member; no faithful re-enactment exists at this layer, and the booking says so, row by row.\n`,
   );
 
   out.push("## R-board — the repair audit (every BOOKED reason, refuted or held)\n");
-  out.push(
-    "A BOOKED reason is a universal claim — \"no machine can hold this line\" — and such claims are not proved, they are REFUTED one witness machine at a time. Visit v0.9.0 audited one batch this way; this board audits the WHOLE booked population with a decidable criterion: does a recurrence of this row's defect die at a scheduled gate? Nine reasons had gone false (the machine convicted the sighting itself, or the gated trees kill the recurrence — b47#1's heredoc damage died at the loader, b56#7's transcription error died at the exact-zero tolerance, b37#7's dual repo list is single-sourced in the same edit) and their rows now sit on live anchors; fifteen were coarse and are sharpened to name their FACES (the b54#1 dual-face precedent — which face is booked, which is held); the rest are held with the ungated face stated. The audit is STANDING LAW (R1): a booked row without a verdict fails the build, a later flip without an audit edit fails the build — born-audited, every one.\n",
-  );
   const rTally = new Map<string, number>();
   for (const r of audit) rTally.set(r.verdict, (rTally.get(r.verdict) ?? 0) + 1);
+  out.push(
+    `A BOOKED reason is a universal claim — "no machine can hold this line" — and such claims are not proved, they are REFUTED one witness machine at a time. Visit v0.9.0 audited one batch this way; this board audits the WHOLE booked population with a decidable criterion: does a recurrence of this row's defect die at a scheduled gate? ${rTally.get("UPGRADED") ?? 0} reasons had gone false (the machine convicted the sighting itself, or the gated trees kill the recurrence — b47#1's heredoc damage died at the loader, b56#7's transcription error died at the exact-zero tolerance, b37#7's dual repo list is single-sourced in the same edit) and their rows now sit on live anchors; ${rTally.get("SHARPENED") ?? 0} were coarse and are sharpened to name their FACES (the b54#1 dual-face precedent — which face is booked, which is held); the rest are held with the ungated face stated. The audit is STANDING LAW (R1): a booked row without a verdict fails the build, a later flip without an audit edit fails the build — born-audited, every one.\n`,
+  );
   out.push(
     `| verdict | rows | meaning |\n| --- | --- | --- |\n| UPGRADED | ${rTally.get("UPGRADED") ?? 0} | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |\n| SHARPENED | ${rTally.get("SHARPENED") ?? 0} | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |\n| HELD | ${rTally.get("HELD") ?? 0} | the reason is true as written; the basis states the ungated face |\n`,
   );
@@ -253,6 +275,32 @@ export async function renderCensus(
   out.push(`- ${wj.result.pass ? "PASS" : "FAIL"} — ${wj.result.name} (${wj.result.detail})`);
   const wy = await witnessRepairAudit(audit, enrollment);
   out.push(`- ${wy.pass ? "PASS" : "FAIL"} — ${wy.name} (${wy.detail})`);
+  // W-S (v0.22.0): the self-report census — S1 the legislated board order,
+  // S2 the prose reconciliation against the live arithmetic. The line's own
+  // numbers are generated from the reconciliation, never stated; if the check
+  // below refuses, this line never prints.
+  const recon = deriveProseReconciliation({
+    registry,
+    enrollment,
+    mutantCount: mutants.length,
+    batteryCount: battery.length,
+    killTally: Object.fromEntries(killTally),
+    killCount: kills.size,
+    familyRows: fam.rows,
+    registeredDivergenceCount: REGISTERED_DIVERGENCES.length,
+    epochRepoCount: EPOCH_REPOS.length,
+    unguardedTotal: ws.rows.reduce((s, r) => s + (r.isPlatform ? 0 : r.unguardedEntries.length), 0),
+    catchCensus: wg.census.catch,
+    visitorKeys: registry.errors.filter((e) => catchAgentOf(e.wrong, e.category) === "visitor").map((e) => e.key),
+    anchorKindTally: Object.fromEntries(kindTally),
+    anchorTotal: anchorRegistry.length,
+    repairTally: Object.fromEntries(rTally),
+    perErrorTally: Object.fromEntries(jTally),
+  });
+  const cc = claimCensus(recon);
+  out.push(
+    `- PASS — W-S self-report census (S1: ${cc.sections} legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: ${cc.claims} numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)`,
+  );
 
   out.push("\n## Boundaries\n");
   out.push(
@@ -275,6 +323,14 @@ export async function renderCensus(
   // b46#5 class, and the renderer refuses to print it (the guard lives in
   // report.ts since b53#5 — a leaf, so no import cycle can reach the entry)
   assertUniqueWitnessLetters(text);
+  // S1/S2 (v0.22.0): the census's own report is law — the renderer refuses to
+  // print a section-shuffled board or a number the live arithmetic does not
+  // carry, exactly as it refuses an illegal registry (the same refusal shape)
+  const selfViolations = checkSelfReport(text, recon);
+  if (selfViolations.length > 0) {
+    const lines = selfViolations.map((v) => `- ${v.row} [${v.law}]: ${v.detail}`);
+    throw new Error(`the census's own report is illegal — refusing to print it:\n${lines.join("\n")}`);
+  }
   return text;
 }
 

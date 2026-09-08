@@ -154,11 +154,11 @@ export const FRONTIER: readonly FrontierRow[] = [
     claim: "Time crystals as the zero-energy clock wall",
     verdict: "MECHANISM-SETTLED",
     priorVerdict: "OPEN",
-    note: "GRADUATED — settled at the model layer by dtc-clock (v0.1.0–v0.19.0): the beat is exact and clocks a universal reversible program at cargo fidelity 1, and the decay-law arc is assembled to theorem grade (kappa = -0.3068529590, TC44/TC45). The boundary that survives: hardware instantiation is NOT claimed — the HW-WAIT face persists inside the graduation (MI22 holds the hardware cells); amplitude reads and noise/error-correction remain the readout wall's face",
+    note: "GRADUATED — settled at the model layer by dtc-clock (v0.1.0–v0.20.0): the beat is exact and clocks a universal reversible program at cargo fidelity 1, and the decay-law arc is assembled to theorem grade (kappa = -0.306852819, re-based by dtc-clock v0.20.0 — zeta_m, with Phi1 = kappa - zeta_m bracketed within ±5.58e-7 containing zero; TC44/TC45/TC47). The boundary that survives: hardware instantiation is NOT claimed — the HW-WAIT face persists inside the graduation (MI22 holds the hardware cells); amplitude reads and noise/error-correction remain the readout wall's face",
     settler: "dtc-clock",
     pointers: [
       { repo: "depreciation-ledger", file: "out/reports/the-ledger.md", needle: "| #10 | 4 | Time crystals as the zero-energy clock wall | MECHANISM-SETTLED" },
-      { repo: "dtc-clock", file: "out/reports/the-dtc-clock.md", needle: "kappa = -0.3068529590" },
+      { repo: "dtc-clock", file: "out/reports/the-dtc-clock.md", needle: "zeta_m = -0.306852819" },
       { repo: "dtc-clock", file: "out/reports/the-dtc-clock.md", needle: "sigma1 = -0.4896664762" },
     ],
   },

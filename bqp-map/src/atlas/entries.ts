@@ -18,8 +18,9 @@
  *   - bell-money-exclusivity / quantum-binding carry cross-prototype
  *     certificates from quantum-mech (MECHANISM-SETTLED: physics, not search
  *     speed);
- *   - vacuum-compiler / dsic-noether are OPEN with the precise question
- *     attached.
+ *   - vacuum-execution / readout-tariff / dtc-clock / dsic-noether /
+ *     choice-primitive enroll MECHANISM-SETTLED verdicts carried by
+ *     cross-prototype certificates.
  *
  * Every claim carries a certificate; check.ts re-runs the machine ones.
  */
@@ -456,7 +457,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     certs: [
       { kind: "cross-prototype", ref: "ds_extracted/ds", note: "the platform repo: 292/292 tests, Hungarian parity, NP-hard 5/5 vs 0/5 benchmarks" },
       { kind: "cross-prototype", ref: "burial-record", note: "the capsule's true contents exhumed: the error-log registry — every error in two columns (wrong | right), dual-anchored to the repo it happened in and the memory file that records it; batch and error counts are machine-audited THERE and re-derived by its own gate, never quoted here" },
-      { kind: "cross-prototype", ref: "wukong-crossval", note: "the physical-verification half, built to the Wukong-180 machine-time application's own spec: 20 instances (5 linear + 15 coupled, optima by enumeration with a separable second path), offline-only QAOA parameters (exact-statevector, tiered effort), dry-run QPU with stated synthetic readout noise, Qiskit-compatible export, and the application's falsifier executed — decay at the noise boundary is the result, reported as found" },
+      { kind: "cross-prototype", ref: "wukong-crossval", note: "the physical-verification half, built to the Wukong-180 machine-time application's own spec: 20 instances (5 linear + 15 coupled, optima by enumeration with a separable second path), offline-only QAOA parameters (exact-statevector, tiered effort), dry-run QPU with stated synthetic readout noise, Qiskit-compatible export, and the application's falsifier executed — decay at the noise boundary is the result, reported as found; v0.2.0 the offline arm deepened: the 648-row power-allocation table with machine-verified Chernoff sufficiency 648/648 (135 rows honestly censored beyond the 1e7-shot cap, bound still attached), pricing the application's own hours — n=8 medians 12k-252k shots, n=16 ~11.4M, n=20 Chernoff 4.9e9-2.7e11, the arithmetic justification for the parameter-candidate x layer x seed arm; found, not assumed: the predicted sign is not always decay (+7% Hamming-1 inflow at n=8/f=0.02, both tails priced); the X8 discriminator's separability dies with size — 4.7-10 sigma at n=12 down to 0.08-0.20 sigma at n=20 (NOT separable at any planned budget), and the readout fit is only locally unique (a spurious global root f~0.37 disclosed); NO hardware claims — synthetic-provenance dry run throughout" },
       { kind: "cross-prototype", ref: "mutant-census", note: "the quality layer, closed to the last error: the burial record's defect classes replayed as nine mutants and killed by a ten-property battery (6 EXACT + 1 CRASH + 2 DATA kills, zero survivors, margins booked); the kernel family's byte-identity censused live across the workspace (the identical/divergent pair counts re-derived live on every run — unregistered drift fails the build, and so does a stale registration); the engineering hygiene machine-swept — the pre-batch-21 guard debt PAID in full (42 entries retrofitted, zero tolerated since), the platform repo censused under its registered exemption, `npm run total` judging the whole workspace (every repo's tests AND typecheck plus the platform suite) as one command; and the ENROLLMENT — the registry imported live on every run, every buried error wired to the guard that kills it now (counts re-derived live on every run; see mutant-census's own E7-audited self-description) — an error without an enforcement anchor can no longer be buried; and the A-board — every guard upgraded from a string to a registered object with evidence: firing-inject demos convicted in the sibling checkers' own code, firing-live shots on every run, or resolved machinery on disk — a guard that cannot fire is a false guard" },
     ],
   },
@@ -464,7 +465,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     id: "choice-primitive",
     problem: "'Choice' as a language primitive — the desired world as a stable solution of the program",
     family: "genealogy",
-    classical: { cls: "no model", note: "no computational model exists where branching choice is primitive and the desired branch is a stable fixed point" },
+    classical: { cls: "no classical model", note: "no CLASSICAL computational model with branching choice primitive and the desired branch a stable fixed point — the settled executable model is quantum-side (see below)" },
     quantumUpper: "the model now exists at BOTH layers: choice-lang compiles choose-as-primitive (denotation exact to 1.2e-16); stable-world makes the marked world the absorbing class of a fixed dissipative law — quiet on the world (deviation exactly 0), globally attractive (leakage (1-gamma)^k (1-p0) exact for every input), Lyapunov-certified (increment gamma(1-V) exact), robust at eps law-error (bounded by eps/(1-(1-eps)(1-gamma)))",
     quantumLower: "not applicable — the mechanism layer is settled; what remains is nature's instantiation, which is not a complexity question",
     verdict: "MECHANISM-SETTLED",

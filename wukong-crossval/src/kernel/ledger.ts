@@ -60,4 +60,28 @@ export const XVAL: readonly XvalRow[] = [
     witness: "W-E",
     anchors: ["ds_extracted/ds"],
   },
+  {
+    id: "X6",
+    claim: "the power-analysis layer: the minimum shots to distinguish the model-predicted hit-rate change from the no-change null at significance 0.05 with power 0.80/0.90 — per instance x noise level x effect size, computed BEFORE machine time (the calibration stage's own arithmetic)",
+    price: "exact binomial critical regions in log space; N* under the scan definition (doubling + bisection + bounded walk-down) with local minimality machine-verified on every row (power(N*) >= 1-beta AND power(N*-1) < 1-beta); the Chernoff sufficient bound ships per row and its sufficiency is machine-verified (648/648 rows as rendered); rows beyond the 1e7 cap are censored and say so with the bound still attached; the exact kernel found the predicted sign is not always decay — at small n and low noise the model predicts inflow through the Hamming-1 shell, and the table prices both tails; scope: all n<=16 instances + the coupled n=20 boundary probe, the remaining n=20 rows are priced out (~25 exact 2^20 optimizations per pass) and the exclusion is disclosed, not hidden",
+    exactness: "EXACT",
+    witness: "W-F",
+    anchors: ["ds_extracted/ds"],
+  },
+  {
+    id: "X7",
+    claim: "the parameter-robustness census: a coordinate perturbation grid around every offline optimum (deltas 0.01/0.05/0.1/0.25 rad, depths 1..3 where the optimizer refines, depth 1 on grid/coarse tiers), the objective's curvature as data, and the predicted on-QPU degradation band under the synthetic readout model — exact Hamming-shell convolution, no Monte Carlo",
+    price: "every census row is recomputed by the checker (law X7: fake curvature is named and rejected); the exact convolution anchors at f=0 (rate === |psi_opt|^2), f=1/2 (rate === 1/2^n), and against the dry-run sampler within MC error; the band is model-conditional (synthetic flips, provenance X3) and is labeled as such — real confusion matrices are the calibration stage's job; as found: the shipped parameters are grid+refine bests, NOT stationary points — probes finer than the optimizer's own move sizes find slack (0.23% of |E*| at p=1 on the probe; 3-5% at p>=2, where the refine scales moves by 1/p and raw +-0.1 was never probed), reported as negative gains, never hidden",
+    exactness: "EXACT",
+    witness: "W-G",
+    anchors: ["ds_extracted/ds"],
+  },
+  {
+    id: "X8",
+    claim: "the falsifier sharpened: one more discriminating statistic — readout flips vs global depolarizing, each fitted to the same predicted hit-rate change, their Hamming-1 shell predictions compared at the planned budgets",
+    price: "as data, as found (planned budget = the allocation table's N*, or the 1e7 cap where censored): at inflated operating points the depolarizing fit is unphysical (lambda > 1) and the sign of the change separates the models outright; at decay operating points the shell-1 gap is 4.7-10 sigma at the n=12 probe (separable), 1.8-4.0 sigma at n=16 (borderline at f=0.01, separable at f>=0.02), and 0.08-0.20 sigma at n=20 — NOT separable at any planned budget, and discrimination there needs ~100x the shots or a stronger statistic; the readout fit is only locally unique (a spurious global root at f=0.368 reproduces r(0.02) on the n=8 probe), disclosed as a boundary of the statistic",
+    exactness: "DATA",
+    witness: "W-H",
+    anchors: ["ds_extracted/ds"],
+  },
 ];

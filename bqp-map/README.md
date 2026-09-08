@@ -34,9 +34,10 @@ enrolls them as verdicts with certificates and costs, manifestos not welcome.
 
 ## The genealogy family — far-future claims, same discipline
 
-Ten rows / seventeen letter-claims enrolled (verdict → certificate → wall model → cost, no manifestos;
-the full claim-by-claim register is rendered by exp6 — every claim of the letter
-mapped to a verdict-carrying row, no claim unenrolled, no row padded):
+Every letter-claim enrolled under the same discipline (verdict → certificate →
+wall model → cost, no manifestos; the full claim-by-claim register is rendered
+by exp6 — every claim of the letter mapped to a verdict-carrying row, no claim
+unenrolled, no row padded):
 
 - **postselect-sort** (CONDITIONAL-WALL): the many-worlds sorter is TRUE
   in-branch (fidelity 1.000000000000) and pays the depreciation ledger
@@ -61,9 +62,15 @@ mapped to a verdict-carrying row, no claim unenrolled, no row padded):
   covariant-subspace law), or walk time-energy. Direct execution erases 0:
   the vacuum stores and attests, it never beats running (vacuum-compiler T4,
   LAND61).
-- **dtc-clock** (OPEN): time crystals are experimentally real (MI22),
-  zero-energy clocking is not. Route, not numbers — the one face of the
-  epoch-4 claim that stays open.
+- **dtc-clock** (MECHANISM-SETTLED): settled at the MODEL layer — an exact
+  driven-echo family whose beat (F₊ Z F = −Z exactly, π-paired
+  quasi-energies) clocks a universal reversible gate set with cargo
+  fidelity 1 at every tick, at zero net work on the ideal beat (detuned
+  beats pay exactly); the fewest-units tariff winner is the DTC-clocked
+  Bennett machine — the clock is overhead, not engine. The WO15 tombstone
+  ships in the same repo: equilibrium never beats. Boundaries: hardware
+  instantiation NOT claimed (MI22 holds the hardware cells), noise/error
+  correction unmodeled (dtc-clock + route-price D1).
 - **bell-money-exclusivity** (MECHANISM-SETTLED, positive): double collateral
   tops out at 1/√2 on GHZ; a threshold above 1/2 admits at most one party —
   no-cloning is the notary (quantum-mech T3, WZ82).
@@ -94,9 +101,16 @@ mapped to a verdict-carrying row, no claim unenrolled, no row padded):
 - **subspace-exact-platform** (HEURISTIC): the capsule's own numbers, exhumed
   — effective 80 qubits = subspace equivalence (NOT physical), NP-hard 5/5 at
   benchmarked sizes, Hungarian parity (platform repo).
-- **choice-primitive** (OPEN): no computational model exists where 'choice'
-  is primitive and the desired world a stable solution; quantum-binding stays
-  as the audit-added no-go row.
+- **choice-primitive** (MECHANISM-SETTLED): the model now exists at BOTH
+  layers — choice-lang compiles choose-as-primitive with engineered
+  stability (the language layer), and stable-world makes the marked world
+  the absorbing class of a fixed dissipative law: quiet on the world,
+  globally attractive with no postselection and no arrival toll,
+  Lyapunov-certified on the same membership charge, robust under law-error,
+  stabilization priced on both faces. The row's stated open item — an
+  executable model of stability as physics — now exists; nature's
+  instantiation is not claimed (choice-lang + stable-world).
+  quantum-binding stays as the audit-added no-go row.
 
 ## Layout
 

@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 79
-- errors: 527
+- batches: 80
+- errors: 538
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 8 | 122 |
+| burial-record | 9 | 133 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,14 +43,14 @@
 
 | category | errors |
 | --- | --- |
-| process | 170 |
-| toolchain | 83 |
+| process | 177 |
+| toolchain | 85 |
 | wrong-object | 72 |
 | statistics | 46 |
-| machine-overruled | 42 |
+| machine-overruled | 43 |
 | dimension-slot | 34 |
 | conjugation | 29 |
-| citation-drift | 22 |
+| citation-drift | 23 |
 | anchor-blindspot | 17 |
 | bogus-comparison | 12 |
 
@@ -1215,15 +1215,34 @@
 | [conviction of a shipped claim, v0.19.0] TC13(ii)/TC18's echo-decay law |cos2d|^k was verified TAUTOLOGICALLY — the v0.2.0 witness certified the formula against ITSELF (formula times itself) — and the law is FALSE: the true isolated-echo law is m(k) = (-1)^k cos(2k*delta) exactly (8.3e-15), the geometric envelope misses by 0.82-0.99 with first theta-crossings at 6/3/2 against the claimed 35/9/4; route-price v0.2.0's suspicion was confirmed as the discovering sibling, and the geometric law is re-founded by TC46 as exact-in-expectation under per-period sign noise (exhaustive over all 2^k sequences, 3.6e-15) | convicted by the new tautology smuggling trial: a formula-times-itself witness certifies the WRONG constant |cos 3*delta|^k just as happily — named, rejected, the negative control fires on every run; the coherent law carries its two-road needle and the dephased law its exhaustive witness | bogus-comparison |
 | [conviction of a shipped claim, v0.19.0] zetaEM ADDED the (1/2)N^-s Euler-Maclaurin tail term it must subtract — the error's exact N^-s signature (err(60) = 60^-1.5, 120^-1.5, 60^-2.5, every digit matches) convicted it; v0.19.0's 'Phi1 = -4.547e-4 SMALL BUT NONZERO' was that bug's artifact, and the old kappa digits (-0.3068529590) with the old zeta_m (-0.306398243) carried the same contamination into every shared doc | with the tail fixed (N=60/120/240 agreement at ~1e-10 where the buggy road erred at 1e-3): zeta_m = -0.306852819, Phi1 = +7.14e-8 inside the certified bracket |Phi1| <= 5.58e-7 which CONTAINS ZERO — 'nonzero' RETIRED, the fate inside the bracket left open; the transfer independently confirmed to 5.8e-6 on the new incremental-binomial road, and the shared registries re-based on the corrected digits the same day | machine-overruled |
 
+### Batch 80 — burial-record (2026-09-08)
+
+- context: the FINAL batch of the seven-batch upgrade wave's registry wiring (wukong-crossval 0.1.0->0.2.0 with the offline arm deepened — the 648-row allocation table, the X8 discriminator, the found-not-assumed sign; mutant-census 0.21.0->0.22.0 delivering its own priced faces S1 the board-order checker, S2 the prose-reconciliation gate, and the preflight freshness signal; the wave-priced 26-repo repro audit returning ALL REAL with zero no-ops; and the workspace hygiene pass): eleven delivery errors across four classes, born enrolled and born audited on both boards — one FOUNDING SIGHTING of a new family (version-pin cross-repo, a same-wave upgrade breaking a sibling's live-pinned citation), three latent count-drift convictions at S2's first live run, and the repro-no-op family closed at 26/26 REAL
+- source: `memory/2026-09-08.md` @ "关键经验（第八十批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| a wukong-crossval test's hand-computed expectation was wrong and convicted the kernel — the kernel was right (the hand value slipped its own arithmetic; the suite's hand-checkable anchor was the site) | fix the anchor, not the machine: the hand value recomputed on paper before the assertion is written, and the hand-checkable-at-n=2 anchor pins the true elementwise values (T[0][1] = 2f(1-f), T[1][0] = f(1-f)) on every suite run (the b13#7 law's own face) | machine-overruled |
+| an untested local-optimality claim was asserted in the wukong-crossval delivery BEFORE any test had run, then retracted after the run — the fake-number family attempted (the b12#7/b21#3 witness-before-prose line, third registered attempt after b76#7) | the run leads the pen: an optimality claim enters prose only after the census measured it — the attempt was self-caught before shipping, and the shipped claim is the run's | process |
+| the X8 doc's first draft quoted the SCRATCH budget numbers where the rendered report carries its own — the same attempt family one row later, corrected before ship | a doc's numbers are a copy of the rendered data: the X8 doc re-synced to the renderer's own output in the same edit (the b67#6 law on the doc face) | process |
+| a temporary file written during the hash verification landed OUTSIDE the repo tree — deleted after the act (the placement family's outside-tree face, the b74#1/b75#6 line) | scratch and verification artifacts stay inside the tree they serve — no scheduled gate scans beyond the workspace, the rule is the guard | process |
+| three of the new S1/S2 tests' first drafts pointed at the WRONG conviction faces — one trial tripped the E-board where the A-board was claimed, one's ammunition cited MU5 where the disk reads MU4, one's wording regex missed the checker's actual message; the checkers themselves were all correct | trial ammunition is read from the checker's own output before the assertion is written: all three corrected in review, and the permuted-board and tampered-prose trials now convict the exact face they name on every suite run (the b70#1 ammunition law) | process |
+| two of the 26-repo repro audit's summary greps missed node:test's ℹ line prefix — the summary counts read wrong until the raw output was read directly (no impact on the verdict: all 26 repos REAL, zero no-ops) | a summary count is a copy of the raw output: the audit's totals re-derived from the full text before any number was quoted — a grep is a tool with an output format, and the format is part of the query | toolchain |
+| one hygiene-agent gate run went through a pipe (npm test | tail) — the exit-code-masking family's tenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14 the nine in-registry before it), caught by self-review, killed on sight, and re-run for the DIRECT exit code | a display pipe is still a masking pipe: the gate's code is read directly, never through the tail — the attempt took no verdict from the pipe | toolchain |
+| [founding sighting of a NEW family — version-pin cross-repo / 版本钉死] vacuum-compiler's LIVE audit citation pinned dtc-clock@0.19.0; the sixth wave's dtc-clock 0.19.0->0.20.0 upgrade broke the total gate red (single-run reproduction confirmed a real regression) — root-caused, and SIX version citations fixed across test/docs/README/experiments | in a multi-repo same-wave upgrade, every live citation that pins a sibling repo's version must be RE-VERIFIED after each batch: the two-ground audit reads the sibling's package.json at run time, and the fixed version needles (dtc-clock 0.20.0) are pinned in the citing tree and fire on every suite run | citation-drift |
+| [latent count-drift, convicted at S2's first live run] the census's own K-board prose claimed 'Ten full members' where the live family scan carries 7 | the full-member count is a copy of the scan: corrected to the live 7, and S2's tampered-rendered-number trial holds the phrase against the live arithmetic on every suite run | process |
+| [latent count-drift, convicted at S2's first live run] the K-board's share clause claimed quantum-mech and qverify 'share four of five' where the live scan says 3 (quantum-mech) and 4 (qverify) of five | a stated share is a copy of the scan: the clause corrected to the live per-repo shares, and S2's tampered-share trial reconciles every 'REPO shares N of M' clause against the live family scan on every suite run | process |
+| [latent count-drift, convicted at S2's first live run] the R-board's prose claimed 'Nine reasons had gone false ... fifteen were coarse' where the live audit table carries 11 UPGRADED and 33 SHARPENED | verdict counts are copies of the audit table: corrected to the live 11/33, and S2's prose-reconciliation re-derives the R-board's numbers from REPAIR_AUDIT on every suite run | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..79 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (527 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 527 = repo sum 527)
-- PASS — W-4 declared totals 79 batches / 527 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (55 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (54 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..80 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (538 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 538 = repo sum 538)
+- PASS — W-4 declared totals 80 batches / 538 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (57 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (55 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 527 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 538 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

@@ -81,12 +81,12 @@ The five-epoch letter decomposed into its 17 separable testable claims; each map
 | #07 | 3 | Many-worlds sorter: postselection reads the optimum in O(1) | postselect-sort | CONDITIONAL-WALL | true in-branch (fidelity 1); the ledger repays at classical-random rates |
 | #08 | 3 | Retrocausal cache: answers arrive before questions, hit rate 100% | retrocausal-cache | INFO-WALL | correlations real to 15 decimals; withdrawal needs the classical channel |
 | #09 | 4 | Vacuum compiler: programs written into the ground state, the universe executes | vacuum-execution | MECHANISM-SETTLED | MECHANISM-SETTLED — FK deed machine-certified (vacuum-compiler T1/T3) |
-| #10 | 4 | Time crystals as the clock wall — zero-energy eternal beat | dtc-clock | MECHANISM-SETTLED | DTC experimentally real (MI22); zero-energy clocking stays OPEN |
+| #10 | 4 | Time crystals as the clock wall — zero-energy eternal beat | dtc-clock | MECHANISM-SETTLED | MECHANISM-SETTLED at the model layer (dtc-clock): the beat clocks universal reversible computation, zero net work on the ideal beat — hardware cells stay with MI22 |
 | #11 | 4 | The second law is a disclaimer clause, not a limit | readout-tariff | MECHANISM-SETTLED | the clause has a tariff schedule (vacuum-compiler T4) — every readout mode pays |
 | #12 | 4 | Entanglement-denominated settlement: Bell pairs as money | bell-money-exclusivity | MECHANISM-SETTLED | exclusivity is physical (GHZ ceiling 1/sqrt(2), threshold > 1/2 admits one) |
 | #13 | 4 | No-cloning underwrites every contract for free | bell-money-exclusivity | MECHANISM-SETTLED | as notary: yes (WZ82); as binding: no — the audit-added no-go lives in quantum-binding |
 | #14 | 5 | Scheduling is no longer computation but a physical law | dsic-noether | MECHANISM-SETTLED | gauge group + welfare-gap charge now machine-verified (dsic-noether); the epoch-5 superstructure stays in choice-primitive |
-| #15 | 5 | 'Choice' as a language primitive — the desired world as a stable solution | choice-primitive | MECHANISM-SETTLED | OPEN — no computational model exists |
+| #15 | 5 | 'Choice' as a language primitive — the desired world as a stable solution | choice-primitive | MECHANISM-SETTLED | MECHANISM-SETTLED — the model exists at BOTH layers (choice-lang + stable-world); nature's instantiation not claimed |
 | #16 | 5 | DSIC is a special case of Noether symmetry | dsic-noether | MECHANISM-SETTLED | charge exhibited: the welfare gap, bitwise gauge-invariant (dsic-noether T1-T4); literal continuum derivation NOT claimed |
 | #17 | conduct | The depreciation of the other universes must be booked | postselect-sort | CONDITIONAL-WALL | the conduct rule, executed as the depreciation ledger — 1/P_success per readout |
 

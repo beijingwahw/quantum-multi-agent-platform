@@ -87,15 +87,15 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b11#7", verdict: "HELD", basis: "aggregation order (sum of ratios vs ratio of sums) is comparison semantics; no property pins intent — the comparison-design face is ungated" },
   // ---- batch 12 ----
   { key: "b12#6", verdict: "SHARPENED", basis: "dual-face: a wrong resolve root aimed at a missing file dies loudly at the gate that loads it (ENOENT — test/repro); the silent face is a wrong root that lands on a DIFFERENT existing file. Booked: the silent face only" },
-  { key: "b12#7", verdict: "HELD", basis: "rounding a measured slope toward a theorem's constant is prose honesty; the reconciliation of prose numbers against witnesses is priced future work (the family's refutation target), no gate diffs intent today" },
+  { key: "b12#7", verdict: "HELD", basis: "rounding a measured slope toward a theorem's constant is prose honesty — and the priced target got its machine at ONE face (v0.22.0): S2 reconciles the census's OWN rendered report's numeric claims against the live arithmetic on every suite run; this row's face (the ledger repo's README prose) is not that report and stays booked — no gate diffs a sibling repo's intent" },
   // ---- batch 13 ----
   { key: "b13#6", verdict: "SHARPENED", basis: "dual-face: the heredoc-via-JSON patch act is transient; a damaged file landing in the gated tree dies at typecheck (the loader convicted the b47#1 twin exactly there). Booked: the act face only" },
   { key: "b14#4", verdict: "HELD", basis: "tsx -e under Git Bash fails SILENTLY for TS-importing one-liners — the act leaves no artifact for any gate to see" },
   { key: "b14#5", verdict: "HELD", basis: "which rows weaken a table is editorial selection; no gate judges row choice" },
   // ---- batch 19 ----
-  { key: "b19#5", verdict: "HELD", basis: "README wording by the expected limit is prose honesty; unenforceable line-by-line (reconciliation gate priced)" },
+  { key: "b19#5", verdict: "HELD", basis: "README wording by the expected limit is prose honesty; the reconciliation gate exists since v0.22.0 at the census's own report face (S2) — a sibling repo's README is not that report, unenforceable line-by-line" },
   // ---- batch 21 ----
-  { key: "b21#3", verdict: "HELD", basis: "hand-computed price columns corrected by the witness — prose-number reconciliation is the family's priced refutation target; no gate diffs prose against numbers yet" },
+  { key: "b21#3", verdict: "HELD", basis: "hand-computed price columns corrected by the witness — prose-number reconciliation got its machine at the census's own report face (S2, v0.22.0); this row's price columns live in a sibling repo's ledger and stay booked on that face" },
   // ---- batch 22 ----
   { key: "b22#2", verdict: "SHARPENED", basis: "dual-face placement class: the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the system-temp face lives outside the workspace tree no scheduled gate can scan. Booked: the outside-tree face only" },
   { key: "b22#3", verdict: "HELD", basis: "law-label sequencing (B0-B4 then B6) is authoring; no linter sequences another repo's law ids" },
@@ -132,7 +132,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b36#13", verdict: "UPGRADED", basis: "the tolerance face is SELF-CATCHING: the gate refused its own witness at the sighting (a tolerance calibrated at one run's 1.3e-97 goes red the moment the class moves to n=5's 2.9e-79); recurrence dies at `dtc-clock/package.json :: test` — the machine convicted this very sighting" },
   { key: "b36#14", verdict: "HELD", basis: "8e9-flops Kraus multiplies are performance debt, not wrongness; no workspace gate times complexity" },
   { key: "b36#15", verdict: "HELD", basis: "the D^2 C^4 vs D^2 C^3 mis-estimate is analysis arithmetic at design time; no gate audits an estimate" },
-  { key: "b36#16", verdict: "HELD", basis: "board literals drifting from witness numbers (rng consumption order) is the prose-number face; a board-vs-witness reconciliation gate is the priced refutation target — none exists yet" },
+  { key: "b36#16", verdict: "HELD", basis: "board literals drifting from witness numbers (rng consumption order) is the prose-number face; the board-vs-witness reconciliation gate EXISTS since v0.22.0 for the census's own rendered report (S2 — its first live run convicted three drifted phrases right there: 10-vs-7 full members, 4-vs-3 shares, 9/15-vs-11/33 audit counts); a sibling repo's board literals are not that report and stay booked" },
   { key: "b36#17", verdict: "SHARPENED", basis: "dual-face: the heredoc act is ungated (it even swallowed the lines that bury it); the damaged-file face dies at the loader/typecheck the moment it lands — b47#1 was convicted exactly there. Booked: the act face only" },
   // ---- batch 37 ----
   { key: "b37#1", verdict: "UPGRADED", basis: "the wrong-depth import is module-loader bait: the ds suite refused it with ERR_MODULE_NOT_FOUND at the sighting, and the same wrong depth is TS2307 on the scheduled typecheck of the same tree; recurrence dies at `ds_extracted/ds/package.json :: test` — the machine convicted this very sighting" },
@@ -175,7 +175,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   // ---- batch 51 ----
   { key: "b51#0", verdict: "HELD", basis: "product-function residue caught by reread before any run; the pre-machine face" },
   { key: "b51#4", verdict: "HELD", basis: "nested quotes die in the Bash channel exactly as backslashes do — the same transient act face" },
-  { key: "b51#5", verdict: "HELD", basis: "the transposition typo lived in numeric prose; verbatim-anchor copying exposed it a visit later — prose-number reconciliation is priced, not built" },
+  { key: "b51#5", verdict: "HELD", basis: "the transposition typo lived in numeric prose; verbatim-anchor copying exposed it a visit later — prose-number reconciliation is built at the census's own report face (S2, v0.22.0); this row's prose was a scratch derivation's, that face stays booked" },
   { key: "b51#7", verdict: "HELD", basis: "replace-scoping is a patch act; B8 catches the aftermath on the memory side, the act itself is ungated" },
   // ---- batch 52 ----
   { key: "b52#0", verdict: "HELD", basis: "the false-green probe point lived in a scratch derivation; the Richardson cross-check that killed it is an author's tool, not a scheduled gate" },
@@ -211,7 +211,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b57#2", verdict: "HELD", basis: "the tightness assertion compared a convenient superset — assertion-object choice is semantics, ungated generically (the scratch face)" },
   { key: "b57#3", verdict: "UPGRADED", basis: "an undefined name in a product loop is TS2304 on the scheduled typecheck — the b54#2 precedent verbatim (the sighting's ReferenceError at run is the same death one gate earlier); recurrence dies at `stable-world/package.json :: typecheck`" },
   { key: "b57#4", verdict: "HELD", basis: "the dead term inside a live expression was caught on reread; expressions-as-formulas review is pre-machine" },
-  { key: "b57#5", verdict: "HELD", basis: "board numbers vs the witness's own census — the prose-number face again; reconciliation gate priced, not built" },
+  { key: "b57#5", verdict: "HELD", basis: "board numbers vs the witness's own census — the prose-number face again; the reconciliation gate holds the census's own report since v0.22.0 (S2), this row's board is a sibling repo's and stays booked" },
   // ---- batch 58 ----
   { key: "b58#0", verdict: "HELD", basis: "the four convention slips lived across two scratch drafts; the eigenvalue arbiter that killed them is an author's probe, not a scheduled gate" },
   { key: "b58#1", verdict: "HELD", basis: "the vacuous loop printed ZERO from an empty range — scratch-analysis face; the 'is the loop nonempty' check is author discipline" },
@@ -221,7 +221,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b59#2", verdict: "HELD", basis: "the conjugation-sign convention is derivation semantics in scratch; conventions are written down by hand, no machine holds which side carries the conjugate" },
   { key: "b59#3", verdict: "HELD", basis: "the heredoc-created code file survived because its content was benign — 'this time it was harmless' is the family's survival mode; content-based exceptions are banned BY RULE precisely because no gate can audit the channel" },
   { key: "b59#4", verdict: "HELD", basis: "the dead helper was caught on reread; pre-machine face (fifth sighting of the class)" },
-  { key: "b59#6", verdict: "HELD", basis: "board rows out of order for a whole visit, unnoticed by every gate — no scheduled gate parses per-repo board arrays; an id-order checker is priced future work" },
+  { key: "b59#6", verdict: "HELD", basis: "board rows out of order for a whole visit, unnoticed by every gate — the id-order checker EXISTS since v0.22.0 for the census's own rendered report (S1 legislates the section order and convicts permuted sections, unordered rows and unknown sections BY NAME); no scheduled gate parses a sibling repo's board arrays, that face stays booked" },
   { key: "b59#7", verdict: "HELD", basis: "the escaped-needle python patch refused itself and landed on retry via Edit — transient act face" },
   // ---- batch 60 ----
   { key: "b60#0", verdict: "HELD", basis: "the nonsense && inside reduce was caught on reread before any run; pre-machine face" },
@@ -271,7 +271,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b74#4", verdict: "HELD", basis: "pre-machine reread face (the b55#0 class): the no-op edit never reached a machine — the reread is the factory check" },
   { key: "b74#5", verdict: "HELD", basis: "external-truth face (the b55#3 class): a citation's claim text answers to the publisher's record, which no local gate can reach — the double-source ritual is the guard, and deletion on the spot is its execution" },
   { key: "b74#6", verdict: "HELD", basis: "delivery-hygiene face: the in-tree residue faces died at the successors' gates (lint/typecheck/test convicted them until closure); the leaving-behind act itself — stale README, missing report tables — is interruption process no gate diffs" },
-  { key: "b74#8", verdict: "HELD", basis: "claim-object face (the b57#2 superset class): no gate parses which population a verdict's prose names — the 6×8-specific restatement is the fix; prose-vs-witness reconciliation remains the priced refutation target, not a machine" },
+  { key: "b74#8", verdict: "HELD", basis: "claim-object face (the b57#2 superset class): no gate parses which population a verdict's prose names — the 6×8-specific restatement is the fix; prose-vs-witness reconciliation got its machine at the census's own report face (S2, v0.22.0), this verdict-population face stays ungated" },
   { key: "b74#9", verdict: "SHARPENED", basis: "dual-face: the act face (rewritten on the spot, pre-machine) is booked; the landing face — require() in the ESM tree — is a loader death the gates convict the moment it lands (the b47#1 precedent, the same death one gate earlier). Booked: the act face only" },
   { key: "b74#10", verdict: "HELD", basis: "scratch-arbitration face (the b52#0 class): the bad unitary and the withdrawn 'transpose fix' lived in scratch and were refuted by variant enumeration — an author's probe, not a scheduled gate" },
   { key: "b74#11", verdict: "SHARPENED", basis: "dual-face: the apostrophe was caught pre-machine (the act face is booked); the landing face is a parser death at typecheck. Booked: the act face only" },
@@ -281,7 +281,7 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   // ---- batch 76 (the third four-repo delivery wave's wiring) — born audited ----
   { key: "b76#0", verdict: "SHARPENED", basis: "dual-face (the b74#9 twin, one wave later): the act face — dummyRng's require() rewritten to an import on the spot, pre-machine — is booked; the landing face, a require() in the ESM tree, is a loader death the gates convict the moment it lands. Booked: the act face only" },
   { key: "b76#3", verdict: "HELD", basis: "dead-but-parseable scaffolding left by a failed edit: no unused-code gate is wired in this tree, the rewrite removed the residue — the reread is the factory check" },
-  { key: "b76#7", verdict: "HELD", basis: "the fake-number family attempted and self-caught pre-ship — no machine diffs prose values against the later render (the b12#7/b21#3 line; a reconciliation gate is priced, not built)" },
+  { key: "b76#7", verdict: "HELD", basis: "the fake-number family attempted and self-caught pre-ship — S2 (v0.22.0) now diffs the census's own rendered prose against the live arithmetic on every suite run; the attempt face (values written before ANY run, in a sibling repo's prose) is upstream of every render and stays booked (the b12#7/b21#3 line)" },
   { key: "b76#8", verdict: "HELD", basis: "docs-content destruction (theory.md's referee section) is outside every scheduled gate's sight — the backup restore was manual, the docs face is ungated" },
   { key: "b76#9", verdict: "SHARPENED", basis: "dual-face: the heredoc append act is ungated — the channel's thirteenth canonical sighting (wrong-text sightings grepped to 17 in-registry before enrolling); the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only" },
   { key: "b76#23", verdict: "HELD", basis: "print-layer honesty: whether a display truncation hides the load-bearing digits is prose judgment (the b29#4/b30#1 display face) — the rewritten display is review, not machine" },
@@ -302,6 +302,12 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b79#6", verdict: "HELD", basis: "doc face: the README's '19/19' is prose on a surface no scheduled gate reads — E7 holds the census's own description, B7/B8 hold contexts and headings, and the README is neither; the count re-derived from the run (78/78) in the same edit is the discipline. Booked: the doc face" },
   { key: "b79#13", verdict: "SHARPENED", basis: "dual-face, no landing: the shell act (a bash template-string escape that failed and produced nothing) is booked — no machine sees the shell and the Write/Edit rule is the guard; the tree face never existed, nothing landed to gate. Booked: the act face only" },
   { key: "b79#14", verdict: "SHARPENED", basis: "dual-face (the exit-code-masking family's ninth sighting, an attempted one): the shell-act face — a gate run through a pipe — is booked, caught by self-review, killed on sight, re-run for the direct exit code; the landing face never existed. Booked: the shell-act face only" },
+  // ---- batch 80 (the FINAL wave batch's wiring) — born audited ----
+  { key: "b80#1", verdict: "HELD", basis: "the fake-number family's third registered attempt and self-caught pre-ship — S2 (v0.22.0) diffs the census's own rendered prose against the live arithmetic on every suite run, but the attempt face (a claim asserted before ANY run, in a sibling repo's delivery note) is upstream of every render and stays booked (the b12#7/b21#3/b76#7 line)" },
+  { key: "b80#2", verdict: "HELD", basis: "doc face: the X8 doc quoting scratch numbers where the renderer carries its own is prose on a surface no scheduled gate reads — E7 holds the census's description, B7/B8 hold contexts and headings, and a repo doc is neither; the re-sync to the rendered data in the same edit is the discipline (the b79#6 line). Booked: the doc face" },
+  { key: "b80#3", verdict: "SHARPENED", basis: "dual-face placement class (b22#2/b33#0/b49#2/b74#1/b75#6 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the hash-verification temp file resolved outside the workspace tree where no scheduled gate scans — deleted after the act, which does not unmake the placement. Booked: the outside-tree face only" },
+  { key: "b80#5", verdict: "HELD", basis: "a one-time audit's summary face: the two grep totals were re-derived from the raw output before any number was quoted and no scheduled gate re-runs an audit's greps — a grep is a tool with an output format and the format is part of the query, but the discipline is author-side. Booked: the summary face" },
+  { key: "b80#6", verdict: "SHARPENED", basis: "dual-face (the exit-code-masking family's tenth sighting, an attempted one): the shell-act face — a hygiene agent's gate run through a pipe — is booked, caught by self-review, killed on sight, re-run for the direct exit code; the landing face never existed, no verdict was taken from the pipe. Booked: the shell-act face only" },
 ];
 
 export interface RepairViolation {

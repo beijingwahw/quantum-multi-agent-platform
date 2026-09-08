@@ -11,6 +11,8 @@
  * file is the invoked program.
  */
 import { pathToFileURL } from "node:url";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadLiveRegistry, type LiveBurialError } from "../kernel/bridge.js";
 import { FAMILY_RESOLUTIONS, familyOf } from "../kernel/genealogy.js";
 import { writeReport } from "./report.js";
@@ -88,6 +90,81 @@ export function hotFamilies(rows: readonly RiskRow[], totalBatches: number): rea
   return rows.filter((r) => r.latestBatch > totalBatches - 3);
 }
 
+// ---------------------------------------------------------------------------
+// The reports-freshness signal (v0.22.0) — the repro-no-op risk family made
+// visible on the card. This delivery wave convicted sibling repos of SILENT
+// repro no-ops (reports not re-rendered after the sources moved); the signal
+// is pure disk arithmetic: the newest src-tree mtime against the newest
+// report mtime. It predicts, it does not gate — the census's own report face
+// is the gated one (S2 re-derives the artifact on every suite run).
+// ---------------------------------------------------------------------------
+
+export type FreshnessVerdict = "FRESH" | "STALE" | "NO-REPORTS" | "NO-SRC";
+
+/** Pure: the verdict of one repo's (newest src mtime, newest report mtime). */
+export function freshnessVerdict(srcMs: number | null, reportMs: number | null): FreshnessVerdict {
+  if (srcMs === null) return "NO-SRC";
+  if (reportMs === null) return "NO-REPORTS";
+  return srcMs > reportMs ? "STALE" : "FRESH";
+}
+
+export interface ReportsFreshness {
+  readonly repo: string;
+  readonly reportCount: number;
+  readonly newestReportMs: number | null;
+  readonly newestSrcMs: number | null;
+  readonly verdict: FreshnessVerdict;
+}
+
+function newestMtime(dir: string): number | null {
+  if (!existsSync(dir)) return null;
+  let newest: number | null = null;
+  const walk = (d: string): void => {
+    for (const ent of readdirSync(d, { withFileTypes: true })) {
+      const full = resolve(d, ent.name);
+      if (ent.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      const ms = statSync(full).mtimeMs;
+      if (newest === null || ms > newest) newest = ms;
+    }
+  };
+  walk(dir);
+  return newest;
+}
+
+/** The live freshness of one repo's reports, gathered from disk. */
+export function reportsFreshness(repo: string, root = resolve(process.cwd(), "..")): ReportsFreshness {
+  let reportCount = 0;
+  let newestReportMs: number | null = null;
+  const reportDir = resolve(root, repo, "out", "reports");
+  if (existsSync(reportDir)) {
+    const names = readdirSync(reportDir).filter((f) => f.endsWith(".md"));
+    reportCount = names.length;
+    for (const n of names) {
+      const ms = statSync(resolve(reportDir, n)).mtimeMs;
+      if (newestReportMs === null || ms > newestReportMs) newestReportMs = ms;
+    }
+  }
+  const newestSrcMs = newestMtime(resolve(root, repo, "src"));
+  return { repo, reportCount, newestReportMs, newestSrcMs, verdict: freshnessVerdict(newestSrcMs, newestReportMs) };
+}
+
+function freshnessText(f: ReportsFreshness): string {
+  const iso = (ms: number | null): string => (ms === null ? "-" : new Date(ms).toISOString());
+  switch (f.verdict) {
+    case "NO-SRC":
+      return "no src tree on disk — nothing to render against";
+    case "NO-REPORTS":
+      return `${f.reportCount} reports on disk — no render exists to go stale (is repro a registered debt here?)`;
+    case "STALE":
+      return `${f.reportCount} reports on disk; newest render ${iso(f.newestReportMs)}; src tree newest ${iso(f.newestSrcMs)} — STALE: sources moved after the last render (the repro-no-op face; re-run repro before closing)`;
+    default:
+      return `${f.reportCount} reports on disk; newest render ${iso(f.newestReportMs)}; src tree newest ${iso(f.newestSrcMs)} — FRESH (the newest render postdates every source)`;
+  }
+}
+
 function cardText(cards: readonly PreflightCard[], singleRepo = false, totalBatches = 0): string {
   const out: string[] = [];
   out.push("# THE PRE-FLIGHT CARD — the genealogy, forward-facing\n");
@@ -110,6 +187,7 @@ function cardText(cards: readonly PreflightCard[], singleRepo = false, totalBatc
     for (const r of card.rows) {
       out.push(`| ${r.family} | ${r.sightings} | ${r.latestKey} (b${r.latestBatch}) | ${r.hold} | ${r.rule} |`);
     }
+    out.push(`\nReports freshness (the repro-no-op face, v0.22.0): ${freshnessText(reportsFreshness(card.repo))}`);
   }
   return out.join("\n");
 }

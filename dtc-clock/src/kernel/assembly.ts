@@ -23,8 +23,10 @@
  *     TC43's zeta(1/2) lattices all failed: the constant is zeta(3/2)/
  *     zeta(5/2)-flavored, not zeta(1/2)-composite.
  *   - Phi1 = kappa - zeta_m: the cutoff face's subleading constant —
- *     machine-measured -4.547e-4, SMALL BUT NONZERO (the sharp-cutoff
- *     assembly does not close exactly); its closed form stays open. The
+ *     v0.19.0 machine-measured -4.547e-4 "SMALL BUT NONZERO", CONVICTED at
+ *     v0.20.0 as zetaEM's tail-sign artifact: the corrected Phi1 is
+ *     machine-bracketed |Phi1| <= 5.58e-7 WITH ZERO INSIDE (TC47), its
+ *     closed form stays open. The
  *     F-function F(k,D) := D·s_k/m_k = f(k/D)(1+o(1)) with f(0)=1 carries
  *     the face: its leading O(1) shift renormalizes 2/sqrt(pi) ->
  *     sqrt(pi)/2 (the arcsine law), its subleading constant is Phi1.

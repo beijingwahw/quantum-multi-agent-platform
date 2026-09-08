@@ -61,10 +61,10 @@ Depolarized MC (200k shots each):
 | n | layers | ms |
 | --- | --- | --- |
 | 8 | 8 | 0.8 |
-| 10 | 10 | 1.4 |
-| 12 | 12 | 7.3 |
-| 14 | 14 | 33.6 |
-| 16 | 16 | 178.3 |
+| 10 | 10 | 2.4 |
+| 12 | 12 | 7.9 |
+| 14 | 14 | 40.8 |
+| 16 | 16 | 209.2 |
 
 Doubling per qubit — XEB verification requires computing p_ideal(x) per sample:
 the verifier pays the classical simulation cost. Extrapolated: n=40 would need
@@ -104,11 +104,11 @@ R = 2ⁿp_max. Worst (N_Chernoff − N_Hoeffding) = -135
 N ∝ 1/λ₀²: certifying a noisier device costs quadratically more samples.
 
 MC cross-check at (λ₀ = 0.5, δ = 0.01, N = 152): measured
-uniform false-accept rate = 0.00125 ± 0.00056 ≤ δ
-(as the bound promises); at half the samples N/2 = 76:
-rate = 0.01200 ± 0.00172 — fewer samples
-really do false-accept above δ. Note the Chernoff count prices ONLY the
-statistical side; each sample still costs the verifier one exact
+uniform false-accept rate = 0.00120 ± 0.00069 ≤ δ
+(as the bound promises); at a quarter of the samples N/4 = 38:
+rate = 0.05200 ± 0.00444 — under-sampled,
+the uniform device false-accepts at many times δ. Note the Chernoff count prices
+ONLY the statistical side; each sample still costs the verifier one exact
 p_ideal(x) evaluation (the simulation wall above).
 
 **Shadow fidelity.** Exact per-shot moments by enumeration of all
@@ -121,8 +121,14 @@ per-shot range [-2.5870, 4.4115]:
 | 0.05 | 0.05 | 16856 | 29346 |
 | 0.01 | 0.05 | 421380 | 733638 |
 
-MC coverage at the Chebyshev count (N = 421380, ε = 0.01):
-100.00% of 2000 trials inside ε (the guarantee is ≥ 95%).
+MC cross-checks of the count's inputs: over 200 batches of
+2000 shots the empirical batch-mean std is 0.033262
+vs the exact prediction σ/√N = 0.032457 (2.48%
+off) — the σ² the Chebyshev count consumes is the estimator's true variance.
+Measured coverage at the ε = 0.05 Chebyshev count
+(N = 16856): 100.00% of
+60 trials inside ε (the guarantee is ≥ 95%; the ε = 0.01
+row is ~25× the shots and is carried as exact arithmetic only).
 Cited context: the Huang–Kueng–Preskill median-of-means machinery gives the
 log(M/δ)·3^ℓ/ε² scaling for M observables (single-observable census here);
 Lowe et al. (arXiv:2207.14438) prove matching single-copy lower bounds; Fu

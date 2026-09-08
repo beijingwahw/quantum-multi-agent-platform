@@ -4,7 +4,7 @@
 
 The visitor's letter says the time capsule's real contents are the error logs — twenty-one batches of them, buried as prose across the daily memory files. This repo promotes that record to a first-class registry:
 
-- **75 batches / 450 errors**, every error in two columns — the wrong assertion as it stood, and the correction as recorded. The ledger's discipline (a number never travels without its cost) applied to ourselves: an error never travels without its fix. Batch 22 is this repo's own delivery log — the registry buries itself.
+- **80 batches / 538 errors**, every error in two columns — the wrong assertion as it stood, and the correction as recorded. The ledger's discipline (a number never travels without its cost) applied to ourselves: an error never travels without its fix. Batch 22 is this repo's own delivery log — the registry buries itself.
 - **Dual anchors per batch**: the repo it happened in (must exist on disk) and the memory file + heading that records it (must resolve). A batch cannot predate or outlive its own evidence — the date must be the anchor file's date.
 - **A fixed taxonomy of ten categories** (`conjugation`, `dimension-slot`, `wrong-object`, `anchor-blindspot`, `bogus-comparison`, `citation-drift`, `toolchain`, `statistics`, `machine-overruled`, `process`) — unclassified errors do not ship.
 
@@ -33,6 +33,6 @@ This registry **transcribes; it does not re-prove**. The physics in each correct
 
 ```bash
 npm ci
-npm test        # 11/11 — checker, witnesses, smuggling trials, entry guard
+npm test        # 23/23 — checker, witnesses, smuggling trials, entry guard
 npm run repro   # renders out/reports/the-burial-record.md (seconds)
 ```

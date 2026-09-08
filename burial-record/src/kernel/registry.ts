@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 79;
-export const DECLARED_TOTAL_ERRORS = 527;
+export const DECLARED_TOTAL_BATCHES = 80;
+export const DECLARED_TOTAL_ERRORS = 538;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3409,6 +3409,71 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[conviction of a shipped claim, v0.19.0] zetaEM ADDED the (1/2)N^-s Euler-Maclaurin tail term it must subtract — the error's exact N^-s signature (err(60) = 60^-1.5, 120^-1.5, 60^-2.5, every digit matches) convicted it; v0.19.0's 'Phi1 = -4.547e-4 SMALL BUT NONZERO' was that bug's artifact, and the old kappa digits (-0.3068529590) with the old zeta_m (-0.306398243) carried the same contamination into every shared doc",
         right: "with the tail fixed (N=60/120/240 agreement at ~1e-10 where the buggy road erred at 1e-3): zeta_m = -0.306852819, Phi1 = +7.14e-8 inside the certified bracket |Phi1| <= 5.58e-7 which CONTAINS ZERO — 'nonzero' RETIRED, the fate inside the bracket left open; the transfer independently confirmed to 5.8e-6 on the new incremental-binomial road, and the shared registries re-based on the corrected digits the same day",
         category: "machine-overruled",
+      },
+    ],
+  },
+  {
+    batch: 80,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the FINAL batch of the seven-batch upgrade wave's registry wiring (wukong-crossval 0.1.0->0.2.0 with the offline arm deepened — the 648-row allocation table, the X8 discriminator, the found-not-assumed sign; mutant-census 0.21.0->0.22.0 delivering its own priced faces S1 the board-order checker, S2 the prose-reconciliation gate, and the preflight freshness signal; the wave-priced 26-repo repro audit returning ALL REAL with zero no-ops; and the workspace hygiene pass): eleven delivery errors across four classes, born enrolled and born audited on both boards — one FOUNDING SIGHTING of a new family (version-pin cross-repo, a same-wave upgrade breaking a sibling's live-pinned citation), three latent count-drift convictions at S2's first live run, and the repro-no-op family closed at 26/26 REAL",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十批" },
+    errors: [
+      {
+        wrong: "a wukong-crossval test's hand-computed expectation was wrong and convicted the kernel — the kernel was right (the hand value slipped its own arithmetic; the suite's hand-checkable anchor was the site)",
+        right: "fix the anchor, not the machine: the hand value recomputed on paper before the assertion is written, and the hand-checkable-at-n=2 anchor pins the true elementwise values (T[0][1] = 2f(1-f), T[1][0] = f(1-f)) on every suite run (the b13#7 law's own face)",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "an untested local-optimality claim was asserted in the wukong-crossval delivery BEFORE any test had run, then retracted after the run — the fake-number family attempted (the b12#7/b21#3 witness-before-prose line, third registered attempt after b76#7)",
+        right: "the run leads the pen: an optimality claim enters prose only after the census measured it — the attempt was self-caught before shipping, and the shipped claim is the run's",
+        category: "process",
+      },
+      {
+        wrong: "the X8 doc's first draft quoted the SCRATCH budget numbers where the rendered report carries its own — the same attempt family one row later, corrected before ship",
+        right: "a doc's numbers are a copy of the rendered data: the X8 doc re-synced to the renderer's own output in the same edit (the b67#6 law on the doc face)",
+        category: "process",
+      },
+      {
+        wrong: "a temporary file written during the hash verification landed OUTSIDE the repo tree — deleted after the act (the placement family's outside-tree face, the b74#1/b75#6 line)",
+        right: "scratch and verification artifacts stay inside the tree they serve — no scheduled gate scans beyond the workspace, the rule is the guard",
+        category: "process",
+      },
+      {
+        wrong: "three of the new S1/S2 tests' first drafts pointed at the WRONG conviction faces — one trial tripped the E-board where the A-board was claimed, one's ammunition cited MU5 where the disk reads MU4, one's wording regex missed the checker's actual message; the checkers themselves were all correct",
+        right: "trial ammunition is read from the checker's own output before the assertion is written: all three corrected in review, and the permuted-board and tampered-prose trials now convict the exact face they name on every suite run (the b70#1 ammunition law)",
+        category: "process",
+      },
+      {
+        wrong: "two of the 26-repo repro audit's summary greps missed node:test's ℹ line prefix — the summary counts read wrong until the raw output was read directly (no impact on the verdict: all 26 repos REAL, zero no-ops)",
+        right: "a summary count is a copy of the raw output: the audit's totals re-derived from the full text before any number was quoted — a grep is a tool with an output format, and the format is part of the query",
+        category: "toolchain",
+      },
+      {
+        wrong: "one hygiene-agent gate run went through a pipe (npm test | tail) — the exit-code-masking family's tenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14 the nine in-registry before it), caught by self-review, killed on sight, and re-run for the DIRECT exit code",
+        right: "a display pipe is still a masking pipe: the gate's code is read directly, never through the tail — the attempt took no verdict from the pipe",
+        category: "toolchain",
+      },
+      {
+        wrong: "[founding sighting of a NEW family — version-pin cross-repo / 版本钉死] vacuum-compiler's LIVE audit citation pinned dtc-clock@0.19.0; the sixth wave's dtc-clock 0.19.0->0.20.0 upgrade broke the total gate red (single-run reproduction confirmed a real regression) — root-caused, and SIX version citations fixed across test/docs/README/experiments",
+        right: "in a multi-repo same-wave upgrade, every live citation that pins a sibling repo's version must be RE-VERIFIED after each batch: the two-ground audit reads the sibling's package.json at run time, and the fixed version needles (dtc-clock 0.20.0) are pinned in the citing tree and fire on every suite run",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[latent count-drift, convicted at S2's first live run] the census's own K-board prose claimed 'Ten full members' where the live family scan carries 7",
+        right: "the full-member count is a copy of the scan: corrected to the live 7, and S2's tampered-rendered-number trial holds the phrase against the live arithmetic on every suite run",
+        category: "process",
+      },
+      {
+        wrong: "[latent count-drift, convicted at S2's first live run] the K-board's share clause claimed quantum-mech and qverify 'share four of five' where the live scan says 3 (quantum-mech) and 4 (qverify) of five",
+        right: "a stated share is a copy of the scan: the clause corrected to the live per-repo shares, and S2's tampered-share trial reconciles every 'REPO shares N of M' clause against the live family scan on every suite run",
+        category: "process",
+      },
+      {
+        wrong: "[latent count-drift, convicted at S2's first live run] the R-board's prose claimed 'Nine reasons had gone false ... fifteen were coarse' where the live audit table carries 11 UPGRADED and 33 SHARPENED",
+        right: "verdict counts are copies of the audit table: corrected to the live 11/33, and S2's prose-reconciliation re-derives the R-board's numbers from REPAIR_AUDIT on every suite run",
+        category: "process",
       },
     ],
   },
