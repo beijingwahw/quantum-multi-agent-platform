@@ -9,7 +9,8 @@
  *       that exists — an EXACT claim without a re-derivation is hearsay;
  *   C3. every anchor repo exists on disk — the physics stays anchored to the
  *       repos that verified it;
- *   C5. the id is one of E1..E5 and unique (numbering discipline).
+ *   C5. the id is one of E1..E6 and unique (numbering discipline — v0.2.0
+ *       also enforces the range at runtime, not just the uniqueness).
  *
  * Witnesses (independent re-derivations):
  *   W-A collapse identity — dephased switch = classical mixture, second path
@@ -17,8 +18,13 @@
  *   W-B ESC18 re-derivation — T_full, chi_joint coherent vs readout, and the
  *       order-bit blindness, from the constructed channels;
  *   W-C complementarity face — control information before/after z-readout;
- *   W-D weak-readout interpolation, endpoints asserted, curve as data;
- *   W-E the k=3 face — six-order mixture identity and the triple's chi.
+ *   W-D the weak-readout interior theorem — closed form vs simulation at
+ *       every grid point (data), then exact monotonicity+convexity
+ *       certificates on both ln-series paths (v0.2.0);
+ *   W-E the k=3 face — six-order mixture identity, the triple's chi, and the
+ *       k=3 weak-readout closed form with its own certificates (v0.2.0);
+ *   W-F the exchange-rate frontier — both censuses' Pareto certificates and
+ *       the replacer closed form vs simulation (v0.2.0).
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -31,12 +37,27 @@ import { krausToStinespring, makeSwitchedChannel } from "../switch/isometry.js";
 import { completelyDepolarizingKraus, replacerKraus, randomChannelStinespring } from "../switch/chanlib.js";
 import { classicalMixture, dephase, kronRho, readoutSlices } from "./collapse.js";
 import { switch3, uniformControl6 } from "./kswitch3.js";
+import { fAdd, fDiv, fr, fToNumber, type Ivl } from "./rational.js";
+import {
+  esc18Certificate,
+  esc18Chi,
+  familyOk,
+  frontierCertificate,
+  GRID_N,
+  gridPoints,
+  k3Certificate,
+  k3Chi,
+  replacerCertificate,
+  replacerChi,
+} from "./theorem.js";
 import {
   EXCHANGE,
   QUOTED_CURVE,
   QUOTED_ESC18_CHI,
+  QUOTED_FIRST_BIT_COST,
   QUOTED_K3_CHI,
   QUOTED_REPLACER_CHI_CONTROL_CLOSED,
+  QUOTED_REPLACER_FIRST_BIT_COST,
   type ExchangeRow,
 } from "./ledger.js";
 
@@ -48,7 +69,8 @@ export interface Violation {
   readonly detail: string;
 }
 
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E"];
+const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F"];
+const EXCHANGE_IDS: readonly string[] = ["E1", "E2", "E3", "E4", "E5", "E6"];
 
 /**
  * An ExchangeRow as it crosses the untrusted boundary into the checker: the
@@ -63,6 +85,9 @@ export function checkExchange(rows: readonly UntrustedExchangeRow[] = EXCHANGE):
   const seen = new Set<string>();
   for (const r of rows) {
     if (seen.has(r.id)) violations.push({ row: r.id, law: "C5", detail: "duplicate exchange id" });
+    if (!EXCHANGE_IDS.includes(r.id)) {
+      violations.push({ row: r.id, law: "C5", detail: `id "${r.id}" outside the E1..E6 numbering discipline` });
+    }
     seen.add(r.id);
     if (r.get.trim().length === 0 || r.pay.trim().length === 0) {
       violations.push({ row: r.id, law: "C1", detail: "a trade must book both columns (get | pay)" });
@@ -190,12 +215,14 @@ function witnessComplementarity(): WitnessResult {
   };
 }
 
-/** W-D: the weak-readout interpolation — endpoints asserted, curve as data. */
+/** W-D: the weak-readout interior theorem — closed form checked against the
+ * simulation at every grid point (data agreement), then certified exactly. */
 function witnessInterpolation(): WitnessResult {
   const sc = makeSwitchedChannel(
     krausToStinespring(completelyDepolarizingKraus(2)),
     krausToStinespring(completelyDepolarizingKraus(2)),
   );
+  // the v0.1.0 data row stays checked (continuity of the quoted digits) ...
   const grid = [0, 0.25, 0.5, 0.75, 1];
   const vals = grid.map((lambda) =>
     chiBinary((x) => {
@@ -203,12 +230,40 @@ function witnessInterpolation(): WitnessResult {
       return lambda === 0 ? s.full : lambda === 1 ? s.readout : mAdd(mScale(s.full, 1 - lambda), mScale(s.readout, lambda));
     }),
   );
-  const ok =
+  const quotedOk =
     Math.abs((vals[0] as number) - QUOTED_ESC18_CHI) < 1e-12 &&
     (vals[4] as number) < 1e-12 &&
     QUOTED_CURVE.every((q, i) => Math.abs(q - (vals[i + 1] as number)) < 1e-6);
-  const curve = grid.map((g, i) => `${g}:${(vals[i] as number).toFixed(9)}`).join(" ");
-  return { name: "W-D weak-readout interpolation (data)", pass: ok, detail: curve };
+  // ... and v0.2.0 adds the closed form F1, re-derived by the simulation at
+  // every grid point lambda = i/20 (never copied from the theorem module)
+  let maxDev = 0;
+  let worstAt = "";
+  for (const lambda of gridPoints()) {
+    const l = fToNumber(lambda);
+    const sim = chiBinary((x) => {
+      const s = readoutSlices(sc, PLUS_RHO, basisRho(x));
+      return l === 0 ? s.full : l === 1 ? s.readout : mAdd(mScale(s.full, 1 - l), mScale(s.readout, l));
+    });
+    const iv = esc18Chi(lambda);
+    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    const dev = Math.abs(sim - mid);
+    if (dev > maxDev) {
+      maxDev = dev;
+      worstAt = `lambda=${l}`;
+    }
+  }
+  const cert = esc18Certificate();
+  const ok =
+    quotedOk &&
+    maxDev < 1e-12 &&
+    familyOk(cert) &&
+    cert.monotone.every((m) => m.ok) &&
+    cert.convex.every((c) => c.ok);
+  return {
+    name: "W-D weak-readout interior theorem",
+    pass: ok,
+    detail: `closed form vs sim maxdev ${maxDev.toExponential(3)} (worst ${worstAt}, ${GRID_N + 1} pts); exact: monotone (min gap ${fToNumber(cert.minGap ?? fr(0)).toExponential(3)}) + convex (min dd ${fToNumber(cert.minDD ?? fr(0)).toExponential(3)}), 2 ln paths, widths <= ${fToNumber(cert.maxWidth).toExponential(3)}`,
+  };
 }
 
 /** W-E: the k=3 face — six-order mixture identity + the triple's chi. */
@@ -263,13 +318,81 @@ function witnessK3(): WitnessResult {
     devComplex = Math.max(devComplex, maxAbs(mAdd(dephase(out, [6, 2], 0), mScale(mixc, -1))));
   }
   const ok = Math.abs(chiCoh - QUOTED_K3_CHI) < 1e-12 && chiRead < 1e-12 && dev < 1e-12 && devComplex < 1e-12;
+  // v0.2.0: the k=3 weak-readout closed form F3 — the simulation re-derives it
+  // at every grid point (member/average eigenvalues affine in the coherence),
+  // then the exact certificates apply to the family on both ln paths
+  let k3MaxDev = 0;
+  for (const lambda of gridPoints()) {
+    const l = fToNumber(lambda);
+    const sim = chiBinary((x) => {
+      const full = joint3(x);
+      return l === 0 ? full : l === 1 ? dephase(full, [6, 2], 0) : mAdd(mScale(full, 1 - l), mScale(dephase(full, [6, 2], 0), l));
+    });
+    const iv = k3Chi(lambda);
+    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    k3MaxDev = Math.max(k3MaxDev, Math.abs(sim - mid));
+  }
+  const k3Cert = k3Certificate();
+  const k3Ok = k3MaxDev < 1e-12 && familyOk(k3Cert);
   return {
     name: "W-E k=3 face (six orders)",
+    pass: ok && k3Ok,
+    detail: `chi ${chiCoh.toFixed(15)} -> ${chiRead.toFixed(15)}; mixture identity ${dev.toExponential(3)} (depol), ${devComplex.toExponential(3)} (complex random triples); weak-readout closed form vs sim maxdev ${k3MaxDev.toExponential(3)}, certified monotone+convex (2 paths, min dd ${fToNumber(k3Cert.minDD ?? fr(0)).toExponential(3)})`,
+  };
+}
+
+/** W-F: the exchange-rate frontier — replacer closed form vs simulation, both
+ * censuses' Pareto certificates, first-touch dominance, and the quoted
+ * first-bit prices. */
+function witnessFrontier(): WitnessResult {
+  const sc = makeSwitchedChannel(
+    krausToStinespring(replacerKraus(2)),
+    krausToStinespring(replacerKraus(2)),
+  );
+  // the replacer family F2 re-derived by the control-marginal simulation
+  let maxDev = 0;
+  for (const lambda of gridPoints()) {
+    const l = fToNumber(lambda);
+    const sim = chiBinary((x) => {
+      const s = readoutSlices(sc, PLUS_RHO, vecToRho(x === 0 ? uniformVec(2) : uniformOrthVec(2)));
+      return l === 0 ? s.control : mAdd(mScale(s.control, 1 - l), mScale(dephase(s.control, [2], 0), l));
+    });
+    const iv = replacerChi(lambda);
+    const mid = fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+    maxDev = Math.max(maxDev, Math.abs(sim - mid));
+  }
+  const replCert = replacerCertificate();
+  const fw = frontierCertificate();
+  // the first marginal price = chi(0) - chi(1/20): quote from the enclosure's
+  // midpoint (display only; the pass check compares against the quoted digits)
+  const midNum = (iv: Ivl | undefined): number => {
+    if (iv === undefined) throw new Error("W-F: marginal price list is empty");
+    return fToNumber(fDiv(fAdd(iv.lo, iv.hi), fr(2)));
+  };
+  const escFirst = midNum(fw.esc18.marginal[0]);
+  const replFirst = midNum(fw.replacer.marginal[0]);
+  const ok =
+    maxDev < 1e-12 &&
+    familyOk(replCert) &&
+    fw.ok &&
+    fw.esc18.antichain.ok &&
+    fw.replacer.antichain.ok &&
+    Math.abs(escFirst - QUOTED_FIRST_BIT_COST) < 1e-9 &&
+    Math.abs(replFirst - QUOTED_REPLACER_FIRST_BIT_COST) < 1e-9;
+  return {
+    name: "W-F exchange-rate frontier",
     pass: ok,
-    detail: `chi ${chiCoh.toFixed(15)} -> ${chiRead.toFixed(15)}; mixture identity ${dev.toExponential(3)} (depol), ${devComplex.toExponential(3)} (complex random triples)`,
+    detail: `replacer closed form vs sim maxdev ${maxDev.toExponential(3)} (${GRID_N + 1} pts); Pareto: no census point dominates (both families, exact); first-touch dominance: first bit costs ${escFirst.toFixed(9)} (ESC18 joint) / ${replFirst.toFixed(9)} (replacer control), every next bit strictly less`,
   };
 }
 
 export function runWitnesses(): WitnessResult[] {
-  return [witnessCollapseIdentity(), witnessEsc18(), witnessComplementarity(), witnessInterpolation(), witnessK3()];
+  return [
+    witnessCollapseIdentity(),
+    witnessEsc18(),
+    witnessComplementarity(),
+    witnessInterpolation(),
+    witnessK3(),
+    witnessFrontier(),
+  ];
 }

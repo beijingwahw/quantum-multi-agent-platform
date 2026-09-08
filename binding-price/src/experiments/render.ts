@@ -26,6 +26,9 @@ function renderMarket(): string {
   lines.push(
     "The letter's poetry — 'no-cloning underwrites every contract for free' — was already downgraded to notary-exact / binding-vetoed. The market layer adds the WHY as an equation: the verifier's marginal is one object, and it prices both goods at once. Push it to I/2 and you have bought perfect privacy — and pinned your reveal at exactly 1/2, whatever you announce, whatever decomposition you steer, at any offer. Polarize it and every unit of binding you gain is a unit of concealment you lose, one-for-one, linearly — the classical cheater's 0.853553 is just the point r = 1/sqrt(2) on that line. Privacy is bought; binding is not sold; and they were never two goods to begin with.\n",
   );
+  lines.push(
+    "v0.2.0's census deepens the same page: the flat supply is witnessed over a continuous family swept exhaustively (2141 parameterized ensembles, the reveal pinned at 1/2 to floating floor); under noisy commit channels the coin survives as an equation of the output marginal while the input-to-output one-to-one bends (dephasing rotates oblique polarizations away from the announcement) and breaks (damping confiscates gamma/2 of concealment from a perfectly concealed input — and mints the matching slack along its own axis); and at two coins the per-coin supply stays flat while the JOINT good acquires a movable supply among perfectly concealing promisors — the boundary of the flat theorem, reported as found.\n",
+  );
   return lines.join("\n");
 }
 

@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 76;
-export const DECLARED_TOTAL_ERRORS = 476;
+export const DECLARED_TOTAL_BATCHES = 77;
+export const DECLARED_TOTAL_ERRORS = 492;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3124,6 +3124,96 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[latent from switch-sched v0.2.0, this wave's first delivery] `npm run repro` was a silent no-op — run-all imported the exp modules and the entry guards suppressed their mains; exit 0 without a single report re-rendered (the family's fourth sighting alongside b75#18 and this batch's qram-sched and retro-cache rows; the family went systemic at the wave's third delivery batch, and a batch-7 full-workspace 29-repo audit is priced)",
         right: "this wiring visit's Task A: run-all calls the exported mains directly and verifies all five rendered (mtime witness: every report re-stamped today) — the fix is documented at the run-all head and the README's boundary 7",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 77,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the fourth four-repo delivery wave's registry wiring (readout-wall 0.1.0->0.2.0, survivor-census 0.1.0->0.2.0, ent-clearing 0.1.0->0.2.0, binding-price 0.1.0->0.2.0 — four gates green in each): sixteen delivery errors across seven classes, born enrolled and born audited on both boards — two of them latent defects from v0.1.0 (a bare-pipe render break and a flipped bloch-y) that survived their own gates and died at the new regression and render tests",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第七十七批" },
+    errors: [
+      {
+        wrong: "readout-wall's replacer closed form mislabeled its member entropies in the first draft — the U-member's spectrum and the orthogonal member's entropy went to the wrong terms, and the control-marginal simulation cross-check convicted the formula on the spot (the closed-form-vs-sim face, deviation past every certificate width)",
+        right: "chi_ctl(l) = f((3-l)/4) + f((1+l)/4) - [f(l/2) + f((1-l)/2) + 1]/2 with the two member spectra {l/2, 1-l/2} and {1/2, 1/2} each attached to its own member — the W-F witness re-derives the closed form from the simulation at all 21 grid points (maxdev 2.8e-16) on every suite run",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the atanh series closure dropped its leading factor 2 — LN2_A enclosed ln2/2, and the chi certificates survived by ACCIDENT: fTerm's ln2 denominator consumed the same halved constant and the exact cancellation hid the defect from every monotonicity cell",
+        right: "-ln(m) = 2 sum w^(2k+1)/(2k+1) — the leading 2 is the whole point; the regression note rides the code (rational.ts, negLnMantissaA) and the ln-enclosure bracket test holds it on every run: LN2_A must contain ln 2, and the ln2/2 enclosure dies at the lo bracket",
+        category: "statistics",
+      },
+      {
+        wrong: "the ln-enclosure test was written with zero slack — it demanded the exact rational intervals bracket Math.log's double, forgetting the float reference carries its OWN ulp-level error (Math.log of the double nearest q, not of q) and convicting the reference's error as the enclosure's",
+        right: "the slack is for the REFERENCE, not the enclosure: 1e-15 relative slack on the bracket test while the enclosures stay exact and orders of magnitude tighter — the comment pins the split on the test itself",
+        category: "statistics",
+      },
+      {
+        wrong: "survivor-census's composition loop compared the second stage's kills against the ALREADY-KILLED universes — the stage-2 register was read off the wrong population and the disjoint-union identity could not close (the check-object face of the wrong-object family, in-registry 65 category rows before this batch was written)",
+        right: "stage 2 kills exactly what stage A KEPT and B did not — keptByA and not keptByAB, itemized universe by universe; the compose test holds the disjoint items, their union equal to the direct register, and totals summing to 1-P_AB with the double-counted-kill smuggling trial beside it",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the equality-case flag was HARDCODED — a constant table declaring which encoding families carry a constant phase difference, wrong for specific marked sets (sign-alternating phases ARE constant on an all-even funded set and are not on a mixed one)",
+        right: "constantDifferenceOnFunded is computed per instance over the funded set (the wrapped difference's max-min within tolerance) — the phase-census test holds the machine-detected equality case and the strictness margin on every run",
+        category: "wrong-object",
+      },
+      {
+        wrong: "the phase-census test's two-path overlap closed form carried a sign error — the imaginary component entered with the conjugate's sign flipped, and the hand derivation disagreed with the machine's overlap on the funded quarter",
+        right: "<family|flat> = sum w_x e^(-i phi_x)/P — on the b=1 Fourier ramp the funded quarter's phases are 1, i, -1, -i, so re = (w0-w8)/P and im = (w12-w4)/P; the test asserts the complex overlap componentwise against the closed form",
+        category: "conjugation",
+      },
+      {
+        wrong: "one lint conviction in survivor-census — a caught error was discarded without preservation (preserve-caught-error)",
+        right: "the cause chain is kept where the catch matters — the lint gate convicted it and the fix landed in the same edit",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent from v0.1.0] R5's quoted face carried the ket with a BARE pipe — the table cell split on the pipe and the census table's R5 row rendered with a broken column layout, alive since v0.1.0's first render and never noticed by any gate",
+        right: "the pipe is escaped in the cell (the rendered Table D row now carries the ket intact, six columns) — the escaped pipe is pinned in run-all's R5 face and the report-print test holds Table D on every run",
+        category: "toolchain",
+      },
+      {
+        wrong: "the survivor-census delivery ran a read-only `git status` against the workspace's standing ban on agent git use — harmless output, banned channel (the b74#3 twin, one wave later: same act, same face, no mutation)",
+        right: "the ban is unconditional: agents never touch git, read-only included — the deliverable's state is read from the files, not from the index",
+        category: "process",
+      },
+      {
+        wrong: "the purification round's depolarizing step was first built as a sigma-tensor-sigma Pauli twirl — INERT on Bell-diagonal states (a permutation of the Bell basis, not an average), so the step silently did nothing and the round's error stayed concentrated where the recurrence needs it spread",
+        right: "the isotropic twirl is the 24-element local Clifford group, (1/24) sum (U (x) U*) rho (U (x) U*)-dagger — machine-measured load-bearing: without it the nested round DEGRADES the coin (0.884146 -> 0.812024 at F = 0.85) and the honest-negatives test asserts the degradation on every run",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "the Clifford enumeration's orthogonality check read only the REAL part of the column inner product — 68 counterfeit 'Cliffords' passed a half-checked condition and the group the twirl was averaging over was almost three times its true size",
+        right: "columns must be orthogonal in BOTH parts (re and im each under 1e-12) — the twirl test asserts the group is exactly 24 unitaries with the Werner coins as fixed points on every run; a 68-element group dies at the count",
+        category: "wrong-object",
+      },
+      {
+        wrong: "one transient W-F filesystem miss during the ent-clearing delivery — the cross-anchor witness's existence check returned false once for an anchor that was on disk; the re-run was green and the miss never reproduced",
+        right: "a transient environment flake is booked as such: the re-run is the resolution, and the witness (packages and rendered reports on disk) keeps firing on every suite run — nothing to enforce against a ghost",
+        category: "toolchain",
+      },
+      {
+        wrong: "twoCoinStrategies' C1 and C3 first drafts carried garbage expressions — the product-decomposition members and the locally rotated Bell ensembles were built from wrong formulas and the per-coin marginals were nowhere near I/2",
+        right: "C1 = {1/4 (±u (x) ±v)} product decompositions and C3 = (U (x) V)-rotated Bell ensembles, both machine-verified — the two-coin census asserts per-coin marginal I/2 and reveal 1/2 for every strategy in the family on every run",
+        category: "statistics",
+      },
+      {
+        wrong: "the Schmidt companion state was indexed wrong — the first draft paired cos t|00> + sin t|11> with the 01/10 companion instead of the SWAP-FLIP sin t|00> + cos t|11>, and the per-coin marginals came out at TV 0.5 from I/2 instead of exactly I/2",
+        right: "psi'(t) is the swap-flip of psi(t) — the per-coin flatness holds at EVERY Schmidt coefficient (the census's found boundary: per-coin flat, joint movable), asserted at 1e-15 on all 21 interpolation points on every run",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "W-G panel (e) applied the noise channel to the MEMBER rather than the marginal — the tilted-floor formula was checked against the wrong register and the memberwise (1 + gamma m_z)/2 account could not close",
+        right: "the verifier's register is E_gamma(I/2) for every strategy — each pure member's reveal against that register is (1 + gamma*m_z)/2 exactly, asserted across the damping grid in the noise-census witness on every run",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[latent from v0.1.0] `blochOf` returned the FLIPPED y — masked through a whole version because every v0.1.0 caller dotted TWO blochOf outputs and the double flip cancelled; the v0.2.0 noise census mixed a raw direction tuple with one blochOf and the asymmetry exposed it at deviation 6.6e-1",
+        right: "y = +2*im[1][0] (the [0][1] element carries -y/2) — the fix is pinned as the function's own sign note and the roundtrip regression test (blochOf inverts blochState exactly, one at a time) holds it on every run: a single double-flip can hide, a one-at-a-time roundtrip cannot",
+        category: "conjugation",
       },
     ],
   },

@@ -10,6 +10,15 @@
  *   H3. anchor repos exist on disk;
  *   H4. tags are EXACT / DATA / QUOTED — the vocabulary is closed;
  *   H5. ids unique.
+ *   H6. yield-table provenance: an EXECUTED row's numbers must recompute
+ *       from the purification machinery at its finite scale (the BBPS96
+ *       asymptotic hashing line does not launder as finite-n data); a QUOTED
+ *       row must cite BBPS96 and quote the line exactly;
+ *   H7. ledger honesty: every conservation row's claim must match the
+ *       machine-recomputed delta — a fake conservation identity is rejected
+ *       by recomputation;
+ *   H8. GHZ-bank claims: HOLDS/REFUTED/CENSUS tags must match the machine's
+ *       recomputed verdict — a refuted wall claimed as holding is contraband.
  *
  * Witnesses:
  *   W-A redemption: teleport = identity channel, coin burned, goods frozen
@@ -21,12 +30,20 @@
  *   W-D the mint wall: local rounds never raise E_F (census), products
  *        stay products locally, one CNOT mints C 0 -> 1;
  *   W-E the two-path arithmetic: h2 on both routes, E_F formula anchored;
- *   W-F the cross-anchors resolve (packages and rendered reports on disk).
+ *   W-F the cross-anchors resolve (packages and rendered reports on disk);
+ *   W-G the purification desk: the BBPSSW round matches its closed forms
+ *        (Werner and general Bell-diagonal), the Clifford twirl is exact,
+ *        expected E_F never rises, bounded schemes never mint a standard
+ *        coin, and the yield table recomputes row by row;
+ *   W-H the conservation ledger: every identity exact, every counterexample
+ *        real, every never-rises holding;
+ *   W-I the GHZ bank: pairwise zero and cuts 1/2 exactly, the withdrawal's
+ *        exact identities, the local-channel census, and the claims table.
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { CMat } from "../core/cmat.js";
-import { kron } from "../core/cmat.js";
+import { isUnitary, kron, matEq } from "../core/cmat.js";
 import { makeRng } from "../core/rng.js";
 import { traceDistance } from "../core/measures.js";
 import { maximallyMixed, randomStateVec, vecToRho } from "../core/states.js";
@@ -47,6 +64,33 @@ import {
   redeem,
   tetrahedronChi,
 } from "./clearing.js";
+import {
+  bellDiagonal,
+  bellFidelity,
+  bellRoundClosedForm,
+  bellTwirl,
+  bellWeights,
+  cliffords,
+  depolCoin,
+  familyCoin,
+  hashingLineWerner,
+  purifyRound,
+  schemePurify,
+  wernerCoin,
+  wernerRoundClosedForm,
+  YIELD_TABLE,
+  type YieldRow,
+} from "./purify.js";
+import { computeLedger, LEDGER_SPECS, type LedgerSpec } from "./ledger.js";
+import {
+  GHZ_CLAIMS,
+  ghzCoin,
+  ghzCutNegativities,
+  ghzLocalCensus,
+  ghzPairwiseConcurrences,
+  withdrawToAB,
+  type GhzClaimRow,
+} from "./ghz.js";
 import { BOARD, type BoardRow } from "./board.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
@@ -57,7 +101,17 @@ export interface Violation {
   readonly detail: string;
 }
 
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F"];
+const WITNESS_IDS: readonly string[] = [
+  "W-A",
+  "W-B",
+  "W-C",
+  "W-D",
+  "W-E",
+  "W-F",
+  "W-G",
+  "W-H",
+  "W-I",
+];
 
 /**
  * A BoardRow as it crosses the untrusted boundary into the checker: the
@@ -86,6 +140,198 @@ export function checkBoard(rows: readonly UntrustedBoardRow[] = BOARD): Violatio
       if (!existsSync(resolve(WORKSPACE_ROOT, a, "package.json"))) {
         violations.push({ row: r.id, law: "H3", detail: `anchor repo missing on disk: ${a}` });
       }
+    }
+  }
+  return violations;
+}
+
+/**
+ * A YieldRow as it crosses the untrusted boundary: the tag is an
+ * unvalidated string until H6 has run.
+ */
+export type UntrustedYieldRow = Omit<YieldRow, "tag"> & { readonly tag: string };
+
+/** The hashing line of a row's family, for laundering detection. */
+function rowHashingLine(family: string, param: number): number {
+  return hashingLineWerner(family === "WERNER" ? param : 1 - (3 * param) / 4);
+}
+
+/** H6 — yield-table provenance: executed numbers must recompute, quoted lines must be quoted. */
+export function checkYieldTable(rows: readonly UntrustedYieldRow[] = YIELD_TABLE): Violation[] {
+  const violations: Violation[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (seen.has(r.id)) violations.push({ row: r.id, law: "H6", detail: "duplicate yield row id" });
+    seen.add(r.id);
+    if (r.tag !== "EXECUTED" && r.tag !== "QUOTED") {
+      violations.push({ row: r.id, law: "H6", detail: `illegal yield tag "${r.tag}" — the vocabulary is {EXECUTED, QUOTED}` });
+      continue;
+    }
+    if (r.tag === "EXECUTED") {
+      if (r.scale !== 2 && r.scale !== 3 && r.scale !== 4) {
+        violations.push({ row: r.id, law: "H6", detail: `executed scale must be 2, 3, or 4 — got ${r.scale}` });
+        continue;
+      }
+      const s = schemePurify(r.scale, familyCoin(r.family, r.param));
+      const worst = Math.max(
+        Math.abs(s.pSucc - r.pSucc),
+        Math.abs(s.fidelityOut - r.fidelityOut),
+        Math.abs(s.coinYield - r.coinYield),
+        Math.abs(s.efYield - r.efYield),
+        Math.abs(s.cOut - r.cOut),
+        Math.abs(s.efOut - r.efOut),
+      );
+      if (worst > 1e-12) {
+        const asymptotic = Math.abs(r.coinYield - rowHashingLine(r.family, r.param)) <= 1e-9;
+        violations.push({
+          row: r.id,
+          law: "H6",
+          detail: asymptotic
+            ? `counterfeit yield — the claimed rate ${r.coinYield.toFixed(9)} is the BBPS96 asymptotic hashing line, not the executed scale-${r.scale} yield ${s.coinYield.toFixed(9)}: the asymptotic line does not launder as finite-n data`
+            : `claimed numbers do not recompute at scale ${r.scale} (worst dev ${worst.toExponential(3)})`,
+        });
+      }
+      if (r.fidelityOut >= 1 - 1e-9) {
+        violations.push({
+          row: r.id,
+          law: "H6",
+          detail: `counterfeit mint — bounded-scale netting never delivers a standard coin (F_out < 1 exactly at n <= 4), claimed ${r.fidelityOut}`,
+        });
+      }
+    } else {
+      if (r.citation !== "BBPS96") {
+        violations.push({ row: r.id, law: "H6", detail: `a quoted rate must cite BBPS96 — an unwitnessed rate is marketing` });
+      }
+      if (Number.isFinite(r.scale)) {
+        violations.push({ row: r.id, law: "H6", detail: `a quoted row carries the asymptotic scale, not ${r.scale} — quoting at a finite scale launders the line` });
+      }
+      const R = rowHashingLine(r.family, r.param);
+      if (Math.abs(r.coinYield - R) > 1e-12) {
+        violations.push({ row: r.id, law: "H6", detail: `misquoted line — BBPS96 hashing at this grade gives ${R.toFixed(12)}, claimed ${r.coinYield}` });
+      }
+    }
+  }
+  return violations;
+}
+
+/** A ledger row as it crosses the untrusted boundary. */
+export type UntrustedLedgerRow = Omit<LedgerSpec, "claim"> & { readonly claim: string };
+
+/** H7 — ledger honesty: every claim must survive recomputation of its delta. */
+export function checkLedger(rows: readonly UntrustedLedgerRow[] = LEDGER_SPECS): Violation[] {
+  const computed = new Map<string, { before: number; after: number; resource: string }>();
+  for (const e of computeLedger()) computed.set(e.id, { before: e.before, after: e.after, resource: e.resource });
+  const violations: Violation[] = [];
+  for (const r of rows) {
+    const c = computed.get(r.id);
+    if (c === undefined) {
+      violations.push({ row: r.id, law: "H7", detail: "unknown ledger row — the machinery recomputes no such op" });
+      continue;
+    }
+    if (r.claim !== "CONSERVED" && r.claim !== "NOT-CONSERVED" && r.claim !== "NEVER-RISES") {
+      violations.push({ row: r.id, law: "H7", detail: `illegal ledger claim "${r.claim}" — the vocabulary is {CONSERVED, NOT-CONSERVED, NEVER-RISES}` });
+      continue;
+    }
+    const delta = c.after - c.before;
+    if (r.claim === "CONSERVED" && Math.abs(delta) > 1e-12) {
+      violations.push({
+        row: r.id,
+        law: "H7",
+        detail: `fake conservation identity — the machinery recomputes ${c.resource} ${c.before.toFixed(12)} -> ${c.after.toFixed(12)} (delta ${delta.toExponential(3)}): conserved it is not`,
+      });
+    }
+    if (r.claim === "NOT-CONSERVED" && Math.abs(delta) <= 1e-9) {
+      violations.push({
+        row: r.id,
+        law: "H7",
+        detail: `claimed change but the machinery conserves ${c.resource} (delta ${delta.toExponential(3)}) — a fake counterexample`,
+      });
+    }
+    if (r.claim === "NEVER-RISES" && delta > 1e-12) {
+      violations.push({
+        row: r.id,
+        law: "H7",
+        detail: `claimed never-rises but the machinery recomputes a rise of ${delta.toExponential(3)} in ${c.resource}`,
+      });
+    }
+  }
+  return violations;
+}
+
+/** A GHZ claim row as it crosses the untrusted boundary. */
+export type UntrustedGhzClaimRow = Omit<GhzClaimRow, "tag"> & { readonly tag: string };
+
+/** The machine's verdict on one GHZ claim: does the tagged outcome hold? */
+function ghzClaimOutcome(id: string, censusRounds: number): { holds: boolean; refuted: boolean; detail: string } {
+  const g = ghzCoin();
+  switch (id) {
+    case "G1": {
+      const cs = ghzPairwiseConcurrences(g);
+      const worst = Math.max(...cs);
+      return { holds: worst <= 1e-12, refuted: false, detail: `worst pairwise concurrence ${worst.toExponential(3)}` };
+    }
+    case "G2": {
+      const ns = ghzCutNegativities(g);
+      const worst = Math.max(...ns.map((n) => Math.abs(n - 0.5)));
+      return { holds: worst <= 1e-12, refuted: false, detail: `worst |N - 1/2| ${worst.toExponential(3)}` };
+    }
+    case "G3": {
+      const wd = withdrawToAB();
+      const worst = Math.max(
+        Math.abs(wd.pPlus - 0.5),
+        Math.abs(wd.pMinus - 0.5),
+        1 - pureFidelity(wd.abPlus, bellBasis()[0] as ReturnType<typeof bellBasis>[number]),
+        1 - pureFidelity(wd.abMinus, bellBasis()[1] as ReturnType<typeof bellBasis>[number]),
+        Math.abs(concurrence(wd.abPlus) - 1),
+        Math.abs(concurrence(wd.abMinus) - 1),
+        wd.cbits - 1,
+      );
+      return { holds: worst <= 1e-12, refuted: false, detail: `worst deviation ${worst.toExponential(3)} across probabilities, fidelities, concurrences, cost` };
+    }
+    case "G4": {
+      const wd = withdrawToAB();
+      const worst = Math.max(
+        ...ghzCutNegativities(wd.jointPlus).map((n, i) => Math.abs(n - [0, 0.5, 0.5][i]!)),
+        ...ghzCutNegativities(wd.jointMinus).map((n, i) => Math.abs(n - [0, 0.5, 0.5][i]!)),
+      );
+      return { holds: worst <= 1e-12, refuted: false, detail: `worst cut deviation ${worst.toExponential(3)} on both branches` };
+    }
+    case "G5": {
+      // the pairwise wall is REFUTED iff the withdrawal raises pairwise concurrence
+      const wd = withdrawToAB();
+      const raised = wd.pPlus * concurrence(wd.abPlus) + wd.pMinus * concurrence(wd.abMinus);
+      return { holds: false, refuted: raised > 1 - 1e-9, detail: `C_AB rises 0 -> ${raised.toFixed(12)} under one LOCC withdrawal` };
+    }
+    case "G6": {
+      const census = ghzLocalCensus(makeRng(203), censusRounds);
+      return { holds: census.worstCutRise <= 1e-12, refuted: false, detail: `worst cut rise ${census.worstCutRise.toExponential(3)} over ${censusRounds} rounds` };
+    }
+    case "G7": {
+      const census = ghzLocalCensus(makeRng(203), censusRounds);
+      return { holds: census.worstPairwiseC <= 1e-12, refuted: false, detail: `worst pairwise concurrence ${census.worstPairwiseC.toExponential(3)} over ${censusRounds} rounds` };
+    }
+    default:
+      return { holds: false, refuted: false, detail: "unknown claim id" };
+  }
+}
+
+/** H8 — GHZ-bank claims: the tag must match the machine's recomputed verdict. */
+export function checkGhzClaims(rows: readonly UntrustedGhzClaimRow[] = GHZ_CLAIMS, censusRounds = 150): Violation[] {
+  const violations: Violation[] = [];
+  for (const r of rows) {
+    if (r.tag !== "HOLDS" && r.tag !== "REFUTED" && r.tag !== "CENSUS") {
+      violations.push({ row: r.id, law: "H8", detail: `illegal claim tag "${r.tag}" — the vocabulary is {HOLDS, REFUTED, CENSUS}` });
+      continue;
+    }
+    const v = ghzClaimOutcome(r.id, censusRounds);
+    if (r.tag === "HOLDS" && !v.holds) {
+      violations.push({ row: r.id, law: "H8", detail: `claimed HOLDS but the machine says otherwise (${v.detail})` });
+    }
+    if (r.tag === "REFUTED" && !v.refuted) {
+      violations.push({ row: r.id, law: "H8", detail: `claimed REFUTED but no counterexample recomputes (${v.detail})` });
+    }
+    if (r.tag === "CENSUS" && !v.holds) {
+      violations.push({ row: r.id, law: "H8", detail: `census claim fails its own census (${v.detail})` });
     }
   }
   return violations;
@@ -257,6 +503,146 @@ function witnessCrossAnchors(): WitnessResult {
   };
 }
 
+function witnessPurificationDesk(): WitnessResult {
+  // (a) the round vs its closed forms on 11 Werner grades
+  let worstWernerP = 0;
+  let worstWernerF = 0;
+  for (let i = 0; i <= 10; i++) {
+    const F = 0.45 + 0.05 * i;
+    const W = wernerCoin(F);
+    const r = purifyRound(W, W);
+    const cf = wernerRoundClosedForm(F);
+    worstWernerP = Math.max(worstWernerP, Math.abs(r.pSucc - cf.pSucc));
+    worstWernerF = Math.max(worstWernerF, Math.abs(bellFidelity(r.successState) - cf.fidelityOut));
+  }
+  // (b) the round vs the general Bell-diagonal XOR closed form on random pairs
+  const rng = makeRng(207);
+  let worstBell = 0;
+  for (let t = 0; t < 8; t++) {
+    const rand4 = (): number[] => {
+      let s = 0;
+      const v = Array.from({ length: 4 }, () => {
+        const x = rng();
+        s += x;
+        return x;
+      });
+      return v.map((x) => x / s);
+    };
+    const lam = rand4();
+    const mu = rand4();
+    const r = purifyRound(bellDiagonal(lam), bellDiagonal(mu));
+    const ref = bellRoundClosedForm(lam, mu);
+    worstBell = Math.max(worstBell, Math.abs(r.pSucc - ref.pSucc));
+    for (let k = 0; k < 4; k++) worstBell = Math.max(worstBell, Math.abs(bellWeights(r.successState)[k]! - ref.out[k]!));
+  }
+  // (c) the twirl: 24 unitaries, exact fixed points, lambda1 preserved
+  const group = cliffords();
+  const twirlOk = group.length === 24 && group.every((u) => isUnitary(u));
+  let worstTwirl = 0;
+  for (const F of [0.55, 0.85]) {
+    const t = bellTwirl(wernerCoin(F));
+    worstTwirl = Math.max(worstTwirl, matEq(t, wernerCoin(F), 1e-12) ? 0 : 1);
+  }
+  const r85 = purifyRound(wernerCoin(0.85), wernerCoin(0.85));
+  const t85 = bellTwirl(r85.successState);
+  worstTwirl = Math.max(worstTwirl, Math.abs(bellWeights(t85)[0]! - bellWeights(r85.successState)[0]!));
+  worstTwirl = Math.max(worstTwirl, matEq(t85, wernerCoin(bellFidelity(r85.successState)), 1e-12) ? 0 : 1);
+  // (d) the honest negative: the raw nested round DEGRADES without the twirl
+  const rawNested = purifyRound(r85.successState, r85.successState);
+  const rawDegrades = bellFidelity(rawNested.successState) < bellFidelity(r85.successState) - 1e-9;
+  // (e) expected E_F never rises through a round
+  let worstRise = 0;
+  for (let i = 0; i <= 10; i++) {
+    const F = 0.45 + 0.05 * i;
+    const W = wernerCoin(F);
+    const r = purifyRound(W, W);
+    worstRise = Math.max(worstRise, r.pSucc * eF(r.successState) + r.pFail * eF(r.failState) - 2 * eF(W));
+  }
+  // (f) the threshold: F <= 1/2 degrades, F > 1/2 improves
+  const sub = wernerRoundClosedForm(0.45).fidelityOut < 0.45;
+  const above = wernerRoundClosedForm(0.55).fidelityOut > 0.55;
+  // (g) bounded schemes: chain probabilities, Bell-diagonal finals, no minted standard coin, E_F monotone
+  let worstChain = 0;
+  let worstEf = 0;
+  let minted = false;
+  for (const F of [0.55, 0.85, 0.95]) {
+    const W = wernerCoin(F);
+    const r1 = purifyRound(W, W);
+    const t1 = bellTwirl(r1.successState);
+    const chains: number[] = [r1.pSucc];
+    const r3 = purifyRound(t1, W);
+    chains.push(r1.pSucc * r3.pSucc);
+    const r4 = purifyRound(t1, t1);
+    chains.push(r1.pSucc * r1.pSucc * r4.pSucc);
+    for (const n of [2, 3, 4] as const) {
+      const s = schemePurify(n, W);
+      worstChain = Math.max(worstChain, Math.abs(s.pSucc - (chains[n - 2] as number)));
+      minted = minted || s.fidelityOut >= 1 - 1e-9;
+      worstEf = Math.max(worstEf, s.pSucc * eF(s.finalState) - n * eF(W));
+    }
+  }
+  // (h) family identity: a depolarized standard coin IS a Werner coin
+  const familyOk = [0.1, 0.2, 0.3].every((p) => matEq(depolCoin(p), wernerCoin(1 - (3 * p) / 4), 1e-12));
+  // (i) the yield table and the hashing bracket
+  const yieldViolations = checkYieldTable();
+  const hashBracket = hashingLineWerner(0.81) < 0 && hashingLineWerner(0.82) > 0;
+  const ok =
+    worstWernerP <= 1e-12 &&
+    worstWernerF <= 1e-12 &&
+    worstBell <= 1e-12 &&
+    twirlOk &&
+    worstTwirl <= 1e-12 &&
+    rawDegrades &&
+    worstRise <= 1e-12 &&
+    sub &&
+    above &&
+    worstChain <= 1e-12 &&
+    !minted &&
+    worstEf <= 1e-12 &&
+    familyOk &&
+    yieldViolations.length === 0 &&
+    hashBracket;
+  return {
+    name: "W-G the purification desk",
+    pass: ok,
+    detail: `11 Werner grades: worst |p-cf| ${worstWernerP.toExponential(3)}, |F'-cf| ${worstWernerF.toExponential(3)}; 8 random Bell pairs vs XOR form: ${worstBell.toExponential(3)}; Clifford twirl ${group.length} unitaries, fixed-point dev ${worstTwirl.toExponential(3)}; raw nested round degrades 0.884146 -> ${bellFidelity(rawNested.successState).toFixed(6)} without it; worst expected-E_F rise ${worstRise.toExponential(3)}; F=0.45 degrades and F=0.55 improves as claimed; n=2,3,4 chains recompute to ${worstChain.toExponential(3)}, no minted standard coin, worst E_F excess ${worstEf.toExponential(3)}; depol family == Werner family; yield table clean (${yieldViolations.length} violations); hashing line brackets 0 between F=0.81 and F=0.82`,
+  };
+}
+
+function witnessLedger(): WitnessResult {
+  const violations = checkLedger();
+  const entries = computeLedger();
+  const burned = entries.find((e) => e.id === "L2");
+  const catalyst = entries.find((e) => e.id === "L4");
+  const ok = violations.length === 0 && burned !== undefined && catalyst !== undefined;
+  const burnDelta = burned === undefined ? Number.NaN : burned.after - burned.before;
+  const catalystDelta = catalyst === undefined ? Number.NaN : catalyst.after - catalyst.before;
+  return {
+    name: "W-H the conservation ledger",
+    pass: ok,
+    detail:
+      violations.length === 0
+        ? `${entries.length} rows recomputed: the burn delta ${burnDelta.toFixed(12)}, the catalyst delta ${catalystDelta.toExponential(3)}, every identity exact, every counterexample real, every never-rises holding`
+        : violations.map((v) => `${v.row}: ${v.detail}`).join("; "),
+  };
+}
+
+function witnessGhzBank(): WitnessResult {
+  const g = ghzCoin();
+  const worstPairwise = Math.max(...ghzPairwiseConcurrences(g));
+  const worstCut = Math.max(...ghzCutNegativities(g).map((n) => Math.abs(n - 0.5)));
+  const claimViolations = checkGhzClaims();
+  const ok = worstPairwise <= 1e-12 && worstCut <= 1e-12 && claimViolations.length === 0;
+  return {
+    name: "W-I the GHZ bank",
+    pass: ok,
+    detail:
+      claimViolations.length === 0
+        ? `pairwise concurrences exactly 0 (worst ${worstPairwise.toExponential(3)}), cuts exactly 1/2 (worst dev ${worstCut.toExponential(3)}), withdrawal/census claims all recompute — the wall survives per cut and fails on the pairwise ledger, exactly as claimed`
+        : claimViolations.map((v) => `${v.row}: ${v.detail}`).join("; "),
+  };
+}
+
 export function runWitnesses(): readonly WitnessResult[] {
   return [
     witnessRedemption(),
@@ -265,5 +651,8 @@ export function runWitnesses(): readonly WitnessResult[] {
     witnessMintWall(),
     witnessArithmetic(),
     witnessCrossAnchors(),
+    witnessPurificationDesk(),
+    witnessLedger(),
+    witnessGhzBank(),
   ];
 }

@@ -25,7 +25,10 @@ export function renderReport(o: AllOutcomes, census: Census, workspaceRoot: stri
   lines.push("> weighted by the prior you brought (BAY63's inverse step, executed on branch");
   lines.push("> amplitudes); the kill register is itemized per universe and sums to 1-P exactly;");
   lines.push("> the waiting price is geometric with an exact schedule; and the boundaries are");
-  lines.push("> executable — no funded optimum, no census.");
+  lines.push("> executable — no funded optimum, no census. v0.2.0 adds two faces: stacked");
+  lines.push("> ledgers compose by the chain rule with additive amortized odds (Table E), and");
+  lines.push("> the phase-encoding census — the ledger is phase-blind, the state is");
+  lines.push("> phase-carrying (Table F).");
   lines.push("");
 
   lines.push("## Table A — the instance family (n=4, integer priors)");
@@ -74,11 +77,37 @@ export function renderReport(o: AllOutcomes, census: Census, workspaceRoot: stri
   lines.push("## Table D — the census (every rate carries both faces)");
   lines.push("");
   lines.push("| id | claim | label | conditional face | unconditional face | witness/anchor |");
-  lines.push("| --- | --- | --- | --- | --- | --- |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- |");
   for (const row of census.rows) {
     const anchor = row.witnessId ?? (row.quote !== undefined ? `${row.quote.repo}/${row.quote.report}` : "—");
     lines.push(`| ${row.id} | ${row.claim} | ${row.label} | ${row.conditionalFace} | ${row.unconditionalFace} | ${anchor} |`);
   }
+  lines.push("");
+
+  lines.push("## Table E — stacked ledgers: sequential postselection (S6, v0.2.0)");
+  lines.push("");
+  lines.push("| pair | P_A | P_2 (in A-frame) | P_AB direct | chain dev | register dev | sum dev | E[T] renewal dev | odds dev | order dev |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const { pair, run } of o.compositions) {
+    lines.push(
+      `| ${pair.name} | ${run.p1.toPrecision(10)} | ${run.p2.toPrecision(10)} | ${run.runAB.pKeep.toPrecision(10)} | ${run.chainDev.toExponential(2)} | ${run.registerComposeDev.toExponential(2)} | ${run.registerSumDev.toExponential(2)} | ${run.waitingRenewalDev.toExponential(2)} | ${run.oddsComposeDev.toExponential(2)} | ${run.orderDev.toExponential(2)} |`,
+    );
+  }
+  lines.push("");
+  lines.push(`Chain rule P_AB = P_A*P_2 max dev **${o.compositionChainMaxDev.toExponential(3)}**; posterior composition **${o.compositionPosteriorMaxDev.toExponential(3)}**; sequential-projection amplitude path **${o.compositionSurvivorMaxDev.toExponential(3)}**; amortized odds ADD with max dev **${o.compositionOddsMaxDev.toExponential(3)}**; identity stage exact: **${o.compositionIdentityHolds}**; idempotent: **${o.compositionIdempotentHolds}**; starved intersection refuses: **${o.starvedIntersectionRefused}**; the stacked ledgers' own audit (C1-C5) violations: **${o.compositionAuditViolations.length}**.`);
+  lines.push("");
+
+  lines.push("## Table F — the phase-encoding census: the ledger is phase-blind, the state is phase-carrying (S7, v0.2.0)");
+  lines.push("");
+  lines.push("| encoding family | P | P dev vs flat | register dev | E[T] dev | dephased reading dev | |<survivor\\|flat survivor>| |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- |");
+  for (const row of o.phaseCensus.rows) {
+    lines.push(
+      `| ${row.family} (${row.note}) | ${row.pKeep.toPrecision(10)} | ${row.pDev} | ${row.registerDev} | ${row.waitingDev} | ${row.dephasedReadingDev.toExponential(2)} | ${row.visibilityFlat.toPrecision(12)} |`,
+    );
+  }
+  lines.push("");
+  lines.push(`Ledger phase-blindness (max over families of P/register/E[T] deviation): **${o.phaseCensus.ledgerPhaseBlindnessDev}** — exactly zero, no encoding moves a mass in the bill; dephased reading = posterior under every encoding (max dev **${o.phaseCensus.dephasedReadingMaxDev.toExponential(3)}**). Self-overlap dev **${o.phaseCensus.selfOverlapMaxDev.toExponential(3)}**. Equality case (constant phase difference on the funded set — fourier-b3 vs ramp3+const, and sign-alt on this all-even marked set, detected per instance): |overlap| = 1 within **${o.phaseCensus.equalityCaseDev.toExponential(3)}**. Strictness margin on the censused non-constant families: **${o.phaseCensus.strictMargin.toExponential(3)}** (DATA over the enumerated families — a bounded census, not a theorem over all encodings).`);
   lines.push("");
 
   lines.push("## Witnesses");

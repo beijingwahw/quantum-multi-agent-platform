@@ -48,7 +48,7 @@ describe("the true census passes its own laws", () => {
     for (const w of c.witnesses) assert.ok(w.passed, `${w.id}: ${w.detail}`);
     const o = runAll();
     const text = renderReport(o, c, workspaceRoot);
-    for (const marker of ["Table A", "Table B", "Table C", "Table D", "## Witnesses", "## The grammar failures"]) {
+    for (const marker of ["Table A", "Table B", "Table C", "Table D", "Table E", "Table F", "## Witnesses", "## The grammar failures"]) {
       assert.ok(text.includes(marker), marker);
     }
   });

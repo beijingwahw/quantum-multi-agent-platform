@@ -61,3 +61,64 @@ export function p0Probe(): { n: number; counts: number[]; marked: number[] } {
   counts[11] = 0;
   return { n, counts, marked: [3, 11] };
 }
+
+export interface StagePair {
+  readonly name: string;
+  readonly n: number;
+  readonly counts: readonly number[];
+  readonly markedA: readonly number[];
+  readonly markedB: readonly number[];
+  readonly note: string;
+}
+
+/** the stacked-ledger family for the composition face (S6) */
+export function buildStagePairs(): StagePair[] {
+  const n = 4;
+  const base = randomCounts(n, 201);
+  const quarter: number[] = [];
+  for (let x = 0; x < 2 ** n; x += 4) quarter.push(x);
+  const all: number[] = [];
+  for (let x = 0; x < 2 ** n; x++) all.push(x);
+  return [
+    {
+      name: "overlap-3of4",
+      n,
+      counts: base,
+      markedA: quarter,
+      markedB: [4, 8, 12, 1],
+      note: "stage B keeps 3 of stage A's 4 survivors and tempts one outsider — the generic overlap",
+    },
+    {
+      name: "shrink-inside",
+      n,
+      counts: base,
+      markedA: [0, 1, 2, 3, 4, 5],
+      markedB: [2, 3, 4],
+      note: "stage B is a strict subset of stage A — pure narrowing",
+    },
+    {
+      name: "identity-stage",
+      n,
+      counts: base,
+      markedA: quarter,
+      markedB: all,
+      note: "stage B marks everything — the identity filter: composite must equal stage A alone",
+    },
+    {
+      name: "idempotent",
+      n,
+      counts: base,
+      markedA: quarter,
+      markedB: quarter,
+      note: "the same filter twice — idempotence",
+    },
+    {
+      name: "starved-intersection",
+      n,
+      counts: base,
+      markedA: quarter,
+      markedB: [1, 2, 3],
+      note: "funded(A) ∩ funded(B) = empty — the composed P=0 refusal, inherited through the chain",
+    },
+  ];
+}

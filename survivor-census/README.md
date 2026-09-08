@@ -8,6 +8,13 @@
 > its counting power (T3/T5), and its scheduling surface (T4). All of it
 > lived on the UNIFORM prior. **The survivor himself was never audited.**
 > This repo is that audit.
+>
+> v0.2.0 adds two world-level faces from v0.1.0's own priced boundaries:
+> **S6 — stacked ledgers** (sequential postselection composes by the chain
+> rule; kill registers compose as disjoint items; amortized odds ADD) and
+> **S7 — the phase-encoding census** (the ledger is phase-blind, the state
+> is phase-carrying; the boundary "no claim about optimal phase encodings"
+> is now executable instead of verbal).
 
 ## What existed before (honest demarcation)
 
@@ -91,6 +98,56 @@ stay" has no referent at all. That is this repo.
   raw pair (nosignal-tariff T4, quoted). CONDITIONAL-WALL and INFO-WALL are
   the same wall audited from two sides.
 
+### S6 — stacked ledgers: sequential postselection (`src/kernel/compose.ts`, v0.2.0)
+
+- Survive stage A, then face stage B. The survivor book keeps its laws under
+  composition, exactly, on two paths each:
+  - **Chain rule**: P_AB = P_A · P_2 where P_2 is stage 2's keep measured
+    inside the A-survivor frame — probabilities MULTIPLY under stacking,
+    never add.
+  - **Posterior-of-posterior**: applying stage 2's update to posterior_A
+    telescopes to the posterior over funded(A∩B) (BAY63's rule composed),
+    verified on the fraction path and on the sequential-projection amplitude
+    path. Address filters commute; the identity stage and idempotent
+    stacking are exact.
+  - **Kill registers compose as disjoint items**: stage 1's kills and
+    stage 2's kills partition the direct A∩B register universe by universe,
+    mass by mass; totals sum to 1−P_AB.
+  - **Waiting price renewal**: E[T_AB] = 1/(P_A P_2) = 1/P_A +
+    (1−P_2)/(P_A P_2) — the second ledger's failure odds, amortized by the
+    first ledger's success. Correspondingly the **amortized kill-odds ADD**:
+    (1−P_AB)/P_AB = (1−P_A)/P_A + (1−P_2)/(P_A P_2).
+  - **The starved intersection refuses**: if funded(A∩B) is empty the
+    composed kernel throws — the P=0 presupposition is inherited through
+    the chain (an executable grammar failure of composition).
+- The composition audit **C1–C5** (`auditComposition`): chain rule,
+  register totals vs 1−P_AB, register disjointness, renewal identity, odds
+  additivity — a forged claim is named and rejected (five smuggling trials
+  in `test/compose.test.ts`: counterfeit register masses, an additive
+  "identity", a double-counted kill, unamortized odds, the naive waiting
+  sum). Vocabulary anchor RLW24 (postselected tests that may return
+  inconclusive) — no theorem of theirs is re-proved here.
+
+### S7 — the phase-encoding census (`src/kernel/phasecensus.ts`, v0.2.0)
+
+- When branch amplitudes carry phases — flat, alternating signs, Fourier
+  ramps b∈{1,3,5,7}, seeded random families — the census answers what a
+  phase structure buys:
+  - **The ledger is phase-blind**: P, the itemized kill register, and
+    E[T] = 1/P are invariant across every encoding family, deviation
+    exactly 0 — no phase encoding moves a single mass in the funeral bill.
+    The dephased address reading is the posterior under every encoding.
+  - **The state is phase-carrying**: the survivor under any encoding is one
+    pure state (self-overlap 1); its overlap with another encoding's
+    survivor is the complex sum Σ w_x e^{iΔφ_x}/P with |overlap| = 1 exactly
+    iff the phase difference is constant on the funded set — detected per
+    instance (the sign-alternating encoding is constant on any
+    single-parity funded set; the machine catches the accidental equality
+    case on the all-even quarter), and strictly < 1 on every non-constant
+    family censused (margin printed as DATA).
+- A bounded census: no optimality claim, no metrology claim (ASH20/ASH23
+  are context for the boundary, not results used).
+
 ## The census laws (G1-G5, `src/kernel/audit.ts`)
 
 - **G1 — both faces, always**: a rate row ships conditional AND unconditional
@@ -111,7 +168,7 @@ stay" has no referent at all. That is this repo.
 
 ```
 npm ci
-npm test          # 24/24
+npm test          # 43/43
 npm run repro     # renders out/reports/the-survivor-census.md, seconds
 ```
 
@@ -123,17 +180,28 @@ NodeNext, node:test.
 1. The posterior statement is elementary probability executed exactly on
    integer tables (BAY63 cited for the vocabulary, not for any theorem this
    repo re-proves). No literature claim rides on the machine numbers.
-2. The coherence face is witnessed on real-amplitude phase families; no
-   claim about optimal phase encodings or metrology is made.
-3. The MC referee is a realization check only — it never enters a theorem
+2. The phase-encoding census (S7, v0.2.0) supersedes v0.1.0's verbal
+   boundary on phase families: the ledger-invariance and the
+   equality-case characterization are exact on the machine, the strictness
+   margin is DATA over the enumerated families (flat, sign-alt, Fourier
+   b∈{1,3,5,7}, two seeded randoms) — still NO claim about optimal phase
+   encodings and NO metrology claim.
+3. The composition face (S6, v0.2.0) is elementary algebra on integer
+   tables: the chain rule, the telescoping posterior, register disjointness,
+   the renewal identity, and odds additivity. It is executed for ADDRESS
+   filters (projection onto marked sets); no claim about non-commuting or
+   non-projective sequential measurements — RLW24 is cited for vocabulary
+   only. The starved-intersection refusal is witnessed on one instance
+   class.
+4. The MC referee is a realization check only — it never enters a theorem
    claim (family rule since postselect-sched T1.D).
-4. The exact-vs-bound schedule comparison reports the bound's overcharge on
+5. The exact-vs-bound schedule comparison reports the bound's overcharge on
    the printed grid; no claim that the bound is never tight (at small P the
    overcharge is O(P)).
-5. Table D's quoted numbers are the anchor repos' own, verified only for
+6. Table D's quoted numbers are the anchor repos' own, verified only for
    being on disk (G3); their truth is the anchor repos' appellate court
    (`npm test` there).
-6. The wall row (R7) is a reconciliation, not new physics — every number in
+7. The wall row (R7) is a reconciliation, not new physics — every number in
    it is either witnessed here or quoted with an anchor.
 
 ## Atlas wiring

@@ -5,6 +5,7 @@
  */
 
 import { type CMat, eigenvaluesHermitian, mAdd, mMul, mScale, sqrtPSD } from './cmat.js';
+import { partialTranspose } from './channels.js';
 
 /** Tr ρ for Hermitian ρ. */
 export function traceReal(rho: CMat): number {
@@ -77,4 +78,26 @@ export function holevo(items: readonly EnsembleItem[]): number {
 
 function mat0(d: number): CMat {
   return { rows: d, cols: d, re: new Float64Array(d * d), im: new Float64Array(d * d) };
+}
+
+/**
+ * Negativity N(ρ) = (||ρ^{T_S}||₁ - 1)/2 across the cut traced by `sys`: a
+ * computable entanglement monotone under LOCC (VW02). Zero iff PPT.
+ */
+export function negativity(rho: CMat, dims: readonly number[], sys: readonly number[]): number {
+  const pt = partialTranspose(rho, dims, sys);
+  const eig = eigenvaluesHermitian(pt);
+  let s = 0;
+  for (const l of eig) s += Math.abs(l);
+  return (s - 1) / 2;
+}
+
+/** Shannon entropy in bits of a probability vector (0 log 0 = 0). */
+export function shannonBits(p: readonly number[]): number {
+  let sum = 0;
+  for (const x of p) sum += x;
+  if (Math.abs(sum - 1) > 1e-9) throw new Error('shannonBits: weights must sum to 1');
+  let s = 0;
+  for (const x of p) if (x > 1e-15) s -= x * Math.log2(x);
+  return s;
 }

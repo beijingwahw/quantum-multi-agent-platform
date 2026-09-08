@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
-import { checkBoard, runWitnesses } from "../src/kernel/audit.js";
+import {
+  checkBoard,
+  checkGhzClaims,
+  checkLedger,
+  checkYieldTable,
+  runWitnesses,
+} from "../src/kernel/audit.js";
 import { BOARD, type BoardRow } from "../src/kernel/board.js";
 import { makeRng } from "../src/core/rng.js";
 import { maximallyMixed, randomStateVec, vecToRho } from "../src/core/states.js";
-import { traceDistance } from "../src/core/measures.js";
-import { kron, type CVec } from "../src/core/cmat.js";
+import { traceDistance, shannonBits } from "../src/core/measures.js";
+import { isUnitary, kron, matEq, type CVec } from "../src/core/cmat.js";
 import {
   bellBasis,
   concurrence,
@@ -25,6 +31,32 @@ import {
   redeem,
   tetrahedronChi,
 } from "../src/kernel/clearing.js";
+import {
+  bellDiagonal,
+  bellFidelity,
+  bellRoundClosedForm,
+  bellTwirl,
+  bellWeights,
+  cliffords,
+  depolCoin,
+  hashingLineWerner,
+  purifyRound,
+  schemePurify,
+  wernerCoin,
+  wernerRoundClosedForm,
+  YIELD_TABLE,
+  type YieldRow,
+} from "../src/kernel/purify.js";
+import { computeLedger, LEDGER_SPECS, type LedgerSpec } from "../src/kernel/ledger.js";
+import {
+  GHZ_CLAIMS,
+  ghzCoin,
+  ghzCutNegativities,
+  ghzLocalCensus,
+  ghzPairwiseConcurrences,
+  withdrawToAB,
+  type GhzClaimRow,
+} from "../src/kernel/ghz.js";
 
 /** A writeable view of a board row — contraband is smuggled into a private copy. */
 type MutableBoardRow = { -readonly [K in keyof BoardRow]: BoardRow[K] };
@@ -203,5 +235,277 @@ describe("T4 the renderer refuses to print an illegal board", () => {
     const probe = resolve(process.cwd(), "out", "reports", "guard-probe-should-not-exist.md");
     await import("../src/experiments/render.js");
     assert.ok(!existsSync(probe), "importing the renderer must not execute the render");
+  });
+
+  it("the exported render mains really run: every section builder returns non-empty content", async () => {
+    const render = await import("../src/experiments/render.js");
+    const sections = [
+      render.renderPurificationSection(),
+      render.renderLedgerSection(),
+      render.renderGhzSection(),
+    ];
+    for (const s of sections) {
+      assert.ok(s.length > 500, "a render section came back empty — a silent repro no-op");
+    }
+    assert.match(sections[0] as string, /purification desk/);
+    assert.match(sections[1] as string, /conservation ledger/);
+    assert.match(sections[2] as string, /GHZ bank/);
+  });
+});
+
+describe("T5 the purification desk — mixed coins at bounded exact scale", () => {
+  it("the BBPSSW round matches its closed forms on 11 Werner grades (p and F' to 1e-12)", () => {
+    for (let i = 0; i <= 10; i++) {
+      const F = 0.45 + 0.05 * i;
+      const W = wernerCoin(F);
+      const r = purifyRound(W, W);
+      const cf = wernerRoundClosedForm(F);
+      assert.ok(Math.abs(r.pSucc - cf.pSucc) <= 1e-12, `p at F=${F}`);
+      assert.ok(Math.abs(bellFidelity(r.successState) - cf.fidelityOut) <= 1e-12, `F' at F=${F}`);
+      assert.ok(Math.abs(r.pSucc + r.pFail - 1) <= 1e-12, "branch probabilities partition");
+    }
+  });
+
+  it("the round matches the general Bell-diagonal XOR closed form on random pairs", () => {
+    const rng = makeRng(77);
+    for (let t = 0; t < 8; t++) {
+      const rand4 = (): number[] => {
+        let s = 0;
+        const v = Array.from({ length: 4 }, () => {
+          const x = rng();
+          s += x;
+          return x;
+        });
+        return v.map((x) => x / s);
+      };
+      const lam = rand4();
+      const mu = rand4();
+      const r = purifyRound(bellDiagonal(lam), bellDiagonal(mu));
+      const ref = bellRoundClosedForm(lam, mu);
+      assert.ok(Math.abs(r.pSucc - ref.pSucc) <= 1e-12);
+      const out = bellWeights(r.successState);
+      for (let k = 0; k < 4; k++) assert.ok(Math.abs(out[k]! - ref.out[k]!) <= 1e-12);
+    }
+  });
+
+  it("the depolarizing step is the exact isotropic twirl: 24 unitaries, Werner fixed points, lambda1 preserved", () => {
+    const group = cliffords();
+    assert.strictEqual(group.length, 24);
+    assert.ok(group.every((u) => isUnitary(u)));
+    for (const F of [0.55, 0.85, 0.95]) {
+      assert.ok(matEq(bellTwirl(wernerCoin(F)), wernerCoin(F), 1e-12), `W_${F} must be a fixed point`);
+    }
+    const r = purifyRound(wernerCoin(0.85), wernerCoin(0.85));
+    const t = bellTwirl(r.successState);
+    assert.ok(Math.abs(bellWeights(t)[0]! - bellWeights(r.successState)[0]!) <= 1e-12, "lambda1 preserved");
+    assert.ok(matEq(t, wernerCoin(bellFidelity(r.successState)), 1e-12), "output is exactly W_{F'}");
+  });
+
+  it("honest negatives: without the twirl the nested round DEGRADES the coin; sub-threshold grades degrade", () => {
+    const W = wernerCoin(0.85);
+    const r1 = purifyRound(W, W);
+    const rawNested = purifyRound(r1.successState, r1.successState);
+    assert.ok(
+      bellFidelity(rawNested.successState) < bellFidelity(r1.successState) - 1e-9,
+      "the raw nested round must degrade (the twirl is load-bearing)",
+    );
+    assert.ok(wernerRoundClosedForm(0.45).fidelityOut < 0.45, "F = 0.45 must degrade");
+    assert.ok(wernerRoundClosedForm(0.55).fidelityOut > 0.55, "F = 0.55 must improve");
+  });
+
+  it("expected E_F never rises through a round (11 grades, branch-averaged)", () => {
+    for (let i = 0; i <= 10; i++) {
+      const F = 0.45 + 0.05 * i;
+      const W = wernerCoin(F);
+      const r = purifyRound(W, W);
+      const out = r.pSucc * eF(r.successState) + r.pFail * eF(r.failState);
+      assert.ok(out <= 2 * eF(W) + 1e-12, `E_F rose at F=${F}`);
+    }
+  });
+
+  it("the bounded schemes n=2,3,4: chains recompute, finals are Werner, never standard, E_F monotone", () => {
+    for (const F of [0.55, 0.85, 0.95]) {
+      const W = wernerCoin(F);
+      const r1 = purifyRound(W, W);
+      const t1 = bellTwirl(r1.successState);
+      const r3 = purifyRound(t1, W);
+      const r4 = purifyRound(t1, t1);
+      const chains = [r1.pSucc, r1.pSucc * r3.pSucc, r1.pSucc * r1.pSucc * r4.pSucc];
+      for (const n of [2, 3, 4] as const) {
+        const s = schemePurify(n, W);
+        assert.ok(Math.abs(s.pSucc - (chains[n - 2] as number)) <= 1e-12, `chain p at n=${n}, F=${F}`);
+        assert.ok(matEq(s.finalState, wernerCoin(s.fidelityOut), 1e-12), `final is Werner at n=${n}`);
+        assert.ok(s.fidelityOut < 1 - 1e-9, "bounded netting never mints a standard coin");
+        assert.ok(s.pSucc * eF(s.finalState) <= n * eF(W) + 1e-12, `scheme E_F monotone at n=${n}`);
+      }
+    }
+  });
+
+  it("the families agree (depolCoin IS wernerCoin at F=1-3p/4) and the yield table recomputes", () => {
+    for (const p of [0.1, 0.2, 0.3]) {
+      assert.ok(matEq(depolCoin(p), wernerCoin(1 - (3 * p) / 4), 1e-12));
+    }
+    assert.deepEqual(checkYieldTable(), []);
+  });
+
+  it("the quoted hashing line: 1-H(lambda) exact, bracketing zero between F=0.81 and F=0.82, quoted rows match", () => {
+    const F = 0.85;
+    const g = (1 - F) / 3;
+    assert.ok(Math.abs(hashingLineWerner(F) - (1 - shannonBits([F, g, g, g]))) <= 1e-12);
+    assert.ok(hashingLineWerner(0.81) < 0 && hashingLineWerner(0.82) > 0, "the line brackets zero");
+    for (const r of YIELD_TABLE) {
+      if (r.tag !== "QUOTED") continue;
+      assert.strictEqual(r.citation, "BBPS96");
+      const Feff = r.family === "WERNER" ? r.param : 1 - (3 * r.param) / 4;
+      assert.ok(Math.abs(r.coinYield - hashingLineWerner(Feff)) <= 1e-12, `quoted row ${r.id}`);
+    }
+  });
+});
+
+describe("T6 the conservation ledger", () => {
+  it("every ledger claim survives recomputation (16 rows, checker clean)", () => {
+    assert.deepEqual(checkLedger(), []);
+    assert.strictEqual(computeLedger().length, 16);
+  });
+
+  it("the exact extremes: burn delta exactly -1, catalyst delta 0, GHZ cuts 1/2 -> 1/2 and 1/2 -> 0", () => {
+    const by = new Map(computeLedger().map((e) => [e.id, e]));
+    const burn = by.get("L2");
+    const catalyst = by.get("L4");
+    assert.ok(burn && Math.abs(burn.after - burn.before + 1) <= 1e-12, "burn delta must be exactly -1");
+    assert.ok(catalyst && Math.abs(catalyst.after - catalyst.before) <= 1e-12, "catalyst delta must be 0");
+    for (const [id, want] of [
+      ["L14", 0.5],
+      ["L15", 0.5],
+    ] as const) {
+      const e = by.get(id);
+      assert.ok(e && Math.abs(e.after - want) <= 1e-12 && Math.abs(e.before - want) <= 1e-12);
+    }
+    const settled = by.get("L13");
+    assert.ok(settled && Math.abs(settled.before - 0.5) <= 1e-12 && Math.abs(settled.after) <= 1e-12);
+  });
+});
+
+describe("T7 the GHZ bank", () => {
+  it("pairwise concurrences exactly 0; every cut exactly 1/2 negativity", () => {
+    const g = ghzCoin();
+    for (const c of ghzPairwiseConcurrences(g)) assert.ok(c <= 1e-12);
+    for (const n of ghzCutNegativities(g)) assert.ok(Math.abs(n - 0.5) <= 1e-12);
+  });
+
+  it("the withdrawal: probabilities exactly 1/2, both branches pure known standard coins, cost exactly 1 cbit", () => {
+    const wd = withdrawToAB();
+    assert.ok(Math.abs(wd.pPlus - 0.5) <= 1e-12 && Math.abs(wd.pMinus - 0.5) <= 1e-12);
+    assert.ok(Math.abs(pureFidelity(wd.abPlus, bellBasis()[0] as CVec) - 1) <= 1e-12);
+    assert.ok(Math.abs(pureFidelity(wd.abMinus, bellBasis()[1] as CVec) - 1) <= 1e-12);
+    assert.ok(Math.abs(concurrence(wd.abPlus) - 1) <= 1e-12 && Math.abs(concurrence(wd.abMinus) - 1) <= 1e-12);
+    assert.strictEqual(wd.cbits, 1);
+  });
+
+  it("the wall per cut: 150 random local rounds never raise any cut; pairwise reductions stay separable", () => {
+    const census = ghzLocalCensus(makeRng(203), 150);
+    assert.strictEqual(census.rounds, 150);
+    assert.ok(census.worstCutRise <= 1e-12, `a cut rose by ${census.worstCutRise}`);
+    assert.ok(census.worstPairwiseC <= 1e-12, "a pairwise reduction became entangled");
+  });
+
+  it("the claims table recomputes — including the exact refutation of the pairwise wall", () => {
+    assert.deepEqual(checkGhzClaims(), []);
+    const refuted = GHZ_CLAIMS.find((c) => c.id === "G5");
+    assert.ok(refuted?.tag === "REFUTED");
+  });
+});
+
+describe("T8 smuggling trials round two — contraband in the new tables is rejected by name", () => {
+  /** A writeable view of a yield row — contraband is smuggled into a private copy. */
+  type MutableYieldRow = { -readonly [K in keyof YieldRow]: YieldRow[K] };
+
+  function smuggleYield(mutate: (rows: MutableYieldRow[]) => void): ReturnType<typeof checkYieldTable> {
+    const copy = JSON.parse(JSON.stringify(YIELD_TABLE)) as MutableYieldRow[];
+    mutate(copy);
+    return checkYieldTable(copy);
+  }
+
+  function yieldRow(rows: MutableYieldRow[], id: string): MutableYieldRow {
+    const row = rows.find((r) => r.id === id);
+    if (row === undefined) throw new Error(`smuggle: YIELD_TABLE has no row ${id}`);
+    return row;
+  }
+
+  /** A writeable view of a ledger spec. */
+  type MutableLedgerSpec = { -readonly [K in keyof LedgerSpec]: LedgerSpec[K] };
+
+  function smuggleLedger(mutate: (rows: MutableLedgerSpec[]) => void): ReturnType<typeof checkLedger> {
+    const copy = JSON.parse(JSON.stringify(LEDGER_SPECS)) as MutableLedgerSpec[];
+    mutate(copy);
+    return checkLedger(copy);
+  }
+
+  /** A writeable view of a GHZ claim. */
+  type MutableGhzClaim = { -readonly [K in keyof GhzClaimRow]: GhzClaimRow[K] };
+
+  function smuggleGhz(mutate: (rows: MutableGhzClaim[]) => void): ReturnType<typeof checkGhzClaims> {
+    const copy = JSON.parse(JSON.stringify(GHZ_CLAIMS)) as MutableGhzClaim[];
+    mutate(copy);
+    return checkGhzClaims(copy, 30);
+  }
+
+  it("H6: a counterfeit yield row claiming the asymptotic hashing line is rejected and named", () => {
+    const hit = smuggleYield((rows) => {
+      // the n=4 desk claims the n=infinity hashing rate — laundering the line
+      yieldRow(rows, "Y-W85-4").coinYield = hashingLineWerner(0.85);
+    }).find((v) => v.law === "H6" && /asymptotic/.test(v.detail));
+    assert.ok(hit, "expected an asymptotic-laundering violation");
+    assert.match(hit.detail, /counterfeit/);
+    assert.match(hit.row, /Y-W85-4/);
+  });
+
+  it("H6: a counterfeit mint (F_out = 1 at bounded scale) is rejected", () => {
+    const hit = smuggleYield((rows) => {
+      yieldRow(rows, "Y-D10-2").fidelityOut = 1;
+    }).find((v) => v.law === "H6" && /counterfeit mint/.test(v.detail));
+    assert.ok(hit, "expected a counterfeit-mint violation");
+    assert.match(hit.detail, /counterfeit mint/);
+  });
+
+  it("H6: a misquoted hashing line is rejected", () => {
+    const hit = smuggleYield((rows) => {
+      yieldRow(rows, "Y-H85").coinYield = 0.16;
+    }).find((v) => v.law === "H6");
+    assert.ok(hit, "expected an H6 violation");
+    assert.match(hit.detail, /misquoted/);
+  });
+
+  it("H7: a fake conservation identity is rejected by recomputation and named", () => {
+    const hit = smuggleLedger((rows) => {
+      // teleportation's burned E_F claimed as conserved — the classic fake
+      const row = rows.find((r) => r.id === "L2");
+      if (row === undefined) throw new Error("smuggle: no L2");
+      row.claim = "CONSERVED";
+    }).find((v) => v.law === "H7");
+    assert.ok(hit, "expected an H7 violation");
+    assert.match(hit.detail, /fake conservation identity/);
+    assert.match(hit.detail, /delta/);
+  });
+
+  it("H7: a fake never-rises (claiming conservation where the machine sees change) is rejected", () => {
+    const hit = smuggleLedger((rows) => {
+      const row = rows.find((r) => r.id === "L6");
+      if (row === undefined) throw new Error("smuggle: no L6");
+      row.claim = "CONSERVED";
+    }).find((v) => v.law === "H7");
+    assert.ok(hit, "expected an H7 violation");
+    assert.match(hit.detail, /fake conservation identity/);
+  });
+
+  it("H8: a refuted wall claimed as holding is rejected and named", () => {
+    const hit = smuggleGhz((rows) => {
+      const row = rows.find((r) => r.id === "G5");
+      if (row === undefined) throw new Error("smuggle: no G5");
+      row.tag = "HOLDS";
+    }).find((v) => v.law === "H8");
+    assert.ok(hit, "expected an H8 violation");
+    assert.match(hit.detail, /claimed HOLDS/);
+    assert.match(hit.detail, /rises/);
   });
 });

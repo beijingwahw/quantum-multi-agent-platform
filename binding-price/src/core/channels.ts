@@ -106,6 +106,50 @@ export function depolarize(rho: CMat, p: number): CMat {
   return out;
 }
 
+export type NoiseName = "dephase" | "ampdamp";
+
+/**
+ * Phase-flip dephasing at strength γ ∈ [0, 1/2]: K = {√(1−γ) I, √γ Z}, so the
+ * off-diagonals scale by (1−2γ) (FULL dephasing at γ = 1/2) and the
+ * populations never move. Unital — I/2 is a fixed point at every γ.
+ */
+export function dephaseKraus(gamma: number): CMat[] {
+  if (gamma < 0 || gamma > 0.5) throw new Error(`dephaseKraus: gamma ${gamma} outside [0, 1/2]`);
+  const k0 = mat(2, 2);
+  k0.re[0] = Math.sqrt(1 - gamma);
+  k0.re[3] = Math.sqrt(1 - gamma);
+  const k1 = mat(2, 2);
+  k1.re[0] = Math.sqrt(gamma);
+  k1.re[3] = -Math.sqrt(gamma);
+  return [k0, k1];
+}
+
+/**
+ * Amplitude damping at strength γ ∈ [0, 1]: K = {|0⟩⟨0| + √(1−γ) |1⟩⟨1|,
+ * √γ |0⟩⟨1|} — the excited state decays to the ground state. Non-unital: on
+ * I/2 it mints a z-polarization of exactly γ (concealment loss γ/2), the
+ * census's broken-identity channel.
+ */
+export function ampDampKraus(gamma: number): CMat[] {
+  if (gamma < 0 || gamma > 1) throw new Error(`ampDampKraus: gamma ${gamma} outside [0, 1]`);
+  const k0 = mat(2, 2);
+  k0.re[0] = 1;
+  k0.re[3] = Math.sqrt(1 - gamma);
+  const k1 = mat(2, 2);
+  k1.re[1] = Math.sqrt(gamma);
+  return [k0, k1];
+}
+
+/** Kraus set of a named single-qubit noise channel at strength γ. */
+export function noiseKraus(noise: NoiseName, gamma: number): CMat[] {
+  return noise === "dephase" ? dephaseKraus(gamma) : ampDampKraus(gamma);
+}
+
+/** The named channel as a map: E_γ(ρ). */
+export function applyNoise(rho: CMat, noise: NoiseName, gamma: number): CMat {
+  return applyKraus(rho, noiseKraus(noise, gamma));
+}
+
 export interface ReadoutOutcome {
   /** probability of each joint computational-basis outcome on measured registers */
   probs: number[];

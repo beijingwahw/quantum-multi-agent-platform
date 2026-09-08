@@ -286,6 +286,9 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b76#9", verdict: "SHARPENED", basis: "dual-face: the heredoc append act is ungated — the channel's thirteenth canonical sighting (wrong-text sightings grepped to 17 in-registry before enrolling); the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only" },
   { key: "b76#23", verdict: "HELD", basis: "print-layer honesty: whether a display truncation hides the load-bearing digits is prose judgment (the b29#4/b30#1 display face) — the rewritten display is review, not machine" },
   { key: "b76#24", verdict: "SHARPENED", basis: "dual-face: the heredoc scratch act is ungated — the channel's fourteenth canonical sighting (the thirteenth is b76#9, same batch), and the deletion does not unmake the breach; the damaged-file face dies at the loader/typecheck the moment it lands. Booked: the act face only" },
+  // ---- batch 77 (the fourth four-repo delivery wave's wiring) — born audited ----
+  { key: "b77#8", verdict: "SHARPENED", basis: "dual-face (the b74#3 twin, one wave later): the act face — a read-only git status against the unconditional agent-git ban — is booked; no mutation occurred and no output shipped, the deliverable's state is read from the files. Booked: the act face only" },
+  { key: "b77#11", verdict: "HELD", basis: "transient environment face: one W-F filesystem miss against an anchor on disk, re-run green, never reproduced — the witness itself fires on every suite run; there is no machine to build against a ghost, the re-run is the resolution" },
 ];
 
 export interface RepairViolation {

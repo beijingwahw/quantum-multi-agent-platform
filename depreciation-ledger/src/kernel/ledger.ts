@@ -173,7 +173,7 @@ export const LEDGER: readonly LedgerRow[] = [
     claim: "No-cloning underwrites every contract for free",
     verdict: "MECHANISM-SETTLED",
     numberColumn: "as notary: WZ82, exact; counterfeit curve (3/4)^m verified",
-    costColumn: "as BINDING: no — HJW lets the promisor choose the decomposition after the fact; reveal passes exactly 1/2. Privacy is bought; binding is not — the market EXECUTED (binding-price: one-coin identity — binding slack IS concealment loss one-to-one; flat supply witnessed over the entire HJW strategy space)",
+    costColumn: "as BINDING: no — HJW lets the promisor choose the decomposition after the fact; reveal passes exactly 1/2. Privacy is bought; binding is not — the market EXECUTED (binding-price: one-coin identity — binding slack IS concealment loss one-to-one; flat supply witnessed over the enumerated families plus the v0.2.0 parameterized continuous family, 2141 ensembles machine-verified — no decomposition moves the reveal at any offer)",
     atlasRow: "quantum-binding",
     appealRepo: "quantum-mech",
     appealCommand: "repro",

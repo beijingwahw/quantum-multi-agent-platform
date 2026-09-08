@@ -92,6 +92,55 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   return out;
 }
 
+/**
+ * Partial transpose over the listed subsystems: swaps the row and column
+ * digits of `transpose` between matrix indices. Hermiticity is preserved;
+ * positivity generally is not — the Peres-Horodecki window the negativity
+ * measure reads.
+ */
+export function partialTranspose(
+  rho: CMat,
+  dims: readonly number[],
+  transpose: readonly number[],
+): CMat {
+  const m = dims.length;
+  checkDims('partialTranspose', dims);
+  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) throw new Error('dims do not match rho');
+  for (const t of transpose) {
+    if (!Number.isInteger(t) || t < 0 || t >= m) {
+      throw new Error(`partialTranspose: subsystem index ${t} out of range for ${m} subsystems`);
+    }
+  }
+  const set = new Set(transpose);
+  const d = rho.rows;
+  const strides: number[] = new Array<number>(m);
+  strides[m - 1] = 1;
+  for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
+  const out = mat(d, d);
+  const rd: number[] = new Array<number>(m);
+  const cd: number[] = new Array<number>(m);
+  for (let row = 0; row < d; row++) {
+    let r = row;
+    for (let i = 0; i < m; i++) {
+      rd[i] = Math.floor(r / strides[i]!);
+      r %= strides[i]!;
+    }
+    for (let col = 0; col < d; col++) {
+      let c = col;
+      for (let i = 0; i < m; i++) {
+        cd[i] = Math.floor(c / strides[i]!);
+        c %= strides[i]!;
+      }
+      // transpose swaps the S-digits between the row and column multi-indices
+      const orw = rd.reduce((acc, digit, i) => acc + (set.has(i) ? cd[i]! : digit) * strides[i]!, 0);
+      const ocw = cd.reduce((acc, digit, i) => acc + (set.has(i) ? rd[i]! : digit) * strides[i]!, 0);
+      out.re[orw * d + ocw] = out.re[orw * d + ocw]! + rho.re[row * d + col]!;
+      out.im[orw * d + ocw] = out.im[orw * d + ocw]! + rho.im[row * d + col]!;
+    }
+  }
+  return out;
+}
+
 /** Depolarizing channel on dimension d: (1-p)ρ + p I/d. */
 export function depolarize(rho: CMat, p: number): CMat {
   const d = rho.rows;

@@ -15,14 +15,29 @@ Every new reference was double-sourced before enrollment (publisher + independen
   - Used for: the reverse quote (E2) — 1 transmitted qubit + the shared coin carries exactly 2 cbits.
 
 - **BBPS96** — C. H. Bennett, G. Brassard, S. Popescu, B. Schumacher, J. A. Smolin, W. K. Wootters, "Purification of Noisy Entanglement and Faithful Teleportation via Noisy Channels", *Phys. Rev. Lett.* **76**, 722–725 (1996). doi:10.1103/PhysRevLett.76.722. **Erratum**: *Phys. Rev. Lett.* **78**, 2031 (1997), doi:10.1103/PhysRevLett.78.2031 — recorded as part of the citation, per house honesty rules.
-  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.76.722
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.76.722 (erratum listed on the article page)
   - Source 2: arXiv:quant-ph/9511027, https://arxiv.org/abs/quant-ph/9511027
-  - Used for: netting (E4) — the Procrustean method for pure coins is executed exactly; the multi-copy asymptotic purification of MIXED coins is quoted with this citation and deliberately not claimed as machine output.
+  - Used for: netting (E4/E7). v0.2.0: the recurrence round is EXECUTED exactly at n = 2, 3, 4 (bilateral CNOT, sacrifice measurement, agreement post-selection, depolarizing step realized as the exact 24-element local-Clifford isotropic twirl); the closed forms p = F² + 2F(1−F)/3 + 5(1−F)²/9 and F' = (F²+(1−F)²/9)/p recompute to 1e-12. The multi-copy HASHING asymptote (rate 1 − H(λ), positive above F ≈ 0.8107) remains quoted with this citation, never claimed as machine output.
 
 - **VIDAL00** — G. Vidal, "Entanglement monotones", *J. Mod. Opt.* **47**(2–3), 355–376 (2000). doi:10.1080/09500340008244048.
   - Source 1: Taylor & Francis, https://www.tandfonline.com/doi/abs/10.1080/09500340008244048
   - Source 2: arXiv:quant-ph/9807077, https://arxiv.org/abs/quant-ph/9807077
-  - Used for: the mint wall's theorem side (E5) — convex-roof monotones do not increase under LOCC on average. The machine contributes the census testimony; the theorem is the court, cited.
+  - Used for: the mint wall's theorem side (E5) — convex-roof monotones do not increase under LOCC on average. The machine contributes the census testimony; the theorem is the court, cited. The conservation ledger (E8) instantiates the same monotonicity per settlement op, exactly.
+
+- **VW02** — G. Vidal, R. F. Werner, "Computable measure of entanglement", *Phys. Rev. A* **65**, 032314 (2002). doi:10.1103/PhysRevA.65.032314.
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevA.65.032314
+  - Source 2: arXiv:quant-ph/0102117, https://arxiv.org/abs/quant-ph/0102117
+  - Used for: the GHZ bank's cut measure (E9) — the negativity N(ρ) = (‖ρ^{T_S}‖₁ − 1)/2 implemented here (partial transpose in `core/channels.ts`) is an LOCC monotone by this paper. The machine contributes the 150-round local-channel census and the exact withdrawal identities; the monotonicity theorem is the court, cited.
+
+- **ZANG25** — A. Zang, X. Chen, E. Chitambar, M. Suchara, T. Zhong, "No-Go Theorems for Universal Entanglement Purification", *Phys. Rev. Lett.* **134**, 190803 (2025). doi:10.1103/PhysRevLett.134.190803.
+  - Source 1: APS, https://link.aps.org/doi/10.1103/PhysRevLett.134.190803
+  - Source 2: arXiv:2407.21760, https://arxiv.org/abs/2407.21760
+  - Used for: modern context on the purification desk's ceiling (E7) — no universal purification scheme exists for the class of states this no-go covers. Cited as a bound on what any desk can promise; not executed here.
+
+- **LAMI24** — L. Lami, B. Regula, "Distillable entanglement under dually non-entangling operations", *Nat. Commun.* **15**, 10120 (2024). doi:10.1038/s41467-024-53816-w.
+  - Source 1: Nature Communications / PMC, https://pmc.ncbi.nlm.nih.gov/articles/PMC11584706/
+  - Source 2: arXiv:2307.11008, https://arxiv.org/abs/2307.11008
+  - Used for: the exact-solution context of distillable entanglement (E7's boundary) — under dually non-entangling operations the distillable entanglement has a computable exact form. Cited; the operations are not LOCC and nothing here is executed on them.
 
 ## Anchored in-book (not re-verified here)
 
