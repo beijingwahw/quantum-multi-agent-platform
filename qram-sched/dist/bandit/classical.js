@@ -106,7 +106,6 @@ export function adversarialRun(k, horizon, seed, gamma, search) {
     const weights = new Array(k).fill(1);
     const decisions = new Uint8Array(horizon);
     let regret = 0;
-    let reads = 0;
     let plays = 0;
     for (let t = 0; t < horizon; t++) {
         const wsum = weights.reduce((s, w) => s + w, 0);
@@ -124,7 +123,7 @@ export function adversarialRun(k, horizon, seed, gamma, search) {
         decisions[t] = arm;
         const r = rewards[arm * horizon + t] === 1 ? 1 : 0;
         // importance-weighted update
-        weights[arm] *= Math.exp((gamma / k) * (r / p[arm]));
+        weights[arm] = weights[arm] * Math.exp((gamma / k) * (r / p[arm]));
         plays++;
     }
     // Regret accounting vs best fixed arm in hindsight on the fixed stream.
@@ -134,11 +133,11 @@ export function adversarialRun(k, horizon, seed, gamma, search) {
             totals[a] = totals[a] + rewards[a * horizon + t];
     const bestArm = totals.indexOf(Math.max(...totals));
     for (let t = 0; t < horizon; t++) {
-        regret += rewards[bestArm * horizon + t] - rewards[decisions[t] * horizon + t];
+        // decisions[t] is in-bounds: t < horizon and decisions has length horizon
+        regret += rewards[(bestArm) * horizon + t] - rewards[decisions[t] * horizon + t];
     }
     // Inner-loop compute: Exp3 samples from the mixing distribution; the score
     // table scan happens once per round in our harness for the ledger.
-    const res = search(totals, (x, y) => x < y);
-    reads = res.reads;
+    const reads = search(totals, (x, y) => x < y).reads;
     return { regret, plays, oracleReads: reads, decisions };
 }

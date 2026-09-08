@@ -85,6 +85,7 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   { repo: "quantum-mech", file: "measures.ts", reason: "2026-09-06 strict-mode upgrade: this member's own repair variant; re-convergence is the appeal court's call" },
   // -- long-standing registered lineages ----------------------------------------
   { repo: "quantum-mech", file: "states.ts", reason: "an independent states module, reconciled on 2026-09-06 onto the strict-mode canon with its original anchors (RPLUS, LPLUS, BELL_PHI_PLUS, bellState, ghz, w3, werner, HADAMARD, randomPureState, valueKet) appended; shares the other files where byte-identical" },
+  { repo: "quantum-mech", file: "channels.ts", reason: "the v0.2.0 erasure-robustness census appended its own noise face to the canon (phaseFlipKraus, amplitudeDampKraus with the gamma guard, applyQubitChannel the register-wide applier; import line widened for identity/kronAll) — the canon's face is untouched above the append; re-convergence is the appeal court's call" },
   { repo: "qverify", file: "states.ts", reason: "an independent states module (plus its own gates.ts), reconciled on 2026-09-06 onto the strict-mode canon with its original qverify extensions (fromVec, equatorial, equatorialRho, bellState, schmidtState, wernerFidelity, randomTwoQubitMixed, PAULIS, HADAMARD)" },
   { repo: "causal-ineq", file: "cmat.ts", reason: "a collateral cmat lineage, single-repo" },
   { repo: "k-switch", file: "cmat.ts", reason: "a collateral cmat lineage, single-repo" },

@@ -7,6 +7,7 @@ import { chainFromGraph, chainMatrix, lazyChain, SzegedyWalk, uniformAwayFrom } 
 import { hittingTime } from "../core/linalg.js";
 import { Rng } from "../core/rng.js";
 import { fitSlope, fmt, table, writeReport } from "./report.js";
+import { pathToFileURL } from "node:url";
 function completeGraph(n) {
     return Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => j).filter((j) => j !== i));
 }
@@ -45,7 +46,24 @@ function assignmentLattice(t, w, seed) {
     }
     return { chain: lazyChain(chainFromGraph(adj)), marked, n, opt };
 }
-function main() {
+/** Chain of k K_m cliques joined by single bridges between consecutive clique
+ *  anchors (k=2 is the barbell of section D). Bottleneck census family. */
+function barbellChainAdj(k, m) {
+    const n = k * m;
+    const adj = Array.from({ length: n }, () => []);
+    for (let c = 0; c < k; c++) {
+        for (let i = 0; i < m; i++)
+            for (let j = 0; j < m; j++)
+                if (i !== j)
+                    adj[c * m + i].push(c * m + j);
+    }
+    for (let c = 0; c + 1 < k; c++) {
+        adj[c * m].push((c + 1) * m);
+        adj[(c + 1) * m].push(c * m);
+    }
+    return adj;
+}
+export function main() {
     const lines = [];
     lines.push("# EXP2 — Szegedy walk search: quadratic detection on scheduling chains");
     lines.push("");
@@ -173,7 +191,44 @@ function main() {
         "the honest scope of the EXP2-C claim. (Detection-time conventions matter: single-threshold first-crossing " +
         "is transient-contaminated here; we report the envelope peak.)");
     lines.push("");
+    // D'. Barbell-family extension: chains of cliques (more bottlenecks in series).
+    lines.push("## D'. Barbell family census: chains of k K_m cliques, k single bridges in series");
+    lines.push("");
+    const rowsD2 = [];
+    for (const [k, m] of [
+        [2, 8],
+        [3, 8],
+        [4, 8],
+        [3, 16],
+    ]) {
+        const n = k * m;
+        const lazy = lazyChain(chainFromGraph(barbellChainAdj(k, m)));
+        const muStat = new Float64Array(n).fill(1 / n);
+        const mk = new Set([n - 1]);
+        const ct = hittingTime(n, chainMatrix(lazy), mk, muStat);
+        const w = new SzegedyWalk(lazy, mk);
+        const { curve } = w.detectionCurve(muStat, 300 * m);
+        let peak = 0;
+        let kp = 0;
+        for (let t = 0; t < curve.length; t++) {
+            if (curve[t] > peak) {
+                peak = curve[t];
+                kp = t + 1;
+            }
+        }
+        rowsD2.push([String(k), String(m), String(n), fmt(ct, 1), String(kp), fmt(peak, 4), fmt(kp / ct, 1)]);
+    }
+    lines.push(table(["cliques k", "clique m", "n", "classical HT (stationary start)", "envelope peak at step", "peak p", "peak/HT"], rowsD2));
+    lines.push("");
+    lines.push("Extending the bottleneck census (v0.2.0): with bridges added in series the negative HOLDS — the envelope peak " +
+        "stays beyond the classical hitting time at every chain length probed (peak/HT > 1 throughout). The naive " +
+        "marked-flip walk operator loses on the whole bottleneck family, not only the two-clique barbell. The priced " +
+        "deliverable was machine data either way; this side of it is negative, and it is reported as negative.");
+    lines.push("");
     const file = writeReport("exp2-walk.md", lines.join("\n") + "\n");
     console.log(`exp2 written: ${file}`);
 }
-main();
+// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+    main();
+}

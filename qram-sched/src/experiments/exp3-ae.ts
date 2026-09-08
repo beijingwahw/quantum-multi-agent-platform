@@ -9,7 +9,7 @@ import { Rng } from "../core/rng.js";
 import { fitSlope, fmt, table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# EXP3 — amplitude estimation: quadratic precision law on encoded task streams");
   lines.push("");

@@ -9,7 +9,7 @@
  * estimation turns this into a quadratic-query-count estimator of the stream
  * mean; the classical estimator is Monte Carlo sampling of the same stream.
  */
-import { BucketBrigadeQram } from "./bucket.js";
+import type { BucketBrigadeQram } from "./bucket.js";
 export interface StreamState {
     re: Float64Array;
     im: Float64Array;

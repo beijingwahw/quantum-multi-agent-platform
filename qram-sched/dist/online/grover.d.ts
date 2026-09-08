@@ -9,13 +9,13 @@
  * successful measurement returns a uniformly random marked element. Both
  * facts are cross-checked against full-space Grover simulation in the tests.
  */
-import { Rng } from "../core/rng.js";
+import type { Rng } from "../core/rng.js";
 export interface SearchResult {
     index: number;
     reads: number;
 }
 /** Linear scan for the minimum under a strict-less comparator; reads = N. */
-export declare function linearFindBest<T>(scores: readonly T[], less: (x: T, y: T) => boolean): SearchResult;
+export declare function linearFindBest<T>(scores: ArrayLike<T>, less: (x: T, y: T) => boolean): SearchResult;
 /**
  * Durr-Hoyer style search for a strictly-better element than the threshold
  * value, with retry schedule uniform k in [0, ceil(sqrt(N))]. Returns the
@@ -33,7 +33,7 @@ export declare function groverFindBetter<T>(n: number, thresholdValue: T, value:
  * algorithm does not). The linear scan is always correct; the quantum search
  * is bounded-error — agreement rates are reported, not assumed.
  */
-export declare function durHoyerFindBest<T>(scores: readonly T[], less: (x: T, y: T) => boolean, rng: Rng): {
+export declare function durHoyerFindBest<T>(scores: ArrayLike<T>, less: (x: T, y: T) => boolean, rng: Rng): {
     best: number;
     reads: number;
     correct: boolean;

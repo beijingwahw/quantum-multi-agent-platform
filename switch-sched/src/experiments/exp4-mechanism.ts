@@ -62,7 +62,7 @@ function utilityOnP(rhoFull: CMat): number {
   return 2 * p.re[0 * DP + 0]! + 1 * p.re[1 * DP + 1]!;
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   const rho0 = kronRho(vecToRho(KET0), vecToRho(KET0)); // type |0⟩, payoff |0⟩
   const thetaGrid = Array.from({ length: 13 }, (_, i) => (Math.PI * i) / 12);

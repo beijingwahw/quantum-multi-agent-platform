@@ -7,9 +7,10 @@
  * - RANKING (KVV): a uniformly random permutation of workers; each arrival
  *   takes its available neighbor of best (lowest) rank. (1 - 1/e)-competitive
  *   and optimal among randomized algorithms (KVV 1990; Devanur-Jain-Kleinberg
- *   primal-dual proof, SODA 2013). The exact tight recursive instance is a
- *   cited theorem and is NOT reproduced here — we verify no violation on
- *   adversarial banks, the greedy 1/2 cascade exactly, and relative order.
+ *   primal-dual proof, SODA 2013). Since v0.2.0 the KVV tight instances are
+ *   EXECUTED in-repo (see kv-tight.ts, EXP6): E[RANKING on D_n] hits
+ *   (1-1/e)n + 1 - 2/e exactly (three independent exact kernels), and the
+ *   deterministic phase adversary pins greedy at exactly n/2.
  * - Quantum layer: the per-arrival inner search (best-ranked available
  *   neighbor) served by Durr-Hoyer Grover search instead of a linear scan.
  *   Same decision rule; reads O(n) -> O(sqrt(n) log n); bit-identical
@@ -82,11 +83,12 @@ export function randomInstance(n: number, arrivals: number, p: number, rng: Rng)
   return { n, arrivals: list };
 }
 
-/** Greedy matching. tie 'lowest': deterministic first-available (worst case 1/2).
- *  tie 'uniform': uniformly random available neighbor. mode 'grover' serves the
+/** Greedy matching. tie 'lowest'/'highest': deterministic first/last-available
+ *  (worst case exactly 1/2, both tight via the phase adversary). tie
+ *  'uniform': uniformly random available neighbor. mode 'grover' serves the
  *  uniform-tie variant via Grover sampling (distribution-identical) or falls
  *  back to the exact rule on bounded-error misses (charged). */
-export function greedyMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grover", tie: "lowest" | "uniform" = "uniform"): MatchResult {
+export function greedyMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grover", tie: "lowest" | "uniform" | "highest" = "uniform"): MatchResult {
   const taken = new Uint8Array(inst.n);
   let size = 0;
   let reads = 0;
@@ -97,7 +99,12 @@ export function greedyMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grove
       reads += inst.n;
       const available = nb.filter((w) => (taken[w] as number) === 0);
       if (available.length === 0) continue;
-      const w = tie === "lowest" ? (available[0] as number) : (available[rng.int(available.length)] as number);
+      const w =
+        tie === "lowest"
+          ? (available[0] as number)
+          : tie === "highest"
+            ? (available[available.length - 1] as number)
+            : (available[rng.int(available.length)] as number);
       taken[w] = 1;
       size++;
     } else {
@@ -131,10 +138,26 @@ export function greedyMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grove
 /** RANKING: random permutation of workers, arrivals take best-ranked available neighbor. */
 export function rankingMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grover"): MatchResult {
   const rank = rng.shuffle(Array.from({ length: inst.n }, (_, i) => i));
+  return rankingMatchWithRank(inst, rank, mode, rng);
+}
+
+/**
+ * RANKING core under an explicit worker ranking: rank[w] = the position of
+ * worker w (lower = better); each arrival takes its available neighbor of
+ * best rank. 'linear' consumes no randomness beyond the given ranking;
+ * 'grover' draws from rng inside the Durr-Hoyer search. The split exists so
+ * exact enumerators (kv-tight) can drive the same decision rule.
+ */
+export function rankingMatchWithRank(
+  inst: ObmInstance,
+  rank: readonly number[],
+  mode: "linear" | "grover",
+  rng: Rng,
+): MatchResult {
   const taken = new Uint8Array(inst.n);
   let size = 0;
   let reads = 0;
-  const disagreements = 0;
+  let disagreements = 0;
   for (const nb of inst.arrivals) {
     const adjSet = new Set(nb);
     const value = (w: number) => ((taken[w] as number) === 0 && adjSet.has(w) ? (rank[w] as number) : Number.MAX_SAFE_INTEGER);
@@ -158,11 +181,24 @@ export function rankingMatch(inst: ObmInstance, rng: Rng, mode: "linear" | "grov
       const values = Array.from({ length: inst.n }, (_, w) => value(w));
       const r = durHoyerFindBest(values, (x, y) => x < y, rng);
       reads += r.reads;
+      // Referee (no oracle reads charged — the values array is the oracle the
+      // search already queries): the exact argmin the linear rule would take.
+      let exactBest = -1;
+      let exactV = Number.MAX_SAFE_INTEGER;
+      for (let w = 0; w < inst.n; w++) {
+        if ((values[w] as number) < exactV) {
+          exactV = values[w] as number;
+          exactBest = w;
+        }
+      }
       const w = r.best;
       if (value(w) < Number.MAX_SAFE_INTEGER) {
         taken[w] = 1;
         size++;
       }
+      // A bounded-error miss: the search's pick differs from the exact rule's
+      // (counted only when the exact rule had a match to find).
+      if (exactBest >= 0 && w !== exactBest) disagreements++;
     }
   }
   return { size, reads, disagreements };

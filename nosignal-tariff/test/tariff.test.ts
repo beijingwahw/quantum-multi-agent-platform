@@ -19,7 +19,7 @@ describe("T1 the schedule clears customs", () => {
     assert.deepEqual(checkTariff(), []);
   });
 
-  it("all five witnesses pass", () => {
+  it("all eight witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
   });
 });

@@ -15,7 +15,8 @@ import { classicalReplayQueries, quantumReplayRun } from "../bandit/quantum.js";
 import { durHoyerFindBest, linearFindBest } from "../online/grover.js";
 import { Rng } from "../core/rng.js";
 import { fmt, table, writeReport } from "./report.js";
-function main() {
+import { pathToFileURL } from "node:url";
+export function main() {
     const lines = [];
     lines.push("# EXP4 — regret vs query ledgers: where the quantum tear is, and where it is not");
     lines.push("");
@@ -141,4 +142,7 @@ function main() {
     const file = writeReport("exp4-regret.md", lines.join("\n") + "\n");
     console.log(`exp4 written: ${file}`);
 }
-main();
+// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+    main();
+}

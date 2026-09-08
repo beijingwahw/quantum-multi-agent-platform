@@ -23,6 +23,7 @@ import {
   type GainWitness,
   type ValueMatrix,
   exactAllocator,
+  greedyAllocator,
   optimalAllocation,
   perturbedAllocator,
   searchDsicViolation,
@@ -84,6 +85,35 @@ function main(): void {
     }
   }
 
+  // B2. second solver family: the greedy allocator (a plain heuristic, not
+  // optimum+noise) — same census, different failure signature
+  const greedyRows: string[][] = [];
+  let greedyViolations = 0;
+  let greedyMaxGain = 0;
+  let greedyWorstRatio = 1;
+  let greedyWitness: GainWitness | null = null;
+  for (const v of instances) {
+    const alloc = greedyAllocator(v);
+    const opt = optimalAllocation(v).value;
+    const got = welfare(v, alloc);
+    greedyWorstRatio = Math.min(greedyWorstRatio, got / opt);
+    const w = searchDsicViolation(v, greedyAllocator, [0, 1, 2, 3]);
+    if (w !== null) {
+      greedyViolations++;
+      if (w.gain > greedyMaxGain) {
+        greedyMaxGain = w.gain;
+        greedyWitness = w;
+      }
+    }
+  }
+  greedyRows.push([
+    'greedy (index order)',
+    `${greedyViolations}/${instances.length}`,
+    fmt(greedyMaxGain, 3),
+    fmt(greedyWorstRatio, 3),
+    greedyWitness ? `agent ${greedyWitness.agent}: [${greedyWitness.truthfulReport.join(', ')}] -> [${greedyWitness.misreport.join(', ')}]` : '—',
+  ]);
+
   // C. welfare-vs-incentive table for d=1 (per-instance pairing)
   const pairingRows: string[][] = [];
   const alloc1 = perturbedAllocator(1, rng);
@@ -108,6 +138,7 @@ function main(): void {
     instances: instances.length,
     exactViolations,
     perturbRows,
+    greedyRows,
     witness: firstWitness ?? null,
     pairingRows,
   };
@@ -122,6 +153,11 @@ function main(): void {
       ['d (swaps)', 'instances with violations', 'max gain', 'worst welfare ratio', 'witness'],
       perturbRows,
     ),
+    '',
+    '## B2. Second solver family: greedy (agents take their best remaining task)',
+    mdTable(['allocator', 'instances with violations', 'max gain', 'worst welfare ratio', 'witness'], greedyRows),
+    '',
+    'The perturbation family degrades the optimum; greedy is a genuinely different failure mode — a plain heuristic with better worst welfare than 3 random swaps on this census but its own violation signature. Both die the same death: Groves payments computed from any non-argmax allocation are manipulable.',
     '',
     '## C. Welfare vs incentive damage (d = 1)',
     mdTable(['instance (values)', 'alloc ratio', 'DSIC gain of best misreport', 'agent'], pairingRows),

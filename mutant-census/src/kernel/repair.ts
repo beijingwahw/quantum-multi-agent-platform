@@ -278,6 +278,14 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   // ---- batch 75 (the second four-repo delivery wave's wiring) — born audited ----
   { key: "b75#6", verdict: "SHARPENED", basis: "dual-face placement class (b22#2/b33#0/b49#2/b74#1 family): the ROOT face is gate-held since v0.9.0 (rootStrayFiles names root strays live); the /tmp face resolves outside the workspace tree where no scheduled gate scans — three gate logs landed there during the causal-ineq delivery. Booked: the outside-tree face only" },
   { key: "b75#13", verdict: "SHARPENED", basis: "dual-face: the heredoc act is ungated — the channel's twelfth canonical sighting (the family's wrong-text sightings grepped to 16 in-registry before enrolling), and 'not repeated' grades the offense without unmaking the ban; the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only" },
+  // ---- batch 76 (the third four-repo delivery wave's wiring) — born audited ----
+  { key: "b76#0", verdict: "SHARPENED", basis: "dual-face (the b74#9 twin, one wave later): the act face — dummyRng's require() rewritten to an import on the spot, pre-machine — is booked; the landing face, a require() in the ESM tree, is a loader death the gates convict the moment it lands. Booked: the act face only" },
+  { key: "b76#3", verdict: "HELD", basis: "dead-but-parseable scaffolding left by a failed edit: no unused-code gate is wired in this tree, the rewrite removed the residue — the reread is the factory check" },
+  { key: "b76#7", verdict: "HELD", basis: "the fake-number family attempted and self-caught pre-ship — no machine diffs prose values against the later render (the b12#7/b21#3 line; a reconciliation gate is priced, not built)" },
+  { key: "b76#8", verdict: "HELD", basis: "docs-content destruction (theory.md's referee section) is outside every scheduled gate's sight — the backup restore was manual, the docs face is ungated" },
+  { key: "b76#9", verdict: "SHARPENED", basis: "dual-face: the heredoc append act is ungated — the channel's thirteenth canonical sighting (wrong-text sightings grepped to 17 in-registry before enrolling); the damaged-file face dies at the loader/typecheck the moment it lands (the b47#1 twin). Booked: the act face only" },
+  { key: "b76#23", verdict: "HELD", basis: "print-layer honesty: whether a display truncation hides the load-bearing digits is prose judgment (the b29#4/b30#1 display face) — the rewritten display is review, not machine" },
+  { key: "b76#24", verdict: "SHARPENED", basis: "dual-face: the heredoc scratch act is ungated — the channel's fourteenth canonical sighting (the thirteenth is b76#9, same batch), and the deletion does not unmake the breach; the damaged-file face dies at the loader/typecheck the moment it lands. Booked: the act face only" },
 ];
 
 export interface RepairViolation {

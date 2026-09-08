@@ -44,7 +44,7 @@ function basisRho(d: number, i: number): CMat {
   return m;
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
 
   // ---------- A. commutation task ----------

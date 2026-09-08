@@ -37,9 +37,11 @@
    rules" (2010), arXiv:1002.4294；"Quantum Bayesian Implementation and
    Revelation Principle" (2011), SSRN 1831964.** [ref] 量子策略进机制
    设计 + 贝叶斯设定下揭示原理失效。T1 边界讨论中如实区分。
-8. **Rubinstein, Wolitzky et al., "Quantum Communication Complexity of
-   Classical Auctions", ITCS 2025 / arXiv:2311.12444.** [ref] 通信复杂度
-   视角，非激励视角。
+8. **Rubinstein & Zhou, "Quantum Communication Complexity of Classical
+   Auctions", ITCS 2025 / arXiv:2311.12444.** [ref] 通信复杂度视角，非
+   激励视角。（v0.2.0 勘误：早期版本误记作者为 "Rubinstein, Wolitzky
+   et al."——2026-09-08 经 arXiv 官方页面 citation_author 元数据核实为
+   Aviad Rubinstein 与 Zixin Zhou 双作者，特此更正。）
 
 ## 量子信息（物理锚点）
 
@@ -67,11 +69,44 @@
     STOC 2012**（及 Farhi et al. 2007）。[ref] 公钥量子货币现状——T3
     诚实边界。
 
+## 数据锁定与信道容量（v0.2.0 新增，2026-09-08 检索核实）
+
+19. **DiVincenzo, Horodecki, Leung, Smolin, Terhal & Wootters,
+    "Quantum Data Locking", IEEE Trans. Inf. Theory 48(3):569–578 (2004)**
+    （companion PRL 92, 067902 (2004)；arXiv:quant-ph/0101211）。[ref]
+    数据锁定开创：发送微小钥匙前可达信息 ~0、之后跳到全部 n 比特。
+    行内常缩写 DLW04——作者实为六人，本仓库按全名单引用（IEEE 收录
+    页 + APS PRL 页双源核实）。
+20. **Hayden, Leung, Shor & Winter, "Randomizing quantum states:
+    constructions and applications", Commun. Math. Phys. 250(2):371–391
+    (2004), arXiv:quant-ph/0307104.** [ref]（Springer DOI 页 + arXiv 摘要
+    页双源核实）随机正交基族 ε-randomize：~d·log d 个幺正即可，而完美
+    随机化需 d²——T6 构造（随机基锁定）与钥匙预算讨论的直接锚点。
+21. **Guha, Hayden, Krovi, Lloyd, Lupo, Shapiro, Takeoka & Wilde,
+    "Quantum enigma machines and the locking capacity of a quantum
+    channel", Phys. Rev. X 4, 011016 (2014), arXiv:1307.5368.** [ref]
+    （APS DOI 页 + arXiv 摘要页双源核实）信道锁定容量定义、可达信息
+    安全准则、FHS 式常数钥匙协议——T6 的渐近方向锚点。
+22. **Winter, "Weak locking capacity of quantum channels can be much
+    larger than private capacity", J. Cryptol. 30(1):1–21 (2017),
+    arXiv:1403.6361.** [ref]（Springer 收录页 + arXiv 摘要页双源核实）
+    弱锁定容量可远大于私有能力——同时是 T6 诚实边界的引用：可达信息
+    安全弱于可组合隐私。
+23. **2023–2026 扫描（如实记录）**：arXiv:2302.04236、arXiv:2401.12861、
+    arXiv:2407.20396、arXiv:2504.17240 等近文均在**应用/引用**锁定容量
+    框架（纠缠辅助安全证明、量子流密码），未见替代 DLW04/HLSW04/Guha
+    基础线的新定理；量子机制设计侧同样无 2023–2026 新激励定理（检索
+    2026-09-08）——本仓库定位陈述维持。
+
 ## 检索工具记录
 
 - arXiv abs 页 ×2（0704.0800 全摘要；2311.12444 摘要）；
 - APS/INFORMS/JSTOR/ScienceDirect/Semantic Scholar 收录页若干；
 - 检索日期 2026-09-05；无一条引用是凭记忆写入的。
+- v0.2.0 增补（2026-09-08）：arXiv abs 页 quant-ph/0307104、1307.5368、
+  1403.6361、2311.12444（citation_author 核对）；IEEE/APS/Springer
+  收录页交叉；2023–2026 数据锁定与量子机制设计文献扫描（WebSearch
+  多轮）；同样无一条凭记忆写入。
 
 ## 与先行工作的差异声明（诚实定位）
 

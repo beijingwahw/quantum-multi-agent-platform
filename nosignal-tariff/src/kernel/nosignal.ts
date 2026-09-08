@@ -115,6 +115,39 @@ export function randomBCPTP(seed: number, envDim: number): (r: CMat) => CMat {
   return (r: CMat): CMat => partialTrace(mMul(mMul(embed, r), mDagger(embed)), [2, 2, envDim], [2]);
 }
 
+/**
+ * The tetrahedral SIC family (v0.2.0, the census's fifth payer): four axes at
+ * the vertices of a Bloch-sphere tetrahedron, pairwise n_i . n_j = -1/3, i.e.
+ * |<psi_i|psi_j>|^2 = (1 + n_i.n_j)/2 = 1/3. For a qubit the COMPLETE
+ * mutually-unbiased set is exactly {X, Y, Z} (d+1 = 3 — there are no further
+ * MUB axes to add), so the beyond-Pauli symmetric family is the SIC
+ * tetrahedron, not "more MUBs" — the honest family choice, and it pays the
+ * same zero: A's choice among tetrahedral settings still cannot move B.
+ */
+export const TETRAHEDRAL_AXES: ReadonlyArray<readonly [number, number, number]> = (() => {
+  const s3 = 1 / Math.sqrt(3);
+  return [
+    [s3, s3, s3],
+    [s3, -s3, -s3],
+    [-s3, s3, -s3],
+    [-s3, -s3, s3],
+  ];
+})();
+
+/** Largest deviation of the family's defining structure from exact values (diagnostic). */
+export function tetraStructureDeviation(): number {
+  let worst = 0;
+  for (let i = 0; i < TETRAHEDRAL_AXES.length; i++) {
+    for (let j = i + 1; j < TETRAHEDRAL_AXES.length; j++) {
+      const a = TETRAHEDRAL_AXES[i]!;
+      const b = TETRAHEDRAL_AXES[j]!;
+      const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      worst = Math.max(worst, Math.abs(dot - (-1 / 3)), Math.abs((1 + dot) / 2 - 1 / 3));
+    }
+  }
+  return worst;
+}
+
 // --- C2: the order register --------------------------------------------------
 
 export function orderBlindnessMax(): number {

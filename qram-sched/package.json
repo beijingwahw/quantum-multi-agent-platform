@@ -1,6 +1,6 @@
 {
   "name": "qram-sched",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Machine verification of the theorem layer behind qRAM-accelerated online scheduling: bucket-brigade qRAM addressing exactness with O(log N) error exposure (vs O(N) fanout), Szegedy quantum-walk quadratic detection on scheduling search chains (exact walk simulation vs fundamental-matrix classical hitting vs closed forms), exact QPE amplitude estimation enforcing the 1/eps vs 1/eps^2 precision law, and the regret/query-ledger separation: stochastic replay streams move exploration from the regret ledger to the quantum-query ledger, adversarial streams keep the Omega(sqrt(kT)) wall (bit-identical decisions), and online-matching competitive ratios (1/2, 1-1/e) are information-theoretic caps quantum search cannot touch — only per-arrival query counts drop from O(n) to O(sqrt n)",
   "type": "module",
   "engines": {
@@ -16,6 +16,7 @@
     "exp:ae": "tsx src/experiments/exp3-ae.ts",
     "exp:regret": "tsx src/experiments/exp4-regret.ts",
     "exp:matching": "tsx src/experiments/exp5-matching.ts",
+    "exp:kvv": "tsx src/experiments/exp6-kvv.ts",
     "lint": "eslint ."
   },
   "keywords": [

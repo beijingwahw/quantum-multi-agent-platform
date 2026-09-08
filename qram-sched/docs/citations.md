@@ -52,6 +52,37 @@ Two memory errors were caught and corrected during verification (marked *).
 - B. E. Birnbaum, C. Mathieu, "On-line Bipartite Matching Made Simple",
   SIGACT News 2008. https://cs.brown.edu/people/claire/Publis/sigactnews08.pdf
 
+## v0.2.0 additions (web-verified 2026-09-08, two independent sources each)
+
+- U. Feige, "Tighter bounds for online bipartite matching", arXiv:1812.11774
+  (December 2018). https://arxiv.org/abs/1812.11774
+  (verified on arXiv and via DBLP/ResearchGate indexes). THE source executed in
+  EXP6 and src/online/kv-tight.ts: Section 1.1 defines the distribution D_n and
+  its representative MonotoneG (arrival u_j adjacent to the suffix {v_j..v_n});
+  Theorems 6/14 and Corollary 21 give E[RANKING on D_n] =
+  ((n+1)! - d(n+1) - d(n)) / n! = (1-1/e)n + 1 - 2/e + O(1/n!) with the table
+  a(1..7) = 1, 3, 13, 67, 411, 2921, 23633 — every one of these numbers is
+  reproduced bit-exactly in-repo; Section 1 carries the deterministic greedy
+  1/2 adversary sketch (phase 1 over all workers, phase 2 over the matched
+  set) and KVV's Lemma 13 (all greedy algorithms equal on D_n), which the
+  subset-DP/formula agreement machine-confirms.
+- S. Jaques, A. G. Rattew, "QRAM: A Survey and Critique", Quantum 9, 1922
+  (2025), DOI 10.22331/q-2025-12-02-1922; preprint arXiv:2305.10310 (2023).
+  https://arxiv.org/abs/2305.10310 ,
+  https://quantum-journal.org/papers/q-2025-12-02-1922/
+  (verified on arXiv and on the Quantum journal site). Source of the
+  insertion-cost/active-vs-passive charging philosophy behind EXP1-D: qRAM
+  calls must be metered at the memory's own cost, and one-shot data loading
+  rarely amortizes. Our census uses only this repo's own bucket-brigade
+  activation ledgers for the concrete numbers.
+- Search-sweep context (2023-2026, positioning only, nothing executed):
+  randomized k-server conjecture refuted (Bubeck-Coister-Rabani, STOC 2023);
+  the quantum-online competitive-ratio line remains the Khadiev et al.
+  request-answer/automata program (arXiv:1709.08409 and follow-ups); no
+  2023-2026 paper was found that machine-executes KVV tight instances or the
+  regret/query-ledger separation — the v0.1.0 positioning claim survives the
+  sweep.
+
 ## Quantum bandits / quantum online prior art (positioning)
 
 - * Positioning correction: quantum bandit results EXIST in the literature —

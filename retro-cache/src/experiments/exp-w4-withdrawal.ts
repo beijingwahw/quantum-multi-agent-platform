@@ -25,7 +25,7 @@ function main(): void {
 
   lines.push("## Boundary\n");
   lines.push(
-    "This ledger prices RECONCILIATION and the settings tariff only. Privacy amplification against an adversary (the security layer that turns these numbers into a secret-key rate) is NOT executed here — that requires adversarial machinery this repo deliberately excludes. The pre-arrival zero-information column is the no-signaling face (GRW80, cited); the joint-column surplus is the Tsirelson face (TSIR80, cited).\n",
+    "This ledger prices RECONCILIATION and the settings tariff only. Privacy amplification against an adversary — the security layer that turns these numbers into a secret-key rate — is executed since v0.2.0 at BB84-grade toy scale in W5 (out/reports/w5-amplification.md): explicit universal-2 family, measured Eve-surviving information, key-rate curve with honest gap accounting; the composable/Shor-Preskill layer remains deliberately unclaimed. The pre-arrival zero-information column is the no-signaling face (GRW80, cited); the joint-column surplus is the Tsirelson face (TSIR80, cited).\n",
   );
 
   const path = writeReport("w4-withdrawal.md", lines.join("\n"));

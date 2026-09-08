@@ -7,7 +7,7 @@ import { Rng } from "../core/rng.js";
 import { fitSlope, fmt, table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# EXP5 — online matching: ratio caps (information) vs query counts (compute)");
   lines.push("");
@@ -44,7 +44,8 @@ function main(): void {
   lines.push(
     "Deterministic greedy with lowest-index ties sits exactly at 1/2 on the cascade (machine-verified); uniform " +
       "ties and RANKING sit at 3/4 on this family. The worst-case caps (greedy 1/2, RANKING 1 - 1/e, KVV 1990 " +
-      "optimal among randomized) are cited theorems; the exact tight recursive instance is not reproduced here.",
+      "optimal among randomized) are cited theorems — and since v0.2.0 the KVV tight instances themselves are " +
+      "executed in EXP6 (caps met exactly on D_n and the deterministic phase adversary).",
   );
   lines.push("");
 
@@ -133,9 +134,11 @@ function main(): void {
   lines.push("");
   lines.push(
     "- The 1 - 1/e tightness of RANKING and the 1/2 tightness of greedy are cited theorems (KVV 1990; Birnbaum-" +
-      "Mathieu 2008 survey; Devanur-Jain-Kleinberg 2013 primal-dual proof); this repository machine-verifies the " +
-      "cascade 1/2, the 3/4 family, ordering, and floors — not the tight instances.\n" +
-      "- Durr-Hoyer search is bounded-error; disagreement counts are reported per bank, never assumed zero.\n" +
+      "Mathieu 2008 survey; Devanur-Jain-Kleinberg 2013 primal-dual proof); this bank machine-verifies the " +
+      "cascade 1/2, the 3/4 family, ordering, and floors — the tight instances themselves are EXECUTED in EXP6 " +
+      "(v0.2.0: Feige arXiv:1812.11774 construction, exact values).\n" +
+      "- Durr-Hoyer search is bounded-error; disagreement counts are reported per bank, never assumed zero " +
+      "(v0.2.0: RANKING's counter is honestly maintained against the exact-argmin referee).\n" +
       "- Query ledgers count oracle reads of the score/neighbor table (the qRAM-accessible data); pointer chasing, " +
       "routing, and measurement overheads are outside this ledger.",
   );

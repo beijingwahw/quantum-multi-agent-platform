@@ -4,16 +4,16 @@
 
 ## Census
 
-- batches: 75
-- errors: 450
+- batches: 76
+- errors: 476
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
 | dtc-clock | 18 | 100 |
+| burial-record | 5 | 71 |
 | mutant-census | 13 | 63 |
-| burial-record | 4 | 45 |
 | stable-world | 5 | 39 |
 | nonstoq-anneal | 4 | 22 |
 | ds_extracted/ds | 3 | 21 |
@@ -43,14 +43,14 @@
 
 | category | errors |
 | --- | --- |
-| process | 157 |
-| toolchain | 64 |
-| wrong-object | 61 |
+| process | 163 |
+| toolchain | 71 |
+| wrong-object | 64 |
+| statistics | 39 |
 | machine-overruled | 36 |
-| statistics | 33 |
 | dimension-slot | 31 |
-| conjugation | 24 |
-| citation-drift | 17 |
+| conjugation | 25 |
+| citation-drift | 20 |
 | anchor-blindspot | 16 |
 | bogus-comparison | 11 |
 
@@ -1106,15 +1106,49 @@
 | two lint convictions in postselect-sched | both fixed in the same edit — the lint gate convicted them | toolchain |
 | [latent from v0.1.0] `npm run repro` was a silent no-op: run-all imported the exp modules and the entry guard suppressed their mains — the repro gate had never actually executed; exit 0 was fake green (the same family as the CI fake green: exit 0 is not 'ran') | run-all calls the exported mains explicitly and the README's boundary 9 records the defect — a recurrence that removes the calls removes the needle the enrollment holds | toolchain |
 
+### Batch 76 — burial-record (2026-09-08)
+
+- context: the third four-repo delivery wave's registry wiring (qram-sched 0.1.0->0.2.0, quantum-mech 0.1.0->0.2.0, retro-cache 0.1.0->0.2.0, nosignal-tariff 0.1.0->0.2.0 — four gates green in each) plus this wiring visit's own switch-sched repro repair: twenty-six delivery errors across six classes, born enrolled and born audited on both boards — five of them latent defects (three silent repro no-ops, two citation-author tables) that survived their own gates and died at sibling cross-checks and the wave's own audit
+- source: `memory/2026-09-08.md` @ "关键经验（第七十六批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| qram-sched's dummyRng scratch called require() inside the ESM tree — rewritten to an import on the spot before any run (the b74#9 twin, one wave later) | CommonJS idioms never enter an ESM tree: require() is a loader death the moment it lands — dynamic import() is the only lazy form; the act face is pre-machine, the landing face is typecheck's | toolchain |
+| the KVV ranking expectation converted BigInt factorials through Number at n >= 256 — the double overflow turned the expectation into NaN | BigInt division with 18 kept digits: the ratio is computed exactly in BigInt first and only the scaled integer crosses to double — factorials overflow double precision beyond n ~ 18, the derangement route stays BigInt-exact end to end | statistics |
+| the quantum-vs-classical census let the degenerate on-grid point p = 0.5 set the QAE requirement — p = 0.5 sits exactly on the phase grid for every m (the degenerate BEST case), so the requirement was set by the wrong population | the worst OFF-grid bank sets the requirement: the p = 1/2 degenerate point is excluded and the smallest m is chosen against the worst median error of the off-grid bank — a census names its population (the claim-object law) | wrong-object |
+| a failed edit left dead scaffolding in qram-sched's tree — the residue survived the abandonment and was caught only at the rewrite | an interruption is residue unless closed: dead-but-parseable scaffolding ships no gate conviction in this tree — the rewrite removed it and the reread is the check | process |
+| [latent from v0.1.0] qram-sched's `npm run repro` was a DESTRUCTIVE silent no-op: run-all imported the exp modules, the entry guards suppressed their mains, and the runner had already wiped out/reports — exit 0 with zero reports re-rendered, the fake-green family's worst subspecies (exit 0 is not 'ran' AND the artifacts are gone) | v0.2.0 fix: run-all imports each experiment's EXPORTED main() and calls it directly — six reports re-render in 25.7s and the runner refuses to exit 0 unless every experiment rendered; the defect is documented at the run-all head and the README boundary | toolchain |
+| averageRhoDefect compared the locked ensemble's mean against the full identity I instead of I/d — the referee measured the wrong object and the construction looked broken at every d | each key is a complete basis, so the mean is exactly I/d — the defect referee asserts max deviation from I/d at 1e-12 for every d, and the locked-ensembles test holds it | wrong-object |
+| traceProd carried a sign bug — the im-im product entered with a minus where Tr[AB] for Hermitian a, b sums BOTH products with plus | the formula is pinned in the kernel: Tr[AB] = Σ_ij a_ij conj(b_ij), real by construction — the PGM conditionals and the accessible-information bracket ride it | conjugation |
+| the prose numbers were written BEFORE the run — the fake-number family attempted: the draft narrated values the machine had not produced yet, and the run's numbers replaced them on the self-check (witness-before-prose inverted, the b12#7/b21#3 line) | the run leads the pen: values enter prose only after the machine prints them — the attempt was caught before shipping, the shipped numbers are the run's | process |
+| an edit destroyed quantum-mech's theory.md referee section — the conflation ate the section wholesale and the restore came from the backup | docs are evidence: the referee section was restored from the backup and re-anchored — a docs face no scheduled gate reads today | process |
+| one heredoc append was used in the quantum-mech delivery — the banned channel, discipline breach (the family's wrong-text sightings grep to 17 in-registry, counted before enrolling; the canonical channel lineage counts this its thirteenth) | code and docs go through the Write/Edit tools, no content-based exceptions — the act face is ungated by construction, a damaged file dies at the loader/typecheck the moment it lands (the b47#1 twin) | toolchain |
+| two post-hoc lint/typecheck convictions in quantum-mech — residue found after the fact | both closed in the same edit — the lint and typecheck gates convicted them | toolchain |
+| [latent citation defect from v0.1.0] arXiv:2311.12444 was attributed to 'Wolitzky et al.' — the authors are Rubinstein & Zhou (the identifier family's fifth registered sighting: b55#3, b56#9, b74#5, b75#7 the four in-registry before this batch, grepped before enrolling) | Rubinstein & Zhou, 'Quantum Communication Complexity of Classical Auctions', ITCS 2025 / arXiv:2311.12444 — the v0.2.0 erratum names the wrong attribution and the corrected entry is pinned in citations.md with the double-source record | citation-drift |
+| [latent citation defect from v0.1.0] DLW04's author table carried three names — the paper has six (DiVincenzo, Horodecki, Leung, Smolin, Terhal & Wootters); the same family one row after its fifth sighting, consecutive | the entry cites all six authors with the in-line abbreviation noted as DLW04 convention — the full roster is pinned on disk in citations.md against the publisher's record | citation-drift |
+| retro-cache's gf2Rank shipped as an unimplemented placeholder — the sparse-profile rank formula had no machine behind it | implemented and anchored: the rank formula matches brute-force Gaussian elimination on the sparse families and the toy-field universal-2 census is exact — both asserted in the W5 suite | process |
+| the crossing-tap algebra was wrong — the depreciation crossing's closed form disagreed with the two-route table | the crossing is exact: the tap at which the attacked CHSH sinks to the classical census cap is asserted against its closed form with |S| = 2 at the crossing to machine precision, both directions | statistics |
+| the attacked CHSH carried a sign error — the table and the closed form disagreed where they had to agree | CHSH under intercept-resend is asserted two-route (table vs closed) with the zero-tap limit reproducing the honest ledger exactly — the sign face is pinned at the endpoints | statistics |
+| the settings-mutation mixing rate was wrong — the mutated round's cross-basis retention entered at the wrong weight | the mixture keeps a cross-basis pair at the stated rate against the flat table — settings mutation is asserted with strictly positive tax and exactly zero gain, two-route QBER | statistics |
+| two retro-cache test assertions were fake claims — tests asserting faces the machine never checks; rewritten to assert what is actually computed | the rewritten tests assert the real two-route values and the census laws — a test that asserts nothing real is worse than no test; the suite holds them on every run | process |
+| two retro-cache DOIs shipped unverified — one was wrong and corrected, the other stood but carried no verification record | both entries now carry the double-source verification record (the SIAM publisher page plus INSPIRE for one, the ACM DL record plus the journal extension for the other) — a DOI without a verification record does not ship | citation-drift |
+| [latent from v0.1.0] retro-cache's `npm run repro` was a silent no-op — run-all only imported the exp modules, the entry guards suppressed their mains, and the reports silently went stale (last real render 09-06); exit 0 fake green | v0.2.0 fix: each experiment runs as its own subprocess where the module IS the process entry and the guard fires — mtime-verified re-render of all six reports | toolchain |
+| the LN2 tail enclosure's first draft was 2x too small — the interval would have excluded the true value; the cross-route overlap check caught it on the spot | the enclosure is tight and the reduction −ln(1/2) = ln2 closes on it — two derivations of the same transcendental must overlap, and the width is asserted against the quoted digits | statistics |
+| fToNumber turned wide rationals into NaN — BigInt limbs past 2^53 made the naive Number(n)/Number(d) an Infinity-over-Infinity NaN, caught on the rendered report's face | the double preview falls back to decimal long division when either limb overflows a double — certificates never see the preview, but the report must print finite numbers | statistics |
+| the inflection map's logic was inverted — it pushed the cells whose second difference IS certified positive, naming the healthy cells as the suspects | the map names every cell whose second difference is NOT certified positive (empty when the convexity face is clean) — the fake-inflection-table smuggling trial sits beside it | wrong-object |
+| two display truncations in nosignal-tariff were misleading — the printed digits hid the load-bearing differences; rewritten | display truncation follows the claim: where digits carry the verdict, the print shows them — the rendered table now carries the true margins | process |
+| one heredoc scratch was used in the nosignal-tariff delivery and deleted — the banned channel, discipline breach (the canonical lineage's fourteenth sighting; the thirteenth rides one row above in this same batch) | scratch files go through the Write tool, content-based exceptions do not exist — the deletion did not unmake the breach | toolchain |
+| [latent from switch-sched v0.2.0, this wave's first delivery] `npm run repro` was a silent no-op — run-all imported the exp modules and the entry guards suppressed their mains; exit 0 without a single report re-rendered (the family's fourth sighting alongside b75#18 and this batch's qram-sched and retro-cache rows; the family went systemic at the wave's third delivery batch, and a batch-7 full-workspace 29-repo audit is priced) | this wiring visit's Task A: run-all calls the exported mains directly and verifies all five rendered (mtime witness: every report re-stamped today) — the fix is documented at the run-all head and the README's boundary 7 | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..75 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (450 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 450 = repo sum 450)
-- PASS — W-4 declared totals 75 batches / 450 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (47 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (50 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..76 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (476 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 476 = repo sum 476)
+- PASS — W-4 declared totals 76 batches / 476 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (49 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (51 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 450 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 476 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

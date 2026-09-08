@@ -58,8 +58,26 @@ One write costs 6 routing activations (one per level) versus 64 for rewriting ev
 
 Exposure ratio fanout/bucket grows as 1.5 -> 2.3 -> 3.8 for n = 2, 3, 4: exactly 2^n/n, exponential in address length. Formula matches exhaustive enumeration to 1e-15 (bucket, n<=6) and (fanout, n<=4).
 
+## D. qRAM premise audit: the query tear under its own insertion cost
+
+Charging model (the bucket-brigade's OWN ledgers from sections A/B, in the spirit of Jaques-Rattew, arXiv:2305.10310 / Quantum 9, 1922 (2025)): one write = n_b routing-node activations; one qRAM query = n_b activations (it is NOT free hardware time); a classical array op = 1. Task: estimate one stream mean to median error <= eps. Quantum queries: the smallest phase register m whose exact QAE median error clears eps; classical samples: the Hoeffding count at failure budget 0.05 (the EXP4-B convention). The census asks when the metered quantum total (insert N·n_b + T·queries·n_b) undercuts the classical total (N + T·samples).
+
+| address bits n_b | cells N | eps | QAE m | queries | classical samples | insert cost (activations) | per-task quantum (activations) | break-even T* (tasks) | verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 6 | 64 | 0.05 | 5 | 31 | 738 | 384 | 186 | 1 | survives at T=1 |
+| 6 | 64 | 0.01 | 8 | 255 | 18445 | 384 | 1530 | 1 | survives at T=1 |
+| 10 | 1024 | 0.05 | 5 | 31 | 738 | 10240 | 310 | 22 | needs T >= 22 |
+| 10 | 1024 | 0.01 | 8 | 255 | 18445 | 10240 | 2550 | 1 | survives at T=1 |
+| 16 | 65536 | 0.05 | 5 | 31 | 738 | 1048576 | 496 | 4063 | needs T >= 4063 |
+| 16 | 65536 | 0.01 | 8 | 255 | 18445 | 1048576 | 4080 | 69 | needs T >= 69 |
+| 20 | 1048576 | 0.05 | 5 | 31 | 738 | 20971520 | 620 | 168839 | needs T >= 168839 |
+| 20 | 1048576 | 0.01 | 8 | 255 | 18445 | 20971520 | 5100 | 1493 | needs T >= 1493 |
+
+The honest hardware-metered reading: at eps = 0.01 one AE task buys ~3.6x-12x metered activations vs Hoeffding samples (the quadratic law, eroded by the n_b-per-query charge), so small memories (n_b <= 10) amortize their insertion instantly (T* = 1). But the insertion bill is N·n_b — at n_b = 20 a single load costs ~21M activations and the memory must be re-queried thousands of times before the metered tear opens. The QUERY-complexity separation (EXP3/EXP4) is untouched; what this census bounds is how far the premise can be pushed before Jaques-Rattew's opportunity-cost objection bites: qRAM speedups are amortized-insertion speedups, and one-shot estimation over huge memories does not pay for the hardware. (Stream tasks that repeatedly re-read the same loaded stream — the EXP4 replay scheduler — are exactly the T >> T* regime where the metered tear survives.)
+
 ## Honest boundaries
 
 - Routing failures are modeled as independent, flagged (detectable) per-active-node events. Coherent noise on stored amplitudes is strictly harder; see Arunachalam et al., New J. Phys. 17, 123010 (2015) for the robustness analysis of bucket-brigade qRAM.
 - The addressing unitary here is the effect-level model (block-diagonal rotation per cell). The physical tree circuit (trit routing nodes, prepare/erase cycles) is not simulated gate-by-gate.
 - No qRAM of this size exists on hardware today; this is the query model that EXP3/EXP4 condition on.
+- Section D's activation metering is bucket-brigade-specific (n_b activations per query/write) and ignores fault-tolerance, decoherence and hardware-opportunity costs — the full Jaques-Rattew critique is broader than this census; the numbers bound only the insertion-amortization question.

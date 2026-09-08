@@ -4,7 +4,7 @@
  * distributions and post-measurement states.
  */
 
-import { type CMat, mat, mMul, mDagger } from './cmat.js';
+import { type CMat, identity, kronAll, mat, mMul, mDagger } from './cmat.js';
 
 /** Subsystem dimensions must be positive integers — validated once at the
  * channel boundary, never per cell of the hot loops. */
@@ -88,6 +88,68 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
       out.re[keepRow * dOut + keepCol] = out.re[keepRow * dOut + keepCol]! + rho.re[row * dIn + col]!;
       out.im[keepRow * dOut + keepCol] = out.im[keepRow * dOut + keepCol]! + rho.im[row * dIn + col]!;
     }
+  }
+  return out;
+}
+
+/**
+ * Phase-flip channel on one qubit, parameter γ ∈ [0,1]: ρ → (1−γ)ρ + γ ZρZ.
+ * Diagonal populations are kept; off-diagonal coherences are multiplied by
+ * (1−2γ) — FULL dephasing sits at γ = ½ (not 1), and γ > ½ over-rotates the
+ * phase back. Census tables therefore live on γ ∈ [0, ½].
+ */
+export function phaseFlipKraus(gamma: number): CMat[] {
+  checkGamma('phaseFlipKraus', gamma);
+  const s0 = Math.sqrt(1 - gamma);
+  const s1 = Math.sqrt(gamma);
+  const k0 = mat(2, 2);
+  k0.re[0] = s0;
+  k0.re[3] = s0;
+  const k1 = mat(2, 2);
+  k1.re[0] = s1;
+  k1.re[3] = -s1;
+  return [k0, k1];
+}
+
+/**
+ * Amplitude damping channel on one qubit, parameter γ ∈ [0,1]:
+ * |1⟩ decays toward |0⟩ with probability γ (non-unital). Kraus form
+ * K0 = diag(1, √(1−γ)), K1 = [[0, √γ], [0, 0]].
+ */
+export function amplitudeDampKraus(gamma: number): CMat[] {
+  checkGamma('amplitudeDampKraus', gamma);
+  const k0 = mat(2, 2);
+  k0.re[0] = 1;
+  k0.re[3] = Math.sqrt(1 - gamma);
+  const k1 = mat(2, 2);
+  k1.re[1] = Math.sqrt(gamma);
+  return [k0, k1];
+}
+
+function checkGamma(fn: string, gamma: number): void {
+  if (!Number.isFinite(gamma) || gamma < 0 || gamma > 1) {
+    throw new Error(`${fn}: gamma must lie in [0,1], got ${gamma}`);
+  }
+}
+
+/**
+ * Apply a single-qubit Kraus channel independently to every qubit of an
+ * m-qubit register (dims [2]*m). The register-level map is CPTP and
+ * identical on each qubit position — the "channel noise everywhere" model
+ * for the erasure-boundary census.
+ */
+export function applyQubitChannel(rho: CMat, m: number, kraus: readonly CMat[]): CMat {
+  if (m < 1) throw new Error('applyQubitChannel: need at least one qubit');
+  let out = rho;
+  for (let q = 0; q < m; q++) {
+    const ops: CMat[] = [];
+    for (const k of kraus) {
+      // kron list: identities left of qubit q, the Kraus op on q, identities right
+      const parts: CMat[] = [];
+      for (let i = 0; i < m; i++) parts.push(i === q ? k : identity(2));
+      ops.push(kronAll(parts));
+    }
+    out = applyKraus(out, ops);
   }
   return out;
 }

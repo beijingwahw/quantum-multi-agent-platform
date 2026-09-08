@@ -7,7 +7,8 @@ import { BucketBrigadeQram } from "../qram/bucket.js";
 import { encodeUniformStream, monteCarloMean, streamMean } from "../qram/stream.js";
 import { Rng } from "../core/rng.js";
 import { fitSlope, fmt, table, writeReport } from "./report.js";
-function main() {
+import { pathToFileURL } from "node:url";
+export function main() {
     const lines = [];
     lines.push("# EXP3 — amplitude estimation: quadratic precision law on encoded task streams");
     lines.push("");
@@ -133,4 +134,7 @@ function main() {
     const file = writeReport("exp3-ae.md", lines.join("\n") + "\n");
     console.log(`exp3 written: ${file}`);
 }
-main();
+// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+    main();
+}

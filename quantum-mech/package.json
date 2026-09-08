@@ -1,6 +1,6 @@
 {
   "name": "quantum-mech",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Quantum mechanism design prototype: which incentive properties (DSIC) survive quantizing the communication channel, what quantization actually buys (no-cloning bid privacy via Wiesner locking, entanglement collateral via monogamy), and where it provably breaks (bit-commitment no-go, approximate solvers inside VCG)",
   "type": "module",
   "engines": {
@@ -16,6 +16,8 @@
     "exp:escrow": "tsx src/experiments/exp3-escrow.ts",
     "exp:nogo": "tsx src/experiments/exp4-nogo.ts",
     "exp:vcg": "tsx src/experiments/exp5-vcg.ts",
+    "exp:datalock": "tsx src/experiments/exp6-datalock.ts",
+    "exp:erasure": "tsx src/experiments/exp7-erasure.ts",
     "lint": "eslint ."
   },
   "keywords": [
@@ -26,6 +28,8 @@
     "quantum-auction",
     "no-cloning",
     "wiesner-locking",
+    "data-locking",
+    "accessible-information",
     "monogamy-of-entanglement",
     "bit-commitment-nogo",
     "density-matrix-simulation"

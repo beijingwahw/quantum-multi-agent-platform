@@ -119,6 +119,40 @@ test("walk: barbell — the honest negative is a stable finding (envelope peak l
   }
 });
 
+test("walk: barbell CHAIN family — the negative persists with more bottlenecks in series", () => {
+  // v0.2.0 census extension: k K_m cliques joined by single bridges; the
+  // envelope-peak-later-than-classical negative must hold across chain lengths
+  // (machine data either way was the deliverable; this is the negative side).
+  const chainAdj = (k: number, m: number): number[][] => {
+    const n = k * m;
+    const adj: number[][] = Array.from({ length: n }, () => []);
+    for (let c = 0; c < k; c++) {
+      for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) if (i !== j) (adj[c * m + i] as number[]).push(c * m + j);
+    }
+    for (let c = 0; c + 1 < k; c++) {
+      (adj[c * m] as number[]).push((c + 1) * m);
+      (adj[(c + 1) * m] as number[]).push(c * m);
+    }
+    return adj;
+  };
+  for (const [k, m] of [
+    [3, 8],
+    [4, 8],
+  ] as const) {
+    const n = k * m;
+    const lazy = lazyChain(chainFromGraph(chainAdj(k, m)));
+    const muStat = new Float64Array(n).fill(1 / n);
+    const ct = hittingTime(n, chainMatrix(lazy), new Set([n - 1]), muStat);
+    const walk = new SzegedyWalk(lazy, [n - 1]);
+    const { curve } = walk.detectionCurve(muStat, 300 * m);
+    let peak = -1;
+    let kp = 0;
+    for (let t = 0; t < curve.length; t++) if ((curve[t] as number) > peak) { peak = curve[t] as number; kp = t + 1; }
+    assert.ok(peak > 0.35, `k=${k}: peak ${peak}`);
+    assert.ok(kp > ct, `k=${k}: envelope peak ${kp} not later than classical ${ct}`);
+  }
+});
+
 test("walk: initial state norm and marked mass sanity", () => {
   const lazy = lazyChain(chainFromGraph(completeGraph(8)));
   const walk = new SzegedyWalk(lazy, [3]);

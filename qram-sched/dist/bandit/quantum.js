@@ -46,7 +46,7 @@ export function quantumReplayRun(means, horizon, seed, mStart = 3, mMax = 13, mS
     const rng = new Rng(seed);
     const best = Math.max(...means);
     let queries = 0;
-    let estimates = new Array(k).fill(0.5);
+    let estimates;
     let committed = 0;
     let rounds = 0;
     for (let m = mStart; m <= mMax; m += mStep) {

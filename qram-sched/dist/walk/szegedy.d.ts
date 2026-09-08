@@ -26,11 +26,11 @@
 export interface Chain {
     readonly n: number;
     /** Sparse row-stochastic transitions: neighbors[i] distinct, probs[i] row-stochastic. */
-    readonly neighbors: readonly (readonly number[])[];
-    readonly probs: readonly (readonly number[])[];
+    readonly neighbors: ReadonlyArray<readonly number[]>;
+    readonly probs: ReadonlyArray<readonly number[]>;
 }
 /** Uniform chain over an undirected adjacency structure (no self-loops added). */
-export declare function chainFromGraph(adj: readonly (readonly number[])[]): Chain;
+export declare function chainFromGraph(adj: ReadonlyArray<readonly number[]>): Chain;
 /** Lazy version P' = (P + I)/2: self-loop weight 1/2 + p(x|x)/2, all other probabilities halved. */
 export declare function lazyChain(c: Chain): Chain;
 /** Dense row-major matrix of the chain (for LU / Jacobi referees). */

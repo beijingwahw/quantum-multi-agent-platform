@@ -46,3 +46,14 @@ Marked set = welfare within 0.5% of OPT (a single near-optimal assignment in the
 
 Two regimes, both reported: an early transient brushes the 0.25 threshold within a few steps (probabilities 0.26-0.50, not a reliable detection guarantee), while the detection ENVELOPE peaks at 729/3264/9442 — an order of magnitude LATER than the classical hitting times 98/330/1177. On bottleneck graphs this operator class loses outright: Szegedy's quadratic-detection guarantee is stated for the absorbing-chain quantization with MNRS phase schedules, and naive single-operator marked-flip walks are documented to forfeit speedups on bottlenecks. Reported as-is: walk speedups on scheduling chains are instance-structural, not universal — the honest scope of the EXP2-C claim. (Detection-time conventions matter: single-threshold first-crossing is transient-contaminated here; we report the envelope peak.)
 
+## D'. Barbell family census: chains of k K_m cliques, k single bridges in series
+
+| cliques k | clique m | n | classical HT (stationary start) | envelope peak at step | peak p | peak/HT |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 | 8 | 16 | 98.0 | 729 | 0.7056 | 7.4 |
+| 3 | 8 | 24 | 261.3 | 1941 | 0.5398 | 7.4 |
+| 4 | 8 | 32 | 501.9 | 1435 | 0.4564 | 2.9 |
+| 3 | 16 | 48 | 953.6 | 2821 | 0.4802 | 3.0 |
+
+Extending the bottleneck census (v0.2.0): with bridges added in series the negative HOLDS — the envelope peak stays beyond the classical hitting time at every chain length probed (peak/HT > 1 throughout). The naive marked-flip walk operator loses on the whole bottleneck family, not only the two-clique barbell. The priced deliverable was machine data either way; this side of it is negative, and it is reported as negative.
+

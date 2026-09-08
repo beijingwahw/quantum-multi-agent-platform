@@ -1,7 +1,7 @@
 {
   "name": "nosignal-tariff",
-  "version": "0.1.0",
-  "description": "The no-signaling tariff, itemized on one page. The letter's last clause — 'the no-signaling tariff, recorded item by item' — priced the tax only at three operating points inside retro-cache. This repo completes the itemization: three correlator resources pay the same tax through one checker (the cache's marginal across 24 axes under local unitaries and Stinespring CPTP; the order register's input-blind bit; the HJW ensembles' unreadable commitment — each zero verified at the rounding floor), and the cache's withdrawal ships as a full machine-executed schedule: net(p) = (1 - h2((1-p)/2))/2 with exact anchors (0 at the seed floor, 0.094360938, 0.5), a strictly monotone grid, and the binary entropy re-derived by closed form AND Taylor series on two independent paths. The checker enforces the customs laws — an item without a price, an unwitnessed zero ('marketing'), or a dead anchor all fail the build.",
+  "version": "0.2.0",
+  "description": "The no-signaling tariff, itemized on one page. The letter's last clause — 'the no-signaling tariff, recorded item by item' — priced the tax only at three operating points inside retro-cache. This repo completes the itemization: three correlator resources pay the same tax through one checker (the cache's marginal across 24 axes plus the tetrahedral SIC family, under local unitaries and Stinespring CPTP; the order register's input-blind bit; the HJW ensembles' unreadable commitment — each zero verified at the rounding floor), and the cache's withdrawal ships as a full machine-executed schedule: net(p) = (1 - h2((1-p)/2))/2 with exact anchors, the binary entropy re-derived by closed form AND Taylor series on two independent paths — and, since v0.2.0, the interior promoted from data to theorem: monotonicity certified as exact BigInt rational interval comparisons on the grid family (upper(net(p_i)) < lower(net(p_{i+1})) on both h2 paths, rigorous series tails for ln, min gap 0.000902060478 against enclosure widths of 9e-22), grid convexity as exact data with the no-inflection analytic candidate carried as a named citation verified pointwise. The checker enforces the customs laws — an item without a price, an unwitnessed zero ('marketing'), a dead anchor, or a counterfeit monotonicity/convexity certificate all fail the build.",
   "type": "module",
   "engines": {
     "node": ">=22.11.0"
@@ -17,7 +17,8 @@
     "tariff-schedule",
     "correlator-not-oracle",
     "zero-leakage-witnessed",
-    "h2-two-path"
+    "h2-two-path",
+    "interior-theorem-exact-intervals"
   ],
   "license": "MIT",
   "devDependencies": {

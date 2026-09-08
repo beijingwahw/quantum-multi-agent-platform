@@ -134,7 +134,7 @@ function mAddMat(a: CMat, b: CMat): CMat {
   return m;
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   tpCheck(allocKraus(), 'alloc');
   tpCheck(execKraus(0.5), 'exec(0.5)');

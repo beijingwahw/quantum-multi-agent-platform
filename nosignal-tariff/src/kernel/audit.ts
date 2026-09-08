@@ -16,14 +16,21 @@
  *   W-B order-bit blindness (pairs x inputs);
  *   W-C HJW ensemble equivalence (Z/X/Y pairwise TV, avg = I/2);
  *   W-D the withdrawal schedule (anchors exact, grid monotone, values match);
- *   W-E h2 two-path (closed form vs Taylor series, open grid).
+ *   W-E h2 two-path (closed form vs Taylor series, open grid);
+ *   W-F the interior theorem (monotonicity as an exact machine certificate);
+ *   W-G the convexity face (grid second differences + the citation formula);
+ *   W-H the tetrahedral SIC census (the fifth payer, floor unchanged).
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { type CMat, identity, mScale } from "../core/cmat.js";
 import { traceDistance } from "../core/measures.js";
+import { F_ZERO, fCmp, fDecimal, fToNumber, frDec } from "./rational.js";
+import { convexityCertificate, monoCertificate } from "./theorem.js";
 import {
   SINGLET,
+  TETRAHEDRAL_AXES,
+  tetraStructureDeviation,
   cacheLeakage,
   randomBUnitary,
   randomBCPTP,
@@ -39,6 +46,13 @@ import {
   QUOTED_NET_P05,
   QUOTED_NET_P1,
   QUOTED_H2_GRID_MAXDEV,
+  QUOTED_MONO_GRID_N,
+  QUOTED_MONO_MIN_GAP,
+  QUOTED_MONO_MAX_WIDTH,
+  QUOTED_CONVEX_MIN_DD,
+  QUOTED_DERIV_MAX_DIST,
+  QUOTED_SECOND_DERIV_MAX_DIST,
+  QUOTED_SIC_LEAK,
   type TariffRow,
 } from "./ledger.js";
 
@@ -58,7 +72,7 @@ export interface Violation {
  */
 export type UntrustedTariffRow = Omit<TariffRow, "exactness"> & { readonly exactness: string };
 
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E"];
+const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"];
 
 export function checkTariff(rows: readonly UntrustedTariffRow[] = TARIFF): Violation[] {
   const violations: Violation[] = [];
@@ -198,5 +212,77 @@ function witnessH2TwoPath(): WitnessResult {
 }
 
 export function runWitnesses(): WitnessResult[] {
-  return [witnessCacheLeak(), witnessOrderBlind(), witnessHjw(), witnessSchedule(), witnessH2TwoPath()];
+  return [
+    witnessCacheLeak(),
+    witnessOrderBlind(),
+    witnessHjw(),
+    witnessSchedule(),
+    witnessH2TwoPath(),
+    witnessMonotonicity(),
+    witnessConvexity(),
+    witnessSicCensus(),
+  ];
+}
+
+// --- W-F/W-G: the interior theorem (exact rational certificates) -----------------------------
+
+function witnessMonotonicity(): WitnessResult {
+  const c = monoCertificate();
+  const quotedMinGap = frDec(QUOTED_MONO_MIN_GAP);
+  const quotedMaxWidth = frDec(QUOTED_MONO_MAX_WIDTH);
+  const minGap = c.closed.minGap ?? F_ZERO; // ok implies non-null; the quotes double-check
+  const ok =
+    c.ok &&
+    c.closed.ok &&
+    c.series.ok &&
+    c.crossOverlapAll &&
+    c.gaps.length === QUOTED_MONO_GRID_N &&
+    fCmp(minGap, quotedMinGap) >= 0 &&
+    fCmp(c.series.minGap ?? F_ZERO, quotedMinGap) >= 0 &&
+    fCmp(c.maxWidth, quotedMaxWidth) <= 0;
+  return {
+    name: "W-F interior monotonicity (exact interval certificate)",
+    pass: ok,
+    detail: `strictly increasing on p = i/${QUOTED_MONO_GRID_N}, both h2 paths; min gap ${fDecimal(minGap, 12)} (pair 0->1), widest enclosure ${fToNumber(c.maxWidth).toExponential(2)} (quote ${QUOTED_MONO_MAX_WIDTH}), cross-path overlap ${c.crossOverlapAll}`,
+  };
+}
+
+function witnessConvexity(): WitnessResult {
+  const c = convexityCertificate();
+  const ok =
+    c.ok &&
+    c.convex.ok &&
+    c.quotientsPositive &&
+    c.formulaPositive &&
+    c.secondFormulaPositive &&
+    c.inflectionCells.length === 0 &&
+    fCmp(c.minDD ?? F_ZERO, frDec(QUOTED_CONVEX_MIN_DD)) >= 0 &&
+    fCmp(c.derivMaxDist, frDec(QUOTED_DERIV_MAX_DIST)) <= 0 &&
+    fCmp(c.secondDerivMaxDist, frDec(QUOTED_SECOND_DERIV_MAX_DIST)) <= 0;
+  return {
+    name: "W-G convexity / inflection face",
+    pass: ok,
+    detail: `grid Delta^2 lower bounds all positive (min ${fDecimal(c.minDD ?? F_ZERO, 9)}), inflection cells named: ${c.inflectionCells.length === 0 ? "none" : c.inflectionCells.join(",")}; citation formula positive at every sample; agreement (data) actuals 1st ${fDecimal(c.derivMaxDist, 9)}, 2nd ${fDecimal(c.secondDerivMaxDist, 9)} vs quoted ceilings ${QUOTED_DERIV_MAX_DIST} / ${QUOTED_SECOND_DERIV_MAX_DIST} at h = 1/100`,
+  };
+}
+
+function witnessSicCensus(): WitnessResult {
+  let plain = 0;
+  let withU = 0;
+  let withC = 0;
+  for (const a of TETRAHEDRAL_AXES) {
+    for (const b of TETRAHEDRAL_AXES) {
+      plain = Math.max(plain, cacheLeakage(SINGLET, a, b));
+      withU = Math.max(withU, cacheLeakage(SINGLET, a, b, randomBUnitary(a[0] * 89 + 7)));
+      withC = Math.max(withC, cacheLeakage(SINGLET, a, b, randomBCPTP(a[1] * 113 + 3, 2)));
+    }
+  }
+  const structure = tetraStructureDeviation();
+  const worst = Math.max(plain, withU, withC);
+  const ok = worst <= QUOTED_SIC_LEAK && structure < 1e-15;
+  return {
+    name: "W-H tetrahedral SIC census (fifth payer)",
+    pass: ok,
+    detail: `plain ${plain.toExponential(3)}, unitary ${withU.toExponential(3)}, CPTP ${withC.toExponential(3)} over the 4-axis tetrahedron — floor ${QUOTED_SIC_LEAK.toExponential(2)}; structure dev |n.n'+1/3|, |overlap-1/3| ${structure.toExponential(3)}`,
+  };
 }

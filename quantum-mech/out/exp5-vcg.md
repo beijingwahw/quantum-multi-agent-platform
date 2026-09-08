@@ -10,9 +10,16 @@ DSIC violations found: 0/40 (want 0) — with the exact argmax, Groves payments 
 ## B. Perturbed allocator (optimum + d random swaps, Groves payments)
 | d (swaps) | instances with violations | max gain | worst welfare ratio | witness |
 | --- | --- | --- | --- | --- |
-| 1 | 18/40 | 5.000 | 0.250 | agent 0: [0,2,3] -> [0,0,0] |
-| 2 | 23/40 | 3.000 | 0.286 | agent 0: [0,3,2] -> [0,0,0] |
-| 3 | 28/40 | 4.000 | 0.286 | agent 0: [1,1,0] -> [0,0,0] |
+| 1 | 18/40 | 5.000 | 0.250 | agent 0: [0, 2, 3] -> [0, 0, 0] |
+| 2 | 23/40 | 3.000 | 0.286 | agent 0: [0, 3, 2] -> [0, 0, 0] |
+| 3 | 28/40 | 4.000 | 0.286 | agent 0: [1, 1, 0] -> [0, 0, 0] |
+
+## B2. Second solver family: greedy (agents take their best remaining task)
+| allocator | instances with violations | max gain | worst welfare ratio | witness |
+| --- | --- | --- | --- | --- |
+| greedy (index order) | 13/40 | 2.000 | 0.571 | agent 0: [3, 3, 2] -> [0, 0, 1] |
+
+The perturbation family degrades the optimum; greedy is a genuinely different failure mode — a plain heuristic with better worst welfare than 3 random swaps on this census but its own violation signature. Both die the same death: Groves payments computed from any non-argmax allocation are manipulable.
 
 ## C. Welfare vs incentive damage (d = 1)
 | instance (values) | alloc ratio | DSIC gain of best misreport | agent |

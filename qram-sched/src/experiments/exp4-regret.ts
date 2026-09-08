@@ -17,7 +17,7 @@ import { Rng } from "../core/rng.js";
 import { fmt, table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# EXP4 — regret vs query ledgers: where the quantum tear is, and where it is not");
   lines.push("");

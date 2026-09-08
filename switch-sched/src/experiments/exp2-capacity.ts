@@ -82,7 +82,7 @@ function row(r: PairResult): string {
   return `| ${r.name} | ${r.singleBoxT.toExponential(1)} | ${r.fixedAB.toFixed(6)} / ${r.fixedBA.toFixed(6)} | ${r.tControl.toFixed(6)} | ${r.tTarget.toFixed(6)} | ${r.tFull.toFixed(6)} | ${r.helstromFull.toFixed(6)} | ${r.chiControl.toFixed(6)} | ${r.chiFull.toFixed(6)} |`;
 }
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   const vPair = [vecToRho(uniformVec(2)), vecToRho(uniformOrthVec(2))];
   const bPair = [basisRho(2, 0), basisRho(2, 1)];

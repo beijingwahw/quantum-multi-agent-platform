@@ -168,3 +168,9 @@ reports/         generated markdown, one per experiment
    strategies (the all-strategies statement is van der Lugt et al.'s,
    cited). Device-independent and multi-party variants are cited anchors
    only.
+7. `npm run repro` was a silent no-op until the v0.2.0 wiring fix: run-all
+   merely imported the exp modules and the entry guards (correctly)
+   suppressed their mains — exit 0 without a single report re-rendered
+   (exit 0 is not "ran"). The runner now calls the exported mains directly
+   and verifies all five rendered; the defect is documented at the head of
+   `src/experiments/run-all.ts`.

@@ -5,12 +5,14 @@ import { affineResidual, classicalBestGain, quantumBestGain } from '../src/mech/
 import { makeRng } from '../src/core/rng.js';
 import {
   exactAllocator,
+  greedyAllocator,
   optimalAllocation,
   permutations,
   perturbedAllocator,
   searchDsicViolation,
   vcgPayments,
   vcgUtilities,
+  welfare,
 } from '../src/mech/vcg.js';
 
 test('second price: winner pays second-highest; ties to lowest index', () => {
@@ -125,4 +127,34 @@ test('perturbed allocator: a CRAFTED instance with a profitable misreport', () =
     if (w !== null) found = true;
   }
   assert.ok(found, 'expected a DSIC violation under a perturbed allocator');
+});
+
+test('greedy allocator (second solver family): deterministic, valid, and dangerous', () => {
+  const v = [
+    [1, 2, 0],
+    [2, 1, 0],
+    [0, 0, 3],
+  ];
+  const a = greedyAllocator(v);
+  assert.deepEqual(a, greedyAllocator(v)); // deterministic
+  assert.deepEqual([...a].sort(), [0, 1, 2]); // a permutation
+  // on the identity-value matrix greedy IS optimal
+  const ident = [
+    [3, 0, 0],
+    [0, 3, 0],
+    [0, 0, 3],
+  ];
+  assert.equal(welfare(ident, greedyAllocator(ident)), optimalAllocation(ident).value);
+  // and on the exp5 census seed it breaks DSIC with its own signature
+  const rng = makeRng(31337);
+  const instances: number[][][] = [];
+  for (let t = 0; t < 40; t++) {
+    instances.push(Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => rng.int(4))));
+  }
+  let violations = 0;
+  for (const inst of instances) {
+    if (searchDsicViolation(inst, greedyAllocator, [0, 1, 2, 3]) !== null) violations++;
+  }
+  assert.ok(violations >= 5, `greedy should break DSIC broadly, got ${violations}/40`);
+  assert.ok(violations <= 40);
 });

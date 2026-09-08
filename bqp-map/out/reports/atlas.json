@@ -340,7 +340,7 @@
         {
           "kind": "cross-prototype",
           "ref": "qram-sched",
-          "note": "adversarial-stream decision buffers byte-identical, classical vs quantum argmax"
+          "note": "adversarial-stream decision buffers byte-identical, classical vs quantum argmax; v0.2.0 the KVV tight instances EXECUTED — three independent exact kernels agree to 1e-15 and reproduce Feige's a(n) table 1,3,13,67,411,2921,23633 with the additive constant 1−2/e; greedy exactly n/2 under both tie-breaks (n=8..128); the quantum read speedup 1.22×→6.20× on the tight stage with the ratio caps unmoved; the barbell k=2..4 negative holds; qRAM metered — insertion amortization breaks even at T≥1493 tasks at n_b=20. The 'KVV tight instance not reproduced' boundary is retired"
         }
       ]
     },
@@ -360,7 +360,7 @@
         {
           "kind": "cross-prototype",
           "ref": "qram-sched",
-          "note": "1−1/e and 1/2 caps machine-verified"
+          "note": "1−1/e and 1/2 caps machine-verified; v0.2.0 the KVV tight family itself EXECUTED (D_n/MonotoneG per Feige arXiv:1812.11774): three independent exact kernels agree to 1e-15, Feige's table and the 1−2/e additive constant reproduce, greedy is exactly n/2 under both tie-breaks, and the quantum read speedup 1.22×→6.20× on the tight stage leaves the ratio caps unmoved — the caps now stand on the adversarial family, the 'not reproduced' boundary is retired"
         }
       ]
     },
@@ -560,12 +560,12 @@
         {
           "kind": "cross-prototype",
           "ref": "retro-cache",
-          "note": "the tariff ledger: pre-arrival equivalence with a shared seed (TV = 0), the 256-strategy classical census capping CHSH at exactly 2 (CHSH69) vs the singlet's 2*sqrt(2) (TSIR80), and the priced withdrawal exchange rate (QBER two-path, reconciliation floor h2 per SHAN48, settings tariff)"
+          "note": "the tariff ledger: pre-arrival equivalence with a shared seed (TV = 0), the 256-strategy classical census capping CHSH at exactly 2 (CHSH69) vs the singlet's 2*sqrt(2) (TSIR80), and the priced withdrawal exchange rate (QBER two-path, reconciliation floor h2 per SHAN48, settings tariff); v0.2.0 BB84-grade bounded privacy amplification: the exact universal-2 census 15/255, Eve's information 1.510→0.182 at ε = ¼ with the gap to the 1−h₂ line equal to I_E exactly, the LHL vacuous at toy scale printed honestly, the full tap ABORTed; and the active-adversary census with settings mutation = strict tax"
         },
         {
           "kind": "cross-prototype",
           "ref": "nosignal-tariff",
-          "note": "the itemized schedule, one checker for the whole correspondence's correlators: 24-axis zero leakage under local unitary + CPTP (floor 2.3e-16), the order register's input-blind bit (1.7e-16), the HJW ensembles' unreadable commitment (pairwise TV = 0), and the withdrawal curve net(p) = (1-h2((1-p)/2))/2 executed as a full monotone schedule with exact anchors and h2 on two independent paths"
+          "note": "the itemized schedule, one checker for the whole correspondence's correlators: 24-axis zero leakage under local unitary + CPTP (floor 2.3e-16), the order register's input-blind bit (1.7e-16), the HJW ensembles' unreadable commitment (pairwise TV = 0), and the withdrawal curve net(p) = (1-h2((1-p)/2))/2 executed as a full monotone schedule with exact anchors and h2 on two independent paths; v0.2.0 the T4 interior data→theorem: monotonicity's exact machine certificate (min gap 9.02e-4, widest enclosure 8.97e-22, Δ² bound 0.00181), the convexity/inflection face, and the SIC-POVM tetrahedral census floor unchanged at 1.11e-16"
         },
         {
           "kind": "citation",
@@ -675,7 +675,7 @@
         {
           "kind": "cross-prototype",
           "ref": "quantum-mech",
-          "note": "T3: GHZ double-collateral ceiling 1/sqrt(2), threshold > 1/2 admits at most one party"
+          "note": "T3: GHZ double-collateral ceiling 1/sqrt(2), threshold > 1/2 admits at most one party; v0.2.0 data-locking executed at bounded exact scale: the locked ensemble's χ bracket [0.131, 0.177] bits while the data grows to 6 bits at K = 4d, the key sweep 0.705→0.044, and the erasure-robustness census — OTP hiding χ ≡ 0 under any noise machine-verified law, HJW concealment survives dephasing exactly, intercept detection drowns at γ = 1 damping (honest)"
         },
         {
           "kind": "cross-prototype",
@@ -705,7 +705,7 @@
         {
           "kind": "cross-prototype",
           "ref": "quantum-mech",
-          "note": "T4: perfect hiding (T at 1e-16) while every reveal passes at exactly 1/2"
+          "note": "T4: perfect hiding (T at 1e-16) while every reveal passes at exactly 1/2; v0.2.0 the HJW-under-noise census (concealment survives dephasing exactly, drowns at γ = 1 damping) referenced"
         },
         {
           "kind": "cross-prototype",

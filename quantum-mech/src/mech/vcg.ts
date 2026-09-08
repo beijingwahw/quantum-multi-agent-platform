@@ -124,6 +124,32 @@ export function perturbedAllocator(d: number, rng: Rng): Allocator {
   };
 }
 
+/** Greedy allocator: agents in index order, each takes their highest-valued
+ * remaining task (lowest index on ties). A SECOND solver family for the T5
+ * census — not "optimum + noise" but the plain heuristic an approximate
+ * classical or quantum solver would output on its own. */
+export const greedyAllocator: Allocator = (r) => {
+  const T = r[0]!.length;
+  if (r.some((row) => row.length !== T)) throw new Error('greedyAllocator: square value matrix required');
+  const used = new Array<boolean>(T).fill(false);
+  const alloc: number[] = [];
+  for (const row of r) {
+    let best = -1;
+    let bestV = -Infinity;
+    for (let t = 0; t < T; t++) {
+      if (used[t]!) continue;
+      if (row[t]! > bestV) {
+        bestV = row[t]!;
+        best = t;
+      }
+    }
+    if (best < 0) throw new Error('greedyAllocator: more agents than tasks');
+    alloc.push(best);
+    used[best] = true;
+  }
+  return alloc;
+};
+
 export interface GainWitness {
   agent: number;
   truthfulReport: number[];

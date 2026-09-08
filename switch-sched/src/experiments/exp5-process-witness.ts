@@ -52,7 +52,7 @@ import { randomChannelStinespring, stinespringToKraus } from '../switch/chanlib.
 import { writeReport } from './report.js';
 import { pathToFileURL } from 'node:url';
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   const rng = makeRng(20260908);
 

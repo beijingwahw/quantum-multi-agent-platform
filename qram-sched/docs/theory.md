@@ -113,3 +113,52 @@ Durr-Hoyer search. Decision rule identical; bounded-error misses reported per
 bank; read ledger drops as ~sqrt(n) up to the Durr-Hoyer log factor (read ratio
 1.28x at n=16 growing with n). Competitive ratios — information-theoretic
 caps — are untouched: quantum buys queries, not match quality.
+
+## 5a. The KVV tight instances, executed (v0.2.0)
+
+The v0.1.0 boundary "tight instances not reproduced" is closed. The hard-input
+distribution D_n and the exact finite-n values follow Feige
+(arXiv:1812.11774, Sec. 1.1, Thm 6/14, Cor. 21), which we treat as the
+reproducible execution of KVV STOC 1990:
+
+- Construction. MonotoneG: workers v_1..v_n; arrival u_j is adjacent to the
+  nested suffix {v_j..v_n}; the unique perfect matching is (u_j, v_j).
+  D_n = MonotoneG under a uniformly random worker relabeling tau.
+- Exact value. E[RANKING on D_n] = a(n)/n! with a(n) = (n+1)! - d(n+1) - d(n)
+  (derangement numbers) = (1-1/e)n + 1 - 2/e + O(1/n!). Machine side: three
+  INDEPENDENT exact kernels — the BigInt derangement formula, exhaustive
+  enumeration of all n! rank permutations (n <= 9), and a subset DP for
+  greedy-uniform over the suffix structure (n <= 24) — agree to 1e-15, and
+  reproduce Feige's published table a(1..7) = 1, 3, 13, 67, 411, 2921, 23633
+  and the additive constant 1 - 2/e = 0.2642 at every probed n in 8..20.
+- Lemma 13, executed. KVV: every two greedy algorithms earn the same
+  expectation on D_n. The DP/formula agreement IS that statement run on the
+  machine: greedy-uniform and RANKING coincide on D_n at a(n)/n! (far above
+  greedy's separate worst-case cap 1/2 — the caps are per-problem-class
+  statements, and D_n is not greedy's tight family).
+- Distributional nature. greedy-lowest matches MonotoneG PERFECTLY (each u_j
+  takes v_j; ratio 1.0) and greedy-highest collapses to exactly n/2 there;
+  averaging over D_n members drags both onto a(n)/n! (MC within 3e-3 at
+  n=16, K=2000). Tightness lives in the distribution, not in a member.
+- Deterministic 1/2, exactly. The phase adversary (Feige Sec. 1 sketch): the
+  first n/2 arrivals see all workers; the rule's own phase-1 matches form S;
+  the last n/2 arrivals see exactly S and all fail. Built in code for both
+  tie-break rules at n = 8..128: OPT = n (Kuhn), greedy = n/2 to the edge.
+- Quantum census on the tight stage: linear-rule RANKING means equal
+  a(n)/(n! n) within MC error at n = 16..1024; the Durr-Hoyer variant stays
+  on the cap within its counted misses; read ratios 1.22x -> 6.20x. The
+  separation restates itself precisely where it is hardest.
+
+## 5b. Ancillary v0.2.0 extensions
+
+- qRAM insertion-cost metering (EXP1-D): charging the bucket-brigade at its
+  own ledgers (write = n_b activations, query = n_b; classical array op = 1),
+  one AE task at eps = 0.01 buys 3.6x-12x metered activations vs the
+  Hoeffding sample count; the insertion bill N·n_b forces break-even task
+  counts T* growing with memory (T* = 1 at n_b <= 10, T* >= 1493 at n_b = 20
+  for eps = 0.01). The metering philosophy is Jaques-Rattew (arXiv:2305.10310,
+  Quantum 9, 1922 (2025)): qRAM speedups are amortized-insertion speedups.
+- Barbell-family census (EXP2-D'): chains of k K_m cliques (k = 2..4) keep the
+  honest negative — envelope peak beyond the classical hitting time at every
+  chain length (peak/HT 2.9-7.4). The naive marked-flip operator loses on the
+  whole bottleneck family.

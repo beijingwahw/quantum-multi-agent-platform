@@ -1,0 +1,189 @@
+{
+  "seed": 20260908,
+  "directionRows": [
+    {
+      "n": 1,
+      "d": 2,
+      "K": 8,
+      "keyBits": 3,
+      "dataBits": 1,
+      "chiUpper": 0.1311046930185067,
+      "lower": 0.032773622781028036,
+      "pgm": 0.022505841209989816,
+      "compBasis": 0.032773622781028036,
+      "worstMixedDefect": 0.2098652044755311,
+      "unlockWorstOverlap": 4.440892098500626e-16,
+      "wishartHeuristic": 0.09016844005556021,
+      "familyReferee": 4.440892098500626e-16
+    },
+    {
+      "n": 2,
+      "d": 4,
+      "K": 16,
+      "keyBits": 4,
+      "dataBits": 2,
+      "chiUpper": 0.09883754944045964,
+      "lower": 0.01098425450365323,
+      "pgm": 0.005719429777575773,
+      "compBasis": 0.01098425450365323,
+      "worstMixedDefect": 0.18310070841318676,
+      "unlockWorstOverlap": 4.440892098500626e-16,
+      "wishartHeuristic": 0.13525266008334033,
+      "familyReferee": 4.440892098500626e-16
+    },
+    {
+      "n": 3,
+      "d": 8,
+      "K": 32,
+      "keyBits": 5,
+      "dataBits": 3,
+      "chiUpper": 0.1626352242128628,
+      "lower": 0.018630202367374206,
+      "pgm": 0.005485861649999458,
+      "compBasis": 0.018630202367374206,
+      "worstMixedDefect": 0.21279659724552458,
+      "unlockWorstOverlap": 6.661338147750939e-16,
+      "wishartHeuristic": 0.1577947700972304,
+      "familyReferee": 6.661338147750939e-16
+    },
+    {
+      "n": 4,
+      "d": 16,
+      "K": 64,
+      "keyBits": 6,
+      "dataBits": 4,
+      "chiUpper": 0.17602293874306385,
+      "lower": 0.009232208514930383,
+      "pgm": 0.00287210514870418,
+      "compBasis": 0.009232208514930383,
+      "worstMixedDefect": 0.22621730474389057,
+      "unlockWorstOverlap": 8.881784197001252e-16,
+      "wishartHeuristic": 0.1690658251041754,
+      "familyReferee": 8.881784197001252e-16
+    },
+    {
+      "n": 5,
+      "d": 32,
+      "K": 128,
+      "keyBits": 7,
+      "dataBits": 5,
+      "chiUpper": 0.17273041462389394,
+      "lower": 0.00542845429854734,
+      "pgm": 0.00127195634313753,
+      "compBasis": 0.00542845429854734,
+      "worstMixedDefect": 0.21416084842124777,
+      "unlockWorstOverlap": 8.881784197001252e-16,
+      "wishartHeuristic": 0.1747013526076479,
+      "familyReferee": 8.881784197001252e-16
+    },
+    {
+      "n": 6,
+      "d": 64,
+      "K": 256,
+      "keyBits": 8,
+      "dataBits": 6,
+      "chiUpper": 0.17739289118997803,
+      "lower": 0.0028127204268093746,
+      "pgm": 0.000651819358520656,
+      "compBasis": 0.0028127204268093746,
+      "worstMixedDefect": 0.2140751023461436,
+      "unlockWorstOverlap": 1.1102230246251565e-15,
+      "wishartHeuristic": 0.17751911635938417,
+      "familyReferee": 1.1102230246251565e-15
+    }
+  ],
+  "sweepRows": [
+    {
+      "n": 5,
+      "d": 32,
+      "K": 32,
+      "keyBits": 5,
+      "dataBits": 5,
+      "chiUpper": 0.7046139509911562,
+      "lower": 0.01992529509681165,
+      "pgm": 0.017534973079109766,
+      "compBasis": 0.01992529509681165,
+      "worstMixedDefect": 0.4312563171153403,
+      "unlockWorstOverlap": 6.661338147750939e-16,
+      "wishartHeuristic": 0.6988054104305916,
+      "familyReferee": 6.661338147750939e-16
+    },
+    {
+      "n": 5,
+      "d": 32,
+      "K": 64,
+      "keyBits": 6,
+      "dataBits": 5,
+      "chiUpper": 0.34841566251435285,
+      "lower": 0.010334433026206465,
+      "pgm": 0.004848415676814191,
+      "compBasis": 0.010334433026206465,
+      "worstMixedDefect": 0.30871998129372996,
+      "unlockWorstOverlap": 8.881784197001252e-16,
+      "wishartHeuristic": 0.3494027052152958,
+      "familyReferee": 8.881784197001252e-16
+    },
+    {
+      "n": 5,
+      "d": 32,
+      "K": 128,
+      "keyBits": 7,
+      "dataBits": 5,
+      "chiUpper": 0.17273041462389394,
+      "lower": 0.00542845429854734,
+      "pgm": 0.00127195634313753,
+      "compBasis": 0.00542845429854734,
+      "worstMixedDefect": 0.21416084842124777,
+      "unlockWorstOverlap": 8.881784197001252e-16,
+      "wishartHeuristic": 0.1747013526076479,
+      "familyReferee": 8.881784197001252e-16
+    },
+    {
+      "n": 5,
+      "d": 32,
+      "K": 256,
+      "keyBits": 8,
+      "dataBits": 5,
+      "chiUpper": 0.08621292274072445,
+      "lower": 0.002636659628591547,
+      "pgm": 0.0003291788633251045,
+      "compBasis": 0.002636659628591547,
+      "worstMixedDefect": 0.150959258253941,
+      "unlockWorstOverlap": 8.881784197001252e-16,
+      "wishartHeuristic": 0.08735067630382395,
+      "familyReferee": 8.881784197001252e-16
+    },
+    {
+      "n": 5,
+      "d": 32,
+      "K": 512,
+      "keyBits": 9,
+      "dataBits": 5,
+      "chiUpper": 0.04360213019230219,
+      "lower": 0.0013733998096219096,
+      "pgm": 0.00008600155958224077,
+      "compBasis": 0.0013733998096219096,
+      "worstMixedDefect": 0.10856094952966831,
+      "unlockWorstOverlap": 1.1102230246251565e-15,
+      "wishartHeuristic": 0.04367533815191198,
+      "familyReferee": 1.1102230246251565e-15
+    }
+  ],
+  "refereeRows": [
+    [
+      "honest certificate",
+      "PASS",
+      "—"
+    ],
+    [
+      "fabricated χ (0.0005, never measured)",
+      "REJECT",
+      "REF01-fabricated-chi: claimed pre-unlock χ = 0.0005, re-derived 0.162635 bits"
+    ],
+    [
+      "full unlock claimed with 0-bit key",
+      "REJECT",
+      "REF05-key-size-mismatch: key size is log2(32) = 5.000 bits, certificate claims 0"
+    ]
+  ]
+}

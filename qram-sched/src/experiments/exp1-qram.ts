@@ -4,11 +4,12 @@
  */
 import { BucketBrigadeQram, activeNodes, queryFailureProb, queryFailureProbEnumerated } from "../qram/bucket.js";
 import { encodeUniformStream, streamMean } from "../qram/stream.js";
+import { qaeMedianError, qaeQueries } from "../ae/ampest.js";
 import { Rng } from "../core/rng.js";
 import { fmt, table, writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const lines: string[] = [];
   lines.push("# EXP1 — qRAM bucket-brigade: addressing exactness, streaming, error exposure");
   lines.push("");
@@ -152,6 +153,81 @@ function main(): void {
       `and (fanout, n<=4).`,
   );
   lines.push("");
+
+  // D. The metered reading: what the query savings become when the qRAM is
+  //    charged at its own insertion cost (v0.2.0 premise audit).
+  lines.push("## D. qRAM premise audit: the query tear under its own insertion cost");
+  lines.push("");
+  lines.push(
+    "Charging model (the bucket-brigade's OWN ledgers from sections A/B, in the spirit of Jaques-Rattew, " +
+      "arXiv:2305.10310 / Quantum 9, 1922 (2025)): one write = n_b routing-node activations; one qRAM query = n_b " +
+      "activations (it is NOT free hardware time); a classical array op = 1. Task: estimate one stream mean to " +
+      "median error <= eps. Quantum queries: the smallest phase register m whose exact QAE median error clears eps; " +
+      "classical samples: the Hoeffding count at failure budget 0.05 (the EXP4-B convention). The census asks when " +
+      "the metered quantum total (insert N·n_b + T·queries·n_b) undercuts the classical total (N + T·samples).",
+  );
+  lines.push("");
+  const rowsD: string[][] = [];
+  for (const nb of [6, 10, 16, 20]) {
+    const N = 2 ** nb;
+    for (const eps of [0.05, 0.01]) {
+      // quantum: smallest m whose exact QAE median error clears eps at the WORST
+      // p of an off-grid bank (p = 1/2 sits exactly on the phase grid for every
+      // m — the degenerate best case — so it must not set the requirement)
+      const pBank = [0.037, 0.137, 0.237, 0.337, 0.437, 0.537, 0.637, 0.737, 0.837, 0.937];
+      const worstMedian = (m: number): number => Math.max(...pBank.map((p) => qaeMedianError(p, m)));
+      let m = 3;
+      while (worstMedian(m) > eps) m++;
+      const queries = qaeQueries(m);
+      const samples = Math.ceil(Math.log(2 / 0.05) / (2 * eps * eps));
+      const insertQuantum = N * activeNodes("bucket-brigade", nb);
+      const perTaskQuantum = queries * activeNodes("bucket-brigade", nb);
+      const perTaskClassical = samples;
+      const breakEven = (insertQuantum - N) / Math.max(1, perTaskClassical - perTaskQuantum);
+      rowsD.push([
+        String(nb),
+        String(N),
+        fmt(eps, 2),
+        String(m),
+        String(queries),
+        String(samples),
+        String(insertQuantum),
+        String(perTaskQuantum),
+        String(Math.max(0, Math.ceil(breakEven))),
+        breakEven <= 1 ? "survives at T=1" : `needs T >= ${Math.max(0, Math.ceil(breakEven))}`,
+      ]);
+    }
+  }
+  lines.push(
+    table(
+      [
+        "address bits n_b",
+        "cells N",
+        "eps",
+        "QAE m",
+        "queries",
+        "classical samples",
+        "insert cost (activations)",
+        "per-task quantum (activations)",
+        "break-even T* (tasks)",
+        "verdict",
+      ],
+      rowsD,
+    ),
+  );
+  lines.push("");
+  lines.push(
+    "The honest hardware-metered reading: at eps = 0.01 one AE task buys ~3.6x-12x metered activations vs " +
+      "Hoeffding samples (the quadratic law, eroded by the n_b-per-query charge), so small memories (n_b <= 10) " +
+      "amortize their insertion instantly (T* = 1). But the insertion bill is N·n_b — at n_b = 20 a single load " +
+      "costs ~21M activations and the memory must be re-queried thousands of times before the metered tear opens. " +
+      "The QUERY-complexity separation (EXP3/EXP4) is untouched; what this census bounds is how far the premise " +
+      "can be pushed before Jaques-Rattew's opportunity-cost objection bites: qRAM speedups are amortized-insertion " +
+      "speedups, and one-shot estimation over huge memories does not pay for the hardware. (Stream tasks that " +
+      "repeatedly re-read the same loaded stream — the EXP4 replay scheduler — are exactly the T >> T* regime " +
+      "where the metered tear survives.)",
+  );
+  lines.push("");
   lines.push("## Honest boundaries");
   lines.push("");
   lines.push(
@@ -165,6 +241,11 @@ function main(): void {
   );
   lines.push(
     "- No qRAM of this size exists on hardware today; this is the query model that EXP3/EXP4 condition on.",
+  );
+  lines.push(
+    "- Section D's activation metering is bucket-brigade-specific (n_b activations per query/write) and ignores " +
+      "fault-tolerance, decoherence and hardware-opportunity costs — the full Jaques-Rattew critique is broader " +
+      "than this census; the numbers bound only the insertion-amortization question.",
   );
   const file = writeReport("exp1-qram.md", lines.join("\n") + "\n");
   console.log(`exp1 written: ${file}`);
