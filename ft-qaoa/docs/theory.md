@@ -115,30 +115,110 @@ surface 的可调 d 在 1e-3 下承载深电路（d=17-19）。
   服务守恒 FIFO 机队，种子化 ±20% 抖动，窗口 W=8 轮。
 - **利用率定律**：`ρ = (W/μ + λ) / (W·τ·k)`，k=每块单元数。
   ρ ≤ 0.95 判 realtime；ρ > 1 积压线性增长（离散事件仿真验证）。
+- **窗口大小策略（v0.2）**：`windowPolicySweep` 把 W 当作策略变量扫参
+  （W ∈ {1,2,4,8,16,32}）。小 W 流式低时延但固定解码延迟 λ 每窗必付；
+  大 W 摊薄吞吐但纠错时延增加 `W·τ` 的填充等待。实测：FPGA×512 单轮流式
+  （W=1）ρ=2.05 积压，最小纠错时延可行窗 W=8；ASIC 1µs×16 则 W=1 即可。
+  窗口策略与机队规模同为路线变量，已定价成数据（exp3 Part 2）。
 
 实测结论（exp3）：CPU BP+OSD（1ms/轮）ρ=1125，差三个数量级；
 FPGA（100µs/轮）需 ~512 单元机队才 ρ=0.856 过线；µs 级 ASIC 16 单元 ρ=0.313
 舒适通过。**实时 qLDPC 解码是路线真瓶颈**——与社区共识一致，这里给出的是
 机队规模的定量标度方法。
 
-## 4. 诚实边界（重申）
+## 4. 有界噪声面（v0.2：把"无噪"边界定价）
 
-1. 本原型**不含噪声**：逻辑层无噪模拟正是容错执行后的正确抽象层级；
-   物理层噪声仅通过资源估算的 ε 模型进入。
-2. 资源估算常数为**文献锚定的假设**，非硬件规格；改动任何假设只需改
-   `FtAssumptions` 输入，表格随之重建。
+### 4.1 模型（全部精确，无蒙特卡洛）
+
+噪声面在**完整密度矩阵**（2^n×2^n，n≤10）上重放无噪最优调度
+（与 exp1 同方法：斜坡 + INTERP + 重标定）：
+
+- 每层每比特 Pauli 去极化 `E(ρ)=(1−ε)ρ+(ε/3)Σ PρP`，逐层应用在代价+混合之后
+  （**每 QAOA 层一次信道，非每门**——通道模型显式声明）；
+- 终端对称读出翻转 q（独立比特卷积，精确）；
+- 代价相位/混合器/信道全部逐元素实现：ε=0 时与态矢量引擎最大偏差 5.3e-15（对拍测试覆盖）；
+- 评估式定价而非噪声下重训练：各深度的角度是无噪最优，测得序列是噪声感知训练的**下界**。
+
+去极化信道的逐元素形式（实现与测试的依据）：
+按比特 j 分块（A=行0列0, D=行1列1, B=行0列1），
+`A→(1−2ε/3)A+(2ε/3)D`（共享比特的元素与翻转伙伴配对混合，含对角），
+`B→(1−4ε/3)B`（比特不同的元素纯衰减，无混合）。
+
+### 4.2 机器结果（exp4，3 实例 × ε 网格 × p∈{2..32}）
+
+- ε=1e-4：三实例单调到 p=32——**单调性在小噪声下存活**；
+- ε=1e-3：两实例首降（p=24–32）；ε=3e-3/1e-2：全部弯折，峰值深度
+  p*=8–16 / 8–12，r* 从 0.99 掉到 0.64–0.77，p=32 时 0.46–0.53；
+- 弯折乘积 ε·p*≈0.016–0.12；首降乘积 ε·p≳2e-2；
+- 纯读出 q≤5%：**单调性保持**（只缩放）——经典读出噪声与相干噪声定性不同。
+
+预期形状有双源文献锚点：Marshall et al. 2020（去极化 >2%/门 时深度收益近零）、
+Pan et al. PRA 2022（有限最优深度）——实测与两者一致。
+
+### 4.3 与容错栈的桥接（量级论证，非逐门核算）
+
+Willow 实测 d=7 每周期逻辑错误 1.43e-3、压制因子 Λ=2.14（Nature 2025）。
+1.43e-3 恰在 ε=1e-3 网格点 → 按今日逻辑噪声水平有用深度 ≈16–24 层，
+**p=128 的单调性要求每层等效 ε≲2e-4**（首降乘积 2e-2 / 128）。
+由 ε(d)=1.43e-3·Λ^(−(d−7)/2) ≤ 2e-4 得 d≳12.2 → **d≈13** 即可——
+与估算器选出的 surface d=17–19 同量级、与 gross d=12 相邻。
+注意：此桥接把"每层一次现象学去极化"与"每周期逻辑错误"作尺度对应；
+逐门核算（每逻辑操作 × d 轮综合征的 §2.5 模型）更保守，已在 exp2 给出
+（gross d=12 @ pPhys=1e-3 对 p=128 超预算）。两个模型同向：**噪声是深度的
+硬约束，压制不足则 p=128 的收益不存在**——这正是容错路线的存在理由。
+
+### 4.4 反走私门禁
+
+`verifyNoiseClaim`：对噪声面声称做机器审判——声称序列必须与实测逐点一致
+（拍平尾部 = FORGED series，点名深度），且单调声称必须与实测序列一致
+（FALSE monotonicity claim，点名下降深度与幅度）。exp4 报告中的每个序列
+都过此门禁才落盘；测试含两个伪造审判用例。
+
+## 5. 假设常数审计（v0.2：出处门禁）
+
+估算器全部常数进入 `src/ft/constants.ts` 的机器可查审计表：
+
+- **citation-anchored** 行需 ≥2 独立 workId（arXiv 与其期刊版算同一工作），
+  定位符须为 arXiv id / DOI / URL 之一；**engineering-assumption** 行须给出
+  ≥40 字实质理由；绑定行与代码实取值（`LIVE_CONSTANT_VALUES`）逐一核对，
+  漂移即拒。
+- 门禁 `validateConstantsAudit` 在 exp2 报告渲染时运行，违规行被点名拒绝；
+  测试覆盖伪造出处（单一工作双引、零出处、伪定位符、绑定漂移、空洞理由、
+  重复 id）。
+- 2026-09-08 文献核验：每个锚定值经两独立来源确认（Willow 数值：Nature +
+  arXiv:2408.13687 + Princeton 页；gross 码：Nature + EC Zoo + IBM 博客；
+  Relay-BP FPGA：arXiv:2510.21600 + ADS/INSPIRE；等等）。
+
+## 6. 诚实边界（重申）
+
+1. 主轨道（p=128 单调性）是**无噪逻辑层**模拟——容错执行后的正确抽象层级；
+   v0.2 起该边界**已定价**（§4）：噪声在 ε≳1e-3（按层）杀死深度收益，
+   单调性在小噪声与纯读出噪声下存活。物理层噪声同时通过资源估算的 ε 模型
+   进入（§2.5，逐门保守核算）。
+2. 资源估算常数为**文献锚定的假设**，非硬件规格；出处经两源核验并入
+   审计表（§5），改动任何假设只需改 `FtAssumptions` 输入，表格随之重建。
 3. 单调性定理**严格成立的部分**是最优值 M_p 的非降（证明 §1.2 +
    恒等式机器验证）；实验序列的单调是优化器质量下的实证，容差内违规会被
-   如实写出。
+   如实写出；噪声面的单调存活/弯折是**实证数据**，非定理。
 4. gross 码参数（144/12/12、288 总比特、weight-6 稳定子、0.6–0.8% 伪阈值）
    引自 Nature 2024 论文与其公开材料；阈值是估计输入。
+5. 噪声面是**评估式定价**（无噪最优角度 + 精确信道），不是噪声感知重训练；
+   密度矩阵限制 n≤10（2^n×2^n 内存/时间），p≤32 有界深度。
 
-## 5. 文献
+## 7. 文献
 
 - [Farhi, Goldstone, Gutmann (2014), arXiv:1411.4028](https://arxiv.org/abs/1411.4028)
 - [Zhou, Wang, Park, Goldstein, PRL 120, 060507 (2018)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.120.060507)
 - [Bravyi et al., Nature 627, 778-783 (2024)](https://www.nature.com/articles/s41586-024-07107-7) / [arXiv:2308.07915](https://arxiv.org/abs/2308.07915)
-- [IBM qLDPC 博客（gross code 上下文）](https://www.ibm.com/quantum/blog/nature-qldpc-error-correction)
-- [Fowler et al., Phys. Rev. A 86, 032324 (2012)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.86.032324)
+- [IBM qLDPC 博客（gross code 上下文）](https://www.ibm.com/quantum/blog/nature-qldpc-error-correction) / [EC Zoo: gross code](https://errorcorrectionzoo.org/c/gross)
+- [Google Quantum AI (Acharya et al.), Nature 638, 920-926 (2025)](https://www.nature.com/articles/s41586-024-08449-y) / [arXiv:2408.13687](https://arxiv.org/abs/2408.13687) — Willow（Λ=2.14±0.02；d=7 每周期 0.143%±0.003%；d=5 实时解码 63µs）
+- [Fowler et al., Phys. Rev. A 86, 032324 (2012)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.86.032324) / [EC Zoo threshold list](https://errorcorrectionzoo.org/list/quantum_threshold)
 - [Gidney & Ekerå, Quantum 5, 433 (2021)](https://quantum-journal.org/papers/q-2021-04-15-433/)
+- [Gidney (2025), arXiv:2505.15917](https://arxiv.org/abs/2505.15917) — <1M 比特 RSA-2048 资源估算
+- [Ross & Selinger, arXiv:1403.2975](https://arxiv.org/abs/1403.2975) / QIC 16(11-12), 901-953 — 最优 ancilla-free Clifford+T 近似
 - Kliuchnikov, Maslov, Mosca, arXiv:1212.6964 (2013)
+- [Marshall, Wudarski, Hadfield, Hogg, IOP SciNotes 1, 025208 (2020)](https://iopscience.iop.org/article/10.1088/2633-1357/abb0d7) / [arXiv:2002.11682](https://arxiv.org/abs/2002.11682) — QAOA 局部噪声表征
+- [Pan et al., Phys. Rev. A 105, 032433 (2022)](https://link.aps.org/doi/10.1103/PhysRevA.105.032433) — QAOA 自动深度优化（有限最优深度）
+- [Bascones et al., EPJ Quantum Technology (2025)](https://link.springer.com/article/10.1140/epjqt/s40507-025-00446-y) — BP+OSD FPGA/ASIC 设计空间
+- [IBM: Real-time decoding of the gross code memory with FPGAs (Relay-BP), arXiv:2510.21600](https://arxiv.org/abs/2510.21600)
+- [Riverlane: real-time QEC system performance](https://www.riverlane.com/news/riverlane-s-real-time-qec-system-performance)（16.32µs 均值解码时延）

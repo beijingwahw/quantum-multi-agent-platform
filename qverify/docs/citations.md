@@ -1,4 +1,4 @@
-# Citations — all web-verified against original sources (2026-09-05)
+# Citations — all web-verified against original sources (2026-09-08)
 
 1. **UBQC** — A. Broadbent, J. Fitzsimons, E. Kashefi, "Universal Blind
    Quantum Computation", FOCS 2009. arXiv:0807.4154.
@@ -67,6 +67,51 @@
     quantum random sampling", Rev. Mod. Phys. 95, 035001 (2023).
     arXiv:2206.04079. XEB verification limits, spoofing discussion.
     Verified: arxiv.org/abs/2206.04079.
+
+12. **Kaniewski self-testing bounds (v0.2 anchor)** — J. Kaniewski, "Analytic
+    and nearly optimal self-testing bounds for the Clauser-Horne-Shimony-Holt
+    and Mermin inequalities", Phys. Rev. Lett. 117, 070402 (2016).
+    arXiv:1604.08176. Source of the census anchors: the linear extractability
+    bound Q(β) ≥ 1/2 + ½(β−β*)/(2√2−β*) (Eq. (10)) and the trivial upper
+    barrier (Eq. (4)), with threshold β* = (16+14√2)/17 ≈ 2.1058. Adopted as
+    bound shapes (data), not re-derived.
+    Verified: full text via arxiv.org/html/1604.08176v3 (equations quoted
+    verbatim, incl. β* = (16+14√2)/17 in the abstract) + APS listing
+    (doi:10.1103/PhysRevLett.117.070402) via search + independent
+    confirmation of the bound shape in Piwecki, Christandl, Rosset, "Robust
+    self-testing of two-qubit states" (arXiv:1902.00870, Fig. 1).
+
+13. **Bancal numerical threshold** — J.-D. Bancal, M. Navascués, V. Scarani,
+    T. Vértesi, T. H. Yang, "Physical characterization of quantum devices
+    from nonlocal correlations", Phys. Rev. A 91, 022115 (2015).
+    arXiv:1307.7053. Non-trivial plain singlet fidelity above β ≈ 2.37
+    (swap trick + see-saw numerics). Cited only — the numerics are not
+    reproducible in-repo. (Note: my first-guess attribution "multipartite
+    entanglement witnesses" was a different 2011 Bancal paper — caught by
+    source verification.)
+    Verified: APS record (doi:10.1103/PhysRevA.91.022115) via search +
+    arxiv.org/abs/1307.7053.
+
+14. **Shadow median-of-means** — W. Fu, "Classical Shadows with Improved
+    Median-of-Means Estimation", arXiv:2412.03381; published as IOP Quantum
+    Science and Technology (2025). Cited as context for the MoM constants
+    behind the shadow sample counts.
+    Verified: arxiv.org/abs/2412.03381 + IOP record via search.
+
+15. **Single-copy shadow lower bounds** — A. Lowe, M. Moshkovitz, A. Parekh,
+    A. Segev, "Lower Bounds for Learning Quantum States with Single-Copy
+    Measurements", arXiv:2207.14438; journal version in ACM (2025),
+    doi:10.1145/3717450. Matching O(min{d,M} log M / ε²) bounds.
+    Verified: arxiv.org/abs/2207.14438 (pdf) + ACM listing via search.
+
+16. **XEB pitfalls (2024)** — "Limitations of Linear Cross-Entropy as a
+    Measure for Quantum Advantage", PRX Quantum 5, 010334 (2024); and
+    A. Tanggara, M. Gu, K. Bharti, "Classically Spoofing System Linear Cross
+    Entropy Score Benchmarking", arXiv:2405.00789 (2024). Anchors for the
+    census's spoof caveat. (My first-guess author attribution for 2405.00789
+    was wrong — caught by reading the arXiv page.)
+    Verified: APS record via search + arxiv.org/abs/2405.00789 (authors
+    quoted verbatim from the abstract page).
 
 ## Verification notes
 

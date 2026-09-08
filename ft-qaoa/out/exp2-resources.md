@@ -63,3 +63,30 @@ nothing is hidden. Regenerate with `npm run exp:resources`.
 | 1e-3 | 0.075 | FAIL |
 | 3e-4 | 1.96e-5 | OK |
 | 1e-4 | 3.28e-6 | OK |
+
+## Assumption-constants audit (provenance gate)
+
+| id | value | kind | provenance (workIds) | bound to |
+|---|---|---|---|---|
+| gross-code-params | [[144,12,12]], 288 total qubits per block incl. 144 ancillas | citation-anchored | bravyi-2024-gross; ibm-blog-qldpc; ec-zoo-gross | grossCode.k = 12 |
+| gross-code-distance | 12 | citation-anchored | bravyi-2024-gross; ec-zoo-gross | grossCode.d = 12 |
+| gross-code-pseudo-threshold | 0.007 | citation-anchored | bravyi-2024-gross; ibm-blog-qldpc | grossCode.threshold = 0.007 |
+| surface-threshold-default | 0.006 | engineering-assumption | fowler-2012-surface; ec-zoo-thresholds | surfaceCode.defaultThreshold = 0.006 |
+| logical-error-prefactor | 0.1 | engineering-assumption | fowler-2012-surface | DEFAULT_FT_ASSUMPTIONS.logicalErrorModel.amplitude = 0.1 |
+| physical-error-default | 0.001 | engineering-assumption | — | DEFAULT_FT_ASSUMPTIONS.pPhys = 0.001 |
+| cycle-time-us | 1 | engineering-assumption | fowler-2012-surface | DEFAULT_FT_ASSUMPTIONS.cycleTimeUs = 1 |
+| rounds-per-op-distance-factor | 1 | engineering-assumption | — | DEFAULT_FT_ASSUMPTIONS.roundsPerOpDistanceFactor = 1 |
+| target-circuit-error | 0.01 | engineering-assumption | — | DEFAULT_FT_ASSUMPTIONS.targetCircuitError = 0.01 |
+| synthesis-tcount-coefficient | 3 | citation-anchored | ross-selinger-2014; kmm-2013-synthesis | DEFAULT_FT_ASSUMPTIONS.synthesis.coefficient = 3 |
+| synthesis-tcount-additive | 4 | engineering-assumption | ross-selinger-2014 | DEFAULT_FT_ASSUMPTIONS.synthesis.additiveConstant = 4 |
+| synthesis-epsilon | 0.000001 | engineering-assumption | — | DEFAULT_FT_ASSUMPTIONS.synthesis.epsilon = 0.000001 |
+| t-factory-scenarios | (100ns, 5k, 1e-12) / (10us, 5k, 1e-12) / (60us, 12k, 1e-12) | engineering-assumption | gidney-ekera-2021; gidney-2025-rsa | — |
+| t-factory-eps-per-t | 1e-12 | engineering-assumption | gidney-ekera-2021 | DEFAULT_FT_ASSUMPTIONS.tFactory.epsilonPerT = 1e-12 |
+| decoder-cpu-latency | 1000 | engineering-assumption | bascones-2025-bposd-hw; fpga-relay-bp-2025 | — |
+| decoder-fpga-latency | 100 | engineering-assumption | google-2024-below-threshold; fpga-relay-bp-2025 | — |
+| decoder-asic-latency | 1 | engineering-assumption | riverlane-realtime; bascones-2025-bposd-hw | — |
+| logical-error-suppression-lambda | 2.14 | citation-anchored | google-2024-below-threshold; princeton-below-threshold | — |
+| d7-logical-error-per-cycle | 0.00143 | citation-anchored | google-2024-below-threshold; princeton-below-threshold | — |
+| qaoa-noise-finite-depth | finite optimal QAOA depth under per-layer depolarizing noise; ~2%/gate caps useful depth near 3 | citation-anchored | marshall-2020-qaoa-noise; pan-2022-depth-opt | — |
+
+Gate: PASS — 20 rows, 7 citation-anchored (>= 2 independent works each), 13 labeled engineering assumptions.

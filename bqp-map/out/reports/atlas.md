@@ -61,7 +61,7 @@ The quantum side changes the witness structure (QMA / StoqMA), not the search sp
 | --- | --- | --- | --- | --- |
 | Stoquastic annealing scheduling (ZZ couplers of any sign + negative transverse driver) | NP-hard | annealing heuristics; no exponential advantage known | ground-state VERIFICATION lands in StoqMA (BDOT08) — strictly weaker witness structure than QMA unless classes collapse | machine-stoq:src/witness/stoq.ts; citation:BDOT08 |
 | Non-stoquastic annealing (+κ XX drivers) | NP-hard + simulation barrier | annealing with genuinely quantum drivers | verification class rises to QMA-complete families (KKR06) — and the sign barrier cuts BOTH ways: it also blocks classical simulation of the quantum dynamics | machine-stoq:src/witness/stoq.ts; citation:KKR06; cross-prototype:nonstoq-anneal |
-| General local-Hamiltonian scheduling decision (unconstrained Ising + arbitrary drivers) | NP-hard (and QMA on the quantum side) | QMA verifier accepts good witnesses with Born sampling (Hoeffding law, machine-checked) | soundness holds against cheating states at the same sampling cost | machine-witness:src/witness/verify.ts; citation:KKR06 |
+| General local-Hamiltonian scheduling decision (unconstrained Ising + arbitrary drivers) | NP-hard (and QMA on the quantum side) | QMA verifier accepts good witnesses with Born sampling (Hoeffding law, machine-checked) | soundness holds against cheating states at the same sampling cost | machine-witness:src/witness/verify.ts; cross-prototype:qverify; citation:KKR06 |
 
 ## HEURISTIC (3)
 

@@ -25,6 +25,7 @@ import { randomCircuit, circuitProbs } from '../src/core/gates.js';
 import {
   equatorialPairHelstrom,
   equatorialPairHelstromClosed,
+  helstromTwo,
   helstromTwoOptimize,
   bb84LabelGame,
   bb84BitGame,
@@ -37,6 +38,35 @@ import {
   shrinkDeferredGuess,
   shrinkTrapAcceptanceAveraged,
 } from '../src/protocol/cloner.js';
+import {
+  BETA_STAR,
+  V_STAR,
+  BETA_QUANTUM,
+  kaniewskiLowerBound,
+  trivialUpperBound,
+  isotropicBarrier,
+  rigidityRegime,
+  windowCensusRow,
+  checkRigidityCertificate,
+} from '../src/protocol/selftest.js';
+import {
+  hoeffdingN,
+  cramerRate,
+  xebWallRow,
+  uniformFalseAcceptMC,
+  shadowWallRow,
+  checkSampleComplexityRow,
+} from '../src/protocol/samplewall.js';
+import { shadowFidelityExact } from '../src/protocol/shadows.js';
+import {
+  amplitudeDampingKraus,
+  phaseDampingKraus,
+  ampDampAcceptanceClosed,
+  phaseDampAcceptanceClosed,
+  noiseCensusRow,
+  dampedGuessOptimized,
+} from '../src/protocol/noise.js';
+import { applyKraus } from '../src/core/channels.js';
 
 const rng = makeRng(0x7e57);
 
@@ -261,6 +291,235 @@ test('T5c: deferred guess on the kept environment = (1+⅔sin π/8)/2 exactly', 
   const d = shrinkDeferredGuess();
   assert.ok(Math.abs(d.helstrom - 0.5 * (1 + (2 / 3) * Math.sin(Math.PI / 8))) < 1e-12, `${d.helstrom}`);
   assert.ok(Math.abs(d.baseline - (1 + Math.sin(Math.PI / 8)) / 2) < 1e-12);
+});
+
+// ---------------- v0.2: Werner-window rigidity census ----------------
+
+test('T3+: Kaniewski threshold anchors — v* = (7+4√2)/17, 2√2·v* = β*, bound endpoints', () => {
+  assert.ok(Math.abs(BETA_STAR - (16 + 14 * Math.SQRT2) / 17) < 1e-15);
+  assert.ok(Math.abs(V_STAR - (7 + 4 * Math.SQRT2) / 17) < 1e-15);
+  assert.ok(Math.abs(2 * Math.SQRT2 * V_STAR - BETA_STAR) < 1e-12); // visibility ↔ threshold identity
+  assert.ok(BETA_STAR > 2 && BETA_STAR < BETA_QUANTUM); // the threshold sits strictly inside the violation range
+  assert.ok(Math.abs(kaniewskiLowerBound(BETA_STAR) - 0.5) < 1e-12); // leaves the trivial floor exactly at β*
+  assert.ok(Math.abs(kaniewskiLowerBound(2.05) - 0.5) < 1e-12); // below β*: clamped at the floor
+  assert.ok(Math.abs(kaniewskiLowerBound(BETA_QUANTUM) - 1) < 1e-12); // tight at Tsirelson
+  assert.ok(Math.abs(trivialUpperBound(2) - 1 / Math.SQRT2) < 1e-12);
+  assert.ok(Math.abs(trivialUpperBound(BETA_QUANTUM) - 1) < 1e-12);
+});
+
+test('T3+: isotropic closed forms S = 2√2·v and F = (1+3v)/4 across the census grid', () => {
+  for (const v of [0, 1 / 3, 0.5, 1 / Math.SQRT2, V_STAR, 0.85, 1]) {
+    const row = windowCensusRow(v);
+    assert.ok(Math.abs(row.beta - 2 * Math.SQRT2 * v) < 1e-12, `S at v=${v}`);
+    assert.ok(Math.abs(row.fidelityNumeric - (1 + 3 * v) / 4) < 1e-12, `F at v=${v}`);
+    assert.ok(Math.abs(row.fidelityClosed - row.fidelityNumeric) < 1e-12);
+  }
+  assert.ok(Math.abs(isotropicBarrier(2) - (1 + 3 / Math.SQRT2) / 4) < 1e-12);
+});
+
+test('T3+: regime boundaries at the exact critical points', () => {
+  assert.equal(rigidityRegime(1 / 3), 'separable');
+  assert.equal(rigidityRegime(0.34), 'window: entangled, CHSH-local');
+  assert.equal(rigidityRegime(1 / Math.SQRT2), 'window: entangled, CHSH-local');
+  assert.equal(rigidityRegime(0.73), 'violation, proven bound trivial (rigidity gap)');
+  assert.equal(rigidityRegime(V_STAR), 'violation, proven bound trivial (rigidity gap)');
+  assert.equal(rigidityRegime(0.75), 'certified: extractability bound > 1/2');
+  // anchors: the separability boundary sits exactly on the trivial fidelity floor
+  const sep = windowCensusRow(1 / 3);
+  assert.ok(Math.abs(sep.pptMin) < 1e-12 && Math.abs(sep.fidelityClosed - 0.5) < 1e-12);
+  // inside the window: entangled (PPT < 0) yet CHSH-local
+  const inWindow = windowCensusRow(0.34);
+  assert.ok(inWindow.pptMin < -1e-3 && inWindow.beta < 2);
+  // inside the gap: violation but the floor is still the bound
+  const gap = windowCensusRow(0.73);
+  assert.ok(gap.beta > 2 && Math.abs(gap.lowerBound - 0.5) < 1e-12);
+  // certified: bound strictly above the floor
+  const cert = windowCensusRow(0.75);
+  assert.ok(cert.beta > BETA_STAR && cert.lowerBound > 0.5 + 1e-6);
+});
+
+test('T3+: bound-shape inequalities — lower ≤ barrier and lower ≤ honest fidelity on [v*, 1]', () => {
+  for (let i = 0; i <= 100; i++) {
+    const beta = 2 + (i / 100) * (BETA_QUANTUM - 2);
+    assert.ok(
+      kaniewskiLowerBound(beta) <= trivialUpperBound(beta) + 1e-12,
+      `lower above barrier at beta=${beta}`,
+    );
+  }
+  for (let i = 0; i <= 100; i++) {
+    const v = V_STAR + (i / 100) * (1 - V_STAR);
+    const row = windowCensusRow(v);
+    assert.ok(row.lowerBound <= row.fidelityClosed + 1e-12, `bound above device fidelity at v=${v}`);
+  }
+});
+
+test('T3+ smuggling trial: counterfeit rigidity certificates are named and rejected', () => {
+  // (a) a certificate from broken noise claiming a violation the state cannot produce
+  const fake1 = checkRigidityCertificate({ visibility: 0.65, claimedBeta: 2.3, claimedFidelity: 0.8, claimsCertified: true });
+  assert.equal(fake1.ok, false);
+  assert.equal(fake1.name, 'claimed-beta-not-reproduced'); // actual S at v=0.65 is 1.838 < 2
+  // (b) a fidelity claim above the isotropic barrier
+  const fake2 = checkRigidityCertificate({
+    visibility: 0.75,
+    claimedBeta: 2 * Math.SQRT2 * 0.75,
+    claimedFidelity: 0.82,
+    claimsCertified: false,
+  });
+  assert.equal(fake2.ok, false);
+  assert.equal(fake2.name, 'fidelity-above-isotropic-barrier'); // (1+3·0.75)/4 = 0.8125 is the cap
+  // (c) certified fidelity beyond what the proven bound guarantees
+  const fake3 = checkRigidityCertificate({
+    visibility: 0.85,
+    claimedBeta: 2 * Math.SQRT2 * 0.85,
+    claimedFidelity: 0.8875,
+    claimsCertified: true,
+  });
+  assert.equal(fake3.ok, false);
+  assert.equal(fake3.name, 'claimed-fidelity-exceeds-proven-bound'); // proven bound ≈ 0.706
+  // and the honest certificate passes
+  const honest = checkRigidityCertificate({
+    visibility: 0.85,
+    claimedBeta: 2 * Math.SQRT2 * 0.85,
+    claimedFidelity: kaniewskiLowerBound(2 * Math.SQRT2 * 0.85),
+    claimsCertified: true,
+  });
+  assert.equal(honest.ok, true);
+  assert.equal(honest.name, 'clean');
+});
+
+// ---------------- v0.2: sample-complexity census ----------------
+
+test('T4+: hoeffdingN exact arithmetic and 1/τ² scaling', () => {
+  assert.equal(hoeffdingN(2, 0.01, 0.5), Math.ceil((4 * Math.log(100)) / 0.5)); // = 37
+  const atTau = hoeffdingN(3, 0.01, 0.2);
+  const atHalfTau = hoeffdingN(3, 0.01, 0.1);
+  // quadratic in the margin up to the ±1 slop of the two ceilings
+  assert.ok(atHalfTau >= 4 * atTau - 4 && atHalfTau <= 4 * atTau);
+});
+
+test('T4+: cramerRate matches the binary relative entropy on a fair coin', () => {
+  // I(0.75) for X ∈ {0,1} fair = d(0.75‖0.5) = 0.75ln1.5 + 0.25ln0.5
+  const expected = 0.75 * Math.log(1.5) + 0.25 * Math.log(0.5);
+  assert.ok(Math.abs(cramerRate([0, 1], [0.5, 0.5], 0.75) - expected) < 1e-9);
+});
+
+test('T4+: Chernoff count never exceeds Hoeffding on the (λ, δ) wall grid', () => {
+  const circuit = randomCircuit(rng, 8, 24);
+  const probs = circuitProbs(circuit);
+  for (const lambdaTarget of [0.25, 0.5, 1.0]) {
+    for (const delta of [0.05, 0.01, 0.001]) {
+      const row = xebWallRow(probs, lambdaTarget, delta);
+      assert.ok(row.rate > 0, 'rate must be positive');
+      assert.ok(row.nChernoff <= row.nHoeffding, `λ=${lambdaTarget} δ=${delta}`);
+    }
+  }
+  // the wall: noisier target (smaller λ₀) needs more samples, monotonically
+  const n025 = xebWallRow(probs, 0.25, 0.01).nChernoff;
+  const n10 = xebWallRow(probs, 1.0, 0.01).nChernoff;
+  assert.ok(n025 > 5 * n10, `quadratic blowup in 1/λ₀: ${n025} vs ${n10}`);
+});
+
+test('T4+: uniform device false-accepts at ≤ δ when given the exact Chernoff count (MC)', () => {
+  const circuit = randomCircuit(rng, 8, 24);
+  const probs = circuitProbs(circuit);
+  const row = xebWallRow(probs, 0.5, 0.01);
+  const mc = uniformFalseAcceptMC(probs, row.threshold, row.nChernoff, 1500, rng);
+  const slack = 3 * Math.sqrt((0.01 * 0.99) / 1500);
+  assert.ok(mc.rate <= 0.01 + slack, `false-accept ${mc.rate} > δ+3σ at N=${row.nChernoff}`);
+});
+
+test('T4+: shadow exact moments — mean = closed form, batch std = σ/√N', () => {
+  const n = 3;
+  const target = makeTarget(n);
+  const q = 0.3;
+  const rho = mixDepol(fromVec(target), q, 1 << n);
+  const exact = shadowFidelityExact(rho, target, n);
+  const closed = (1 - q) + q / (1 << n);
+  assert.ok(Math.abs(exact.mean - closed) < 1e-12);
+  assert.ok(exact.variance > 0.1 && exact.max > exact.min);
+  const wall = shadowWallRow(exact, 0.05, 0.05);
+  assert.equal(wall.nChebyshev, Math.ceil(exact.variance / (0.05 * 0.0025)));
+  assert.ok(wall.nChebyshev < wall.nHoeffding * 2); // same order: exact range vs variance
+  // empirical batch-mean std matches the exact σ/√N the count consumes
+  const batches = 60;
+  const shots = 800;
+  const means: number[] = [];
+  for (let t = 0; t < batches; t++) means.push(fidelityShadowMC(rho, target, n, shots, rng).mean);
+  const mAvg = means.reduce((a, b) => a + b, 0) / batches;
+  const mVar = means.reduce((a, b) => a + (b - mAvg) ** 2, 0) / (batches - 1);
+  const empirical = Math.sqrt(mVar);
+  const predicted = Math.sqrt(exact.variance / shots);
+  assert.ok(Math.abs(empirical - predicted) < 0.15 * predicted, `std ${empirical} vs ${predicted}`);
+});
+
+test('T4+ smuggling trial: fake sample-complexity rows are named and rejected', () => {
+  const circuit = randomCircuit(rng, 8, 24);
+  const probs = circuitProbs(circuit);
+  // (a) too-cheap row at moderate noise
+  const fake1 = checkSampleComplexityRow(probs, { lambdaTarget: 0.5, delta: 0.01, claimedN: 50 });
+  assert.equal(fake1.ok, false);
+  assert.equal(fake1.name, 'below-exact-chernoff-requirement'); // exact requirement is ≈152
+  // (b) too-cheap row at low noise and high confidence
+  const fake2 = checkSampleComplexityRow(probs, { lambdaTarget: 0.1, delta: 0.001, claimedN: 100 });
+  assert.equal(fake2.ok, false);
+  assert.equal(fake2.name, 'below-exact-chernoff-requirement'); // exact requirement is ≈5000
+  // (c) padded row — a bound a thousand times looser than Hoeffding is not a bound for this circuit
+  const fake3 = checkSampleComplexityRow(probs, { lambdaTarget: 0.5, delta: 0.01, claimedN: 10 ** 9 });
+  assert.equal(fake3.ok, false);
+  assert.equal(fake3.name, 'padded-beyond-hoeffding-slop');
+  // and the exact count itself passes
+  const honest = checkSampleComplexityRow(probs, {
+    lambdaTarget: 0.5,
+    delta: 0.01,
+    claimedN: xebWallRow(probs, 0.5, 0.01).nChernoff,
+  });
+  assert.equal(honest.ok, true);
+  assert.equal(honest.name, 'clean');
+});
+
+// ---------------- v0.2: noise census (second noise model) ----------------
+
+test('T5+: amplitude damping acceptance = (1+√(1−γ))²/4 + γ/4 against all three T2 referees', () => {
+  assert.ok(Math.abs(ampDampAcceptanceClosed(0) - 1) < 1e-12); // identity at γ=0
+  assert.ok(Math.abs(ampDampAcceptanceClosed(1) - 0.5) < 1e-12); // half a full decay is undetectable
+  for (let k = 0; k <= 8; k++) {
+    const gamma = k / 8;
+    const ad = amplitudeDampingKraus(gamma);
+    const closed = ampDampAcceptanceClosed(gamma);
+    assert.ok(Math.abs(trapAcceptanceFormula(ad) - closed) < 1e-12, `formula γ=${gamma}`);
+  }
+  const row = noiseCensusRow(0.5);
+  assert.ok(Math.abs(row.ampDampDirect - ampDampAcceptanceClosed(0.5)) < 1e-12);
+  assert.ok(Math.abs(row.ampDampExpansion - ampDampAcceptanceClosed(0.5)) < 1e-12);
+});
+
+test('T5+: phase damping sits in the Z-tier — acceptance exactly 1−γ, guess game is the V-form', () => {
+  for (let k = 0; k <= 8; k++) {
+    const gamma = k / 8;
+    const pd = phaseDampingKraus(gamma);
+    assert.ok(Math.abs(trapAcceptanceFormula(pd) - (1 - gamma)) < 1e-12, `accept γ=${gamma}`);
+    assert.ok(Math.abs(phaseDampAcceptanceClosed(gamma) - (1 - gamma)) < 1e-15);
+    const row = noiseCensusRow(gamma);
+    assert.ok(Math.abs(row.phaseDampDirect - (1 - gamma)) < 1e-12);
+    const vForm = (1 + Math.abs(1 - 2 * gamma) * Math.sin(Math.PI / 8)) / 2;
+    assert.ok(Math.abs(row.guessAfterPhaseDamp - vForm) < 1e-12, `guess γ=${gamma}`);
+  }
+  // the decoupling anchor: at γ=1 the trap rejects everything, the attacker loses nothing
+  const full = noiseCensusRow(1);
+  assert.ok(Math.abs(full.phaseDampDirect) < 1e-12);
+  assert.ok(Math.abs(full.guessAfterPhaseDamp - (1 + Math.sin(Math.PI / 8)) / 2) < 1e-12);
+  const mid = noiseCensusRow(0.5);
+  assert.ok(Math.abs(mid.guessAfterPhaseDamp - 0.5) < 1e-12); // incoherent midpoint kills both
+});
+
+test('T5+: damped Helstrom endpoints exact and the POVM optimizer agrees at γ=0.5', () => {
+  const none = noiseCensusRow(0).guessAfterAmpDamp;
+  assert.ok(Math.abs(none - (1 + Math.sin(Math.PI / 8)) / 2) < 1e-12);
+  const full = noiseCensusRow(1).guessAfterAmpDamp;
+  assert.ok(Math.abs(full - 0.5) < 1e-12); // both states decay to |0⟩
+  const damped0 = applyKraus(fromVec(equatorial(0)), amplitudeDampingKraus(0.5));
+  const damped1 = applyKraus(fromVec(equatorial(Math.PI / 4)), amplitudeDampingKraus(0.5));
+  assert.ok(Math.abs(dampedGuessOptimized(0.5) - helstromTwo(damped0, damped1)) < 1e-5);
 });
 
 // helpers

@@ -62,3 +62,55 @@ S_max = 1.838478 < 2 (CHSH-local). CHSH verification is sufficient, not
 necessary: noisy-but-honest devices can fail the rigidity check while being
 genuinely quantum.
 
+## v0.2 Werner-window census: where rigidity survives, where it breaks
+
+For the isotropic family ρ(v) = v|Φ+⟩⟨Φ+| + (1−v)I/4 every quantity below is
+recomputed from the state: S by Horodecki, fidelity by the exact Uhlmann form,
+PPT by the partial transpose. Closed forms: S = 2√2·v, F = (1+3v)/4. The
+regimes (boundaries from the exact closed forms):
+
+| v | S | F numeric | F closed | PPT min | bound | barrier | regime |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.000000 | 0.00000000 | 0.25000000 | 0.25000000 | 0.2500 | 0.50000000 | 0.70710678 | separable |
+| 0.166667 | 0.47140452 | 0.37500000 | 0.37500000 | 0.1250 | 0.50000000 | 0.70710678 | separable |
+| 0.333333 | 0.94280904 | 0.50000000 | 0.50000000 | 0.0000 | 0.50000000 | 0.70710678 | separable |
+| 0.500000 | 1.41421356 | 0.62500000 | 0.62500000 | -0.1250 | 0.50000000 | 0.70710678 | window: entangled, CHSH-local |
+| 0.707107 | 2.00000000 | 0.78033009 | 0.78033009 | -0.2803 | 0.50000000 | 0.70710678 | window: entangled, CHSH-local |
+| 0.710000 | 2.00818326 | 0.78250000 | 0.78250000 | -0.2825 | 0.50000000 | 0.71000000 | violation, proven bound trivial (rigidity gap) |
+| 0.720000 | 2.03646753 | 0.79000000 | 0.79000000 | -0.2900 | 0.50000000 | 0.72000000 | violation, proven bound trivial (rigidity gap) |
+| 0.730000 | 2.06475180 | 0.79750000 | 0.79750000 | -0.2975 | 0.50000000 | 0.73000000 | violation, proven bound trivial (rigidity gap) |
+| 0.744521 | 2.10582293 | 0.80839063 | 0.80839063 | -0.3084 | 0.50000000 | 0.74452084 | violation, proven bound trivial (rigidity gap) |
+| 0.780000 | 2.20617316 | 0.83500000 | 0.83500000 | -0.3350 | 0.56943651 | 0.78000000 | certified: extractability bound > 1/2 |
+| 0.850000 | 2.40416306 | 0.88750000 | 0.88750000 | -0.3875 | 0.70643398 | 0.85000000 | certified: extractability bound > 1/2 |
+| 0.920000 | 2.60215295 | 0.94000000 | 0.94000000 | -0.4400 | 0.84343146 | 0.92000000 | certified: extractability bound > 1/2 |
+| 1.000000 | 2.82842712 | 1.00000000 | 1.00000000 | -0.5000 | 1.00000000 | 1.00000000 | certified: extractability bound > 1/2 |
+
+- **separable** (v ≤ 1/3): nothing to certify. At v = 1/3 the device fidelity
+  is exactly 1/2 — the separability boundary coincides with the trivial
+  extractability floor.
+- **the window** (1/3 < v ≤ 1/√2): PPT-entangled (genuinely quantum) but
+  S ≤ 2 — CHSH certifies nothing at all.
+- **rigidity gap** (1/√2 < v ≤ v*): a real violation S > 2, but the best
+  proven analytic bound is still the trivial floor 1/2 (Kaniewski threshold
+  β* = (16+14√2)/17 = 2.1058229337, v* = (7+4√2)/17 = 0.7445208382).
+- **certified** (v > v*): Kaniewski's extractability bound
+  Q(β) ≥ 1/2 + ½(β−β*)/(2√2−β*) [PRL 117, 070402 (2016)] exceeds 1/2.
+
+Exact anchor checks: 2√2·v* − β* = 0.000e+0 (the visibility/threshold
+identity is exact); bound(2√2) = 1.000000000000, barrier(2√2) =
+1.000000000000 (both = 1 at Tsirelson); the isotropic plain-fidelity
+barrier at β = 2 is 1/4 + 3/(4√2) = 0.7803300859 — any plain-fidelity
+self-testing claim for all states is capped by this line, because the isotropic
+device itself achieves β with exactly that fidelity (the barrier caps plain
+fidelity; local extraction can in principle do more, and the proven extractability
+bound sits strictly below the barrier in the interior).
+
+Fine sweep (501 points, v ∈ [0,1]): worst |S − 2√2v| = 8.882e-16,
+worst |F − (1+3v)/4| = 6.661e-16, worst
+(bound − actual fidelity) on [v*, 1] = 0.000e+0
+(≤ 0: the proven bound never exceeds the honest device), worst
+(bound − barrier) = 0.000e+0, worst
+(barrier − 1) = 0.000e+0. Cited, not reproduced here:
+Bancal et al. PRA 91, 022115 (2015) put the numerical plain-fidelity threshold at
+β ≈ 2.37 (swap trick + see-saw); the analytic census above is fully machine-checked.
+

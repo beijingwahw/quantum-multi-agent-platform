@@ -149,27 +149,208 @@
     {
       "n": 8,
       "layers": 8,
-      "ms": 3.805
+      "ms": 0.8065
     },
     {
       "n": 10,
       "layers": 10,
-      "ms": 8.1434
+      "ms": 2.5223
     },
     {
       "n": 12,
       "layers": 12,
-      "ms": 36.7538
+      "ms": 8.6293
     },
     {
       "n": 14,
       "layers": 14,
-      "ms": 175.4714
+      "ms": 43.8739
     },
     {
       "n": 16,
       "layers": 16,
-      "ms": 928.0111
+      "ms": 234.8229
     }
-  ]
+  ],
+  "sampleWall": {
+    "xeb": {
+      "rows": [
+        {
+          "lambdaTarget": 0.1,
+          "delta": 0.05,
+          "threshold": 0.05706954295998195,
+          "rate": 0.0013754648757565383,
+          "nHoeffding": 16216,
+          "nChernoff": 2178
+        },
+        {
+          "lambdaTarget": 0.1,
+          "delta": 0.01,
+          "threshold": 0.05706954295998195,
+          "rate": 0.0013754648757565383,
+          "nHoeffding": 24928,
+          "nChernoff": 3349
+        },
+        {
+          "lambdaTarget": 0.1,
+          "delta": 0.001,
+          "threshold": 0.05706954295998195,
+          "rate": 0.0013754648757565383,
+          "nHoeffding": 37392,
+          "nChernoff": 5023
+        },
+        {
+          "lambdaTarget": 0.25,
+          "delta": 0.05,
+          "threshold": 0.14267385739995486,
+          "rate": 0.008172444755988773,
+          "nHoeffding": 2595,
+          "nChernoff": 367
+        },
+        {
+          "lambdaTarget": 0.25,
+          "delta": 0.01,
+          "threshold": 0.14267385739995486,
+          "rate": 0.008172444755988773,
+          "nHoeffding": 3989,
+          "nChernoff": 564
+        },
+        {
+          "lambdaTarget": 0.25,
+          "delta": 0.001,
+          "threshold": 0.14267385739995486,
+          "rate": 0.008172444755988773,
+          "nHoeffding": 5983,
+          "nChernoff": 846
+        },
+        {
+          "lambdaTarget": 0.5,
+          "delta": 0.05,
+          "threshold": 0.2853477147999097,
+          "rate": 0.030330879986927774,
+          "nHoeffding": 649,
+          "nChernoff": 99
+        },
+        {
+          "lambdaTarget": 0.5,
+          "delta": 0.01,
+          "threshold": 0.2853477147999097,
+          "rate": 0.030330879986927774,
+          "nHoeffding": 998,
+          "nChernoff": 152
+        },
+        {
+          "lambdaTarget": 0.5,
+          "delta": 0.001,
+          "threshold": 0.2853477147999097,
+          "rate": 0.030330879986927774,
+          "nHoeffding": 1496,
+          "nChernoff": 228
+        },
+        {
+          "lambdaTarget": 0.75,
+          "delta": 0.05,
+          "threshold": 0.4280215721998646,
+          "rate": 0.06391761344566686,
+          "nHoeffding": 289,
+          "nChernoff": 47
+        },
+        {
+          "lambdaTarget": 0.75,
+          "delta": 0.01,
+          "threshold": 0.4280215721998646,
+          "rate": 0.06391761344566686,
+          "nHoeffding": 444,
+          "nChernoff": 73
+        },
+        {
+          "lambdaTarget": 0.75,
+          "delta": 0.001,
+          "threshold": 0.4280215721998646,
+          "rate": 0.06391761344566686,
+          "nHoeffding": 665,
+          "nChernoff": 109
+        },
+        {
+          "lambdaTarget": 1,
+          "delta": 0.05,
+          "threshold": 0.5706954295998194,
+          "rate": 0.10721798193108259,
+          "nHoeffding": 163,
+          "nChernoff": 28
+        },
+        {
+          "lambdaTarget": 1,
+          "delta": 0.01,
+          "threshold": 0.5706954295998194,
+          "rate": 0.10721798193108259,
+          "nHoeffding": 250,
+          "nChernoff": 43
+        },
+        {
+          "lambdaTarget": 1,
+          "delta": 0.001,
+          "threshold": 0.5706954295998194,
+          "rate": 0.10721798193108259,
+          "nHoeffding": 374,
+          "nChernoff": 65
+        }
+      ],
+      "worstChernoffExcess": -135,
+      "mc": {
+        "lambda": 0.5,
+        "delta": 0.01,
+        "threshold": 0.2853477147999097,
+        "n": 152,
+        "atN": {
+          "rate": 0.0012,
+          "stdErr": 0.0006924045060511955
+        },
+        "atQuarterN": {
+          "rate": 0.052,
+          "stdErr": 0.004440540507640933
+        }
+      }
+    },
+    "shadow": {
+      "exactMoments": {
+        "mean": 0.7374999999999993,
+        "variance": 2.1068953399502,
+        "min": -2.5870040002696726,
+        "max": 4.411483075333133
+      },
+      "rows": [
+        {
+          "mean": 0.7374999999999993,
+          "variance": 2.1068953399502,
+          "range": 6.998487075602806,
+          "epsilon": 0.05,
+          "delta": 0.05,
+          "nChebyshev": 16856,
+          "nHoeffding": 29346
+        },
+        {
+          "mean": 0.7374999999999993,
+          "variance": 2.1068953399502,
+          "range": 6.998487075602806,
+          "epsilon": 0.01,
+          "delta": 0.05,
+          "nChebyshev": 421380,
+          "nHoeffding": 733638
+        }
+      ],
+      "batchCheck": {
+        "shots": 2000,
+        "batches": 200,
+        "batchStd": 0.033262154615535174,
+        "predictedStd": 0.03245685859683743
+      },
+      "coverage": {
+        "shots": 16856,
+        "epsilon": 0.05,
+        "trials": 60,
+        "rate": 1
+      }
+    }
+  }
 }

@@ -181,5 +181,151 @@
       "servicePerWindowUs": 500,
       "arrivalPerWindowUs": 8
     }
+  ],
+  "windowPolicy": [
+    {
+      "scenarioId": "fpga-512u",
+      "points": [
+        {
+          "windowRounds": 1,
+          "utilization": 2.0547945205479454,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 10457.503374854103,
+          "correctionLatencyUs": 10458.503374854103
+        },
+        {
+          "windowRounds": 2,
+          "utilization": 1.36986301369863,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 11143.014119576663,
+          "correctionLatencyUs": 11145.014119576663
+        },
+        {
+          "windowRounds": 4,
+          "utilization": 1.0273972602739727,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 3118.584198417142,
+          "correctionLatencyUs": 3122.584198417142
+        },
+        {
+          "windowRounds": 8,
+          "utilization": 0.8561643835616438,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 599.968884838745,
+          "correctionLatencyUs": 607.968884838745
+        },
+        {
+          "windowRounds": 16,
+          "utilization": 0.7705479452054794,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 1079.9956028535962,
+          "correctionLatencyUs": 1095.9956028535962
+        },
+        {
+          "windowRounds": 32,
+          "utilization": 0.7277397260273972,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 2039.9741678778082,
+          "correctionLatencyUs": 2071.974167877808
+        }
+      ],
+      "minLatencyRealtimeWindow": 8
+    },
+    {
+      "scenarioId": "fpga-32u",
+      "points": [
+        {
+          "windowRounds": 1,
+          "utilization": 37.5,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 19569.403822264634,
+          "correctionLatencyUs": 19570.403822264634
+        },
+        {
+          "windowRounds": 2,
+          "utilization": 25,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 38558.571654468775,
+          "correctionLatencyUs": 38560.571654468775
+        },
+        {
+          "windowRounds": 4,
+          "utilization": 18.75,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 75999.14882825501,
+          "correctionLatencyUs": 76003.14882825501
+        },
+        {
+          "windowRounds": 8,
+          "utilization": 15.625,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 150137.89698603563,
+          "correctionLatencyUs": 150145.89698603563
+        },
+        {
+          "windowRounds": 16,
+          "utilization": 14.0625,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 298367.2184263114,
+          "correctionLatencyUs": 298383.2184263114
+        },
+        {
+          "windowRounds": 32,
+          "utilization": 13.28125,
+          "verdict": "backlog-grows",
+          "maxEndToEndDelayUs": 569908.2057819124,
+          "correctionLatencyUs": 569940.2057819124
+        }
+      ],
+      "minLatencyRealtimeWindow": null
+    },
+    {
+      "scenarioId": "asic-1us-16u",
+      "points": [
+        {
+          "windowRounds": 1,
+          "utilization": 0.75,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 1.799958921968937,
+          "correctionLatencyUs": 2.799958921968937
+        },
+        {
+          "windowRounds": 2,
+          "utilization": 0.5,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 2.3999451190229593,
+          "correctionLatencyUs": 4.399945119022959
+        },
+        {
+          "windowRounds": 4,
+          "utilization": 0.375,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 3.599986965302378,
+          "correctionLatencyUs": 7.599986965302378
+        },
+        {
+          "windowRounds": 8,
+          "utilization": 0.3125,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 5.999831687193364,
+          "correctionLatencyUs": 13.999831687193364
+        },
+        {
+          "windowRounds": 16,
+          "utilization": 0.28125,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 10.799978101436864,
+          "correctionLatencyUs": 26.799978101436864
+        },
+        {
+          "windowRounds": 32,
+          "utilization": 0.265625,
+          "verdict": "realtime",
+          "maxEndToEndDelayUs": 20.39943608333124,
+          "correctionLatencyUs": 52.39943608333124
+        }
+      ],
+      "minLatencyRealtimeWindow": 1
+    }
   ]
 }

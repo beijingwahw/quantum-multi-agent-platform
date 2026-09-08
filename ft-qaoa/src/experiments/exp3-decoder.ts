@@ -2,8 +2,8 @@ import { Rng } from "../core/rng.js";
 import { randomIsing } from "../core/ising.js";
 import { estimateDeepQaoa } from "../ft/estimate.js";
 import { grossCode } from "../ft/codes.js";
-import { analyzeDecoderSchedule, DECODER_SCENARIOS } from "../ft/decoder-scheduler.js";
-import type { DecoderScenario, ScheduleResult } from "../ft/decoder-scheduler.js";
+import { analyzeDecoderSchedule, DECODER_SCENARIOS, windowPolicySweep } from "../ft/decoder-scheduler.js";
+import type { DecoderScenario, ScheduleResult, WindowPolicySweep } from "../ft/decoder-scheduler.js";
 import { fmt, fmtInt, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
 
@@ -34,6 +34,18 @@ export function main(): void {
     ),
   );
 
+  // Window-size scheduling policy: batch few rounds (low correction latency,
+  // fixed decode latency dominates) vs many (throughput amortized, correction
+  // delayed by the fill time). Priced for three fleets.
+  const sweepSpecs: DecoderScenario[] = [
+    withFleet("fpga-512u", DECODER_SCENARIOS[2]!, 512),
+    withFleet("fpga-32u", DECODER_SCENARIOS[2]!, 32),
+    DECODER_SCENARIOS[4]!,
+  ];
+  const sweeps: WindowPolicySweep[] = sweepSpecs.map((scenario) =>
+    windowPolicySweep(est.syndromeRoundsTotal, 1, est.blocks, scenario, [1, 2, 4, 8, 16, 32], new Rng(SEED + 777 + scenario.id.length)),
+  );
+
   const payload = {
     experiment: "exp3-decoder-scheduling",
     seed: SEED,
@@ -48,6 +60,7 @@ export function main(): void {
     },
     scenarios,
     results,
+    windowPolicy: sweeps,
   };
 
   const lines: string[] = [
@@ -64,6 +77,22 @@ export function main(): void {
     ...results.map(
       (r) =>
         `| ${r.scenarioId} | ${r.unitsPerBlock} | ${fmt(r.utilization, 3)} | ${fmtInt(r.maxBacklogRounds)} | ${fmtInt(r.p95BacklogRounds)} | ${r.verdict} |`,
+    ),
+    "",
+    "## Window-size policy sweep (batching tradeoff priced as data)",
+    "",
+    "| fleet | W | utilization | verdict | max e2e delay (us) | correction latency (us) |",
+    "|---|---|---|---|---|---|",
+    ...sweeps.flatMap((s) =>
+      s.points.map(
+        (pt) =>
+          `| ${s.scenarioId} | ${pt.windowRounds} | ${fmt(pt.utilization, 3)} | ${pt.verdict} | ${fmtInt(pt.maxEndToEndDelayUs)} | ${fmtInt(pt.correctionLatencyUs)} |`,
+      ),
+    ),
+    "",
+    ...sweeps.map(
+      (s) =>
+        `- ${s.scenarioId}: minimum-latency realtime window = ${s.minLatencyRealtimeWindow ?? "none (backlog at every window size)"}`,
     ),
     "",
   ];

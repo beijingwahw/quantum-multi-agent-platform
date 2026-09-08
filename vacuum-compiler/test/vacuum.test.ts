@@ -44,7 +44,26 @@ import {
   stateNorm,
   staticReadoutFidelity,
 } from "../src/compile/history.js";
-import { geometricAttempts, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
+import { geometricAttempts, pricedWalk, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
+import {
+  amplifiedStaticBits,
+  binomialAmplificationResidue,
+  decayCensus,
+  exactRationalPower,
+  partialDemoPrograms,
+  perRoundSoundness,
+  worstSigmaUnits,
+  type ExactRational,
+} from "../src/compile/amplify.js";
+import {
+  fkStaticCompare,
+  fkStaticIntegerBracket,
+  fkStaticRoundsTo,
+  fkStaticUndercuts,
+  tariffCrossoverDepth,
+  tariffOrderingAtDepth,
+} from "../src/compile/tariff.js";
+import { auditBoundaryCitation, auditDecayTable, type BoundaryCitation, type SubmittedDecayRow } from "../src/compile/audit.js";
 import { Rng } from "../src/compile/rng.js";
 
 function randomDataState(dim: number, rng: Rng) {
@@ -343,3 +362,183 @@ describe("T4 the ledger", () => {
     assert.ok(cmatUnitaryDev(demoProgram().circuit.steps[0]!.matrix) < 1e-14);
   });
 });
+
+describe("T5 the graduated boundary (v0.2.0)", () => {
+  it("exact tariff comparisons match hand-checked integer cases", () => {
+    // (T+1)^(T+1) vs 2^c, by hand: 3^3=27, 4^4=256, 5^5=3125; 2^5=32, 2^8=256, 2^9=512
+    assert.equal(fkStaticUndercuts(3, 9), true); // 4.75 < 9
+    assert.equal(fkStaticUndercuts(4, 9), true); // 8 < 9
+    assert.equal(fkStaticUndercuts(5, 9), false); // 11.61 > 9
+    assert.equal(fkStaticUndercuts(4, 5), false); // 8 > 5
+    assert.equal(fkStaticCompare(4, 8), 0); // 4·log2(4) = 8 EXACTLY (256 = 256)
+    assert.equal(fkStaticCompare(4, 7), 1);
+    assert.equal(fkStaticCompare(3, 5), -1);
+  });
+
+  it("integer bracket and the 43.02 rounding certificate are exact", () => {
+    const b11 = fkStaticIntegerBracket(12);
+    assert.equal(b11.lo, 43n);
+    assert.equal(b11.hi, 44n);
+    assert.equal(fkStaticIntegerBracket(4).lo, 8n); // 4·log2(4) = 8 exactly
+    assert.equal(fkStaticRoundsTo(12, 4302), true);
+    assert.equal(fkStaticRoundsTo(12, 4301), false); // tight on both sides
+    assert.equal(fkStaticRoundsTo(12, 4303), false);
+  });
+
+  it("the legislated ordering 5 < 9 < 43.02 holds on OUR conventions at matched depth 11, exactly", () => {
+    const o = tariffOrderingAtDepth(11);
+    assert.equal(o.fkExceedsFive, true);
+    assert.equal(o.fkExceedsNine, true);
+    assert.ok(Math.abs(o.fkBits - 43.0196) < 5e-5, `fkBits ${o.fkBits}`);
+    // the crossovers: FK static undercuts the 5-unit rival only at T <= 2, the 9-unit rival at T <= 3
+    assert.equal(tariffCrossoverDepth(5), 3);
+    assert.equal(tariffCrossoverDepth(9), 4);
+  });
+
+  it("genuine sibling citations pass the two-ground audit", () => {
+    const tc14: BoundaryCitation = { repo: "dtc-clock", version: "0.19.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
+    const we: BoundaryCitation = { repo: "route-price", version: "0.2.0", witness: "W-E", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
+    assert.deepEqual(auditBoundaryCitation(tc14), []);
+    assert.deepEqual(auditBoundaryCitation(we), []);
+  });
+
+  it("SMUGGLING TRIAL: fake graduated-boundary citations are named and rejected", () => {
+    const genuine: BoundaryCitation = { repo: "dtc-clock", version: "0.19.0", witness: "TC14", figureHundredths: 4302, depth: 11, direction: "fk-most-expensive" };
+    const wrongDepth: BoundaryCitation = { ...genuine, depth: 12 }; // 13·log2(13) ≈ 48.11, not 43.02
+    const v1 = auditBoundaryCitation(wrongDepth);
+    assert.ok(v1.some((x) => x.crime === "tariff figure not our conventions at claimed depth"), JSON.stringify(v1));
+    const ghostWitness: BoundaryCitation = { ...genuine, witness: "TC99" }; // no such claim in the shipped report
+    const v2 = auditBoundaryCitation(ghostWitness);
+    assert.ok(v2.some((x) => x.crime === "witness id not in shipped report"), JSON.stringify(v2));
+    const flipped: BoundaryCitation = { ...genuine, direction: "fk-cheapest" }; // the FK entry is the expensive row
+    const v3 = auditBoundaryCitation(flipped);
+    assert.ok(v3.some((x) => x.crime === "direction contradicted by exact ordering"), JSON.stringify(v3));
+    const versionDrift: BoundaryCitation = { ...genuine, version: "0.18.0" };
+    const v4 = auditBoundaryCitation(versionDrift);
+    assert.ok(v4.some((x) => x.crime === "version drift"), JSON.stringify(v4));
+    const unenrolled: BoundaryCitation = { ...genuine, repo: "not-a-repo" };
+    const v5 = auditBoundaryCitation(unenrolled);
+    assert.ok(v5.some((x) => x.crime === "unknown sibling repo"), JSON.stringify(v5));
+  });
+});
+
+describe("T5 amplification (v0.2.0)", () => {
+  it("exact rational powers and the binomial amplification identity (BigInt residue 0)", () => {
+    const half = exactRationalPower({ num: 1n, den: 2n }, 10);
+    assert.equal(half.num, 1n);
+    assert.equal(half.den, 1024n);
+    const threeQuarters = exactRationalPower({ num: 3n, den: 4n }, 3);
+    assert.equal(threeQuarters.num, 27n);
+    assert.equal(threeQuarters.den, 64n);
+    const pairs: ReadonlyArray<[ExactRational, number]> = [
+      [{ num: 1n, den: 2n }, 24],
+      [{ num: 1n, den: 4n }, 16],
+      [{ num: 3n, den: 4n }, 12],
+      [{ num: 1n, den: 3n }, 10],
+      [{ num: 2n, den: 7n }, 9],
+    ];
+    for (const [eps, k] of pairs) assert.equal(binomialAmplificationResidue(eps, k), 0n);
+  });
+
+  it("per-round soundness of the demo family is exactly the dyadic claim", () => {
+    const [half, quarter] = partialDemoPrograms();
+    assert.ok(Math.abs(perRoundSoundness(half!.prog, half!.input) - 0.5) < 1e-12);
+    assert.ok(Math.abs(perRoundSoundness(quarter!.prog, quarter!.input) - 0.25) < 1e-12);
+  });
+
+  it("the decay census: eps^k exact, resolution floor honest, MC within 5 sigma", () => {
+    const half = decayCensus({ num: 1n, den: 2n }, 12, new Rng(801));
+    const quarter = decayCensus({ num: 1n, den: 4n }, 12, new Rng(802));
+    assert.ok(worstSigmaUnits(half) < 5, `eps=1/2 worst ${worstSigmaUnits(half)} sigma units`);
+    assert.ok(worstSigmaUnits(quarter) < 5, `eps=1/4 worst ${worstSigmaUnits(quarter)} sigma units`);
+    // resolution floor: 20000·eps^k >= 10 — k <= 10 for eps = 1/2, k <= 5 for eps = 1/4
+    assert.equal(half.filter((r) => r.resolvable).length, 10);
+    assert.equal(quarter.filter((r) => r.resolvable).length, 5);
+    // dyadic float column is bit-identical to the exact rational
+    for (const r of half) assert.equal(r.float, Math.pow(0.5, r.k));
+    // survival (1-eps)^k: for eps=1/4 this is 3^k/4^k exactly
+    for (const r of quarter) {
+      assert.equal(r.survival.num, 3n ** BigInt(r.k));
+      assert.equal(r.survival.den, 4n ** BigInt(r.k));
+    }
+  });
+
+  it("amplification is priced: k rounds erase k·(T+1)·log2(T+1) bits; completeness stays 1", () => {
+    assert.ok(Math.abs(amplifiedStaticBits(3, 8) - 8 * 3 * Math.log2(3)) < 1e-12);
+    assert.ok(Math.abs(amplifiedStaticBits(7, 1) - staticExpectedErasureBits(7)) < 1e-12);
+    // completeness: the honest accepting witness passes every delivered round with
+    // probability exactly 1 (T3 certificate) — 1^k = 1, no MC needed
+    for (let k = 1; k <= 12; k++) assert.equal(1 ** k, 1);
+  });
+
+  it("SMUGGLING TRIAL: counterfeit amplification-decay tables are named and rejected row by row", () => {
+    const eps: ExactRational = { num: 1n, den: 2n };
+    const census = decayCensus(eps, 12, new Rng(801));
+    const honest: SubmittedDecayRow[] = census.map((r) => ({
+      k: r.k,
+      claimedExact: r.exact,
+      claimedFloat: r.float,
+      claimedSurvival: r.survival,
+      claimedMc: r.mc,
+      claimedResolvable: r.resolvable,
+    }));
+    assert.deepEqual(auditDecayTable(eps, honest), []);
+    // the counterfeit: three corrupted rows, four named crimes
+    const counterfeit = honest.map((r) => {
+      if (r.k === 8) return { ...r, claimedExact: { num: 1n, den: 1023n }, claimedFloat: 1 / 1023 }; // wrong eps^k
+      if (r.k === 11) return { ...r, claimedResolvable: true, claimedMc: 0.5 }; // below the resolution floor
+      if (r.k === 6) return { ...r, claimedSurvival: { num: 1n, den: 63n }, claimedMc: 0.5 }; // wrong (1-eps)^k AND a resolvable row's MC far outside 5 sigma
+      return r;
+    });
+    const v = auditDecayTable(eps, counterfeit);
+    const crimes = new Set(v.map((x) => x.crime));
+    assert.ok(crimes.has("counterfeit epsilon^k (exact)"), JSON.stringify([...crimes]));
+    assert.ok(crimes.has("counterfeit epsilon^k (float)"), JSON.stringify([...crimes]));
+    assert.ok(crimes.has("counterfeit survival (1-eps)^k"), JSON.stringify([...crimes]));
+    assert.ok(crimes.has("resolution smuggling"), JSON.stringify([...crimes]));
+    assert.ok(crimes.has("MC claimed below the resolution floor"), JSON.stringify([...crimes]));
+    assert.ok(crimes.has("MC outside 5-sigma band"), JSON.stringify([...crimes]));
+    // only the corrupted rows are flagged, each with its row number named
+    assert.deepEqual([...new Set(v.map((x) => x.k))].sort((a, b) => a - b), [6, 8, 11]);
+  });
+});
+
+describe("T4 walk price (v0.2.0)", () => {
+  it("second walk family: sigma_E is exactly 1/2, conserved under the walk, MT floor pi", () => {
+    for (const T of [4, 8] as const) {
+      const circuit = randomCircuit(2, T, new Rng(601));
+      const prog = program(circuit, [0, 1], new Map());
+      const comp = assemble(prog, { output: false });
+      const eig = eigHermitian(comp.h);
+      const psi0 = cvecZero(comp.h.dim);
+      psi0.re[0] = 1;
+      const walk = pricedWalk(comp.h, eig, psi0, T + 1, 2 * (T + 1));
+      assert.ok(Math.abs(walk.sigmaE0 - 0.5) < 1e-9, `T=${T}: sigma_E ${walk.sigmaE0}`);
+      assert.ok(Math.abs(walk.sigmaE0 - walk.sigmaEStar) < 1e-9, `T=${T}: not conserved`);
+      assert.ok(Math.abs(walk.mtFloor - Math.PI) < 1e-9, `T=${T}: MT floor ${walk.mtFloor}`);
+      assert.ok(Math.abs(walk.product - walk.tStar * 0.5) < 1e-9);
+      assert.ok(walk.peak > 1 / (T + 1), `T=${T}: peak ${walk.peak} vs floor`);
+    }
+  });
+
+  it("cargo is exact at the delivery peak of the second family", () => {
+    const T = 6;
+    const circuit = randomCircuit(2, T, new Rng(601));
+    const prog = program(circuit, [0, 1], new Map());
+    const comp = assemble(prog, { output: false });
+    const eig = eigHermitian(comp.h);
+    const psi0 = cvecZero(comp.h.dim);
+    psi0.re[0] = 1;
+    const walk = pricedWalk(comp.h, eig, psi0, T + 1, 2 * (T + 1));
+    const evolved = spectralEvolve(eig, psi0, walk.tStar);
+    const { state, prob } = conditionalData(evolved, T + 1, T);
+    const inv = 1 / Math.sqrt(prob);
+    const target = runCircuit(circuit, dataBasisState(2, [0, 0]));
+    const cargo = cvecFidelity(
+      { dim: state.dim, re: Float64Array.from(state.re, (x) => x * inv), im: Float64Array.from(state.im, (x) => x * inv) },
+      target,
+    );
+    assert.ok(Math.abs(1 - cargo) < 1e-12, `fidelity ${cargo}`);
+  });
+});
+

@@ -15,7 +15,7 @@ import { makeRng } from '../core/rng.js';
 import type { CMat } from '../core/cmat.js';
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const rng = makeRng(0x7a99);
 
   // (1) three-way agreement on random channels

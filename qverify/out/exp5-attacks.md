@@ -57,3 +57,42 @@ detection risk per trap** and buys a deferred guessing edge of
 for holding the original). The symmetric two-clone BH machine (both clones at
 exactly 5/6) is cited, not reconstructed here.
 
+## (e) v0.2 Noisy-device census: the games under a second noise model
+
+The v0.1 games are noiseless; here the trap calculus and the guessing game run
+under amplitude damping and phase damping applied to the trap qubit:
+
+| γ | amp.accept (formula) | amp.accept (direct) | amp.accept (expansion) | phase.accept (1−γ) | phase.accept (direct) | guess amp. | guess phase | phase closed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.000 | 1.0000000000 | 1.0000000000 | 1.0000000000 | 1.0000000000 | 1.0000000000 | 0.6913417162 | 0.6913417162 | 0.6913417162 |
+| 0.125 | 0.9677071733 | 0.9677071733 | 0.9677071733 | 0.8750000000 | 0.8750000000 | 0.6789837864 | 0.6435062871 | 0.6435062871 |
+| 0.250 | 0.9330127019 | 0.9330127019 | 0.9330127019 | 0.7500000000 | 0.7500000000 | 0.6657067870 | 0.5956708581 | 0.5956708581 |
+| 0.375 | 0.8952847075 | 0.8952847075 | 0.8952847075 | 0.6250000000 | 0.6250000000 | 0.6512689086 | 0.5478354290 | 0.5478354290 |
+| 0.500 | 0.8535533906 | 0.8535533906 | 0.8535533906 | 0.5000000000 | 0.5000000000 | 0.6352990250 | 0.5000000000 | 0.5000000000 |
+| 0.625 | 0.8061862178 | 0.8061862178 | 0.8061862178 | 0.3750000000 | 0.3750000000 | 0.6171723928 | 0.5478354290 | 0.5478354290 |
+| 0.750 | 0.7500000000 | 0.7500000000 | 0.7500000000 | 0.2500000000 | 0.2500000000 | 0.5956708581 | 0.5956708581 | 0.5956708581 |
+| 0.875 | 0.6767766953 | 0.6767766953 | 0.6767766953 | 0.1250000000 | 0.1250000000 | 0.5676495125 | 0.6435062871 | 0.6435062871 |
+| 1.000 | 0.5000000000 | 0.5000000000 | 0.5000000000 | 0.0000000000 | 0.0000000000 | 0.5000000000 | 0.6913417162 | 0.6913417162 |
+
+- **Phase damping is detected with certainty**: acceptance = 1 − γ exactly (closed
+  form vs both T2 referees agree to 4.441e-16) —
+  the T2 Z-tier firing on a physical noise model: Z|+θ⟩ is the orthogonal state,
+  so every dephasing event fails the revealed-basis test (⟨+θ|Z|+θ⟩ = 0 is
+  exactly why). t traps catch damping rate 1−(1−γ)^t, exponential as designed.
+- **Amplitude damping is only half-seen**: acceptance = (1+√(1−γ))²/4 + γ/4
+  exactly (E₁ = √γ(X+iY)/2 sits in the half-detected tier, E₀'s Z part is
+  invisible); formula vs both referees agree to 4.441e-16.
+  At γ = 1 acceptance is exactly ½ — half of a full decay is forever undetectable
+  by the isolated trap.
+- **Guessing under noise**: after phase flips p*(γ) = (1+|1−2γ|·sin π/8)/2 exactly
+  (worst gap 1.110e-16) — a V, not a line: flips are
+  unitary, so at γ = 1 the pair maps to an equally-distinguishable flipped pair
+  (p* back to 0.691342) while the trap rejects every flip
+  (acceptance 0) — **coherent noise decouples detection from leakage**; only the
+  incoherent midpoint γ = 1/2 destroys both (p* = ½). After amplitude damping the
+  pair is computed numerically; endpoints exact: p*(0) = (1+sin π/8)/2 =
+  0.691341716183, p*(1) = ½ (both states decay to
+  |0⟩ — decay, unlike flipping, erases the phase bit). POVM-optimizer referee at
+  γ = 0.5: 0.6352989432 vs trace-norm 0.6352990250
+  (gap 8.181e-8).
+

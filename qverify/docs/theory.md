@@ -89,6 +89,45 @@ PPT-entangled but CHSH-local (measured: F = 0.65 has PPT min-eigenvalue
 necessary — noisy honest devices can fail rigidity while being genuinely
 quantum.
 
+## T3+ — The rigidity-vs-noise window census (v0.2)
+
+The boundary above, executed as a census. For the isotropic family
+ρ(v) = v|Φ+⟩⟨Φ+| + (1−v)I/4 the exact identities S = 2√2·v and
+F(ρ, Φ+) = (1+3v)/4 are machine-checked (worst 8.9e-16 / 6.7e-16 over a
+501-point sweep), so the (v, S, F) curve of a noisy honest device is known
+exactly. Four regimes, boundaries exact:
+
+- v ≤ 1/3: separable (PPT min ≥ 0). At v = 1/3 the device fidelity is
+  exactly 1/2 — the separability boundary coincides with the trivial
+  extractability floor λmax².
+- 1/3 < v ≤ 1/√2 — **the window**: PPT-entangled, S ≤ 2. CHSH certifies
+  nothing at all.
+- 1/√2 < v ≤ v* — **the rigidity gap**: a genuine violation, but the best
+  proven analytic bound is still the trivial floor 1/2. The threshold is
+  Kaniewski's β* = (16+14√2)/17 ≈ 2.105823 with v* = (7+4√2)/17 ≈ 0.744521;
+  the identity 2√2·v* = β* holds to machine zero.
+- v* < v ≤ 1 — certified: the extractability bound exceeds 1/2.
+
+**Bound shapes carried as data** (adopted anchors, re-evaluated exactly —
+not re-derived): Kaniewski's linear bound
+Q(β) ≥ 1/2 + ½·(β−β*)/(2√2−β*) [PRL 117, 070402 (2016), Eq. (10)], and the
+trivial upper barrier Q(β) ≤ 1/√2 + (1−1/√2)(β−2)/(2√2−2) [same paper,
+Eq. (4) — the classical-mixture construction]. Machine-checked relations:
+bound ≤ barrier on all of [2, 2√2]; bound ≤ the honest device's actual
+fidelity on [v*, 1]; bound(2√2) = barrier(2√2) = 1 (tight at Tsirelson only).
+**Plain-fidelity cap:** the isotropic device achieves β with fidelity exactly
+¼ + 3β/(8√2), so any plain-fidelity self-testing claim valid for all states
+is capped by that line; whether the cap is achievable in the interior is not
+decided here (the bound is on extractability — fidelity after optimal local
+channels — which plain fidelity does not upper-bound). Cited only, not
+reproduced: Bancal et al. (PRA 91, 022115 (2015)) obtain non-trivial plain
+fidelity above β ≈ 2.37 by numerical swap tests.
+
+**Smuggling referee.** `checkRigidityCertificate` recomputes every claimed
+number from the state and names the fraud: `claimed-beta-not-reproduced`,
+`fidelity-above-isotropic-barrier`, `certified-without-violation`,
+`certified-inside-rigidity-gap`, `claimed-fidelity-exceeds-proven-bound`.
+
 ## T4 — Sampling-based certification
 
 **Shadows (Huang–Kueng–Preskill).** Local random-Pauli snapshots ρ̂ = R†(⊗_v
@@ -117,6 +156,42 @@ computation. **Sample wall:** exact-ideal evaluation cost doubles per qubit
 (5.0 ms → 955.8 ms from n = 8 to 16); XEB verification includes the
 verifier's classical simulation bill. Device-independent certification
 lower bounds: Hangleiter–Kliesch–Gogolin–Eisert PRL 122, 210502 (2019).
+
+## T4+ — The statistical-cost wall census (v0.2)
+
+The wall as executable numbers, on the same n = 8 circuit distribution the
+XEB facts use. The verifier draws N samples, computes X = 2ⁿp_ideal(x) − 1
+per sample, and rejects "uniform" when X̄ > τ = λ₀C/2 (C = 2ⁿΣp² − 1 the
+circuit's XEB self-value, λ₀ the target signal).
+
+- **Exact Hoeffding count:** X ∈ [−1, 2ⁿp_max − 1] gives
+  N_H = ⌈R² ln(1/δ)/(2τ²)⌉ with R = 2ⁿp_max — pure exact arithmetic.
+- **Exact Chernoff count:** the per-sample law under the uniform device is
+  exactly known (value 2ⁿp(x)−1 with probability 2⁻ⁿ over all 2ⁿ values), so
+  the Cramér rate I₀(τ) = sup_{s≥0}[sτ − ln E e^{sX}] is computed by a
+  deterministic concave maximization (golden section, log-sum-exp stable)
+  and N_C = ⌈ln(1/δ)/I₀(τ)⌉. Independent anchor: on a fair coin the routine
+  reproduces the binary relative entropy d(0.75‖0.5) to 1e-9.
+- Census (n = 8): N_C runs 28 (λ₀ = 1, δ = 0.05) → 5023 (λ₀ = 0.1,
+  δ = 0.001); N_C ≤ N_H at every grid point (Hoeffding is the sub-Gaussian
+  proxy of the same argument); the 1/λ₀² blowup is the wall.
+- MC cross-check: at (λ₀ = 0.5, δ = 0.01, N = N_C) the uniform device
+  false-accepts at 0.0012 ≤ δ; at N/4 it false-accepts at 0.052 — the count
+  is not conservative slop in either direction.
+- **Shadow side:** the local-Pauli fidelity estimator's per-shot law is
+  exactly enumerable (3ⁿ bases × 2ⁿ outcomes): mean = the closed form
+  (1−q)+q/2ⁿ, variance σ² = 2.107 (n = 3, q = 0.3), giving the rigorous
+  Chebyshev count ⌈σ²/(δε²)⌉ = 16856 (ε = 0.05, δ = 0.05) and the Hoeffding
+  count over the exact per-shot range. Cross-check: empirical batch-mean std
+  matches σ/√N to 2.5%; measured coverage at the Chebyshev count is 100%.
+- **Smuggling referee.** `checkSampleComplexityRow` recomputes the exact
+  requirement and names too-cheap rows (`below-exact-chernoff-requirement`)
+  or padded ones (`padded-beyond-hoeffding-slop`).
+- Cited context (not re-proved): the Huang–Kueng–Preskill log(M/δ)·3^ℓ/ε²
+  M-observable scaling and median-of-means machinery, Fu's improved MoM
+  constants (arXiv:2412.03381), the matching single-copy lower bounds of
+  Lowe et al. (arXiv:2207.14438), and the XEB-pitfall literature (PRX
+  Quantum 5, 010334 (2024); arXiv:2405.00789).
 
 ## T5 — Optimal attack games
 
@@ -147,6 +222,26 @@ exactly (1 + ⅔ sin π/8)/2 = 0.627561144122 — versus 0.691342 for holding th
 untouched original. Exact exchange rate: 1/6 detection risk buys a 0.1276
 guessing edge over blind.
 
+## T5+ — The noisy-device census (v0.2): the games under a second noise model
+
+The v0.1 games are noiseless; both the trap calculus and the one-bit
+guessing game are re-run with a physical noise channel on the trap qubit.
+Closed forms exact, verified against all three T2 referees (4.4e-16):
+
+- **Phase flips** {√(1−γ)I, √γ Z}: acceptance = **1 − γ exactly** — the T2
+  Z-tier firing on a physical model: Z|+θ⟩ is the orthogonal state, so every
+  flip fails the revealed-basis test. The damped guess game is the exact
+  **V-form** p*(γ) = (1 + |1−2γ|·sin π/8)/2: flips are unitary, so at γ = 1
+  the attacker's discrimination is fully restored (p* back to 0.691342)
+  while the trap rejects everything — **coherent noise decouples detection
+  from leakage**; only the incoherent midpoint γ = 1/2 destroys both (p* = ½).
+- **Amplitude damping** {E₀ = diag(1,√(1−γ)), E₁ = √γ|0⟩⟨1|}: acceptance =
+  (1+√(1−γ))²/4 + γ/4 exactly — E₁ = √γ(X+iY)/2 sits in the half-detected
+  tier, E₀'s Z part is invisible, so at γ = 1 acceptance is exactly ½: half
+  a full decay is forever undetectable by the isolated trap. The damped
+  guess decays monotonically 0.691342 → ½ (decay, unlike flipping, erases
+  the phase bit), with the POVM optimizer as referee.
+
 ## Cited boundaries (not re-proved here)
 
 1. Composable security of UBQC / verifiability of full FK — Dunjko, Kashefi,
@@ -161,3 +256,23 @@ guessing edge over blind.
 5. Sampling-certification lower bounds — Hangleiter et al., PRL 122, 210502
    (2019); RCS/XEB critique and review — Hangleiter & Eisert, Rev. Mod. Phys.
    95, 035001 (2023).
+6. Robust self-testing bound shapes (v0.2, carried as data, not re-derived) —
+   J. Kaniewski, "Analytic and nearly optimal self-testing bounds for the
+   Clauser-Horne-Shimony-Holt and Mermin inequalities", Phys. Rev. Lett. 117,
+   070402 (2016), arXiv:1604.08176: the linear extractability bound (Eq. 10)
+   and the trivial upper barrier (Eq. 4) with threshold β* = (16+14√2)/17.
+7. Numerical self-testing threshold — J.-D. Bancal, M. Navascués, V. Scarani,
+   T. Vértesi, T. H. Yang, "Physical characterization of quantum devices
+   from nonlocal correlations", Phys. Rev. A 91, 022115 (2015),
+   arXiv:1307.7053 (plain fidelity ≳ trivial above β ≈ 2.37; cited only —
+   swap-trick numerics not reproducible in-repo).
+8. Shadow sample-complexity context — Huang–Kueng–Preskill (Nature Physics
+   16, 1050 (2020), cited above): the log(M/δ)·3^ℓ/ε² scaling;
+   W. Fu, "Classical Shadows with Improved Median-of-Means Estimation",
+   arXiv:2412.03381 (IOP Quantum Sci. Technol. 2025); A. Lowe, M. Moshkovitz,
+   A. Parekh, A. Segev, "Lower Bounds for Learning Quantum States with
+   Single-Copy Measurements", arXiv:2207.14438 (journal version ACM 2025).
+9. XEB-pitfall anchors (2024) — "Limitations of Linear Cross-Entropy as a
+   Measure for Quantum Advantage", PRX Quantum 5, 010334 (2024); A. Tanggara,
+   M. Gu, K. Bharti, "Classically Spoofing System Linear Cross Entropy Score
+   Benchmarking", arXiv:2405.00789.

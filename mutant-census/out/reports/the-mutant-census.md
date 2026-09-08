@@ -101,7 +101,7 @@ Ten full members byte-identical in all five files (the eight-repo lineage plus t
 | nonstoq-anneal | Y | Y | 0 | — | 0 |
 | quantum-mech | Y | Y | 0 | — | 0 |
 | ent-sched | Y | Y | 0 | — | 0 |
-| vacuum-compiler | Y | Y | 0 | — | 3 |
+| vacuum-compiler | Y | Y | 0 | — | 4 |
 | dsic-noether | Y | Y | 0 | — | 5 |
 | ft-qaoa | Y | Y | 0 | — | 0 |
 | switch-sched | Y | Y | 0 | — | 0 |
@@ -115,26 +115,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 492 errors across 77 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 509 errors across 78 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
-| GATE-ENFORCED | 222 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 153 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| GATE-ENFORCED | 232 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
+| BOOKED-UNENFORCEABLE | 160 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
 | anchor-blindspot | 0 | 14 | 2 |
 | bogus-comparison | 0 | 8 | 3 |
-| citation-drift | 0 | 17 | 3 |
-| conjugation | 19 | 8 | 0 |
-| dimension-slot | 29 | 3 | 0 |
-| machine-overruled | 0 | 37 | 0 |
-| process | 0 | 57 | 107 |
-| statistics | 25 | 14 | 3 |
-| toolchain | 0 | 47 | 27 |
-| wrong-object | 44 | 17 | 8 |
+| citation-drift | 0 | 18 | 3 |
+| conjugation | 19 | 9 | 0 |
+| dimension-slot | 29 | 4 | 0 |
+| machine-overruled | 0 | 38 | 0 |
+| process | 0 | 57 | 112 |
+| statistics | 25 | 16 | 3 |
+| toolchain | 0 | 49 | 29 |
+| wrong-object | 44 | 19 | 8 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -246,6 +246,16 @@ The registry is imported LIVE on every run: 492 errors across 77 batches, each w
 | `binding-price/test/market.test.ts :: per-coin flat at every Schmidt coefficient` | 1 | dimension-slot |
 | `binding-price/src/kernel/audit.ts :: under damping the verifier's register is` | 1 | wrong-object |
 | `binding-price/test/market.test.ts :: blochOf inverts blochState exactly` | 1 | conjugation |
+| `qverify/package.json :: typecheck` | 1 | toolchain |
+| `qverify/test/protocol.test.ts :: phaseDampingKraus` | 1 | conjugation |
+| `qverify/test/protocol.test.ts :: guessAfterPhaseDamp` | 1 | machine-overruled |
+| `qverify/docs/citations.md :: first-guess author attribution` | 1 | citation-drift |
+| `ft-qaoa/test/ft.test.ts :: follows the power law` | 1 | statistics |
+| `ft-qaoa/test/constants.test.ts :: duplicate ids are rejected` | 1 | dimension-slot |
+| `ft-qaoa/test/ft.test.ts :: window-size policy prices the batching tradeoff` | 1 | statistics |
+| `ft-qaoa/test/noise.test.ts :: depolarizeQubit matches an independent naive Pauli conjugation` | 1 | wrong-object |
+| `choice-lang/test/model.test.ts :: the chain's weights MULTIPLY to the composed weight` | 1 | wrong-object |
+| `vacuum-compiler/package.json :: lint` | 1 | toolchain |
 
 **Booked unenforceable — the visible boundary, every row:**
 
@@ -402,6 +412,13 @@ The registry is imported LIVE on every run: 492 errors across 77 batches, each w
 - b76#24 [toolchain] — heredoc act face — the banned channel's fourteenth canonical sighting (the thirteenth is b76#9 one row above, same batch); the scratch was deleted, which does not unmake the breach; no machine sees the channel, the Write-tool rule is the guard. Booked: the act face only
 - b77#8 [process] — the banned git channel, read-only face (the b74#3 twin, one wave later): no mutation, no output shipped — the ban is unconditional and no machine sees the act; the deliverable's state is read from the files. Booked: the act face only
 - b77#11 [toolchain] — one transient W-F filesystem miss — the cross-anchor existence check returned false once for an anchor on disk, re-run green, never reproduced; a transient environment flake has no enforceable face (the witness itself fires on every suite run). Booked: the transient face
+- b78#1 [process] — the exp4 eps=0.01 MC hang (360k shots/trial, killed by hand — the b73#2 class) has no non-timeout gate that prices a workload; the load-reduced design (the eps=0.01 row exact-arithmetic-only, MC cross-checks re-anchored at eps=0.05 with reduced batches) is author discipline. Booked: the complexity-estimate face
+- b78#9 [process] — the banned git channel, read-only diff flavor (third act on the b74#3/b77#8 line): no mutation, no output shipped — the ban is unconditional and no machine sees the act. Booked: the act face only
+- b78#10 [toolchain] — the display pipe (`npm test | tail -15`) is a shell act no scheduled gate inspects — caught by self-review before any verdict was taken, the suite re-run for its direct exit code; the exit-code-masking family's eighth sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2 the seven before it). Booked: the shell-act face
+- b78#12 [process] — interruption leftover (the b74#6 class): the uncompilable stub and scratch-bench residue died at the successor's typecheck exit 2 before any work layered on it — the leaving-behind act is interruption process no gate diffs. Booked: the leaving-behind face
+- b78#13 [process] — the oldest-first doc comment contradicts the audit's own newest-first register note — no gate parses doc-comment intent against the code it decorates; the v0.2.0 docs carry the corrected statement. Booked: the doc face
+- b78#14 [toolchain] — heredoc act face — the banned channel's fifteenth canonical sighting (the family's wrong-text sightings grep to 19 in-registry, counted before enrolling); no machine sees the channel, the Write/Edit rule is the guard, and the truncated block died at the loader the moment it landed (restored by Edit, the b47#1 twin). Booked: the act face only
+- b78#15 [process] — interruption leftover (the b74#6 class, second row of the wave): the inverted field name and wrong docstring died at the successor's gates and the JW25 mischaracterization is corrected with a logged erratum pinned in citations.md — the leaving-behind act remains ungated interruption process. Booked: the leaving-behind face
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -463,6 +480,14 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **FIRING-INJECT** — `binding-price/test/market.test.ts :: per-coin flat at every Schmidt coefficient` — the companion-index guard: the swap-flip companion keeps per-coin marginals at exactly I/2 at EVERY t — the 01/10 companion lands at per-coin TV 0.5 from I/2 and the marginal assertion convicts it on every suite run (demo: binding-price/test/market.test.ts, "per-coin flat at every Schmidt coefficient")
 - **FIRING-INJECT** — `binding-price/src/kernel/audit.ts :: under damping the verifier's register is` — the register guard: panel (e)'s comment pins the object — the verifier's register is E_gamma(I/2), the member announced pure — and the witness asserts the memberwise (1 + gamma*m_z)/2 formula against it; a recurrence that channels the member removes the needle and E3 convicts on every census run (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
 - **FIRING-INJECT** — `binding-price/test/market.test.ts :: blochOf inverts blochState exactly` — the roundtrip guard: blochOf(blochState(r)) must return r componentwise, one state at a time — the flipped y dies at the y-component assertion on every suite run (the latent v0.1.0 sign defect: double flips cancel in pairs, a one-at-a-time roundtrip has no pair) (demo: binding-price/test/market.test.ts, "blochOf inverts blochState exactly")
+- **FIRING-INJECT** — `qverify/test/protocol.test.ts :: phaseDampingKraus` — the Kraus-convention guard: the Z-tier test runs phaseDampingKraus at every gamma in [0,1] and asserts trap acceptance exactly 1-gamma against the closed form — a reversed Kraus pair breaks the acceptance at the first interior grid point and the suite convicts it on every run (demo: qverify/test/protocol.test.ts, "phase damping sits in the Z-tier")
+- **FIRING-INJECT** — `qverify/test/protocol.test.ts :: guessAfterPhaseDamp` — the overruled-claim guard: the census row asserts the machine-found V-form (1+|1-2gamma| sin(pi/8))/2 at every gamma plus the gamma=1 decoupling anchor — a backwards invisibility claim or a monotone guess-decay dies at the grid on every run (demo: qverify/test/protocol.test.ts, "guess game is the V-form")
+- **FIRING-INJECT** — `qverify/docs/citations.md :: first-guess author attribution` — the attribution guard: the corrected Tanggara-Gu-Bharti entry with the wrong first guess confessed is pinned in the register — a drift back to the recalled attribution removes the needle and E3 convicts on every census run (the identifier family's seventh sighting, needle-held like its fifth and sixth) (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
+- **FIRING-INJECT** — `ft-qaoa/test/ft.test.ts :: follows the power law` — the hand-arithmetic guard: e5 is asserted exactly at 0.1*(1/6)^3 to 1e-18 beside its monotone siblings — a slipped expected-value (the 0.1-squared face) dies at the exact assertion on every suite run (demo: ft-qaoa/test/ft.test.ts, "follows the power law")
+- **FIRING-INJECT** — `ft-qaoa/test/constants.test.ts :: duplicate ids are rejected` — the collision-visibility guard: the audit validation is map-free — a duplicate id yields BOTH rejections (thin rationale AND duplicate) and the smuggling trial asserts the pair stays visible; a map-keyed recurrence overwrites the duplicate and the two-rejection assertion convicts it on every suite run (demo: ft-qaoa/test/constants.test.ts, "duplicate ids are rejected")
+- **FIRING-INJECT** — `ft-qaoa/test/ft.test.ts :: window-size policy prices the batching tradeoff` — the feasibility-window guard: the sweep asserts W=4 still exceeds the latency ceiling (utilization 1.03) and W=8 is the first feasible window at 0.856, with the ASIC scenario at 1 and the hopeless fleet null — a W=4 assertion dies at the minLatencyRealtimeWindow equality on every suite run (demo: ft-qaoa/test/ft.test.ts, "window-size policy prices the batching tradeoff")
+- **FIRING-INJECT** — `ft-qaoa/test/noise.test.ts :: depolarizeQubit matches an independent naive Pauli conjugation` — the channel guard: the n=2 test rebuilds the reference channel as an independent naive Pauli conjugation on embedded full complex matrices and asserts elementwise agreement to 1e-15 — the latent v0.1.0 branch swap (same-qubit/cross-qubit interchanged, mixing weights off) dies at the first element on every suite run (demo: ft-qaoa/test/noise.test.ts, "depolarizeQubit matches an independent naive Pauli conjugation")
+- **FIRING-INJECT** — `choice-lang/test/model.test.ts :: the chain's weights MULTIPLY to the composed weight` — the weight-object guard: the S2 chain's own weight is asserted against the second part's standalone weight, the composed weight against the exact product, and the conditionals through the independent concat path — a wrong comparison target or a repeated-object leaf identity dies at the product assertion on every suite run (demo: choice-lang/test/model.test.ts, "condition P then run-and-condition Q equals conditioning P++Q")
 - **FIRING-LIVE** — `mutant-census/src/experiments/render.ts :: witness letters must be unique` — a forged report headlining two censuses under one W-letter is refused on the spot (assertUniqueWitnessLetters, the b46#5 tier upgrade; the guard lives in report.ts since b53#5 — a leaf, so the anchor's dynamic fire can never deadlock the entry)
 - **FIRING-LIVE** — `mutant-census/src/kernel/audit.ts :: E1` — a forged registry carrying an un-enrolled error is convicted by checkEnrollment on the spot
 - **FIRING-LIVE** — `mutant-census/src/kernel/audit.ts :: E2` — a forged class-mismatched mutant tie is convicted by checkEnrollment on the spot
@@ -515,6 +540,8 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **RESOLVED** — `quantum-mech/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the wave's two post-hoc lint/typecheck residue
 - **RESOLVED** — `retro-cache/package.json :: test` — the test tree exists and carries test files — the suite that holds the wave's rewritten W5/W6 assertions (the fake-claim face died exactly here)
 - **RESOLVED** — `survivor-census/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the wave's preserve-caught-error sighting
+- **RESOLVED** — `qverify/package.json :: typecheck` — tsconfig.typecheck.json on disk — the loader face that convicted the embedded '*/' closing the comment early (the b12#0 twin)
+- **RESOLVED** — `vacuum-compiler/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the machinery that convicted the wave's five lint sightings
 
 ## G-board — the genealogy census (every error in a family, every family resolved, every catch credited)
 
@@ -522,15 +549,15 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 138 | b1 | b77#8 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 66 | b2 | b77#14 | GATE-ENFORCED |
-| cat:toolchain | 56 | b1 | b77#11 | BOOKED-UNENFORCEABLE |
-| cat:statistics | 42 | b3 | b77#12 | GATE-ENFORCED |
-| cat:machine-overruled | 33 | b4 | b77#9 | GATE-ENFORCED |
-| cat:dimension-slot | 32 | b5 | b77#13 | GATE-ENFORCED |
-| cat:conjugation | 26 | b4 | b77#15 | GATE-ENFORCED |
-| shell-template-heredoc | 25 | b10 | b76#24 | BOOKED-UNENFORCEABLE |
-| cat:citation-drift | 18 | b6 | b76#18 | GATE-ENFORCED |
+| cat:process | 143 | b1 | b78#15 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 68 | b2 | b78#11 | GATE-ENFORCED |
+| cat:toolchain | 59 | b1 | b78#16 | GATE-ENFORCED |
+| cat:statistics | 44 | b3 | b78#7 | GATE-ENFORCED |
+| cat:machine-overruled | 34 | b4 | b78#3 | GATE-ENFORCED |
+| cat:dimension-slot | 33 | b5 | b78#6 | GATE-ENFORCED |
+| cat:conjugation | 27 | b4 | b78#2 | GATE-ENFORCED |
+| shell-template-heredoc | 26 | b10 | b78#14 | BOOKED-UNENFORCEABLE |
+| cat:citation-drift | 19 | b6 | b78#4 | GATE-ENFORCED |
 | runner-path | 17 | b14 | b77#5 | GATE-ENFORCED |
 | cat:anchor-blindspot | 13 | b9 | b45#5 | BOOKED-UNENFORCEABLE |
 | cat:bogus-comparison | 10 | b2 | b37#2 | GATE-ENFORCED |
@@ -538,7 +565,7 @@ The E-board made every error answer for its enforcement; the A-board made every 
 | count-drift | 6 | b36 | b65#0 | GATE-ENFORCED |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 
-The catch census: gate 70 / author 384 / numbers 37 / visitor 1 over 492 errors — the gate fraction rose from 1% (batches 1-22) to 26% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 73 / author 397 / numbers 38 / visitor 1 over 509 errors — the gate fraction rose from 1% (batches 1-22) to 26% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -673,8 +700,8 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | verdict | rows | meaning |
 | --- | --- | --- |
 | UPGRADED | 11 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
-| SHARPENED | 25 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 128 | the reason is true as written; the basis states the ungated face |
+| SHARPENED | 30 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
+| HELD | 130 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -842,6 +869,13 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **SHARPENED** b76#24 — dual-face: the heredoc scratch act is ungated — the channel's fourteenth canonical sighting (the thirteenth is b76#9, same batch), and the deletion does not unmake the breach; the damaged-file face dies at the loader/typecheck the moment it lands. Booked: the act face only
 - **SHARPENED** b77#8 — dual-face (the b74#3 twin, one wave later): the act face — a read-only git status against the unconditional agent-git ban — is booked; no mutation occurred and no output shipped, the deliverable's state is read from the files. Booked: the act face only
 - **HELD** b77#11 — transient environment face: one W-F filesystem miss against an anchor on disk, re-run green, never reproduced — the witness itself fires on every suite run; there is no machine to build against a ghost, the re-run is the resolution
+- **HELD** b78#1 — a hung run is killed by hand and no non-timeout gate prices a workload before launch (the b73#2 line) — the load-reduced redesign's own cross-checks ride the delivered suite; the complexity-estimate discipline is the booking
+- **SHARPENED** b78#9 — dual-face (third act on the b74#3/b77#8 line, now the diff flavor): the act face — a read-only `git diff --stat` inside a compound command — is booked; no mutation, no output shipped. Booked: the act face only
+- **SHARPENED** b78#10 — dual-face (the exit-code-masking family's eighth sighting, an attempted one): the shell-act face — a display pipe eating the suite's verdict — is booked, caught by self-review before any verdict was taken from it; the landing face never existed, the re-run's direct exit code is the resolution. Booked: the shell-act face only
+- **SHARPENED** b78#12 — dual-face (the b74#6 class): the in-tree residue — an uncompilable compose.ts stub plus a scratch-bench — died at the successor's typecheck exit 2 on arrival; the leaving-behind act is interruption process no gate diffs. Booked: the leaving-behind face only
+- **HELD** b78#13 — doc face: a doc comment claiming oldest-first against the code's newest-first register — no scheduled gate parses comment intent against the machine's own register-order note; the v0.2.0 docs carry the corrected statement, the comment's semantics were never wrong
+- **SHARPENED** b78#14 — dual-face: the heredoc act is ungated — the channel's fifteenth canonical sighting (wrong-text sightings grepped to 19 in-registry before enrolling); the truncated block died at the loader the moment it landed and was restored by Edit. Booked: the act face only
+- **SHARPENED** b78#15 — dual-face (the b74#6 class, second row of the wave): the orphan draft's three defects died at the successor's gates and the JW25 mischaracterization is corrected with a logged erratum pinned in vacuum-compiler/docs/citations.md; the leaving-behind act is interruption process no gate diffs. Booked: the leaving-behind face only
 
 ## T-board — the total gate
 
@@ -854,11 +888,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - FAIL — W-D family census (readout-wall/measures.ts registered as divergent but now byte-identical — stale registration; nosignal-tariff/cmat.ts registered as divergent but now byte-identical — stale registration; nosignal-tariff/measures.ts registered as divergent but now byte-identical — stale registration; choice-lang/cmat.ts registered as divergent but now byte-identical — stale registration; choice-lang/measures.ts registered as divergent but now byte-identical — stale registration; binding-price/cmat.ts registered as divergent but now byte-identical — stale registration; binding-price/measures.ts registered as divergent but now byte-identical — stale registration; letter-audit/cmat.ts registered as divergent but now byte-identical — stale registration; letter-audit/measures.ts registered as divergent but now byte-identical — stale registration; ent-clearing/cmat.ts registered as divergent but now byte-identical — stale registration; quantum-mech/cmat.ts registered as divergent but now byte-identical — stale registration; quantum-mech/measures.ts registered as divergent but now byte-identical — stale registration)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: probe.ts) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (492 errors enrolled LIVE against a registry of 77 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 222, BOOKED-UNENFORCEABLE 153, every booked row printed on the report)
-- PASS — W-G anchor census (108 guards registered: 56 firing-inject demos on disk, 9 fired live this run, 43 resolved to machinery)
-- PASS — W-H genealogy census (15 families over 492 errors (15 recurring, all resolved); catch census gate 70 / author 384 / numbers 37 / visitor 1 — the gate fraction rose from 1% (b1-22) to 26% (b37+); count-drift held by B7: true)
+- PASS — W-F enrollment census (509 errors enrolled LIVE against a registry of 78 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 232, BOOKED-UNENFORCEABLE 160, every booked row printed on the report)
+- PASS — W-G anchor census (118 guards registered: 64 firing-inject demos on disk, 9 fired live this run, 45 resolved to machinery)
+- PASS — W-H genealogy census (15 families over 509 errors (15 recurring, all resolved); catch census gate 73 / author 397 / numbers 38 / visitor 1 — the gate fraction rose from 1% (b1-22) to 26% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (164 booked-population rows audited LIVE (of the 153 booked + 11 upgraded) — UPGRADED 11 on cited live anchors with needle-level firing evidence (R4, 11 needles in the cited gates' own trees), SHARPENED 25 to named faces, HELD 128 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (171 booked-population rows audited LIVE (of the 160 booked + 11 upgraded) — UPGRADED 11 on cited live anchors with needle-level firing evidence (R4, 11 needles in the cited gates' own trees), SHARPENED 30 to named faces, HELD 130 with the ungated face stated; born-audited is law)
 
 ## Boundaries
 

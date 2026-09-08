@@ -4,6 +4,7 @@ import type { IsingModel } from "../core/ising.js";
 import { DEFAULT_FT_ASSUMPTIONS, estimateDeepQaoa, selectCodes } from "../ft/estimate.js";
 import type { DeepQaoaEstimate, FtAssumptions, TFactoryAssumptions } from "../ft/estimate.js";
 import { grossCode } from "../ft/codes.js";
+import { CONSTANTS_AUDIT, renderConstantsAudit, validateConstantsAudit } from "../ft/constants.js";
 import { fmt, fmtInt, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
 
@@ -82,6 +83,13 @@ export function main(): void {
     sensitivity.push({ pPhys, epsilonTotal: est.epsilonTotal, meetsBudget: est.meetsBudget });
   }
 
+  // Assumption-constants audit: every estimator constant with provenance, gated.
+  const auditResult = validateConstantsAudit(CONSTANTS_AUDIT);
+  if (!auditResult.valid) {
+    throw new Error(`exp2: constants audit rejected rows — ${auditResult.rejected.map((r) => `[${r.id}] ${r.reason}`).join("; ")}`);
+  }
+  const auditLines = renderConstantsAudit(CONSTANTS_AUDIT, auditResult);
+
   const payload = {
     experiment: "exp2-resources",
     seed: SEED,
@@ -89,6 +97,7 @@ export function main(): void {
     factoryScenarios: T_FACTORY_SCENARIOS,
     rows,
     grossSensitivityP128L80: sensitivity,
+    constantsAudit: auditResult,
   };
 
   const lines: string[] = [
@@ -112,6 +121,9 @@ export function main(): void {
     "|---|---|---|",
     ...sensitivity.map((s) => `| ${s.pPhys.toExponential(0)} | ${fmt(s.epsilonTotal, 3)} | ${s.meetsBudget ? "OK" : "FAIL"} |`),
     "",
+    "## Assumption-constants audit (provenance gate)",
+    "",
+    ...auditLines,
   ];
 
   writeReport("exp2-resources", payload, lines.join("\n"));

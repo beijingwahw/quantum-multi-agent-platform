@@ -103,6 +103,64 @@ export function expectedShadow(rho: CMat, n: number): CMat {
   return out;
 }
 
+/**
+ * Exact per-shot value of the local-Pauli shadow fidelity estimator at a
+ * given (basis assignment, outcome): ⟨ψ̃| D_pattern |ψ̃⟩ with D diagonal and
+ * |ψ̃⟩ = R|ψ⟩ (R = U† per qubit). Pure function, shared by the MC estimator
+ * and the exact moment enumeration below.
+ */
+export function fidelityShotValue(target: CVec, n: number, assignment: readonly PauliBasis[], outcome: number): number {
+  const d = 1 << n;
+  let psiTilde = target;
+  for (let v = 0; v < n; v++) psiTilde = applyRotVec(psiTilde, n, v, mDagger(shadowBasisRotation(assignment[v]!)));
+  let est = 0;
+  for (let idx = 0; idx < d; idx++) {
+    let factor = 1;
+    for (let v = 0; v < n; v++) {
+      const bit = (idx >> (n - 1 - v)) & 1;
+      const want = (outcome >> (n - 1 - v)) & 1;
+      factor *= bit === want ? 2 : -1;
+    }
+    est += factor * (psiTilde.re[idx]! * psiTilde.re[idx]! + psiTilde.im[idx]! * psiTilde.im[idx]!);
+  }
+  return est;
+}
+
+/**
+ * Exact per-shot distribution moments of the fidelity estimator by full
+ * enumeration (3ⁿ bases × 2ⁿ outcomes, exact probabilities): mean, variance,
+ * min and max per-shot value. The sample-complexity census consumes these.
+ */
+export function shadowFidelityExact(
+  rho: CMat,
+  target: CVec,
+  n: number,
+): { mean: number; variance: number; min: number; max: number } {
+  const d = rho.rows;
+  let mean = 0;
+  let second = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  const rec = (assignment: PauliBasis[]): void => {
+    if (assignment.length === n) {
+      const rotated = rotateRhoAll(rho, n, assignment, false);
+      for (let outcome = 0; outcome < 1 << n; outcome++) {
+        const p = rotated.re[outcome * d + outcome]!;
+        const value = fidelityShotValue(target, n, assignment, outcome);
+        const w = p / 3 ** n;
+        mean += w * value;
+        second += w * value * value;
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+      return;
+    }
+    for (const b of BASES) rec([...assignment, b]);
+  };
+  rec([]);
+  return { mean, variance: second - mean * mean, min, max };
+}
+
 /** Unbiasedness check: trace distance between E[ρ̂] and ρ. */
 export function shadowBias(rho: CMat, n: number): number {
   return traceDistance(expectedShadow(rho, n), rho);
@@ -131,20 +189,8 @@ export function fidelityShadowMC(
     const x = rng() * acc;
     let outcome = 0;
     while (outcome < d - 1 && cum[outcome]! < x) outcome++;
-    // ⟨ψ̃| D_pattern |ψ̃⟩ with D diagonal and |ψ̃⟩ = R|ψ⟩ (R = U† per qubit)
-    let psiTilde = target;
-    for (let v = 0; v < n; v++) psiTilde = applyRotVec(psiTilde, n, v, mDagger(shadowBasisRotation(assignment[v]!)));
-    let est = 0;
-    for (let idx = 0; idx < d; idx++) {
-      let factor = 1;
-      for (let v = 0; v < n; v++) {
-        const bit = (idx >> (n - 1 - v)) & 1;
-        const want = (outcome >> (n - 1 - v)) & 1;
-        factor *= bit === want ? 2 : -1;
-      }
-      est += factor * (psiTilde.re[idx]! * psiTilde.re[idx]! + psiTilde.im[idx]! * psiTilde.im[idx]!);
-    }
-    estimates.push(est);
+    // per-shot value ⟨ψ̃| D_pattern |ψ̃⟩ — shared with the exact enumeration
+    estimates.push(fidelityShotValue(target, n, assignment, outcome));
   }
   const mean = estimates.reduce((a, b) => a + b, 0) / shots;
   const varr = estimates.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, shots - 1);

@@ -62,5 +62,115 @@
       "baseline": 0.6913417161825449
     },
     "deferredDirect": 0.6913417161825448
+  },
+  "noiseCensus": {
+    "rows": [
+      {
+        "gamma": 0,
+        "ampDampFormula": 1,
+        "ampDampDirect": 0.9999999999999999,
+        "ampDampExpansion": 1,
+        "phaseDampFormula": 1,
+        "phaseDampDirect": 0.9999999999999999,
+        "guessAfterAmpDamp": 0.6913417161825448,
+        "guessAfterPhaseDamp": 0.6913417161825448,
+        "phaseDampGuessClosed": 0.6913417161825449
+      },
+      {
+        "gamma": 0.125,
+        "ampDampFormula": 0.9677071733467425,
+        "ampDampDirect": 0.9677071733467423,
+        "ampDampExpansion": 0.9677071733467424,
+        "phaseDampFormula": 0.875,
+        "phaseDampDirect": 0.8749999999999999,
+        "guessAfterAmpDamp": 0.6789837864381054,
+        "guessAfterPhaseDamp": 0.6435062871369086,
+        "phaseDampGuessClosed": 0.6435062871369086
+      },
+      {
+        "gamma": 0.25,
+        "ampDampFormula": 0.9330127018922193,
+        "ampDampDirect": 0.9330127018922189,
+        "ampDampExpansion": 0.9330127018922194,
+        "phaseDampFormula": 0.75,
+        "phaseDampDirect": 0.7499999999999996,
+        "guessAfterAmpDamp": 0.6657067870177958,
+        "guessAfterPhaseDamp": 0.5956708580912724,
+        "phaseDampGuessClosed": 0.5956708580912724
+      },
+      {
+        "gamma": 0.375,
+        "ampDampFormula": 0.8952847075210476,
+        "ampDampDirect": 0.8952847075210472,
+        "ampDampExpansion": 0.8952847075210475,
+        "phaseDampFormula": 0.625,
+        "phaseDampDirect": 0.6249999999999999,
+        "guessAfterAmpDamp": 0.6512689086355851,
+        "guessAfterPhaseDamp": 0.5478354290456362,
+        "phaseDampGuessClosed": 0.5478354290456362
+      },
+      {
+        "gamma": 0.5,
+        "ampDampFormula": 0.8535533905932737,
+        "ampDampDirect": 0.8535533905932735,
+        "ampDampExpansion": 0.8535533905932738,
+        "phaseDampFormula": 0.5,
+        "phaseDampDirect": 0.49999999999999994,
+        "guessAfterAmpDamp": 0.6352990250365491,
+        "guessAfterPhaseDamp": 0.5,
+        "phaseDampGuessClosed": 0.5
+      },
+      {
+        "gamma": 0.625,
+        "ampDampFormula": 0.8061862178478972,
+        "ampDampDirect": 0.806186217847897,
+        "ampDampExpansion": 0.8061862178478973,
+        "phaseDampFormula": 0.375,
+        "phaseDampDirect": 0.37499999999999983,
+        "guessAfterAmpDamp": 0.6171723927889184,
+        "guessAfterPhaseDamp": 0.5478354290456362,
+        "phaseDampGuessClosed": 0.5478354290456362
+      },
+      {
+        "gamma": 0.75,
+        "ampDampFormula": 0.75,
+        "ampDampDirect": 0.7499999999999998,
+        "ampDampExpansion": 0.75,
+        "phaseDampFormula": 0.25,
+        "phaseDampDirect": 0.24999999999999986,
+        "guessAfterAmpDamp": 0.5956708580912724,
+        "guessAfterPhaseDamp": 0.5956708580912724,
+        "phaseDampGuessClosed": 0.5956708580912724
+      },
+      {
+        "gamma": 0.875,
+        "ampDampFormula": 0.6767766952966369,
+        "ampDampDirect": 0.6767766952966366,
+        "ampDampExpansion": 0.6767766952966368,
+        "phaseDampFormula": 0.125,
+        "phaseDampDirect": 0.125,
+        "guessAfterAmpDamp": 0.5676495125182746,
+        "guessAfterPhaseDamp": 0.6435062871369086,
+        "phaseDampGuessClosed": 0.6435062871369086
+      },
+      {
+        "gamma": 1,
+        "ampDampFormula": 0.5,
+        "ampDampDirect": 0.4999999999999999,
+        "ampDampExpansion": 0.5,
+        "phaseDampFormula": 0,
+        "phaseDampDirect": 8.97124887442766e-18,
+        "guessAfterAmpDamp": 0.5,
+        "guessAfterPhaseDamp": 0.6913417161825448,
+        "phaseDampGuessClosed": 0.6913417161825449
+      }
+    ],
+    "sweep": {
+      "worstAmpDampRefereeGap": 4.440892098500626e-16,
+      "worstPhaseDampRefereeGap": 4.440892098500626e-16,
+      "worstPhaseGuessGap": 1.1102230246251565e-16
+    },
+    "guessOptAtHalf": 0.63529894322895,
+    "guessNumericAtHalf": 0.6352990250365491
   }
 }

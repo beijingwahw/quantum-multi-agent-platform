@@ -64,5 +64,152 @@
     "f": 0.65,
     "pptMin": -0.2374999999999999,
     "sMax": 1.8384776310850233
+  },
+  "census": {
+    "betaStar": 2.1058229337190197,
+    "vStar": 0.7445208382054341,
+    "betaStarCheck": 0,
+    "boundAtTsirelson": 1,
+    "barrierAtTsirelson": 1,
+    "isoBarrierAt2": 0.7803300858899106,
+    "rows": [
+      {
+        "visibility": 0,
+        "beta": 0,
+        "fidelityNumeric": 0.25,
+        "fidelityClosed": 0.25,
+        "pptMin": 0.25,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7071067811865475,
+        "regime": "separable"
+      },
+      {
+        "visibility": 0.16666666666666666,
+        "beta": 0.47140452079103157,
+        "fidelityNumeric": 0.37499999999999967,
+        "fidelityClosed": 0.375,
+        "pptMin": 0.12500000000000003,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7071067811865475,
+        "regime": "separable"
+      },
+      {
+        "visibility": 0.3333333333333333,
+        "beta": 0.9428090415820631,
+        "fidelityNumeric": 0.5000000000000001,
+        "fidelityClosed": 0.5,
+        "pptMin": 5.887846720064156e-17,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7071067811865475,
+        "regime": "separable"
+      },
+      {
+        "visibility": 0.5,
+        "beta": 1.4142135623730947,
+        "fidelityNumeric": 0.6250000000000002,
+        "fidelityClosed": 0.625,
+        "pptMin": -0.12499999999999994,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7071067811865475,
+        "regime": "window: entangled, CHSH-local"
+      },
+      {
+        "visibility": 0.7071067811865475,
+        "beta": 1.9999999999999996,
+        "fidelityNumeric": 0.7803300858899107,
+        "fidelityClosed": 0.7803300858899106,
+        "pptMin": -0.2803300858899105,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7071067811865475,
+        "regime": "window: entangled, CHSH-local"
+      },
+      {
+        "visibility": 0.71,
+        "beta": 2.0081832585697943,
+        "fidelityNumeric": 0.7824999999999998,
+        "fidelityClosed": 0.7825,
+        "pptMin": -0.28249999999999986,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7099999999999997,
+        "regime": "violation, proven bound trivial (rigidity gap)"
+      },
+      {
+        "visibility": 0.72,
+        "beta": 2.0364675298172563,
+        "fidelityNumeric": 0.7899999999999997,
+        "fidelityClosed": 0.79,
+        "pptMin": -0.28999999999999987,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7199999999999998,
+        "regime": "violation, proven bound trivial (rigidity gap)"
+      },
+      {
+        "visibility": 0.73,
+        "beta": 2.0647518010647183,
+        "fidelityNumeric": 0.7975000000000003,
+        "fidelityClosed": 0.7975,
+        "pptMin": -0.29749999999999993,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.7299999999999998,
+        "regime": "violation, proven bound trivial (rigidity gap)"
+      },
+      {
+        "visibility": 0.7445208382054341,
+        "beta": 2.1058229337190193,
+        "fidelityNumeric": 0.8083906286540753,
+        "fidelityClosed": 0.8083906286540756,
+        "pptMin": -0.30839062865407546,
+        "lowerBound": 0.5,
+        "upperBarrier": 0.744520838205434,
+        "regime": "violation, proven bound trivial (rigidity gap)"
+      },
+      {
+        "visibility": 0.78,
+        "beta": 2.2061731573020276,
+        "fidelityNumeric": 0.8349999999999996,
+        "fidelityClosed": 0.835,
+        "pptMin": -0.33499999999999985,
+        "lowerBound": 0.5694365081389589,
+        "upperBarrier": 0.7799999999999997,
+        "regime": "certified: extractability bound > 1/2"
+      },
+      {
+        "visibility": 0.85,
+        "beta": 2.4041630560342613,
+        "fidelityNumeric": 0.8875,
+        "fidelityClosed": 0.8875,
+        "pptMin": -0.38749999999999984,
+        "lowerBound": 0.7064339828220175,
+        "upperBarrier": 0.8499999999999999,
+        "regime": "certified: extractability bound > 1/2"
+      },
+      {
+        "visibility": 0.92,
+        "beta": 2.6021529547664946,
+        "fidelityNumeric": 0.9400000000000002,
+        "fidelityClosed": 0.9400000000000001,
+        "pptMin": -0.43999999999999984,
+        "lowerBound": 0.8434314575050759,
+        "upperBarrier": 0.9199999999999998,
+        "regime": "certified: extractability bound > 1/2"
+      },
+      {
+        "visibility": 1,
+        "beta": 2.8284271247461894,
+        "fidelityNumeric": 1,
+        "fidelityClosed": 1,
+        "pptMin": -0.49999999999999983,
+        "lowerBound": 0.9999999999999993,
+        "upperBarrier": 0.9999999999999997,
+        "regime": "certified: extractability bound > 1/2"
+      }
+    ],
+    "sweep": {
+      "worstBetaGap": 8.881784197001252e-16,
+      "worstFidelityGap": 6.661338147750939e-16,
+      "worstLowerAboveIso": 0,
+      "worstLowerAboveUpper": 0,
+      "worstUpperAboveOne": 0
+    }
   }
 }

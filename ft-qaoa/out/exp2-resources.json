@@ -740,5 +740,12 @@
       "epsilonTotal": 0.000003284260448331174,
       "meetsBudget": true
     }
-  ]
+  ],
+  "constantsAudit": {
+    "valid": true,
+    "rejected": [],
+    "rowCount": 20,
+    "anchoredCount": 7,
+    "assumptionCount": 13
+  }
 }

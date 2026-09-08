@@ -1,6 +1,6 @@
 {
   "name": "ft-qaoa",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fault-tolerant deep QAOA route prototype: p>100 logical-layer simulation with provable depth-monotonicity, qLDPC resource estimation, and real-time decoder scheduling",
   "type": "module",
   "engines": {
@@ -14,6 +14,7 @@
     "exp:monotonic": "tsx src/experiments/exp1-monotonic.ts",
     "exp:resources": "tsx src/experiments/exp2-resources.ts",
     "exp:decoder": "tsx src/experiments/exp3-decoder.ts",
+    "exp:noise": "tsx src/experiments/exp4-noise.ts",
     "lint": "eslint ."
   },
   "keywords": [

@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 77;
-export const DECLARED_TOTAL_ERRORS = 492;
+export const DECLARED_TOTAL_BATCHES = 78;
+export const DECLARED_TOTAL_ERRORS = 509;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3214,6 +3214,101 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[latent from v0.1.0] `blochOf` returned the FLIPPED y — masked through a whole version because every v0.1.0 caller dotted TWO blochOf outputs and the double flip cancelled; the v0.2.0 noise census mixed a raw direction tuple with one blochOf and the asymmetry exposed it at deviation 6.6e-1",
         right: "y = +2*im[1][0] (the [0][1] element carries -y/2) — the fix is pinned as the function's own sign note and the roundtrip regression test (blochOf inverts blochState exactly, one at a time) holds it on every run: a single double-flip can hide, a one-at-a-time roundtrip cannot",
         category: "conjugation",
+      },
+    ],
+  },
+  {
+    batch: 78,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the fifth four-repo delivery wave's registry wiring (qverify 0.1.0->0.2.0, ft-qaoa 0.1.0->0.2.0, choice-lang 0.1.0->0.2.0, vacuum-compiler 0.1.0->0.2.0 — four gates green in each): seventeen delivery errors across eight classes, born enrolled and born audited on both boards — two of them latent defects from v0.1.0 (a swapped depolarizeQubit branch pair convicted at its new naive-Pauli-conjugation needle, an oldest-first doc face booked) and two interruption-leftover rows on the b74#6 line",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第七十八批" },
+    errors: [
+      {
+        wrong: "a block comment in qverify carried k*/sqrt-shaped prose and the embedded '*/' closed the comment early — the parse broke and the tree died at the loader (the b12#0 twin, one wave later; the family's second registered sighting)",
+        right: "the slash pair never rides unspaced inside comment prose: write k* / sqrt with spaces — a comment that ends early is a syntax death the typecheck gate convicts the moment it lands, and it did",
+        category: "toolchain",
+      },
+      {
+        wrong: "exp4's epsilon=0.01 MC face was priced at 360k shots per trial — the run hung and died only at a manual kill (the b73#2 hang family: an unbounded workload with no gate that prices it)",
+        right: "the load is redesigned, not waited out: the epsilon=0.01 row is kept as exact arithmetic only and the MC cross-checks re-anchored at epsilon=0.05 with reduced batch counts — a workload estimate precedes the launch, and the complexity face stays booked",
+        category: "process",
+      },
+      {
+        wrong: "the phase-damping Kraus operators were written in the reversed form in the first draft — the channel acted with the conjugate-side convention flipped",
+        right: "the Kraus pair is pinned and exercised: the Z-tier test runs phaseDampingKraus at every gamma in [0,1] and asserts trap acceptance exactly 1-gamma against the closed form — a reversed Kraus family dies at the first grid point",
+        category: "conjugation",
+      },
+      {
+        wrong: "the decoherence-invisibility claim was asserted BACKWARDS — phase damping on the Z-tier trap is PERFECTLY detected (acceptance exactly 1-gamma), and the guess-decay curve is the V-form |1-2gamma|, not a monotone line: the machine overruled the expectation twice in one row (the claim and its decay shape)",
+        right: "the census row asserts both machine-found laws — acceptance 1-gamma exact and the V-form (1+|1-2gamma| sin(pi/8))/2 at every grid point, with the gamma=1 decoupling anchor and the incoherent midpoint 0.5 pinned — narrate what the machine measured, then derive the closed form after",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "arXiv:2405.00789's authors were attributed from recall — the guess was wrong and the source check caught it on the spot (the identifier family's seventh registered sighting: b55#3, b56#9, b74#5, b75#7, b76#11, b76#12 the six in-registry before this batch, grepped before enrolling)",
+        right: "Tanggara, Gu & Bharti, 'Classically Spoofing System Linear Cross Entropy Score Benchmarking' — the corrected attribution with the wrong first guess confessed is pinned in citations.md against the arXiv abstract page quoted verbatim; memory holds the shape of a citation, never its names",
+        category: "citation-drift",
+      },
+      {
+        wrong: "a ft-qaoa test's hand expected-value slipped its arithmetic — the 0.1-squared face entered where the true expectation was 0.1*(1/6)^3",
+        right: "the power-law expectation is asserted exactly (e5 = 0.1*(1/6)^3 to 1e-18) beside its monotone siblings — hand arithmetic substitutes concrete numbers before it becomes an assertion",
+        category: "statistics",
+      },
+      {
+        wrong: "the constants audit's trials were keyed by id in a map — two rows sharing an id silently overwrote each other and the duplicate vanished from the check",
+        right: "the audit validation is map-free: a duplicate id produces BOTH rejections (the thin-rationale one and the duplicate one) and the smuggling trial asserts the pair stays visible — a container that hides collisions may not carry a census",
+        category: "dimension-slot",
+      },
+      {
+        wrong: "the window-policy test's assertion was wrong at W=4 — the first draft expected the smallest realtime-feasible window to be 4 where W=4 still exceeds the latency ceiling (utilization 1.03)",
+        right: "W=8 is the first feasible window at 0.856 — the assertion now names both faces (the W=4 rejection margin and the W=8 pass), asserted on both the FPGA and ASIC scenarios with a hopeless fleet staying null",
+        category: "statistics",
+      },
+      {
+        wrong: "[latent from v0.1.0] `depolarizeQubit` was mathematically wrong — the same-qubit and cross-qubit Pauli branches were interchanged and the mixing weights did not match (1-p)rho + (p/3)(X rho X + Y rho Y + Z rho Z); the defect shipped through v0.1.0's own gates",
+        right: "fixed and convicted by construction: the n=2 test rebuilds the reference channel as an independent naive Pauli conjugation on embedded full matrices and asserts elementwise agreement to 1e-15 — the branch pair and the weights cannot drift again without the independent path naming the deviation",
+        category: "wrong-object",
+      },
+      {
+        wrong: "a compound command in the choice-lang delivery ran a read-only `git diff --stat` in passing — the banned channel, third act on the line (b74#3, b77#8 before it): harmless output, no mutation, banned anyway",
+        right: "the ban is unconditional and admits no diff flavor: agents never touch git, read-only included — the deliverable's state is read from the files on disk, never from the index",
+        category: "process",
+      },
+      {
+        wrong: "one `npm test | tail -15` was used to display a suite run — the exit-code-masking family's eighth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2 the seven in-registry before it), caught by self-review in the same breath: the pipe shows the tail while eating the verdict",
+        right: "the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code — a display pipe is still a masking pipe; if output must be trimmed, the gate's code is read separately from the trimming",
+        category: "toolchain",
+      },
+      {
+        wrong: "the S2 conditioning-chain test's first version compared the wrong weight target and checked the leaf identity with a REPEATED object — the assertion verified itself against itself (the gate convicted the draft)",
+        right: "the chain's own weight is asserted against the second part's standalone state-independent weight, the composed weight against the exact product chained.p * partP.p, and the conditional matrices through the independent concat path — an identity is checked across distinct constructions, never one object against itself",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[interruption leftover] the tree choice-lang received carried an uncompilable stub — src/kernel/compose.ts died at typecheck exit 2 and a scratch-bench.ts rode along: a DNS-interrupted predecessor agent had left half-finished work in place (the b74#6 family, interruption as residue)",
+        right: "an interruption is a checkpoint, not an exit: the stub was convicted by the successor's own typecheck run before any work was layered on it, the scratch removed — a tree that does not compile is closed first, always",
+        category: "process",
+      },
+      {
+        wrong: "[latent from v0.1.0] lang.ts's register-discipline doc comment said the controls accumulate OLDEST-FIRST as (c_1, ..., c_k, data) — the register is NEWEST-FIRST, (c_k, ..., c_1, data): each step PREPENDS its control (the doc face; v0.1.0 semantics were never wrong, only the comment)",
+        right: "booked on the doc face and noted in the v0.2.0 docs (theory.md carries the correct newest-first statement with the prepend mechanism spelled out) — a doc comment that contradicts the audit's own register-order note is a latent lie; no gate parses comment intent against the code it decorates",
+        category: "process",
+      },
+      {
+        wrong: "one heredoc was used in the vacuum-compiler delivery — the banned channel, discipline breach; the damage (a truncated block) was restored through the Edit tool and reworked (the canonical channel lineage's fifteenth sighting; the family's wrong-text sightings grep to 19 in-registry, counted before enrolling)",
+        right: "code goes through the Write/Edit tools, no content-based exceptions — the act face is ungated by construction, a damaged file dies at the loader/typecheck the moment it lands (the b47#1 twin)",
+        category: "toolchain",
+      },
+      {
+        wrong: "[interruption leftover] vacuum-compiler inherited three orphan-draft defects from the interrupted predecessor: an inverted field name, a wrong docstring, and JW25 mischaracterized ('perfect completeness free' — the infinite-counter caveat missing); all three closed before ship, the citation logged in citations.md",
+        right: "the residue faces died at the successor's gates and the JW25 correction is pinned on disk with the logged erratum (completeness 1-2^(-q) amplifier only, soundness untouched) — the leaving-behind act is the booked face: interruption process no gate diffs",
+        category: "process",
+      },
+      {
+        wrong: "five lint convictions in vacuum-compiler — residue found by the gate after the fact",
+        right: "all five closed in the same edit — the lint gate convicted every one and the tree rides green",
+        category: "toolchain",
       },
     ],
   },

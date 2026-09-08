@@ -1,7 +1,7 @@
 {
   "name": "qverify",
-  "version": "0.1.0",
-  "description": "Machine verification of the theorem layer behind delegated-computation verification: exact UBQC blindness (zero leakage identity + one-time-pad on the angle group), the FK trap detection calculus (I/X/Y,Z three-tier exact algebra), CHSH rigidity (Horodecki formula vs direct optimization, Tsirelson, pure-state concurrence law), sampling-based certification (shadow unbiasedness, mirror-echo closed forms, XEB with a concrete circuit-cut spoof), and optimal-attack games (Helstrom, BB84 = CHSH constant, the 1/2 commit-then-reveal wall, Bužek-Hillery cloner at 5/6)",
+  "version": "0.2.0",
+  "description": "Machine verification of the theorem layer behind delegated-computation verification: exact UBQC blindness (zero leakage identity + one-time-pad on the angle group), the FK trap detection calculus (I/X/Y,Z three-tier exact algebra), CHSH rigidity (Horodecki formula vs direct optimization, Tsirelson, pure-state concurrence law, the v0.2 rigidity-vs-noise Werner-window census with Kaniewski self-testing bounds as data), sampling-based certification (shadow unbiasedness, mirror-echo closed forms, XEB with a concrete circuit-cut spoof, the v0.2 sample-complexity census: exact Cramér/Hoeffding counts vs noise and confidence), and optimal-attack games (Helstrom, BB84 = CHSH constant, the 1/2 commit-then-reveal wall, Bužek-Hillery cloner at 5/6, the v0.2 noisy-device census under amplitude/phase damping)",
   "type": "module",
   "engines": {
     "node": ">=22.11.0"

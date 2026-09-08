@@ -1,7 +1,7 @@
 /** Full repro: rebuild every report from scratch. */
 import { execFileSync } from "node:child_process";
 
-const experiments = ["exp1-compile.ts", "exp2-gap.ts", "exp3-ledger.ts"];
+const experiments = ["exp1-compile.ts", "exp2-gap.ts", "exp3-ledger.ts", "exp4-boundary.ts"];
 
 const t0 = Date.now();
 for (const exp of experiments) {

@@ -124,6 +124,60 @@ function indexOfIdle(servers: Float64Array, nowUs: number): number {
   return -1;
 }
 
+export interface WindowPolicyPoint {
+  readonly windowRounds: number;
+  readonly utilization: number;
+  readonly verdict: "realtime" | "backlog-grows";
+  /** Worst observed queue+service delay for one window (event simulation). */
+  readonly maxEndToEndDelayUs: number;
+  /** Full correction latency: the window must fill before decoding ends. */
+  readonly correctionLatencyUs: number;
+}
+
+export interface WindowPolicySweep {
+  readonly scenarioId: string;
+  readonly points: readonly WindowPolicyPoint[];
+  /** Smallest-correction-latency window that still passes the realtime ceiling. */
+  readonly minLatencyRealtimeWindow: number | null;
+}
+
+/**
+ * Window-size scheduling policy: how many syndrome rounds to batch per decode
+ * window. Small windows stream corrections with low latency but pay the fixed
+ * per-window decode latency on every batch; large windows amortize throughput
+ * but delay every correction by the fill time. This sweep prices that tradeoff
+ * as data and picks the minimum-latency feasible window per fleet.
+ */
+export function windowPolicySweep(
+  totalRounds: number,
+  cycleTimeUs: number,
+  blocks: number,
+  base: DecoderScenario,
+  windows: readonly number[],
+  rng: Rng,
+  options: ScheduleSimOptions = {},
+): WindowPolicySweep {
+  const points: WindowPolicyPoint[] = windows.map((w) => {
+    const r = analyzeDecoderSchedule(totalRounds, cycleTimeUs, blocks, { ...base, windowRounds: w }, rng, options);
+    return {
+      windowRounds: w,
+      utilization: r.utilization,
+      verdict: r.verdict,
+      maxEndToEndDelayUs: r.maxEndToEndDelayUs,
+      correctionLatencyUs: r.maxEndToEndDelayUs + w * cycleTimeUs,
+    };
+  });
+  let best: number | null = null;
+  let bestLatency = Number.POSITIVE_INFINITY;
+  for (const pt of points) {
+    if (pt.verdict === "realtime" && pt.correctionLatencyUs < bestLatency) {
+      best = pt.windowRounds;
+      bestLatency = pt.correctionLatencyUs;
+    }
+  }
+  return { scenarioId: base.id, points, minLatencyRealtimeWindow: best };
+}
+
 export const DECODER_SCENARIOS: readonly DecoderScenario[] = [
   {
     id: "cpu-bposd-1u",

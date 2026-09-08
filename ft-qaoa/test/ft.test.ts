@@ -6,7 +6,7 @@ import { blocksFor, grossCode, logicalErrorPerRound, physicalQubits, surfaceCode
 import { qaoaLayerProfile, tCountForRotation } from "../src/ft/synthesis.js";
 import { DEFAULT_SYNTHESIS } from "../src/ft/synthesis.js";
 import { DEFAULT_FT_ASSUMPTIONS, estimateDeepQaoa, selectCodes } from "../src/ft/estimate.js";
-import { analyzeDecoderSchedule, DECODER_SCENARIOS } from "../src/ft/decoder-scheduler.js";
+import { analyzeDecoderSchedule, DECODER_SCENARIOS, windowPolicySweep } from "../src/ft/decoder-scheduler.js";
 
 test("codes: catalog invariants and published parameters", () => {
   const surface = surfaceCode(5);
@@ -107,4 +107,32 @@ test("decoder: CPU-class BP+OSD cannot keep up (the known bottleneck)", () => {
   assert.equal(r.verdict, "backlog-grows");
   assert.ok(r.utilization > 100);
   assert.equal(r.extrapolatedDrainUs, null);
+});
+
+test("decoder: window-size policy prices the batching tradeoff and picks a feasible window", () => {
+  const base = {
+    unit: { latencyUs: 100, roundsPerSecond: 20000 }, // FPGA-class
+    units: 512,
+    windowRounds: 8,
+    note: "policy sweep test",
+  };
+  const sweep = windowPolicySweep(614400, 1, 7, { ...base, id: "fpga-sweep" }, [1, 2, 4, 8, 16, 32], new Rng(5));
+  assert.equal(sweep.points.length, 6);
+  // Streaming single-round windows: fixed 100 us decode latency per window
+  // cannot fit a 1 us cycle even across 73 units/block -> backlog.
+  assert.equal(sweep.points[0]!.windowRounds, 1);
+  assert.equal(sweep.points[0]!.verdict, "backlog-grows");
+  // Utilization amortizes toward 1/(mu*tau*k) as W grows (monotone decrease here).
+  for (let i = 1; i < sweep.points.length; i++) {
+    assert.ok(sweep.points[i]!.utilization < sweep.points[i - 1]!.utilization + 1e-12);
+  }
+  // Correction latency grows with the window fill time; the policy must pick
+  // the smallest realtime-feasible window (W=4 still exceeds the ceiling at
+  // utilization 1.03, W=8 is the first to pass at 0.856).
+  assert.equal(sweep.minLatencyRealtimeWindow, 8);
+  const asic = windowPolicySweep(614400, 1, 7, { ...DECODER_SCENARIOS[4]!, id: "asic-sweep" }, [1, 2, 4, 8], new Rng(5));
+  assert.equal(asic.minLatencyRealtimeWindow, 1);
+  // A hopeless fleet stays hopeless at every window size.
+  const cpu = windowPolicySweep(614400, 1, 7, { ...DECODER_SCENARIOS[0]!, id: "cpu-sweep" }, [1, 8, 32, 128], new Rng(5));
+  assert.equal(cpu.minLatencyRealtimeWindow, null);
 });

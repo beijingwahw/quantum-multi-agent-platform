@@ -60,15 +60,78 @@ Depolarized MC (200k shots each):
 
 | n | layers | ms |
 | --- | --- | --- |
-| 8 | 8 | 3.8 |
-| 10 | 10 | 8.1 |
-| 12 | 12 | 36.8 |
-| 14 | 14 | 175.5 |
-| 16 | 16 | 928.0 |
+| 8 | 8 | 0.8 |
+| 10 | 10 | 2.5 |
+| 12 | 12 | 8.6 |
+| 14 | 14 | 43.9 |
+| 16 | 16 | 234.8 |
 
 Doubling per qubit — XEB verification requires computing p_ideal(x) per sample:
 the verifier pays the classical simulation cost. Extrapolated: n=40 would need
 ~2^16× the n=24 cost per sample batch (the honest boundary of statistical
 certification — cf. Hangleiter et al., PRL 122, 210502 (2019) for the
 device-independent lower bounds).
+
+## v0.2 Sample-complexity census: certification cost as executable numbers
+
+**XEB uniform rejection.** The verifier accepts "not uniform" when the mean of
+X = 2ⁿp_ideal(x) − 1 over N samples exceeds τ = λ₀C/2 (C = 2ⁿΣp² − 1 = 1.141391
+here). Exact counts on THIS circuit's distribution:
+
+| λ₀ | δ | τ = λ₀C/2 | I₀(τ) exact | N Chernoff | N Hoeffding |
+| --- | --- | --- | --- | --- | --- |
+| 0.10 | 0.05 | 0.057070 | 1.375465e-3 | 2178 | 16216 |
+| 0.10 | 0.01 | 0.057070 | 1.375465e-3 | 3349 | 24928 |
+| 0.10 | 0.001 | 0.057070 | 1.375465e-3 | 5023 | 37392 |
+| 0.25 | 0.05 | 0.142674 | 8.172445e-3 | 367 | 2595 |
+| 0.25 | 0.01 | 0.142674 | 8.172445e-3 | 564 | 3989 |
+| 0.25 | 0.001 | 0.142674 | 8.172445e-3 | 846 | 5983 |
+| 0.50 | 0.05 | 0.285348 | 3.033088e-2 | 99 | 649 |
+| 0.50 | 0.01 | 0.285348 | 3.033088e-2 | 152 | 998 |
+| 0.50 | 0.001 | 0.285348 | 3.033088e-2 | 228 | 1496 |
+| 0.75 | 0.05 | 0.428022 | 6.391761e-2 | 47 | 289 |
+| 0.75 | 0.01 | 0.428022 | 6.391761e-2 | 73 | 444 |
+| 0.75 | 0.001 | 0.428022 | 6.391761e-2 | 109 | 665 |
+| 1.00 | 0.05 | 0.570695 | 1.072180e-1 | 28 | 163 |
+| 1.00 | 0.01 | 0.570695 | 1.072180e-1 | 43 | 250 |
+| 1.00 | 0.001 | 0.570695 | 1.072180e-1 | 65 | 374 |
+
+N_Chernoff = ⌈ln(1/δ)/I₀(τ)⌉ with I₀ the exact Cramér rate of the per-sample
+statistic under the uniform device (Legendre transform of the exact MGF over
+all 2ⁿ values — no approximation); N_Hoeffding = ⌈R²ln(1/δ)/(2τ²)⌉ with
+R = 2ⁿp_max. Worst (N_Chernoff − N_Hoeffding) = -135
+(≤ 0: the exact rate is never worse than the range bound). The wall is
+N ∝ 1/λ₀²: certifying a noisier device costs quadratically more samples.
+
+MC cross-check at (λ₀ = 0.5, δ = 0.01, N = 152): measured
+uniform false-accept rate = 0.00120 ± 0.00069 ≤ δ
+(as the bound promises); at a quarter of the samples N/4 = 38:
+rate = 0.05200 ± 0.00444 — under-sampled,
+the uniform device false-accepts at many times δ. Note the Chernoff count prices
+ONLY the statistical side; each sample still costs the verifier one exact
+p_ideal(x) evaluation (the simulation wall above).
+
+**Shadow fidelity.** Exact per-shot moments by enumeration of all
+3ⁿ×2ⁿ events (n = 3, same target): mean = 0.7375000000 (closed
+form (1−q)+q/2ⁿ = 0.7375000000), variance σ² = 2.10689534,
+per-shot range [-2.5870, 4.4115]:
+
+| ε | δ | N Chebyshev | N Hoeffding |
+| --- | --- | --- | --- |
+| 0.05 | 0.05 | 16856 | 29346 |
+| 0.01 | 0.05 | 421380 | 733638 |
+
+MC cross-checks of the count's inputs: over 200 batches of
+2000 shots the empirical batch-mean std is 0.033262
+vs the exact prediction σ/√N = 0.032457 (2.48%
+off) — the σ² the Chebyshev count consumes is the estimator's true variance.
+Measured coverage at the ε = 0.05 Chebyshev count
+(N = 16856): 100.00% of
+60 trials inside ε (the guarantee is ≥ 95%; the ε = 0.01
+row is ~25× the shots and is carried as exact arithmetic only).
+Cited context: the Huang–Kueng–Preskill median-of-means machinery gives the
+log(M/δ)·3^ℓ/ε² scaling for M observables (single-observable census here);
+Lowe et al. (arXiv:2207.14438) prove matching single-copy lower bounds; Fu
+(arXiv:2412.03381) sharpens the MoM constants; PRX Quantum 5, 010334 (2024)
+and arXiv:2405.00789 document why positive XEB alone certifies nothing.
 

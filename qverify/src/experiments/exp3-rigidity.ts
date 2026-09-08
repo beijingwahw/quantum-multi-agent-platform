@@ -1,4 +1,4 @@
-/** Exp3 — T3 CHSH rigidity: Horodecki vs direct optimization, Tsirelson, pure-state law. */
+/** Exp3 — T3 CHSH rigidity: Horodecki vs direct optimization, Tsirelson, pure-state law, Werner-window census. */
 
 import { writeReport, mdTable, fmt, sci } from './report.js';
 import {
@@ -13,8 +13,17 @@ import { bellState, schmidtState, wernerFidelity, randomTwoQubitMixed, fromVec }
 import { makeRng } from '../core/rng.js';
 import type { CMat } from '../core/cmat.js';
 import { pathToFileURL } from "node:url";
+import {
+  BETA_STAR,
+  V_STAR,
+  kaniewskiLowerBound,
+  trivialUpperBound,
+  isotropicBarrier,
+  windowCensusRow,
+  windowSweep,
+} from '../protocol/selftest.js';
 
-function main(): void {
+export function main(): void {
   const rng = makeRng(0xc4a7);
   const SQRT2X2 = 2 * Math.SQRT2;
 
@@ -78,6 +87,16 @@ function main(): void {
   const ppt65 = pptMinEigenvalue(w65);
   const s65 = horodeckiSMax(w65);
 
+  // (7) v0.2 Werner-window census: rigidity vs noise, regimes + bound shapes
+  const censusVisibilities = [0, 1 / 6, 1 / 3, 0.5, 1 / Math.SQRT2, 0.71, 0.72, 0.73, V_STAR, 0.78, 0.85, 0.92, 1];
+  const censusRows = censusVisibilities.map((v) => windowCensusRow(v));
+  const sweep = windowSweep(500);
+  // exact anchor checks: v* ↔ β* arithmetic identity, and the bound endpoints
+  const betaStarCheck = Math.abs(2 * Math.SQRT2 * V_STAR - BETA_STAR);
+  const boundAtTsirelson = kaniewskiLowerBound(2 * Math.SQRT2);
+  const barrierAtTsirelson = trivialUpperBound(2 * Math.SQRT2);
+  const isoBarrierAt2 = isotropicBarrier(2);
+
   writeReport(
     { name: 'exp3-rigidity', title: 'T3 — CHSH rigidity (Horodecki vs optimizer)' },
     {
@@ -89,6 +108,16 @@ function main(): void {
       tsirelsonMax,
       game: { ...game, wFromS, wClassical },
       boundary: { f: 0.65, pptMin: ppt65, sMax: s65 },
+      census: {
+        betaStar: BETA_STAR,
+        vStar: V_STAR,
+        betaStarCheck,
+        boundAtTsirelson,
+        barrierAtTsirelson,
+        isoBarrierAt2,
+        rows: censusRows,
+        sweep,
+      },
     },
     `## Horodecki formula vs direct optimization
 
@@ -126,6 +155,56 @@ Werner F = 0.65: PPT minimum eigenvalue ${fmt(ppt65, 6)} (< 0 ⟹ entangled) yet
 S_max = ${fmt(s65, 6)} < 2 (CHSH-local). CHSH verification is sufficient, not
 necessary: noisy-but-honest devices can fail the rigidity check while being
 genuinely quantum.
+
+## v0.2 Werner-window census: where rigidity survives, where it breaks
+
+For the isotropic family ρ(v) = v|Φ+⟩⟨Φ+| + (1−v)I/4 every quantity below is
+recomputed from the state: S by Horodecki, fidelity by the exact Uhlmann form,
+PPT by the partial transpose. Closed forms: S = 2√2·v, F = (1+3v)/4. The
+regimes (boundaries from the exact closed forms):
+
+${mdTable(
+  ['v', 'S', 'F numeric', 'F closed', 'PPT min', 'bound', 'barrier', 'regime'],
+  censusRows.map((r) => [
+    fmt(r.visibility, 6),
+    fmt(r.beta, 8),
+    fmt(r.fidelityNumeric, 8),
+    fmt(r.fidelityClosed, 8),
+    fmt(r.pptMin, 4),
+    fmt(r.lowerBound, 8),
+    fmt(r.upperBarrier, 8),
+    r.regime,
+  ]),
+)}
+
+- **separable** (v ≤ 1/3): nothing to certify. At v = 1/3 the device fidelity
+  is exactly 1/2 — the separability boundary coincides with the trivial
+  extractability floor.
+- **the window** (1/3 < v ≤ 1/√2): PPT-entangled (genuinely quantum) but
+  S ≤ 2 — CHSH certifies nothing at all.
+- **rigidity gap** (1/√2 < v ≤ v*): a real violation S > 2, but the best
+  proven analytic bound is still the trivial floor 1/2 (Kaniewski threshold
+  β* = (16+14√2)/17 = ${fmt(BETA_STAR, 10)}, v* = (7+4√2)/17 = ${fmt(V_STAR, 10)}).
+- **certified** (v > v*): Kaniewski's extractability bound
+  Q(β) ≥ 1/2 + ½(β−β*)/(2√2−β*) [PRL 117, 070402 (2016)] exceeds 1/2.
+
+Exact anchor checks: 2√2·v* − β* = ${sci(betaStarCheck)} (the visibility/threshold
+identity is exact); bound(2√2) = ${fmt(boundAtTsirelson, 12)}, barrier(2√2) =
+${fmt(barrierAtTsirelson, 12)} (both = 1 at Tsirelson); the isotropic plain-fidelity
+barrier at β = 2 is 1/4 + 3/(4√2) = ${fmt(isoBarrierAt2, 10)} — any plain-fidelity
+self-testing claim for all states is capped by this line, because the isotropic
+device itself achieves β with exactly that fidelity (the barrier caps plain
+fidelity; local extraction can in principle do more, and the proven extractability
+bound sits strictly below the barrier in the interior).
+
+Fine sweep (501 points, v ∈ [0,1]): worst |S − 2√2v| = ${sci(sweep.worstBetaGap)},
+worst |F − (1+3v)/4| = ${sci(sweep.worstFidelityGap)}, worst
+(bound − actual fidelity) on [v*, 1] = ${sci(Math.max(0, sweep.worstLowerAboveIso))}
+(≤ 0: the proven bound never exceeds the honest device), worst
+(bound − barrier) = ${sci(sweep.worstLowerAboveUpper)}, worst
+(barrier − 1) = ${sci(sweep.worstUpperAboveOne)}. Cited, not reproduced here:
+Bancal et al. PRA 91, 022115 (2015) put the numerical plain-fidelity threshold at
+β ≈ 2.37 (swap trick + see-saw); the analytic census above is fully machine-checked.
 `,
   );
 }

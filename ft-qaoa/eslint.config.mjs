@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['out/', 'node_modules/'],
+    ignores: ['out/', 'node_modules/', 'dist/'],
   },
 
   // ---- 通用(所有文件):基础规则 + 环境全局 ----

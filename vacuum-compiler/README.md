@@ -44,9 +44,30 @@ in the ground state AND mid-walk.
   tilt — the price of oil is the closing spectral gap, not the cargo;
 - **walk**: free clock evolution delivers with peak 0.456 at t* = 8.5 for
   T = 6, cargo exact whenever delivered (the walk never garbles the program —
-  verified at every sampled time), delivery curve circuit-independent.
+  verified at every sampled time), delivery curve circuit-independent;
 - the wall: direct execution = T unitary gates, ZERO erasure. The vacuum
   compiler stores and attests computation; it never beats running it.
+
+**T5 — the graduated boundary and amplification (v0.2.0).** The DTC
+eternal-clock face of the epoch-4 claim is no longer open at the model
+layer: dtc-clock (v0.19.0) shipped the certificate layer (TC14 the tariff
+0 < 5 < 9 < 43.02 kT·ln2 units, TC17 the winner) and route-price (v0.2.0)
+receipted it with independent cross-checks (W-E). This repo's own face of
+the graduation is the independent THIRD path: the tariff ordering re-derived
+on OUR conventions in exact integer arithmetic ((T+1)^(T+1) vs 2^c — no
+floats in any decision), the quoted 43.02 certified as the correct 2-decimal
+rounding of 12·log2(12) at the matched depth T = 11 (tight: 4301/4303 both
+fail), and the sibling citations re-audited read-only against their shipped
+reports at every repro. Plus the AMPLIFICATION face: repeating the witness
+check k times decays a partial cheater's success exactly as eps^k (AND
+accept) with survival (1-eps)^k (OR detect) — exact rationals, the
+binomial identity at BigInt residue 0, seeded MC inside 5 sigma on every
+resolvable row (rows below the resolution floor are exact-only),
+completeness 1^k = 1 exactly, priced at k·(T+1)·log2(T+1) bits. And the
+walk's coherent price one step deeper: the second walk family (depth sweep
+T = 4..10) shows the energy spread sigma_E is EXACTLY 1/2, conserved under
+the walk, independent of depth and circuit — depth buys time, not
+bandwidth, against the Mandelstam–Tamm floor pi/(2·sigma_E) = pi.
 
 ## Machine-discovered laws (stated, then verified)
 
@@ -58,6 +79,13 @@ in the ground state AND mid-walk.
    (the fuel tilt) never leave the covariant subspace: cargo infidelity is
    exactly 0 at every tilt strength.
 4. **Clock-marginal coherence law** — rho_clock[t,t'] = <psi_t|psi_t'>/(T+1).
+5. **Walk bandwidth constancy** — the clock-0 basis state's energy spread
+   sigma_E = sqrt(<H^2>-<H>^2) under prop+in is EXACTLY 1/2 (one clock edge
+   touched: <H> = <H^2> = 1/2), independent of depth and circuit, conserved
+   under the walk.
+6. **Amplification decay** — a unique-input program's per-round soundness
+   eps is its own acceptance probability (the trajectory law), and k rounds
+   decay it exactly as eps^k / (1-eps)^k.
 
 ## Honest boundaries
 
@@ -72,9 +100,18 @@ in the ground state AND mid-walk.
   reversible execution vs 6–20 expected erasure bits per delivered answer
   here. The compiler's commodity is storage + attestation (the KKR06 witness
   semantics), not compute.
-- **The DTC "eternal clock" face stays open.** No certificate layer exists
-  for zero-energy time-crystal clocking (MI22 is experimental); the atlas row
-  remains OPEN on that part.
+- **The DTC "eternal clock" face: GRADUATED at the model layer (v0.2.0).**
+  The v0.1.0 boundary ("stays open — no certificate layer exists") is now
+  false in this workspace and is retired honestly: dtc-clock v0.19.0
+  executed the beat-clocks-general-computation face (cargo fidelity exactly
+  1 at every tick, TC6) and the thermodynamic certificate (TC12 zero net
+  work on the ideal beat, TC14 the legislated tariff, TC17 the winner —
+  the FK spectral-clock entry of that table is THIS repo's T4 static mode,
+  quoted); route-price v0.2.0 receipted it with independent cross-checks
+  (W-D/W-E, the tariff re-priced on its own netlist). This repo's own
+  contribution is the third-path exact cross-check of T5 — read-only
+  citations to the siblings' shipped certificates, no code import. The
+  hardware face remains MI22's; no hardware claim is made here either.
 - The walk's delivery peak is measured, not optimized; no claim of efficient
   delivery for large T (the path graph has no perfect state transfer).
 
@@ -84,7 +121,7 @@ in the ground state AND mid-walk.
 npm ci && npm test && npm run repro
 ```
 
-20/20 tests; full rebuild of all reports in under a second. Seeded, zero
-runtime dependencies, TypeScript strict + NodeNext. Reports land in
-`out/reports/`. Citations (web-verified, with corrections logged):
-[docs/citations.md](docs/citations.md).
+32/32 tests (v0.1.0 shipped 20); full rebuild of all four reports in ~1.3s.
+Seeded, zero runtime dependencies, TypeScript strict + NodeNext. Reports
+land in `out/reports/` (exp4-boundary.md is new in v0.2.0). Citations
+(web-verified, with corrections logged): [docs/citations.md](docs/citations.md).

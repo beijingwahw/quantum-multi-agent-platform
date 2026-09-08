@@ -12,7 +12,7 @@ import { makeRng } from '../core/rng.js';
 import { EIGHT_ANGLES } from '../protocol/ubqc.js';
 import { pathToFileURL } from "node:url";
 
-function main(): void {
+export function main(): void {
   const rng = makeRng(0x51ac);
 
   // (1) identity: E_pads[server view] = I/2^n exactly for every secret

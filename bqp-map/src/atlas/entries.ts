@@ -237,6 +237,7 @@ export const ATLAS: readonly AtlasEntry[] = [
       "What quantum buys here is not speed but scope: states no classical witness can represent become verifiable — at the price of statistical (sampling-based) verification. The exact trade is measured, not asserted.",
     certs: [
       { kind: "machine-witness", ref: "src/witness/verify.ts", note: "completeness/soundness coverage machine-verified" },
+      { kind: "cross-prototype", ref: "qverify", note: "v0.2.0 the verification faces priced exactly: Werner-window four exact regimes — separable <=1/3, window (1/3,1/sqrt2], rigidity gap up to v*=(7+4sqrt2)/17, certified beyond — the Kaniewski bound machine-anchored with 2sqrt2*v*=beta* to machine zero; XEB wall Chernoff curve 28->5023 samples with an MC false-accept cross-check; shadow sigma^2=2.107 exact" },
       { kind: "citation", ref: "KKR06", note: "local Hamiltonian is QMA-complete" },
     ],
   },
@@ -251,7 +252,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     rationale:
       "The honest row: ft-qaoa verifies depth monotonicity in simulation (r_128 up to 0.9999), the platform verifies exact-hit rates on real benchmarks — as ENGINEERING claims, reproducible and sized, never as class collapses.",
     certs: [
-      { kind: "cross-prototype", ref: "ft-qaoa", note: "logical-layer p=128 monotonicity + resource estimates" },
+      { kind: "cross-prototype", ref: "ft-qaoa", note: "logical-layer p=128 monotonicity + resource estimates; v0.2.0 the noise face executed with exact density-matrix re-pricing: monotonicity survives eps=1e-4 to p=32 (3/3), bends at eps>=1e-3, eps=1e-2 breakdown p*=8-12; readout 5% is rescale-only; Willow d=7 error sits on the eps=1e-3 grid => useful depth p~16-24 today, p=128 needs eps<~2e-4 => d~13; assumption-constants table with provenance gates — 7 anchored, 13 labeled, 0 drift; inherited depolarizeQubit defect convicted" },
       { kind: "cross-prototype", ref: "ds_extracted/ds", note: "platform benchmarks: NP-hard track 5/5 vs 0/5" },
     ],
   },
@@ -317,7 +318,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     rationale:
       "Settled POSITIVELY at theorem level by the sibling prototype vacuum-compiler (T1/T3): the deed certificate, the degeneracy accounting (bare 2^n, halved per checked qubit), witness semantics (accept => ground energy exactly 0, reject => lifted — the KKR06 proof system at toy scale), and exact conditional readout at EVERY clock step. Programs in ground states: physics, not prophecy. What this does NOT settle: reading the answer is not free — see readout-tariff.",
     certs: [
-      { kind: "cross-prototype", ref: "vacuum-compiler", note: "T1/T3: deed ~1e-15, conditional fidelity exactly 1 at every t, accept/reject witness semantics" },
+      { kind: "cross-prototype", ref: "vacuum-compiler", note: "T1/T3: deed ~1e-15, conditional fidelity exactly 1 at every t, accept/reject witness semantics; v0.2.0 the amplification census eps^k/(1-eps)^k exact on 5 pairs with honest resolution floors, the walk family sigma_E exactly 0.5 conserved with the MT floor pi, the DTC face boundary graduated with read-only citations — dtc-clock TC6/12/14/17 + route-price W-E — and a third-path exact tariff cross-check 5<9<43.02 at T=11 in BigInt" },
       { kind: "citation", ref: "FEY85", note: "the clock/Hamiltonian model of computation" },
       { kind: "citation", ref: "KSV02", note: "the history-state Hamiltonian (Ch. 14, Quantum NP)" },
     ],
@@ -472,7 +473,7 @@ export const ATLAS: readonly AtlasEntry[] = [
     certs: [
       { kind: "citation", ref: "NOE18", note: "the symmetry frame the claim invokes — anchor, not support" },
       { kind: "cross-prototype", ref: "route-price", note: "D2: the route-and-price dossier — the choice toy's executable witnesses (clone mark, engineered-vs-random stability, the 1/P toll, no leakage of choice weights)" },
-      { kind: "cross-prototype", ref: "choice-lang", note: "the language layer: choose compiles to controlled branching (denotation exact to 1.2e-16), engineered stability at the rounding floor vs random decay to the dimension ratio, toll E[attempts]=1/P machine-checked, covariance orders 1 vs 2, membership charge conserved for every input" },
+      { kind: "cross-prototype", ref: "choice-lang", note: "the language layer: choose compiles to controlled branching (denotation exact to 1.2e-16), engineered stability at the rounding floor vs random decay to the dimension ratio, toll E[attempts]=1/P machine-checked, covariance orders 1 vs 2, membership charge conserved for every input; v0.2.0 the language laws: composition associative S3 1.1e-16 BUT nested choice non-interchangeable — exact counterexample gap 0.464623528412 with closed form; certification toll MULTIPLIES exactly (0.093072*0.454094=0.042264, MC 23.61 vs 23.66); loop charge ledger telescopes exactly, total drift 0.0; two-player census: per-coin toll flat 1.1e-16 across 24 cells, attack window [0.2439, 0.7345]" },
       { kind: "cross-prototype", ref: "stable-world", note: "the physics layer: the desired world as the stable solution of a FIXED law — quiet on the world (deviation exactly 0), globally attractive (leakage (1-gamma)^k exact for every input, into-world collapse to 1.6e-13), the charge as Lyapunov function (gamma(1-V) exact; conserved under engineered programs — one functional, two regimes), eps-perturbation census under the exact bound, escape exactly 0, stabilization tariff on BOTH faces (classical h2 schedule + coherent kT ln2 · C_rel), thermal reading DERIVED microscopically (collision bath: the law = the T=0 member), coherent shortcut banked (one-step collapse, C_rel conserved, the straddler's bit on the weight at exactly kT ln2), continuum limit executed (discrete convergence theorem, Davies rate restored), audit ledger closed (three-term decomposition exact, inverse permutation bit-exact), generator identified (Lindblad with Davies rates, uniform), QSI core executed (phase-alignment l1 bank)" },
     ],
   },
