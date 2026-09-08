@@ -1,5 +1,6 @@
-import { randomMps, normalizeMps, jacobiEigenWithVectors } from "./mps.js";
+import { randomMps, normalizeMps } from "./mps.js";
 import type { Mps } from "./mps.js";
+import { jacobiEigenWithVectors } from "../core/jacobi.js";
 import { MPO_DIM } from "./mpo.js";
 import type { ChainHamiltonian } from "./mpo.js";
 import { buildMpo } from "./mpo.js";

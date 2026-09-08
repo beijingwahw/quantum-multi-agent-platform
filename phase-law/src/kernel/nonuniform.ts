@@ -14,8 +14,7 @@
  * with a DOMINANT pair (μ₁ > μ₂ + μ₃). The machine decides which side the
  * data lands on; both outcomes are reported as found.
  */
-import { makeRng } from "../core/rng.js";
-import { hungarianMax } from "./law.js";
+import { hungarianMax, makeWeights } from "./law.js";
 
 export interface NuInstance {
   readonly m: number;
@@ -29,11 +28,7 @@ export interface NuInstance {
 /** Same weights as makeKPairInstance/makeInstance for the same (m, n, seed) —
  * the k=1 and uniform cases must reproduce the older families bit-for-bit. */
 export function makeNuInstance(m: number, n: number, seed: number, lambdas: readonly number[]): NuInstance {
-  const r = makeRng(seed);
-  const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => Math.round((0.15 + 0.7 * r()) * 1000) / 1000),
-  );
-  return { m, n, seed, lambdas, weights };
+  return { m, n, seed, lambdas, weights: makeWeights(m, n, seed) };
 }
 
 export interface NuAssignment {
@@ -155,58 +150,6 @@ export function nuRay(m: number, n: number, seed: number, mus: readonly number[]
     }
     return { t, count: bestCount, mask: bestMask };
   });
-}
-
-export interface DescentWitness {
-  readonly m: number;
-  readonly n: number;
-  readonly seed: number;
-  readonly mus: readonly number[];
-  readonly t1: number;
-  readonly t2: number;
-  readonly count1: number;
-  readonly count2: number;
-  readonly mask1: number;
-  readonly mask2: number;
-}
-
-/**
- * Hunt a count DESCENT on non-uniform rays: the smallest t-grid descent where
- * the argmax realized count drops. Scans μ patterns × seeds; returns the first
- * witness found (exact coordinates) or null — both outcomes are the answer.
- */
-export function nuFindDescent(
-  m: number,
-  n: number,
-  k: number,
-  muPatterns: ReadonlyArray<readonly number[]>,
-  seedFrom: number,
-  seedTo: number,
-  ts: readonly number[],
-): DescentWitness | null {
-  for (const mus of muPatterns) {
-    if (mus.length !== k) throw new Error(`nuFindDescent: μ pattern length ${mus.length} ≠ k ${k}`);
-    for (let seed = seedFrom; seed <= seedTo; seed++) {
-      const ray = nuRay(m, n, seed, mus, ts);
-      for (let i = 1; i < ray.length; i++) {
-        if (ray[i]!.count < ray[i - 1]!.count) {
-          return {
-            m,
-            n,
-            seed,
-            mus,
-            t1: ray[i - 1]!.t,
-            t2: ray[i]!.t,
-            count1: ray[i - 1]!.count,
-            count2: ray[i]!.count,
-            mask1: ray[i - 1]!.mask,
-            mask2: ray[i]!.mask,
-          };
-        }
-      }
-    }
-  }
-  return null;
 }
 
 /** The exchange-argument control: every 2-set slope dominates every 1-set at

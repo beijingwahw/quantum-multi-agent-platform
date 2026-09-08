@@ -1,9 +1,23 @@
 /**
  * T1 — the sorter's branch algebra, executed.
  */
-import { auditFilter, feedforwardCheck, runPayload, runSorter } from "../kernel/sorter.js";
+import { Rng, auditFilter, feedforwardCheck, runPayload, runSorter } from "../kernel/sorter.js";
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
+
+/** marked-set generator for section D: the classic glibc-parameter LCG over
+ *  [0, 2^n) — exported since v0.3.0 so test/t1-sorter.test.ts runs the SAME
+ *  construction (previously a verbatim local copy: the third duplication of
+ *  seeded-sequence logic outside the kernel Rng). */
+export function lcgMarked(n: number, t: number, seed: number): number[] {
+  const marked: number[] = [];
+  let s = seed;
+  for (let i = 0; i < t; i++) {
+    s = (s * 1103515245 + 12345) >>> 0;
+    marked.push(s % 2 ** n);
+  }
+  return marked;
+}
 
 export function main(): void {
   const lines: string[] = [];
@@ -23,20 +37,15 @@ export function main(): void {
   lines.push("## B. the branch is a clean conditional sample (payload readout)\n");
   lines.push("| n | t | P(flag=1) | P(payload=1 | flag) amplitude | integer referee | deviation |");
   lines.push("| --- | --- | --- | --- | --- | --- |");
-  let seedState = 0x12345678;
-  const rand = (): number => {
-    seedState ^= seedState << 13;
-    seedState >>>= 0;
-    seedState ^= seedState >>> 17;
-    seedState ^= seedState << 5;
-    seedState >>>= 0;
-    return seedState / 4294967296;
-  };
+  // single-sourced since v0.3.0: the kernel Rng (xorshift32) — this used to be
+  // a third inline copy of the same algorithm; bit-identical stream, and
+  // test/t1-sorter.test.ts anchors the known vectors
+  const rand = new Rng(0x12345678);
   for (const n of [8, 10, 12]) {
     const N = 2 ** n;
     const payload: boolean[] = new Array<boolean>(N);
-    for (let x = 0; x < N; x++) payload[x] = rand() < 0.5;
-    const marked = [...new Set(Array.from({ length: 37 % N }, () => Math.floor(rand() * N)))];
+    for (let x = 0; x < N; x++) payload[x] = rand.next() < 0.5;
+    const marked = [...new Set(Array.from({ length: 37 % N }, () => Math.floor(rand.next() * N)))];
     const run = runPayload(n, marked, payload);
     lines.push(
       `| ${n} | ${marked.length} | ${fmt(run.pFlag, 9)} | ${fmt(run.branchOutcome, 12)} | ${fmt(run.closedForm, 12)} | ${fmt(run.deviation, 3)} |`,
@@ -59,12 +68,7 @@ export function main(): void {
     [6, 11, 101, 40000],
     [8, 37, 202, 60000],
   ] as const) {
-    const marked: number[] = [];
-    let s = seed;
-    for (let i = 0; i < t; i++) {
-      s = (s * 1103515245 + 12345) >>> 0;
-      marked.push(s % 2 ** n);
-    }
+    const marked = lcgMarked(n, t, seed);
     const chk = feedforwardCheck(n, marked, seed, samples);
     lines.push(`| ${n} | ${t} | ${samples} | ${fmt(chk.acceptSigma, 2)} | ${fmt(chk.worstSigma, 2)} |`);
   }

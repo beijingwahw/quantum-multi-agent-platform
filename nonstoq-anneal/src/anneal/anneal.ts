@@ -1,5 +1,7 @@
 import type { IsingModel } from "../core/ising.js";
 import { StateVector } from "../core/statevector.js";
+import { zeroSpectrum } from "../core/spectra.js";
+import type { ZSpectrum } from "../core/spectra.js";
 import type { DriverSpec } from "./driver.js";
 import { xBasisEnergies } from "./driver.js";
 import { projectGroundState } from "./project.js";
@@ -36,7 +38,7 @@ export interface AnnealResult {
  */
 export function anneal(
   model: IsingModel,
-  energies: Float64Array,
+  energies: ZSpectrum,
   optimum: number,
   driver: DriverSpec,
   options: AnnealOptions,
@@ -47,8 +49,9 @@ export function anneal(
 
   // 初态 = 驱动器基态（虚时投影；κ=0 时即 |+>^n）。κ > 2Γ 后 XX 驱动器
   // 基态带符号结构，从 |+>^n 起跳违背绝热前提——这是非 stoq 路线的
-  // 真实工程约束：退火机必须能制备自身驱动的基态。
-  const zeroEnergies = new Float64Array(1 << model.n);
+  // 真实工程约束：退火机必须能制备自身驱动的基态。（零表基无关，
+  // zeroSpectrum 同时携带 Z/X 品牌。）
+  const zeroEnergies = zeroSpectrum(model.n);
   const state =
     options.initialState === "plus"
       ? StateVector.plusState(model.n)

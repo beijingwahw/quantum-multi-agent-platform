@@ -9,7 +9,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 6078
+      "wallMs": 5736
     },
     {
       "n": 16,
@@ -18,7 +18,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 5889
+      "wallMs": 5704
     },
     {
       "n": 16,
@@ -27,7 +27,7 @@
       "signP": 0.5187328094976777,
       "negativeFraction": 0.501,
       "maxBond": 48,
-      "wallMs": 5990
+      "wallMs": 5517
     },
     {
       "n": 24,
@@ -36,7 +36,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 12635
+      "wallMs": 12943
     },
     {
       "n": 24,
@@ -45,7 +45,7 @@
       "signP": 1,
       "negativeFraction": 1,
       "maxBond": 48,
-      "wallMs": 13114
+      "wallMs": 14193
     },
     {
       "n": 24,
@@ -54,7 +54,7 @@
       "signP": 0.2631834146415393,
       "negativeFraction": 0.489,
       "maxBond": 48,
-      "wallMs": 13344
+      "wallMs": 15714
     },
     {
       "n": 32,
@@ -63,7 +63,7 @@
       "signP": 1,
       "negativeFraction": 1,
       "maxBond": 48,
-      "wallMs": 16810
+      "wallMs": 19212
     },
     {
       "n": 32,
@@ -72,7 +72,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 16689
+      "wallMs": 18893
     },
     {
       "n": 32,
@@ -81,7 +81,7 @@
       "signP": 0.9554664289635328,
       "negativeFraction": 0.516,
       "maxBond": 48,
-      "wallMs": 19338
+      "wallMs": 19191
     },
     {
       "n": 48,
@@ -90,7 +90,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 28383
+      "wallMs": 29348
     },
     {
       "n": 48,
@@ -99,7 +99,7 @@
       "signP": 1,
       "negativeFraction": 0,
       "maxBond": 48,
-      "wallMs": 30023
+      "wallMs": 31447
     },
     {
       "n": 48,
@@ -108,7 +108,7 @@
       "signP": 1,
       "negativeFraction": 1,
       "maxBond": 48,
-      "wallMs": 27896
+      "wallMs": 34141
     },
     {
       "n": 64,
@@ -117,7 +117,7 @@
       "signP": 1,
       "negativeFraction": 1,
       "maxBond": 48,
-      "wallMs": 39330
+      "wallMs": 44343
     },
     {
       "n": 64,
@@ -126,7 +126,7 @@
       "signP": 1,
       "negativeFraction": 1,
       "maxBond": 48,
-      "wallMs": 40566
+      "wallMs": 39067
     },
     {
       "n": 64,
@@ -135,7 +135,7 @@
       "signP": 0.8530611172532518,
       "negativeFraction": 0.46,
       "maxBond": 48,
-      "wallMs": 39856
+      "wallMs": 38088
     }
   ]
 }

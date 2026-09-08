@@ -22,6 +22,7 @@ import {
   tiedMenuPlateau,
   quoteDecision,
 } from "../kernel/tieface.js";
+import { KernelError } from "../kernel/errors.js";
 import { powerLedgerRow, randomSat, type PowerLedgerRow, type SatInstance } from "../kernel/ppledger.js";
 import { zeroOptimal } from "../kernel/restart.js";
 import { writeReport, fmt } from "./report.js";
@@ -49,7 +50,7 @@ export function main(): void {
     if (nearTie === null && row0.gap > 0 && row0.gap <= 1.25 / (2 * row0.m)) nearTie = inst;
     if (moderate !== null && nearTie !== null) break;
   }
-  if (moderate === null || nearTie === null) throw new Error("exp T6: instance scan failed");
+  if (moderate === null || nearTie === null) throw new KernelError("EXP-SCAN-FAILED", "exp T6: instance scan failed");
   const satTable: Array<[string, SatInstance]> = [
     ["moderate gap", moderate],
     ["near-tie", nearTie],

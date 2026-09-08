@@ -1,4 +1,5 @@
 import type { SseConfig } from "./sse.js";
+import { sseDiagElement } from "./sse.js";
 
 /**
  * 小尺度精确枚举 —— MC 的真值裁判。
@@ -6,7 +7,8 @@ import type { SseConfig } from "./sse.js";
  * SSE 配分函数：Z = Σ_{z₀} Σ_{m≥0} (β^m/m!) Σ_{序贯 m 算符}
  *   [Π 矩阵元] · [传播 z₀ → z₀ 闭合]，截断到 maxOrder 阶。
  * 同时累积 |W| 与带符号 W：⟨sign⟩ = ΣW/Σ|W| 精确值（截断内）。
- * 矩阵元与 SseSampler 完全同一约定（对角平移非负；边 XX 非对角带符号）。
+ * 矩阵元与 SseSampler 共用同一函数 sseDiagElement（对角平移非负；
+ * 边 XX 非对角带符号——裁判与采样器的约定在构造上不可能漂移）。
  */
 export function exactSignAverage(cfg: SseConfig, maxOrder: number): {
   signAvg: number;
@@ -34,12 +36,7 @@ export function exactSignAverage(cfg: SseConfig, maxOrder: number): {
   }
 
   function diagElement(bond: number, z: Int8Array): number {
-    if (bond < cfg.n) {
-      const h = cfg.fields[bond]!;
-      return cfg.s * (h * z[bond]! + Math.abs(h));
-    }
-    const e = cfg.edges[bond - cfg.n]!;
-    return cfg.s * (e.w * z[e.i]! * z[e.j]! + Math.abs(e.w));
+    return sseDiagElement(cfg, bond, z);
   }
 
   /** DFS：depth = 已放算符数；wSigned/wAbs = 带符号/绝对值累积权重。 */

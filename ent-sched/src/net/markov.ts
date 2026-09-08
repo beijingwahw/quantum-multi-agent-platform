@@ -16,6 +16,7 @@
 
 import { werner } from "../physics/bell.js";
 import { agePair, swapBell } from "../physics/ops.js";
+import { SchedError } from "../core/errors.js";
 
 export interface ChainParams {
   readonly p1: number;
@@ -37,15 +38,44 @@ export interface ChainResult {
   readonly stateCount: number;
 }
 
+/**
+ * Shape of the state space, as a discriminated union so every age-dependent
+ * branch narrows `cut` by `kind` instead of trusting an `as number` cast.
+ */
+type AgeChain =
+  | { readonly kind: "ageless" } // T₂ = ∞, no cutoff: 4-state {empty, full}²
+  | { readonly kind: "aged"; readonly cut: number }; // ages 0..cut+1 tracked
+
+/** Named rejection of parameter sets the referee cannot represent. */
+function validateChainParams(params: ChainParams): void {
+  const prob = (name: string, v: number): void => {
+    if (!Number.isFinite(v) || v < 0 || v > 1)
+      throw new SchedError("MARKOV_PARAM", `${name}=${v} outside [0,1]`);
+  };
+  prob("p1", params.p1);
+  prob("p2", params.p2);
+  prob("qSwap", params.qSwap);
+  prob("f01", params.f01);
+  prob("f02", params.f02);
+  if (params.t2 !== undefined && !(params.t2 > 0))
+    throw new SchedError("MARKOV_PARAM", `t2=${params.t2} must be > 0 (use undefined for perfect memory)`);
+  if (params.cutOff !== undefined && (!Number.isInteger(params.cutOff) || params.cutOff < 0))
+    throw new SchedError("MARKOV_PARAM", `cutOff=${params.cutOff} is not an integer ≥ 0`);
+}
+
 export function twoLinkChain(params: ChainParams): ChainResult {
+  validateChainParams(params);
   const { p1, p2, qSwap, f01, f02 } = params;
   const t2 = params.t2 ?? Number.POSITIVE_INFINITY;
-  const cut = params.cutOff;
-  if (cut === undefined && Number.isFinite(t2)) {
-    throw new Error("twoLinkChain: finite T₂ without cutoff makes the state space infinite");
+  if (params.cutOff === undefined && Number.isFinite(t2)) {
+    throw new SchedError(
+      "MARKOV_INFINITE_STATE_SPACE",
+      "finite T₂ without cutoff makes the state space infinite (fidelity depends on unbounded age)"
+    );
   }
-  const ageless = !Number.isFinite(t2) && cut === undefined;
-  const maxAge = ageless ? 1 : (cut as number) + 1; // 0..maxAge inclusive
+  const chain: AgeChain =
+    params.cutOff === undefined ? { kind: "ageless" } : { kind: "aged", cut: params.cutOff };
+  const maxAge = chain.kind === "ageless" ? 1 : chain.cut + 1; // 0..maxAge inclusive
   const dim = (maxAge + 1) * (maxAge + 1);
   const idx = (a1: number, a2: number): number => a1 * (maxAge + 1) + a2;
   const P: number[][] = Array.from({ length: dim }, () => new Array<number>(dim).fill(0));
@@ -64,10 +94,10 @@ export function twoLinkChain(params: ChainParams): ChainResult {
       const row = P[s]!; // P has exactly dim rows, s < dim by idx()
       // step 1: cutoff drops pairs older than K (or any pair in the ageless
       // chain is live; ages collapse to 1)
-      const live1 = ageless ? a1 >= 1 : a1 >= 1 && a1 <= (cut as number);
-      const live2 = ageless ? a2 >= 1 : a2 >= 1 && a2 <= (cut as number);
-      const age1 = live1 ? (ageless ? 0 : a1) : -1;
-      const age2 = live2 ? (ageless ? 0 : a2) : -1;
+      const live1 = chain.kind === "ageless" ? a1 >= 1 : a1 >= 1 && a1 <= chain.cut;
+      const live2 = chain.kind === "ageless" ? a2 >= 1 : a2 >= 1 && a2 <= chain.cut;
+      const age1 = live1 ? (chain.kind === "ageless" ? 0 : a1) : -1;
+      const age2 = live2 ? (chain.kind === "ageless" ? 0 : a2) : -1;
 
       // step 2: attempts fill empty links; new pair has age 0 this round
       const fill1 = [age1]; // stay (if live)
@@ -90,8 +120,8 @@ export function twoLinkChain(params: ChainParams): ChainResult {
             row[idx(0, 0)] = row[idx(0, 0)]! + w;
           } else {
             // step 4: survivors age one round (may exceed K → dropped next start)
-            const n1 = b1 >= 0 ? (ageless ? 1 : b1 + 1) : 0;
-            const n2 = b2 >= 0 ? (ageless ? 1 : b2 + 1) : 0;
+            const n1 = b1 >= 0 ? (chain.kind === "ageless" ? 1 : b1 + 1) : 0;
+            const n2 = b2 >= 0 ? (chain.kind === "ageless" ? 1 : b2 + 1) : 0;
             const t = idx(Math.min(n1, maxAge), Math.min(n2, maxAge));
             row[t] = row[t]! + w;
           }
@@ -134,7 +164,7 @@ function stationary(P: number[][]): number[] {
       if (Math.abs(A[r]![col]!) > Math.abs(A[piv]![col]!)) piv = r;
     [A[col], A[piv]] = [A[piv]!, A[col]!];
     const d = A[col]![col]!;
-    if (Math.abs(d) < 1e-14) throw new Error("stationary: singular chain");
+    if (Math.abs(d) < 1e-14) throw new SchedError("MARKOV_SINGULAR_CHAIN", `stationary: chain is not irreducible (pivot ~0 at column ${col})`);
     for (let r = col + 1; r < n; r++) {
       const rowR = A[r]!;
       const f = rowR[col]! / d;

@@ -74,7 +74,7 @@ README 引用的所有数字。
 
 ```bash
 npm install
-npm test          # 44 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层与走私审判
+npm test          # 60 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层、走私审判与具名错误审判
 npm run repro     # ~13 分钟重建 out/*.md 全部报告
 npm run exp:physics   # 单跑某一实验（exp:chain / exp:network / exp:purify / exp:scaling / exp:robustness）
 ```
@@ -120,6 +120,7 @@ arXiv + INSPIRE/Semantic Scholar）见 **docs/citations.md**：Ceran
 ```
 src/core/rng.ts          确定性 RNG（与 ft-qaoa 同源）
 src/core/cx.ts           复数稠密矩阵内核（裁判用）
+src/core/errors.ts       具名错误契约（每个 throw 带机器可查 code）
 src/physics/             Werner/Bell 代数 + 密度矩阵裁判（twirl 电路）
 src/net/topology.ts      图、最短路、k 简单路
 src/net/engine.ts        轮次引擎（截止→尝试→操作→交付；oracle/传感器双模式）

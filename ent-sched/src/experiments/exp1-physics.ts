@@ -6,15 +6,17 @@
  */
 
 import { Rng } from "../core/rng.js";
+import { SchedError } from "../core/errors.js";
 import { werner } from "../physics/bell.js";
 import {
   depol,
   keyFraction,
   purify2to1,
+  purifyLadder,
   purifyWerner,
   swapBell,
+  wernerSwapChainF,
   wernerSwapChainVec,
-  wernerSwapF,
 } from "../physics/ops.js";
 import {
   refereeDepol,
@@ -90,36 +92,32 @@ for (let k = 0; k < 200; k++) {
 }
 const keyThreshold = (lo + hi) / 2;
 
-// swap-chain decay: fresh fidelity after k hops
+// swap-chain decay: fresh fidelity after k hops — vector composition
+// (wernerSwapChainVec) cross-checked against the closed form
+// (wernerSwapChainF); both come from src/physics/ops.ts, the single source
 const chainRows: string[][] = [];
 for (const f0 of [0.99, 0.95, 0.9]) {
   const row = [fmt(f0, 2)];
   for (const hops of [1, 2, 4, 8]) {
     const v = wernerSwapChainVec(f0, hops);
-    // cross-check vector composition against closed form
-    const closed = chainClosed(f0, hops);
-    if (Math.abs(v[0]! - closed) > 1e-14) throw new Error("chain closed form mismatch");
+    const closed = wernerSwapChainF(f0, hops);
+    if (Math.abs(v[0]! - closed) > 1e-14) throw new SchedError("EXP_CHAIN_IDENTITY_BROKEN", `f0=${f0} hops=${hops}: vector composition ${v[0]!} vs closed form ${closed}`);
     row.push(fmt(v[0]!, 5));
   }
   chainRows.push(row);
 }
-function chainClosed(f0: number, hops: number): number {
-  let f = f0;
-  for (let k = 1; k < hops; k++) f = wernerSwapF(f, f0);
-  return f;
-}
 
-// purification ladder projection: F_k and expected fresh-pair cost 2^k / ΠP
+// purification ladder projection (purifyLadder is the single recurrence
+// source): F_k and expected fresh-pair cost 2^k / ΠP
 const ladderRows: string[][] = [];
 for (const f0 of [0.75, 0.85, 0.92]) {
-  let f = f0;
-  let cost: number;
+  const steps = purifyLadder(f0, 6);
   let pProd = 1;
-  for (let k = 1; k <= 6; k++) {
-    const { p, fOut } = purifyWerner(f);
+  for (let i = 0; i < steps.length; i++) {
+    const { p, f } = steps[i]!; // i < steps.length (loop bound)
     pProd *= p;
-    cost = 2 ** k / pProd;
-    f = fOut;
+    const k = i + 1;
+    const cost = 2 ** k / pProd;
     ladderRows.push([fmt(f0, 2), String(k), fmt(f, 5), fmt(p, 4), fmt(cost, 2)]);
   }
 }

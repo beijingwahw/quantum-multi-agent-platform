@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 81
-- errors: 543
+- batches: 82
+- errors: 565
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 9 | 133 |
+| burial-record | 10 | 155 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 13 | 63 |
 | stable-world | 5 | 39 |
@@ -43,11 +43,11 @@
 
 | category | errors |
 | --- | --- |
-| process | 178 |
-| toolchain | 89 |
-| wrong-object | 72 |
-| statistics | 46 |
-| machine-overruled | 43 |
+| process | 187 |
+| toolchain | 95 |
+| wrong-object | 75 |
+| statistics | 47 |
+| machine-overruled | 46 |
 | dimension-slot | 34 |
 | conjugation | 29 |
 | citation-drift | 23 |
@@ -1247,15 +1247,45 @@
 | the @types/node install was issued as a fresh range resolution (^26.4.1 — npm picked 26.5.0) where the PR being reproduced pins 26.4.1 in its lockfile; noticed and re-installed at the exact pin before anything was committed | replicating an external state targets its LOCKFILE, not its semantic range — the pin is the intent, the resolver's freedom is not (zero tree impact: the reinstall preceded the commit) | process |
 | the package.json version/description edit went through a python HEREDOC on the Bash channel — the sanctioned-channel family's next sighting; verified clean after the fact (JSON valid, both replacements exact), and clean does not absolve (the b79#10 judgment) | file edits ride the Edit tool, never a heredoc — the escape-proof temptation is exactly the danger; the dual-face holds as ever: the act is ungated, a malformed package.json is a parse death at the very next npm invocation | toolchain |
 
+### Batch 82 — burial-record (2026-09-08)
+
+- context: the seventh upgrade wave's first batch wiring (phase-law 0.5.0->0.6.0, ent-sched 0.2.0->0.3.0, nonstoq-anneal 0.2.0->0.3.0, postselect-sched 0.2.0->0.3.0 — four gates green in each, the quality faces E dead-code/C single-source/A types/B error codes/F docs delivered across the wave): twenty-two delivery errors across five classes, born enrolled and born audited on both boards — FOUR latent-defect convictions (postselect's randomSat hang at ERR.06, its negative repetitionsFor schedule at ERR.08, its NaN binomTailAtMost at ERR.09; phase-law's unwitnessed PL20 cross-check claim wired to a real staircase witness) and TWO family sightings (the exit-code-masking family's thirteenth, attempted; the sanctioned-channel lineage's eighteenth, node -e), with the wiring agent's own two slips (an Edit-before-Read refusal, a first suite run red on companion-edit faces) booked in the same batch
+- source: `memory/2026-09-08.md` @ "关键经验（第八十二批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| a new test's first expected value was computed wrong by hand — the midpoint of a grid whose lambda starts at 0 is 0, not 0.5; the suite convicted the anchor on the first run | the anchor is recomputed from the grid's own boundary definition before the assertion is written — fix the anchor, not the machine (the b13#7 law's face) | machine-overruled |
+| the orphan-reachability test's first draft typed readdirSync's recursive listing as if every entry were a string — the Buffer union produced TS2339/TS2345 at the typecheck gate | the union is narrowed with an explicit string guard before use — the gate convicted the draft and the fix rode the same edit | toolchain |
+| [latent from v0.5.0] PL20's panel and render claimed an integer-vs-float C_j cross-check of 8.88e-13 while staircaseFloatCrossCheck was a dead export with ZERO call sites — the number was hand-copied out of band, no gate ever witnessed it (the claim turned out true, but truth without a witness is not a verdict) | the cross-check is now WIRED: the staircase float sum feeds the W-K bound < 1e-12 with a new anchor asserting the error is real (> 0) and under the bound — the machine value 8.882e-13 matches the claimed digits, and the claim is witnessed on every run | process |
+| one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#2, b81#3 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict | the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code (clean, exit 0) — a display pipe is still a masking pipe; the gate's code is read from the command itself, output trimmed on a separate read | toolchain |
+| errors.test.ts's first draft called a helper with the wrong arity (TS2554) and expected the WRONG code on the ghost-endpoint trial — POLICY fires before the endpoint verdict the test named; typecheck refused the draft and the run convicted the expectation | the trial's ammunition is read from the checker's own firing order before the expectation is written — the corrected test asserts the code that actually fires (the b80#4 ammunition law, recurring) | machine-overruled |
+| errors.test.ts's first draft carried dead scaffolding — an unused variable plus a prototype-reflection construction reaching around the public constructor; the rewrite removed both whole | drafts do not reach the machine dirty — the construction was replaced, not patched around (the b55#2 law); the unused-symbol face dies at the repo's typecheck anyway | process |
+| the package.json version edit was issued before the file had been Read — the Edit tool refused it (the read-state tracker, not a shell view, decides what may be edited); the second attempt after a real Read landed cleanly | the refusal is the guard: Read before Edit is a fixed step, and a rejected edit left nothing behind (the b48#2/b53#0 class, recurring) | process |
+| one test-file repair went through node -e fs.writeFileSync on the shell channel — the sanctioned-channel lineage's eighteenth sighting (the sixteenth is b79#0's patch, the seventeenth b81#4's python heredoc; the family's heredoc-named wrong-text rows grep to 22 in-registry, counted before enrolling); the content was verified clean on the spot (grep + typecheck), and clean does not absolve | code and data files ride the Write/Edit tools, no channel exceptions — the -e face is the heredoc face one escape level down; the act is ungated by construction, a malformed file dies at the loader the moment it lands | toolchain |
+| the magnetization test's expected value was wrong TWICE in a row — first the bit index, then the sign of the band; the suite convicted both drafts consecutively | the expectation is derived from the state's own definition (which bit indexes what, which sign the band carries) before the assert is written — two convictions on one anchor is the anchor recomputed, not the machine doubted | machine-overruled |
+| an edit left a transient duplicate definition mid-file — two declarations of the same symbol existed for one read-back interval; caught on the immediate reread and deleted | reread after every structural edit: the duplicate would have died at typecheck, the reread closed it before any run — residue is a per-draft constant (the b55 class) | process |
+| the brand discriminant's first version collapsed the Z&X intersection to never — the distinguishing attribute chosen for the two branded spectrum types severed the shared structure the code needed; typecheck caught it | the brands distinguish by their base slot structure, not by a property that makes the intersection uninhabitable — the discriminant was re-chosen and the distinction lands structurally | wrong-object |
+| driver.ts carried one stray blank line past an edit — cosmetic residue from the same delivery's restructuring; caught on the read-back and deleted in the same breath | the read-back after an edit covers formatting too — a stray blank line is the smallest face of the residue constant | process |
+| sorter.ts carried a duplicate markedSet declaration after the dedup rework (TS2451) — the typecheck gate named it the moment it landed | the edit's replacement scope is checked against the declaration list in the same file — the gate convicted it and the fix rode the same edit | toolchain |
+| the Rng import was deleted while T3.C still used it (TS2552) — the typecheck gate refused the tree | an import's live uses are grepped before it is removed — the gate caught it first this time; grep-then-delete is the rule | toolchain |
+| the lcgMarked regression vector was hardcoded from recollection as [58, 43, 47] — the machine's true vector at (n=6, t=3, seed=101) is [58, 0, 0]; caught by computing the stream before the gates ran, and the assertion shipped as exact dyadic rationals (state/2^32) | regression vectors are computed from the machine and written as exact binary rationals, never recalled — the anchor now pins [58, 0, 0] elementwise on every run (the b21#3 witness-first law on the data face) | process |
+| exp-t2's header comment first shipped with a bracket mismatch — prose residue in a comment no gate parses; caught on the reread and fixed | comments are read back like code — the reread is the factory check for the comment face, which typecheck never sees | process |
+| an anchor verification used a regex grep whose pattern contained a literal pipe — the alternation read as OR and the query returned a false ZERO hit (a phantom miss, taken for a missing needle); grep -F re-ran it and the needle was there all along | fixed-string needles are grepped with grep -F — a pattern's metacharacters are part of the query (the b80#5 format-is-part-of-the-query law), and a zero from a regex is verified by the literal before it is believed | toolchain |
+| [conviction of a shipped defect, v0.2.0] randomSat could hang forever — with fewer than 3 available variables the while(vars.size < 3) loop can never terminate (randomSat(2, 5, 1) hangs on the spot); the guard was absent through every gate generation | the INSUFFICIENT-VARIABLES guard names the impossible precondition at entry and ERR.06 anchors the conviction: the test completing AT ALL is the regression proof (both sub-3 shapes rejected by name, the negative control still builds the minimal 3-var instance) | wrong-object |
+| [conviction of a shipped defect, v0.2.0] repetitionsFor(0.1, 2) returned NEGATIVE 33 — Math.ceil over a negative log, parity-bumped, shipped a silently negative schedule; no guard refused delta outside (0,1] | the BAD-DELTA guard refuses the domain at entry and ERR.08 anchors it: delta <= 0 rejected by name, legal deltas give positive odd k, delta = 1 admits k = 1, and the exact-tie infinity convention stays intact | wrong-object |
+| [conviction of a shipped defect, v0.2.0] binomTailAtMost(3, 0, 1) returned NaN — 0*log(0) poisons the sum where the true tail P[Bin(3,0) <= 1] is exactly 1; a silent wrong answer at the boundary | the BAD-PROBABILITY guard refuses p outside [0,1] at entry and ERR.09 anchors it: the hand value 7/27 and the p = 1 endpoint stay exact — the degenerate boundary is named, never NaN'd | statistics |
+| [wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides); the second attempt after a real Read landed cleanly — the b53#0 lesson re-offended one batch after b82#6 booked it | the refusal is the guard and nothing damaged landed: Read before Edit is a fixed step regardless of how recently the file was displayed by other means | process |
+| [wiring agent, this batch] the first census suite run went RED on two companion-edit faces: W-D convicted the unregistered phase-law/rng.ts drift (predictable from the delivery report's dead-export purge) and S1/S2 convicted the stale on-disk artifact — the K-board registration and the repro re-render belonged in the same breath as the enrollment edits, not after the gate had named them | a wave that touches a family member's bytes ships its REGISTERED_DIVERGENCES row and its re-rendered artifact in the same act as the board edits; both closed immediately and the suite re-ran green — the gate convicted an incomplete state, which is the gate doing its job on an act that should not have been sent half-done | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..81 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (543 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 543 = repo sum 543)
-- PASS — W-4 declared totals 81 batches / 543 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (59 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (56 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..82 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (565 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 565 = repo sum 565)
+- PASS — W-4 declared totals 82 batches / 565 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (61 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (57 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 543 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 565 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

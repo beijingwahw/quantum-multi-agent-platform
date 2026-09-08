@@ -1,4 +1,5 @@
 import { StateVector } from "../core/statevector.js";
+import type { ZSpectrum, XSpectrum } from "../core/spectra.js";
 
 export interface ProjectionOptions {
   readonly dtau?: number;
@@ -45,8 +46,8 @@ export interface ProjectionResult {
  */
 export function projectGroundState(
   n: number,
-  energies: Float64Array,
-  xEnergies: Float64Array,
+  energies: ZSpectrum,
+  xEnergies: XSpectrum,
   s: number,
   options: ProjectionOptions = {},
 ): ProjectionResult {
@@ -93,8 +94,8 @@ export function projectGroundState(
 /** ⟨H(s)⟩ = −s·⟨C⟩_Z + (1−s)·⟨H_D⟩_X（驱动项在 X 基对角，翻转读出） */
 function totalEnergy(
   state: StateVector,
-  energies: Float64Array,
-  xEnergies: Float64Array,
+  energies: ZSpectrum,
+  xEnergies: XSpectrum,
   s: number,
 ): number {
   const problemEnergy = state.expectation(energies);

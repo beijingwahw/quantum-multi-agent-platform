@@ -5,7 +5,7 @@ import { Rng } from "../kernel/sorter.js";
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-interface CountRun {
+export interface CountRun {
   readonly n: number;
   readonly m: number; // |{g}|
   readonly cntJoint: number;
@@ -14,7 +14,11 @@ interface CountRun {
   readonly deviation: number;
 }
 
-function countRun(n: number, seed: number): CountRun {
+/** one random-instance counting run (amplitude path vs integer referee).
+ *  Exported since v0.3.0: test/t3-counting.test.ts previously carried a
+ *  verbatim local copy — the single-source law says one definition, both
+ *  consumers. */
+export function countRun(n: number, seed: number): CountRun {
   const N = 2 ** n;
   const rng = new Rng(seed);
   const g: boolean[] = new Array<boolean>(N).fill(false);

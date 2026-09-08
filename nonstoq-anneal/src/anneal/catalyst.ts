@@ -1,5 +1,9 @@
 import { StateVector } from "../core/statevector.js";
+import { NonstoqError } from "../core/errors.js";
+import { zSpectrumOf, xSpectrumOf } from "../core/spectra.js";
+import type { ZSpectrum, XSpectrum } from "../core/spectra.js";
 import { lowestSpectrum } from "./lanczos.js";
+import { magnetization } from "./driver.js";
 
 /**
  * 催化剂试验台 —— Nishimori-Takada / Seki-Nishimori 型反铁磁涨落催化剂
@@ -16,54 +20,48 @@ import { lowestSpectrum } from "./lanczos.js";
  */
 
 /** p-spin 全连通铁磁体能量表：C = N·m_z^p（p 奇 → 唯一最优全 +1）。 */
-export function pspinEnergies(n: number, p: number): Float64Array {
-  if (!Number.isInteger(p) || p < 2) throw new Error(`p-spin needs integer p >= 2, got ${p}`);
+export function pspinEnergies(n: number, p: number): ZSpectrum {
+  if (!Number.isInteger(p) || p < 2) throw new NonstoqError("PSpinDomain", `p-spin needs integer p >= 2, got ${p}`);
   const dim = 1 << n;
   const E = new Float64Array(dim);
   for (let z = 0; z < dim; z++) {
-    E[z] = n * Math.pow(magnetization(n, z) / n, p);
+    E[z] = n * Math.pow(magnetization(z, n) / n, p);
   }
-  return E;
+  return zSpectrumOf(E);
 }
 
-function magnetization(n: number, z: number): number {
-  let m = 0;
-  for (let i = 0; i < n; i++) m += ((z >>> i) & 1) === 0 ? 1 : -1;
-  return m;
-}
-
-/** X 基磁化表 Σ_i x_i。 */
-export function magTable(n: number): Float64Array {
+/** X 基磁化表 Σ_i x_i（自旋求和已单源化到 driver.magnetization）。 */
+export function magTable(n: number): XSpectrum {
   const dim = 1 << n;
   const t = new Float64Array(dim);
-  for (let z = 0; z < dim; z++) t[z] = magnetization(n, z);
-  return t;
+  for (let z = 0; z < dim; z++) t[z] = magnetization(z, n);
+  return xSpectrumOf(t);
 }
 
 /** N·m_x² 表 = (2/n)·Σ_{i<j} x_i x_j + 1（常数项保留，忠实原文）。 */
-export function xxScaled(n: number): Float64Array {
+export function xxScaled(n: number): XSpectrum {
   const dim = 1 << n;
   const t = new Float64Array(dim);
   for (let z = 0; z < dim; z++) {
-    const m = magnetization(n, z);
+    const m = magnetization(z, n);
     t[z] = (2 / n) * ((m * m - n) / 2) + 1;
   }
-  return t;
+  return xSpectrumOf(t);
 }
 
 /** H(s,λ) 驱动部分的 X 基本征值表：−(1−s)·Γ·mag + s(1−λ)·N·m_x²。 */
 export function xEnergiesAt(
-  mag: Float64Array,
-  xx: Float64Array,
+  mag: XSpectrum,
+  xx: XSpectrum,
   s: number,
   lambda: number,
   gamma = 1,
-): Float64Array {
+): XSpectrum {
   const t = new Float64Array(mag.length);
   for (let i = 0; i < t.length; i++) {
     t[i] = -(1 - s) * gamma * mag[i]! + s * (1 - lambda) * xx[i]!;
   }
-  return t;
+  return xSpectrumOf(t);
 }
 
 export interface GapPoint {
@@ -75,9 +73,9 @@ export interface GapPoint {
  *  交叉的谷宽 ~ gap 本身，粗网格必然错过谷底，必须局部细化）。 */
 export function minGapFixedLambda(
   n: number,
-  energies: Float64Array,
-  mag: Float64Array,
-  xx: Float64Array,
+  energies: ZSpectrum,
+  mag: XSpectrum,
+  xx: XSpectrum,
   lambda: number,
   options: { coarse?: number; refine?: number; k?: number } = {},
 ): GapPoint {
@@ -131,9 +129,9 @@ export function minGapFixedLambda(
  *  在唯一最优（全 +1，索引 0）的概率。λ0=1 时退化为纯化学计量退火。 */
 export function annealCatalystPath(
   n: number,
-  energies: Float64Array,
-  mag: Float64Array,
-  xx: Float64Array,
+  energies: ZSpectrum,
+  mag: XSpectrum,
+  xx: XSpectrum,
   options: {
     readonly lambda0: number;
     readonly s1?: number;

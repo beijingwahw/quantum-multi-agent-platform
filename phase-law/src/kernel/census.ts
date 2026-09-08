@@ -3,6 +3,7 @@
  * Every optimum by enumeration; every hit an honest count.
  */
 import { anneal, enumerateAll, greedy, localSearch, makeInstance, optimumOf, welfareOf, type CoupledInstance } from "./law.js";
+import { firstDownCross, firstUpCrossAfter, minIndex } from "./curves.js";
 
 export type SolverId = "greedy" | "local-search" | "anneal";
 
@@ -45,6 +46,11 @@ function solveWith(solver: SolverId, inst: CoupledInstance): number[] {
       return localSearch(inst, greedy(inst));
     case "anneal":
       return anneal(inst, 42);
+    default: {
+      // compile-time exhaustiveness: a new SolverId member fails HERE, not in a run
+      const exhausted: never = solver;
+      throw new Error(`solveWith: unhandled solver '${String(exhausted)}'`);
+    }
   }
 }
 
@@ -73,25 +79,28 @@ export function census(
 
 /** The 50%-crossing extraction (linear interpolation on the grid). */
 export function thresholds(points: readonly CensusPoint[]): ThresholdCell[] {
+  // group by (m, n, solver) without a string round-trip: the key only orders
+  // the map — the cell's identity comes from the points themselves
+  const groups = new Map<string, { m: number; n: number; solver: SolverId; curve: CensusPoint[] }>();
+  for (const p of points) {
+    const key = `${p.m}x${p.n}::${p.solver}`;
+    const g = groups.get(key);
+    if (g === undefined) groups.set(key, { m: p.m, n: p.n, solver: p.solver, curve: [p] });
+    else g.curve.push(p);
+  }
   const cells: ThresholdCell[] = [];
-  const keys = new Set(points.map((p) => `${p.m}x${p.n}::${p.solver}`));
-  for (const key of keys) {
-    const [mn, solver] = key.split("::");
-    const [m, n] = mn!.split("x").map(Number) as [number, number];
-    const curve = points
-      .filter((p) => p.m === m && p.n === n && p.solver === solver)
-      .sort((a, b) => a.lambda - b.lambda);
+  for (const g of groups.values()) {
+    const curve = g.curve.sort((a, b) => a.lambda - b.lambda);
     const atZero = curve.find((p) => p.lambda === 0)?.hitRate ?? Number.NaN;
     const atMax = curve[curve.length - 1]?.hitRate ?? Number.NaN;
-    let cross = -1;
-    for (let i = 0; i < curve.length; i++) {
-      if (curve[i]!.hitRate < 0.5) {
-        const prev = i > 0 ? curve[i - 1]! : undefined;
-        cross = prev !== undefined && prev.hitRate >= 0.5 ? (prev.lambda + curve[i]!.lambda) / 2 : curve[i]!.lambda;
-        break;
-      }
-    }
-    cells.push({ m, n, solver: solver as SolverId, lambdaCross: cross, hitRateAtZero: atZero, hitRateAtMax: atMax });
+    cells.push({
+      m: g.m,
+      n: g.n,
+      solver: g.solver,
+      lambdaCross: firstDownCross(curve.map((p) => p.lambda), curve.map((p) => p.hitRate)),
+      hitRateAtZero: atZero,
+      hitRateAtMax: atMax,
+    });
   }
   return cells.sort((a, b) =>
     a.m === b.m ? a.solver.localeCompare(b.solver) : a.m - b.m || a.n - b.n,
@@ -134,16 +143,7 @@ export function campaign(
         }
         return hits / seeds;
       });
-      let cross = -1;
-      for (let i = 0; i < lambdas.length; i++) {
-        if (hitRates[i]! < 0.5) {
-          const prev = i > 0 ? hitRates[i - 1]! : 1;
-          const prevLambda = i > 0 ? lambdas[i - 1]! : 0;
-          cross = prev >= 0.5 ? (prevLambda + lambdas[i]!) / 2 : lambdas[i]!;
-          break;
-        }
-      }
-      cells.push({ m, n, solver, seeds, lambdaCross: cross, hitRates });
+      cells.push({ m, n, solver, seeds, lambdaCross: firstDownCross(lambdas, hitRates), hitRates });
     }
   }
   return cells;
@@ -189,25 +189,9 @@ export function islandCampaign(
       }
       return hits / seeds;
     });
-    let down = -1;
-    for (let i = 0; i < lambdas.length; i++) {
-      if (hitRates[i]! < 0.5) {
-        const prev = i > 0 ? hitRates[i - 1]! : 1;
-        const prevLambda = i > 0 ? lambdas[i - 1]! : 0;
-        down = prev >= 0.5 ? (prevLambda + lambdas[i]!) / 2 : lambdas[i]!;
-        break;
-      }
-    }
-    let minIdx = 0;
-    for (let i = 1; i < hitRates.length; i++) if (hitRates[i]! < hitRates[minIdx]!) minIdx = i;
-    let up = -1;
-    for (let i = minIdx + 1; i < lambdas.length; i++) {
-      if (hitRates[i]! >= 0.5) {
-        const prevLambda = lambdas[i - 1]!;
-        up = (prevLambda + lambdas[i]!) / 2;
-        break;
-      }
-    }
+    const down = firstDownCross(lambdas, hitRates);
+    const minIdx = minIndex(hitRates);
+    const up = firstUpCrossAfter(lambdas, hitRates, minIdx);
     cells.push({
       m,
       n,

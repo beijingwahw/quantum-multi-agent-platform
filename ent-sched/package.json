@@ -1,6 +1,6 @@
 {
   "name": "ent-sched",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Distributed entanglement scheduling prototype: the scheduler treats EPR pairs as a first-class schedulable resource (link attempt bandwidth, memory slots, swap timing, purification ladders) over a heralded-link quantum network model",
   "type": "module",
   "engines": {

@@ -21,6 +21,7 @@ import {
 import type { ElementTerms, ElementDecision } from "../anneal/designing-element.js";
 import { classifyDiagonalGaugeDesignable } from "../anneal/designing.js";
 import { randomIsing } from "../core/ising.js";
+import { NonstoqError } from "../core/errors.js";
 import { Rng } from "../core/rng.js";
 import { fmt, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
@@ -73,9 +74,10 @@ function verdictCell(terms: ElementTerms, label: string): {
   const t0 = Date.now();
   const dec = decideElementDesignable(terms, { pairGrid: 360, seed: SEED, starts: 400 });
   const ms = Date.now() - t0;
-  if (dec.verdict === "YES" && dec.certificate) {
+  if (dec.verdict === "YES") {
+    // 可辨识联合：YES 变体必带证书（类型保证非空——无条件复核）
     const v = verifyElementCertificate(terms, dec.certificate);
-    if (!v.accepted) throw new Error(`exp6: certificate failed verification for ${label}`);
+    if (!v.accepted) throw new NonstoqError("CertificateVerificationFailed", `exp6: certificate failed verification for ${label}`);
   }
   return {
     label,
@@ -196,9 +198,10 @@ export function main(): void {
     const t0 = Date.now();
     const dec = decideElementDesignable(fam.terms, { pairGrid: 360, seed: SEED });
     const ms = Date.now() - t0;
-    if (dec.verdict === "YES" && dec.certificate) {
+    if (dec.verdict === "YES") {
+      // 可辨识联合：YES 变体必带证书（类型保证非空——无条件复核）
       const v = verifyElementCertificate(fam.terms, dec.certificate);
-      if (!v.accepted) throw new Error(`exp6: certificate failed verification for ${fam.family}`);
+      if (!v.accepted) throw new NonstoqError("CertificateVerificationFailed", `exp6: certificate failed verification for ${fam.family}`);
     }
     const gauge = diagonalGaugeVerdict(fam.terms);
     let pComp: number | null = null;

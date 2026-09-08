@@ -12,8 +12,7 @@
  * at every probe. The k-scaling of the breakpoint positions is reported AS
  * DATA ONLY — no scaling law is claimed.
  */
-import { makeRng } from "../core/rng.js";
-import { enumerateKPair, makeKPairInstance, type KPairInstance } from "./law.js";
+import { enumerateKPair, makeIntegerWeights, makeKPairInstance, type KPairInstance } from "./law.js";
 
 export interface StaircaseCell {
   readonly m: number;
@@ -26,15 +25,6 @@ export interface StaircaseCell {
   readonly levels: readonly number[];
   /** exact breakpoints between consecutive hull levels, strictly ascending, same length − 1 */
   readonly breaks: readonly number[];
-}
-
-/** Integer-thousandth weights — the SAME instance as makeKPairInstance
- * (weights/1000), before the division: exact under summation. */
-function makeIntegerWeights(m: number, n: number, seed: number): number[][] {
-  const r = makeRng(seed);
-  return Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => Math.round((0.15 + 0.7 * r()) * 1000)),
-  );
 }
 
 /** C_j in thousandths by enumeration with integer arithmetic (the referee). */

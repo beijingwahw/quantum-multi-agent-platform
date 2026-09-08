@@ -6,8 +6,9 @@
  * Z = Tr(U^M)，M = 2^k 次矩阵平方取迹。n ≤ 8（dim ≤ 256）时秒级，
  * 与 SSE 全枚举在 n=2 互相印证（枚举无 Trotter 误差，矩阵无截断误差）。
  */
+import type { ZSpectrum, XSpectrum } from "../core/spectra.js";
 
-function hadamardBasisMatrix(dim: number, xEnergies: Float64Array, driverCoef: number): Float64Array {
+function hadamardBasisMatrix(dim: number, xEnergies: XSpectrum, driverCoef: number): Float64Array {
   // B[a][b] = (1/dim)·Σ_t (−1)^{popcount(a&t)}·(−1)^{popcount(b&t)}·e^{−driverCoef·E_x(t)}
   const B = new Float64Array(dim * dim);
   const signs = new Float64Array(dim);
@@ -39,8 +40,8 @@ function popcountParity(x: number): number {
 
 function trotterLogZ(
   n: number,
-  energies: Float64Array,
-  xEnergies: Float64Array,
+  energies: ZSpectrum,
+  xEnergies: XSpectrum,
   s: number,
   beta: number,
   log2Slices: number,
@@ -97,9 +98,9 @@ function trotterLogZ(
  */
 export function exactSignRatio(
   n: number,
-  energies: Float64Array,
-  xEnergiesPlus: Float64Array,
-  xEnergiesMinus: Float64Array,
+  energies: ZSpectrum,
+  xEnergiesPlus: XSpectrum,
+  xEnergiesMinus: XSpectrum,
   s: number,
   beta: number,
   log2Slices = 9,

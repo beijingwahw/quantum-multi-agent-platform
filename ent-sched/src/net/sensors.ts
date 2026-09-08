@@ -20,6 +20,7 @@
  *      delivery against the true fidelity the physics engine recorded.
  */
 
+import { SchedError, type CodedError } from "../core/errors.js";
 import type { Rng } from "../core/rng.js";
 
 /** √6 as a module constant (sd of the unit triangular sum below). */
@@ -31,15 +32,24 @@ const SQRT6 = Math.sqrt(6); // IEEE-exact, platform-stable
  * bit-reproducible across platforms, like everything else in this repo.
  */
 export function triangularNoise(rng: Rng, sigma: number): number {
+  if (!Number.isFinite(sigma) || sigma < 0)
+    throw new SchedError("SENSOR_BAD_SIGMA", `sigma=${sigma} is negative or not finite (noise scale must be ≥ 0)`);
   const u = rng.next() + rng.next() - 1; // triangular on [−1, 1), sd = 1/√6
   return sigma * SQRT6 * u;
 }
 
-/** Named rejection for contraband entering the sensor layer. */
-export class SensorGuardError extends Error {
-  constructor(message: string) {
-    super(message);
+/**
+ * Named rejection for contraband entering the sensor layer. Implements the
+ * repo-wide CodedError contract: `code` is machine-checkable and the message
+ * is exactly `${code}: ${detail}`.
+ */
+export class SensorGuardError extends Error implements CodedError {
+  readonly code: string;
+
+  constructor(code: string, detail: string) {
+    super(`${code}: ${detail}`);
     this.name = "SensorGuardError";
+    this.code = code;
   }
 }
 
@@ -92,14 +102,15 @@ export class LinkF0Bank {
   recordSample(token: SampleToken, linkId: string, round: number, value: number): void {
     if (token.kind !== LEGAL_SAMPLE_KIND) {
       throw new SensorGuardError(
-        `ILLEGAL_SAMPLE_SOURCE: token kind '${token.kind}' (seq ${token.seq}) on link '${linkId}' — the estimator bank accepts only '${LEGAL_SAMPLE_KIND}' tomography of freshly generated pairs; oracle readings, heralded-outcome sidelines, and forged values are contraband (docs/theory.md §10)`
+        "ILLEGAL_SAMPLE_SOURCE",
+        `token kind '${token.kind}' (seq ${token.seq}) on link '${linkId}' — the estimator bank accepts only '${LEGAL_SAMPLE_KIND}' tomography of freshly generated pairs; oracle readings, heralded-outcome sidelines, and forged values are contraband (docs/theory.md §10)`
       );
     }
     // Raw tomography readings may be unphysical (bias + noise can push a
     // 0.99-fidelity reading past 1.0); the ESTIMATE is clamped to [0,1] on
     // use. A reading outside [0,2] cannot come from any plausible tomograph.
     if (!Number.isFinite(value) || value < 0 || value > 2) {
-      throw new SensorGuardError(`ILLEGAL_SAMPLE_VALUE: ${value} is not a fidelity reading`);
+      throw new SensorGuardError("ILLEGAL_SAMPLE_VALUE", `${value} is not a fidelity reading`);
     }
     const a = this.acc.get(linkId);
     if (a) {
@@ -154,6 +165,8 @@ export interface QosAudit {
  * knowingly release below grade) are not violations — they never claimed.
  */
 export function auditQosClaims(claims: readonly QosClaim[], fMin: number, fromRound = 0): QosAudit {
+  if (!Number.isFinite(fMin) || fMin < 0 || fMin > 1)
+    throw new SchedError("QOS_AUDIT_BAD_FMIN", `fMin=${fMin} outside [0,1] — not a fidelity threshold`);
   const window = claims.filter((c) => c.round >= fromRound);
   const claimedGood = window.filter((c) => c.claimedF >= fMin - 1e-12);
   const violations = claimedGood.filter((c) => c.trueF < fMin - 1e-12);
@@ -192,5 +205,10 @@ export interface SensorPlan {
 /** Strict form of the audit: throws the named rejection instead of reporting. */
 export function assertNoQosViolations(claims: readonly QosClaim[], fMin: number, fromRound = 0): void {
   const audit = auditQosClaims(claims, fMin, fromRound);
-  if (!audit.ok) throw new SensorGuardError(audit.message);
+  if (!audit.ok) {
+    // audit messages open with their code ("QOS_CLAIM_VIOLATION: ...") — split
+    // it back out so the thrown error satisfies the CodedError contract
+    const sep = audit.message.indexOf(": ");
+    throw new SensorGuardError(audit.message.slice(0, sep), audit.message.slice(sep + 2));
+  }
 }

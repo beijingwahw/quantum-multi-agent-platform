@@ -1,4 +1,5 @@
 import type { IsingModel, Coupling } from "../core/ising.js";
+import { NonstoqError } from "../core/errors.js";
 
 /**
  * 结构化催化剂实例族（Hormozi et al., PRB 95, 184416 (2017) 型）。
@@ -16,7 +17,7 @@ import type { IsingModel, Coupling } from "../core/ising.js";
 /** 反铁磁环：n ≥ 3 个自旋的环形链，边权全 −1（无场）。 */
 export function antiferroRing(n: number): IsingModel {
   if (!Number.isInteger(n) || n < 3) {
-    throw new Error(`AF ring needs integer n >= 3, got ${n}`);
+    throw new NonstoqError("AfRingDomain", `AF ring needs integer n >= 3, got ${n}`);
   }
   const couplings: Coupling[] = [];
   for (let i = 0; i < n; i++) {
@@ -24,9 +25,4 @@ export function antiferroRing(n: number): IsingModel {
     couplings.push({ j: Math.min(i, j), k: Math.max(i, j), w: -1 });
   }
   return { n, fields: new Array<number>(n).fill(0), couplings };
-}
-
-/** 受挫（奇数环）与否的便捷判定。 */
-export function isFrustratedRing(n: number): boolean {
-  return n % 2 === 1;
 }

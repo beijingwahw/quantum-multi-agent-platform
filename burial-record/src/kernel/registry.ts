@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 81;
-export const DECLARED_TOTAL_ERRORS = 543;
+export const DECLARED_TOTAL_BATCHES = 82;
+export const DECLARED_TOTAL_ERRORS = 565;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -3509,6 +3509,126 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "the package.json version/description edit went through a python HEREDOC on the Bash channel — the sanctioned-channel family's next sighting; verified clean after the fact (JSON valid, both replacements exact), and clean does not absolve (the b79#10 judgment)",
         right: "file edits ride the Edit tool, never a heredoc — the escape-proof temptation is exactly the danger; the dual-face holds as ever: the act is ungated, a malformed package.json is a parse death at the very next npm invocation",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 82,
+    repo: "burial-record",
+    date: "2026-09-08",
+    context:
+      "the seventh upgrade wave's first batch wiring (phase-law 0.5.0->0.6.0, ent-sched 0.2.0->0.3.0, nonstoq-anneal 0.2.0->0.3.0, postselect-sched 0.2.0->0.3.0 — four gates green in each, the quality faces E dead-code/C single-source/A types/B error codes/F docs delivered across the wave): twenty-two delivery errors across five classes, born enrolled and born audited on both boards — FOUR latent-defect convictions (postselect's randomSat hang at ERR.06, its negative repetitionsFor schedule at ERR.08, its NaN binomTailAtMost at ERR.09; phase-law's unwitnessed PL20 cross-check claim wired to a real staircase witness) and TWO family sightings (the exit-code-masking family's thirteenth, attempted; the sanctioned-channel lineage's eighteenth, node -e), with the wiring agent's own two slips (an Edit-before-Read refusal, a first suite run red on companion-edit faces) booked in the same batch",
+    source: { file: "memory/2026-09-08.md", heading: "关键经验（第八十二批" },
+    errors: [
+      {
+        wrong: "a new test's first expected value was computed wrong by hand — the midpoint of a grid whose lambda starts at 0 is 0, not 0.5; the suite convicted the anchor on the first run",
+        right: "the anchor is recomputed from the grid's own boundary definition before the assertion is written — fix the anchor, not the machine (the b13#7 law's face)",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "the orphan-reachability test's first draft typed readdirSync's recursive listing as if every entry were a string — the Buffer union produced TS2339/TS2345 at the typecheck gate",
+        right: "the union is narrowed with an explicit string guard before use — the gate convicted the draft and the fix rode the same edit",
+        category: "toolchain",
+      },
+      {
+        wrong: "[latent from v0.5.0] PL20's panel and render claimed an integer-vs-float C_j cross-check of 8.88e-13 while staircaseFloatCrossCheck was a dead export with ZERO call sites — the number was hand-copied out of band, no gate ever witnessed it (the claim turned out true, but truth without a witness is not a verdict)",
+        right: "the cross-check is now WIRED: the staircase float sum feeds the W-K bound < 1e-12 with a new anchor asserting the error is real (> 0) and under the bound — the machine value 8.882e-13 matches the claimed digits, and the claim is witnessed on every run",
+        category: "process",
+      },
+      {
+        wrong: "one gate command was piped (npm test 2>&1 | tail -5) to trim the output — the exit-code-masking family's thirteenth registered sighting (b4#3, b37#6, b43#2, b64#1, b71#0, b74#0, b74#2, b78#10, b79#14, b80#6, b81#2, b81#3 the twelve in-registry before it), caught in the same breath: the pipe shows the tail while eating the verdict",
+        right: "the attempt was aborted before any verdict was taken from it and the suite re-run for its DIRECT exit code (clean, exit 0) — a display pipe is still a masking pipe; the gate's code is read from the command itself, output trimmed on a separate read",
+        category: "toolchain",
+      },
+      {
+        wrong: "errors.test.ts's first draft called a helper with the wrong arity (TS2554) and expected the WRONG code on the ghost-endpoint trial — POLICY fires before the endpoint verdict the test named; typecheck refused the draft and the run convicted the expectation",
+        right: "the trial's ammunition is read from the checker's own firing order before the expectation is written — the corrected test asserts the code that actually fires (the b80#4 ammunition law, recurring)",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "errors.test.ts's first draft carried dead scaffolding — an unused variable plus a prototype-reflection construction reaching around the public constructor; the rewrite removed both whole",
+        right: "drafts do not reach the machine dirty — the construction was replaced, not patched around (the b55#2 law); the unused-symbol face dies at the repo's typecheck anyway",
+        category: "process",
+      },
+      {
+        wrong: "the package.json version edit was issued before the file had been Read — the Edit tool refused it (the read-state tracker, not a shell view, decides what may be edited); the second attempt after a real Read landed cleanly",
+        right: "the refusal is the guard: Read before Edit is a fixed step, and a rejected edit left nothing behind (the b48#2/b53#0 class, recurring)",
+        category: "process",
+      },
+      {
+        wrong: "one test-file repair went through node -e fs.writeFileSync on the shell channel — the sanctioned-channel lineage's eighteenth sighting (the sixteenth is b79#0's patch, the seventeenth b81#4's python heredoc; the family's heredoc-named wrong-text rows grep to 22 in-registry, counted before enrolling); the content was verified clean on the spot (grep + typecheck), and clean does not absolve",
+        right: "code and data files ride the Write/Edit tools, no channel exceptions — the -e face is the heredoc face one escape level down; the act is ungated by construction, a malformed file dies at the loader the moment it lands",
+        category: "toolchain",
+      },
+      {
+        wrong: "the magnetization test's expected value was wrong TWICE in a row — first the bit index, then the sign of the band; the suite convicted both drafts consecutively",
+        right: "the expectation is derived from the state's own definition (which bit indexes what, which sign the band carries) before the assert is written — two convictions on one anchor is the anchor recomputed, not the machine doubted",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "an edit left a transient duplicate definition mid-file — two declarations of the same symbol existed for one read-back interval; caught on the immediate reread and deleted",
+        right: "reread after every structural edit: the duplicate would have died at typecheck, the reread closed it before any run — residue is a per-draft constant (the b55 class)",
+        category: "process",
+      },
+      {
+        wrong: "the brand discriminant's first version collapsed the Z&X intersection to never — the distinguishing attribute chosen for the two branded spectrum types severed the shared structure the code needed; typecheck caught it",
+        right: "the brands distinguish by their base slot structure, not by a property that makes the intersection uninhabitable — the discriminant was re-chosen and the distinction lands structurally",
+        category: "wrong-object",
+      },
+      {
+        wrong: "driver.ts carried one stray blank line past an edit — cosmetic residue from the same delivery's restructuring; caught on the read-back and deleted in the same breath",
+        right: "the read-back after an edit covers formatting too — a stray blank line is the smallest face of the residue constant",
+        category: "process",
+      },
+      {
+        wrong: "sorter.ts carried a duplicate markedSet declaration after the dedup rework (TS2451) — the typecheck gate named it the moment it landed",
+        right: "the edit's replacement scope is checked against the declaration list in the same file — the gate convicted it and the fix rode the same edit",
+        category: "toolchain",
+      },
+      {
+        wrong: "the Rng import was deleted while T3.C still used it (TS2552) — the typecheck gate refused the tree",
+        right: "an import's live uses are grepped before it is removed — the gate caught it first this time; grep-then-delete is the rule",
+        category: "toolchain",
+      },
+      {
+        wrong: "the lcgMarked regression vector was hardcoded from recollection as [58, 43, 47] — the machine's true vector at (n=6, t=3, seed=101) is [58, 0, 0]; caught by computing the stream before the gates ran, and the assertion shipped as exact dyadic rationals (state/2^32)",
+        right: "regression vectors are computed from the machine and written as exact binary rationals, never recalled — the anchor now pins [58, 0, 0] elementwise on every run (the b21#3 witness-first law on the data face)",
+        category: "process",
+      },
+      {
+        wrong: "exp-t2's header comment first shipped with a bracket mismatch — prose residue in a comment no gate parses; caught on the reread and fixed",
+        right: "comments are read back like code — the reread is the factory check for the comment face, which typecheck never sees",
+        category: "process",
+      },
+      {
+        wrong: "an anchor verification used a regex grep whose pattern contained a literal pipe — the alternation read as OR and the query returned a false ZERO hit (a phantom miss, taken for a missing needle); grep -F re-ran it and the needle was there all along",
+        right: "fixed-string needles are grepped with grep -F — a pattern's metacharacters are part of the query (the b80#5 format-is-part-of-the-query law), and a zero from a regex is verified by the literal before it is believed",
+        category: "toolchain",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] randomSat could hang forever — with fewer than 3 available variables the while(vars.size < 3) loop can never terminate (randomSat(2, 5, 1) hangs on the spot); the guard was absent through every gate generation",
+        right: "the INSUFFICIENT-VARIABLES guard names the impossible precondition at entry and ERR.06 anchors the conviction: the test completing AT ALL is the regression proof (both sub-3 shapes rejected by name, the negative control still builds the minimal 3-var instance)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] repetitionsFor(0.1, 2) returned NEGATIVE 33 — Math.ceil over a negative log, parity-bumped, shipped a silently negative schedule; no guard refused delta outside (0,1]",
+        right: "the BAD-DELTA guard refuses the domain at entry and ERR.08 anchors it: delta <= 0 rejected by name, legal deltas give positive odd k, delta = 1 admits k = 1, and the exact-tie infinity convention stays intact",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[conviction of a shipped defect, v0.2.0] binomTailAtMost(3, 0, 1) returned NaN — 0*log(0) poisons the sum where the true tail P[Bin(3,0) <= 1] is exactly 1; a silent wrong answer at the boundary",
+        right: "the BAD-PROBABILITY guard refuses p outside [0,1] at entry and ERR.09 anchors it: the hand value 7/27 and the p = 1 endpoint stay exact — the degenerate boundary is named, never NaN'd",
+        category: "statistics",
+      },
+      {
+        wrong: "[wiring agent, this batch] the census package.json version edit was issued off a Bash cat view without a Read — the Edit tool refused it (a shell view is not a Read; the read-state tracker decides); the second attempt after a real Read landed cleanly — the b53#0 lesson re-offended one batch after b82#6 booked it",
+        right: "the refusal is the guard and nothing damaged landed: Read before Edit is a fixed step regardless of how recently the file was displayed by other means",
+        category: "process",
+      },
+      {
+        wrong: "[wiring agent, this batch] the first census suite run went RED on two companion-edit faces: W-D convicted the unregistered phase-law/rng.ts drift (predictable from the delivery report's dead-export purge) and S1/S2 convicted the stale on-disk artifact — the K-board registration and the repro re-render belonged in the same breath as the enrollment edits, not after the gate had named them",
+        right: "a wave that touches a family member's bytes ships its REGISTERED_DIVERGENCES row and its re-rendered artifact in the same act as the board edits; both closed immediately and the suite re-ran green — the gate convicted an incomplete state, which is the gate doing its job on an act that should not have been sent half-done",
+        category: "process",
       },
     ],
   },

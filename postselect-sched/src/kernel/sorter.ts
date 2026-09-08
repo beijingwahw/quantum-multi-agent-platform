@@ -10,6 +10,7 @@
  * independent arithmetic path (integer counts) so agreement is a check, not a
  * tautology.
  */
+import { KernelError } from "./errors.js";
 
 export interface SorterRun {
   readonly n: number;
@@ -30,11 +31,15 @@ export interface SorterRun {
 }
 
 export function runSorter(n: number, markedInput: readonly number[]): SorterRun {
+  if (!Number.isInteger(n) || n < 1 || n > 30) throw new KernelError("BAD-QUBIT-COUNT", `runSorter: n must be an integer in 1..30 (got ${n})`);
   const N = 2 ** n;
   const marked = [...new Set(markedInput)];
   const t = marked.length;
-  if (t === 0) throw new Error("runSorter: at least one marked item required");
-  if (t > N) throw new Error("runSorter: marked set exceeds address space");
+  if (t === 0) throw new KernelError("EMPTY-MARKED-SET", "runSorter: at least one marked item required");
+  if (t > N) throw new KernelError("MARKED-EXCEEDS-SPACE", "runSorter: marked set exceeds address space");
+  // an out-of-range index would never match an address cell, silently
+  // decoupling pFlag (summed amplitudes) from t/N (the closed form) — named refusal
+  if (marked.some((x) => !Number.isInteger(x) || x < 0 || x >= N)) throw new KernelError("MARKED-OUT-OF-RANGE", `runSorter: every marked index must be an integer in [0, 2^n) = [0, ${N})`);
   const markedSet = new Set(marked);
   const amp = 1 / Math.sqrt(N);
   const branch1 = new Float64Array(N);
@@ -91,9 +96,11 @@ export interface PayloadRun {
  *  carries exactly the conditional distribution of the payload over the marked
  *  set — an integer-ratio (#P-fraction) value. */
 export function runPayload(n: number, markedInput: readonly number[], payload: readonly boolean[]): PayloadRun {
+  if (!Number.isInteger(n) || n < 1 || n > 30) throw new KernelError("BAD-QUBIT-COUNT", `runPayload: n must be an integer in 1..30 (got ${n})`);
   const N = 2 ** n;
-  if (payload.length !== N) throw new Error("runPayload: payload table must have length 2^n");
+  if (payload.length !== N) throw new KernelError("PAYLOAD-LENGTH", `runPayload: payload table must have length 2^n = ${N} (got ${payload.length})`);
   const marked = [...new Set(markedInput)];
+  if (marked.some((x) => !Number.isInteger(x) || x < 0 || x >= N)) throw new KernelError("MARKED-OUT-OF-RANGE", `runPayload: every marked index must be an integer in [0, 2^n) = [0, ${N})`);
   const markedSet = new Set(marked);
   const amp = 1 / Math.sqrt(N);
   let weight = 0;
@@ -109,7 +116,7 @@ export function runPayload(n: number, markedInput: readonly number[], payload: r
       cntJoint++;
     }
   }
-  if (cntMarked === 0) throw new Error("runPayload: empty marked set");
+  if (cntMarked === 0) throw new KernelError("EMPTY-MARKED-SET", "runPayload: empty marked set");
   const branchOutcome = joint / weight;
   const closedForm = cntJoint / cntMarked;
   return { pFlag: weight, branchOutcome, closedForm, deviation: Math.abs(branchOutcome - closedForm) };
@@ -117,26 +124,11 @@ export function runPayload(n: number, markedInput: readonly number[], payload: r
 
 // ---------------------------------------------------------------------------
 // Small dense-matrix helpers for the filter audit (n=2 instances only).
+// (matMul was deleted at v0.3.0: zero references repo- and workspace-wide —
+// the audit needs projectors and traces, never products.)
 // ---------------------------------------------------------------------------
 
 export type Matrix = ReadonlyArray<readonly number[]>;
-
-export function matMul(a: Matrix, b: Matrix): Matrix {
-  const m = a.length;
-  const k = b.length;
-  const p = (b[0] as readonly number[]).length;
-  const out: number[][] = [];
-  for (let i = 0; i < m; i++) {
-    const row = new Array<number>(p).fill(0);
-    for (let j = 0; j < p; j++) {
-      let s = 0;
-      for (let u = 0; u < k; u++) s += (a[i] as readonly number[])[u] as number * ((b[u] as readonly number[])[j] as number);
-      row[j] = s;
-    }
-    out.push(row);
-  }
-  return out;
-}
 
 export function trace(m: Matrix): number {
   let s = 0;
@@ -154,7 +146,7 @@ export function conditionalDm(rho: Matrix, pi: readonly number[]): Matrix {
   const d = rho.length;
   let w = 0;
   for (let i = 0; i < d; i++) if (pi[i] === 1) w += (rho[i] as readonly number[])[i] as number;
-  if (w <= 0) throw new Error("conditionalDm: zero branch weight");
+  if (w <= 0) throw new KernelError("ZERO-BRANCH-WEIGHT", "conditionalDm: zero branch weight");
   return rho.map((row, i) => row.map((a, j) => (pi[i] === 1 && pi[j] === 1 ? a / w : 0)));
 }
 
@@ -313,7 +305,7 @@ export function feedforwardCheck(n: number, markedInput: readonly number[], seed
       counts[marked[idx] as number] = (counts[marked[idx] as number] as number) + 1;
     }
   }
-  if (accepted === 0) throw new Error("feedforwardCheck: empty branch (raise samples)");
+  if (accepted === 0) throw new KernelError("EMPTY-BRANCH", "feedforwardCheck: empty branch (raise samples)");
   const acceptSigma = Math.abs(accepted / samples - run.pFlag) / Math.sqrt((run.pFlag * (1 - run.pFlag)) / samples);
   const pExact = 1 / t;
   let worstSigma = 0;

@@ -1,6 +1,6 @@
 {
   "name": "nonstoq-anneal",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Non-stoquastic annealing route prototype: programmable XX-driver engines (real-time anneal + imaginary-time ground states), stoquasticity verifier, sign-structure barrier metric P = sum(psi)/sum(|psi|), and the element-level de-signing decider (certified YES/NO/UNRESOLVED)",
   "type": "module",
   "engines": {

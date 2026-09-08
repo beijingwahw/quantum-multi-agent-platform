@@ -18,6 +18,7 @@
  *                     arbitration, fidelity-aware purification ladder.
  */
 
+import { SchedError } from "../core/errors.js";
 import { purify2to1, swapBell } from "../physics/ops.js";
 import type {
   EngineView,
@@ -117,7 +118,7 @@ export function projectedFidelity(
   st: EngineView,
   tiling: readonly Pair[]
 ): number {
-  if (tiling.length === 0) throw new Error("projectedFidelity: empty tiling");
+  if (tiling.length === 0) throw new SchedError("PROJECTED_FIDELITY_EMPTY_TILING", "cannot fold the fidelity of zero segments");
   let vec = st.currentVec(tiling[0]!, st.round);
   for (let i = 1; i < tiling.length; i++)
     vec = swapBell(vec, st.currentVec(tiling[i]!, st.round)); // i < tiling.length (loop bound)
@@ -165,7 +166,7 @@ function makePathPolicy(
   const pathByRequest = new Map<string, string[]>();
   for (const r of requests) {
     const p = topo.shortestPath(r.src, r.dst);
-    if (!p) throw new Error(`request ${r.id}: no path ${r.src}→${r.dst}`);
+    if (!p) throw new SchedError("POLICY_NO_PATH", `${name}: request '${r.id}' has no path ${r.src}→${r.dst} in this topology`);
     pathByRequest.set(r.id, p.links);
   }
   const pointers = new Map<string, number>();
@@ -213,11 +214,11 @@ export function tdmPolicy(
   requests: readonly RequestSpec[],
   maxEpochRounds = 400
 ): Policy {
-  if (requests.length === 0) throw new Error("tdm: no requests");
+  if (requests.length === 0) throw new SchedError("TDM_NO_REQUESTS", "tdm: time-division needs at least one request to rotate between");
   const paths = new Map<string, string[]>();
   for (const r of requests) {
     const p = topo.shortestPath(r.src, r.dst);
-    if (!p) throw new Error(`tdm: no path for ${r.id}`);
+    if (!p) throw new SchedError("POLICY_NO_PATH", `tdm: request '${r.id}' has no path ${r.src}→${r.dst} in this topology`);
     paths.set(r.id, p.links);
   }
   let idx = 0;
@@ -276,7 +277,7 @@ export function ersPolicy(
   const candidates = new Map<string, Array<{ links: string[]; et: number }>>();
   for (const r of requests) {
     const paths = topo.kShortestPaths(r.src, r.dst, k);
-    if (paths.length === 0) throw new Error(`ers: no path for ${r.id}`);
+    if (paths.length === 0) throw new SchedError("POLICY_NO_PATH", `ers: request '${r.id}' has no path ${r.src}→${r.dst} in this topology`);
     candidates.set(r.id, paths.map((p) => ({ links: p.links, et: p.et })));
   }
   const pairCountOn = (st: EngineView, owner: string, linkId: string): number => {

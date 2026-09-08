@@ -43,7 +43,7 @@ import {
 import { campaign, census, envelopeCheck, islandCampaign, thresholds } from "./census.js";
 import { densityCampaign } from "./density.js";
 import { makeNuInstance, nuAllKDeviation, nuEnvelopeDeviation, nuInAllKRegime, nuOptimum, nuRay, nuRayDescentCount, nuSubsetEnvelope } from "./nonuniform.js";
-import { staircaseArgmaxMismatch, staircaseCell, staircaseCheck, staircaseFlipDeviation } from "./staircase.js";
+import { staircaseArgmaxMismatch, staircaseCell, staircaseCheck, staircaseFlipDeviation, staircaseFloatCrossCheck } from "./staircase.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
@@ -375,11 +375,14 @@ export function runWitnesses(): WitnessResult[] {
     });
   }
 
-  // W-K — the staircase breakpoints: exact flips, tie-aware argmax identity
+  // W-K — the staircase breakpoints: exact flips, tie-aware argmax identity,
+  // integer-vs-float C_j cross-check (wired in v0.6.0 — the check existed but
+  // nothing ran it, leaving PL20's cross-check number an unwitnessed claim)
   {
     const probeGrid = [0, 0.001, 0.01, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1, 1.5, 2, 3, 4, 6, 8];
     let worstFlip = 0;
     let worstArgmax = 0;
+    let worstCross = 0;
     let ties = 0;
     let checked = 0;
     let forged = 0;
@@ -394,6 +397,7 @@ export function runWitnesses(): WitnessResult[] {
           const cell = staircaseCell(m, n, 500 * s, k);
           forged += staircaseCheck(cell).length;
           worstFlip = Math.max(worstFlip, staircaseFlipDeviation(cell));
+          worstCross = Math.max(worstCross, staircaseFloatCrossCheck(cell));
           const r = staircaseArgmaxMismatch(m, n, 500 * s, k, probeGrid);
           worstArgmax = Math.max(worstArgmax, r.worst);
           ties += r.ties;
@@ -403,8 +407,8 @@ export function runWitnesses(): WitnessResult[] {
     }
     out.push({
       witness: "W-K",
-      ok: worstFlip === 0 && worstArgmax === 0 && forged === 0,
-      detail: `flip dev ${worstFlip}, tie-aware argmax mismatch ${worstArgmax} (${ties} tie probes, all set-consistent) over ${checked} cells; no forged staircase survived its own check (${forged} violations)`,
+      ok: worstFlip === 0 && worstArgmax === 0 && forged === 0 && worstCross < 1e-12,
+      detail: `flip dev ${worstFlip}, tie-aware argmax mismatch ${worstArgmax} (${ties} tie probes, all set-consistent), integer-vs-float C_j cross-check ${worstCross.toExponential(2)} thousandths over ${checked} cells; no forged staircase survived its own check (${forged} violations)`,
     });
   }
 

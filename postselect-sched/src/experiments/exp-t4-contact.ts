@@ -6,8 +6,10 @@ import { eStarGrover, groverPClosed, lubyUniversal, payExpected } from "../kerne
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-/** simulate geometric rounds until success; returns rounds used */
-function geometricRounds(rng: Rng, q: number): number {
+/** simulate geometric rounds until success; returns rounds used. Exported
+ *  since v0.3.0 — test/t4-contact.test.ts previously carried a verbatim
+ *  local copy of it. */
+export function geometricRounds(rng: Rng, q: number): number {
   let rounds = 0;
   for (;;) {
     rounds++;

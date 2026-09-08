@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { Rng } from "../src/core/rng.js";
 import { bruteForce, energies, randomIsing } from "../src/core/ising.js";
+import { zeroSpectrum } from "../src/core/spectra.js";
 import { StateVector } from "../src/core/statevector.js";
 import { checkStoquasticity, xBasisEnergies } from "../src/anneal/driver.js";
 import type { DriverSpec } from "../src/anneal/driver.js";
@@ -68,7 +69,8 @@ test("driver: X-basis energy table matches hand computation (n=2)", () => {
 });
 
 test("analytic anchor: kappa_c = 2*gamma phase transition of the 2-qubit XX driver", () => {
-  const zeros = new Float64Array(4);
+  // 零问题谱表（基无关，zeroSpectrum 同时携带 Z/X 品牌）
+  const zeros = zeroSpectrum(2);
   // κ < 2Γ：基态 = |++>_x（Z 基全非负）→ P = 1
   const weak = xBasisEnergies(2, { gamma: 1, couplings: [{ j: 0, k: 1, w: 0.5 }] });
   const pWeak = projectGroundState(2, zeros, weak, 0);

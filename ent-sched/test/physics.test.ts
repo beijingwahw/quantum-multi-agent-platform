@@ -2,7 +2,7 @@ import { deepStrictEqual, ok } from "node:assert";
 import { describe, it } from "node:test";
 
 import { Rng } from "../src/core/rng.js";
-import { bellVec, cloneVec, werner, wernerFidelity } from "../src/physics/bell.js";
+import { bellVec, cloneVec, fidelity, werner, wernerWeight } from "../src/physics/bell.js";
 import {
   agePair,
   concurrence,
@@ -46,7 +46,10 @@ describe("werner + bell basics", () => {
       const s = v[0]! + v[1]! + v[2]! + v[3]!; // BellVec is length 4
       ok(Math.abs(s - 1) < EPS, `sum ${s}`);
       ok(Math.abs(v[0]! - f) < EPS);
-      ok(Math.abs(wernerFidelity(v) - f) < EPS);
+      ok(Math.abs(fidelity(v) - f) < EPS);
+      // single-source anchor: the error entries ARE wernerWeight(F)
+      ok(v[1]! === wernerWeight(f) && v[2]! === wernerWeight(f) && v[3]! === wernerWeight(f), "entries are wernerWeight(F)");
+      ok(Math.abs(f + 3 * wernerWeight(f) - 1) < 1e-15, "F + 3w = 1");
     }
   });
 

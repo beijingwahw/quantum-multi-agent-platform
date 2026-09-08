@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { makeRng } from "../src/core/rng.js";
 import {
@@ -16,11 +16,13 @@ import {
   landscapeStats,
   localSearch,
   lsThreshold2xn,
+  makeIntegerWeights,
   makeInstance,
   makeKPairInstance,
   optimumOf,
   welfareOf,
 } from "../src/kernel/law.js";
+import { firstDownCross, firstUpCrossAfter, minIndex } from "../src/kernel/curves.js";
 import { campaign, census, envelopeCheck, islandCampaign, thresholds } from "../src/kernel/census.js";
 import {
   checkSaLog,
@@ -48,6 +50,7 @@ import {
   staircaseCell,
   staircaseCheck,
   staircaseFlipDeviation,
+  staircaseFloatCrossCheck,
   type StaircaseCell,
 } from "../src/kernel/staircase.js";
 import { BOARD, type BoardRow } from "../src/kernel/board.js";
@@ -495,6 +498,81 @@ describe("smuggling trials — every law bites", () => {
     const fakeRate: DensityCell = { ...base, hitRates: [0.33, ...base.hitRates.slice(1)] };
     const v3 = densityTableViolations([fakeRate], [0, 1, 2, 4]);
     assert.ok(v3.some((x) => x.includes("not quantized")), v3.join("; "));
+  });
+});
+
+describe("v0.6.0 — single source, no orphans, every claim wired", () => {
+  it("the weight law has ONE source: all three families draw bit-identical weights; the integer twin is the exact thousandth", () => {
+    const a = makeInstance(4, 6, 777, 0.5);
+    const b = makeKPairInstance(4, 6, 777, 0.5, 2);
+    const c = makeNuInstance(4, 6, 777, [0.5, 0.2]);
+    assert.deepEqual(a.weights, b.weights);
+    assert.deepEqual(a.weights, c.weights);
+    const thou = makeIntegerWeights(4, 6, 777);
+    for (let t = 0; t < 4; t++) {
+      for (let ag = 0; ag < 6; ag++) {
+        // the 3-decimal round-trip is exact by construction — the staircase's
+        // integer arithmetic and the float families are the SAME instance
+        assert.equal(thou[t]![ag]!, Math.round(a.weights[t]![ag]! * 1000), `t=${t} a=${ag}`);
+      }
+    }
+  });
+
+  it("curve summaries: precise values with negative controls (the shared extraction is pinned, not trusted)", () => {
+    const grid = [0, 1, 2, 3, 4];
+    // dips below 1/2 between λ=1 and λ=2, bottoms first at i=2 (the tie with
+    // i=3 keeps the LEFTMOST), recovers between λ=3 and λ=4
+    const rates = [1, 0.8, 0.4, 0.4, 0.6];
+    assert.equal(firstDownCross(grid, rates), 1.5);
+    assert.equal(minIndex(rates), 2);
+    assert.equal(firstUpCrossAfter(grid, rates, 2), 3.5);
+    // negative controls: never-crossing and never-recovering curves return -1
+    assert.equal(firstDownCross(grid, [1, 1, 1, 1, 1]), -1, "a curve never below 1/2 has no down-cross");
+    assert.equal(firstUpCrossAfter(grid, [0.6, 0.2, 0.2, 0.2, 0.2], 1), -1, "a curve never back at 1/2 has no up-cross");
+    // below 1/2 from the very first grid point: midpoint against the virtual
+    // previous rate 1 at λ=0 (the shared convention, written down in curves.ts)
+    assert.equal(firstDownCross([1, 2, 3, 4, 5], [0.3, 0.3, 1, 1, 1]), 0.5);
+    assert.equal(firstDownCross(grid, [0.3, 0.3, 1, 1, 1]), 0, "a λ-grid starting at 0 crosses at 0 itself");
+    // minimum ties keep the LEFTMOST index
+    assert.equal(minIndex([0.5, 0.2, 0.2, 0.7]), 1);
+  });
+
+  it("PL20's integer-vs-float C_j cross-check is WITNESSED (it was an unwired claim): real error, under 1e-12 thousandths", () => {
+    let worst = 0;
+    for (const [m, n, k] of [
+      [4, 6, 2],
+      [5, 7, 2],
+      [6, 8, 3],
+    ] as const) {
+      worst = Math.max(worst, staircaseFloatCrossCheck(staircaseCell(m, n, 500, k)));
+    }
+    assert.ok(worst > 0, "float summation error is real on this family — a 0 would mean the check ran on nothing");
+    assert.ok(worst < 1e-12, `worst ${worst}`);
+  });
+
+  it("no orphan modules: every src file is reachable from the render entry (dead code cannot re-accumulate)", () => {
+    const srcRoot = resolve(process.cwd(), "src");
+    const all = readdirSync(srcRoot, { recursive: true })
+      .filter((f): f is string => typeof f === "string" && f.endsWith(".ts"))
+      .map((f) => resolve(srcRoot, f));
+    const entry = resolve(srcRoot, "experiments", "render.ts");
+    const seen = new Set<string>([entry]);
+    const queue = [entry];
+    const specRe = /from\s+["']([^"']+)["']/g;
+    while (queue.length > 0) {
+      const file = queue.pop()!;
+      const text = readFileSync(file, "utf8");
+      for (const m of text.matchAll(specRe)) {
+        const spec = m[1]!;
+        if (!spec.startsWith(".")) continue; // node: builtins stay external
+        const target = resolve(dirname(file), spec.replace(/\.js$/, ".ts"));
+        if (!existsSync(target) || seen.has(target)) continue;
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+    const orphans = all.filter((f) => !seen.has(f));
+    assert.deepEqual(orphans, [], "unreachable src files — the 994-line quantum-template family must not grow back");
   });
 });
 

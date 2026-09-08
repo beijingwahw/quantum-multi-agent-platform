@@ -1,4 +1,6 @@
 import { Rng } from "../core/rng.js";
+import { jacobiEigenvalues } from "../core/jacobi.js";
+import type { ZSpectrum, XSpectrum } from "../core/spectra.js";
 
 /**
  * 矩阵无关 Lanczos 谱仪 —— H(s) = −s·C + (1−s)·H_D 的低端谱与 gap。
@@ -17,11 +19,12 @@ export interface SpectrumResult {
   readonly iterations: number;
 }
 
-/** H(s)·v：Z 基对角（−s·C）+ X 基对角（(1−s)·H_D，经两次 WH）。 */
+/** H(s)·v：Z 基对角（−s·C）+ X 基对角（(1−s)·H_D，经两次 WH）。
+ *  谱表槽位品牌化：energies（Z）与 xEnergies（X）互换现在是编译错误。 */
 export function applyHamiltonian(
   n: number,
-  energies: Float64Array,
-  xEnergies: Float64Array,
+  energies: ZSpectrum,
+  xEnergies: XSpectrum,
   s: number,
   v: Float64Array,
   out: Float64Array,
@@ -60,43 +63,7 @@ export function hadamardInPlace(v: Float64Array, n: number): void {
   }
 }
 
-/** 稠密对称矩阵 Jacobi 特征值（k×k，k ≤ ~100；测试裁判与 T 矩阵共用）。 */
-export function jacobiEigenvalues(matrix: number[][]): number[] {
-  const k = matrix.length;
-  const a = matrix.map((row) => [...row]);
-  for (let sweep = 0; sweep < 100; sweep++) {
-    let off = 0;
-    for (let p = 0; p < k; p++) {
-      for (let q = p + 1; q < k; q++) off += a[p]![q]! * a[p]![q]!;
-    }
-    if (off < 1e-24) break;
-    for (let p = 0; p < k; p++) {
-      for (let q = p + 1; q < k; q++) {
-        if (Math.abs(a[p]![q]!) < 1e-15) continue;
-        const theta = (a[q]![q]! - a[p]![p]!) / (2 * a[p]![q]!);
-        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
-        const c = 1 / Math.sqrt(t * t + 1);
-        const s = t * c;
-        for (let i = 0; i < k; i++) {
-          const aip = a[i]![p]!;
-          const aiq = a[i]![q]!;
-          a[i]![p] = c * aip - s * aiq;
-          a[i]![q] = s * aip + c * aiq;
-        }
-        for (let i = 0; i < k; i++) {
-          const api = a[p]![i]!;
-          const aqi = a[q]![i]!;
-          a[p]![i] = c * api - s * aqi;
-          a[q]![i] = s * api + c * aqi;
-        }
-      }
-    }
-  }
-  const eigenvalues: number[] = [];
-  for (let i = 0; i < k; i++) eigenvalues.push(a[i]![i]!);
-  eigenvalues.sort((x, y) => x - y);
-  return eigenvalues;
-}
+/** 稠密对称矩阵 Jacobi 特征值已单源化到 core/jacobi.ts（值路径与向量路径同一旋转核心）。 */
 
 /**
  * Lanczos 低端谱：种子化随机起点，全重正交，返回最低两本征值与 gap。
@@ -104,8 +71,8 @@ export function jacobiEigenvalues(matrix: number[][]): number[] {
  */
 export function lowestSpectrum(
   n: number,
-  energies: Float64Array,
-  xEnergies: Float64Array,
+  energies: ZSpectrum,
+  xEnergies: XSpectrum,
   s: number,
   options: { k?: number; seed?: number } = {},
 ): SpectrumResult {

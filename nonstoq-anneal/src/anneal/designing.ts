@@ -30,6 +30,19 @@ export interface DeSigningReport {
   readonly detail: string;
 }
 
+/**
+ * 带权并查集 find（路径压缩，根的 par = 1）——对角规范判定器与元素级
+ * 判定器的 vacuous 种子共用的单一来源（0.3.0 单源化：此前三份拷贝，
+ * designing.ts 两份 + designing-element.ts 一份）。
+ */
+export function parityFind(parent: number[], parity: number[], x: number): { root: number; par: number } {
+  if (parent[x]! === x) return { root: x, par: 1 };
+  const r = parityFind(parent, parity, parent[x]!);
+  parent[x] = r.root;
+  parity[x] = parity[x]! * r.par;
+  return { root: r.root, par: parity[x] };
+}
+
 /** 带符号约束图的 2 染色（并查集带权）：返回 ε 或受挫环。 */
 function twoColor(
   n: number,
@@ -37,13 +50,7 @@ function twoColor(
 ): { epsilon: number[] | null; frustratedCycle: number[] | null; parent: number[]; parity: number[] } {
   const parent = Array.from({ length: n }, (_, i) => i);
   const parity = new Array<number>(n).fill(1); // 相对根的奇偶
-  function find(x: number): { root: number; par: number } {
-    if (parent[x]! === x) return { root: x, par: 1 };
-    const r = find(parent[x]!);
-    parent[x] = r.root;
-    parity[x] = parity[x]! * r.par;
-    return { root: r.root, par: parity[x] };
-  }
+  const find = (x: number): { root: number; par: number } => parityFind(parent, parity, x);
   for (const e of edges) {
     const ra = find(e.a);
     const rb = find(e.b);
@@ -78,12 +85,6 @@ function twoColor(
 }
 
 
-function find2(parent: number[], parity: number[], x: number): { root: number; par: number } {
-  if (parent[x]! === x) return { root: x, par: 1 };
-  const r = find2(parent, parity, parent[x]!);
-  return { root: r.root, par: parity[x]! * r.par };
-}
-
 export function classifyDiagonalGaugeDesignable(terms: GeneralDriverTerms, n: number): DeSigningReport {
   const edges: Array<{ a: number; b: number; req: number }> = [];
   for (const p of terms.xxPairs) if (p.k !== 0) edges.push({ a: p.i, b: p.j, req: -Math.sign(p.k) });
@@ -108,7 +109,7 @@ export function classifyDiagonalGaugeDesignable(terms: GeneralDriverTerms, n: nu
   // 所有 X 约束必须给出同一支符号（同支异号 X → 不可去）
   const compSign = new Map<number, number>();
   for (const [site, req] of xConstraint) {
-      const { root, par } = find2(parent, parity, site);
+    const { root, par } = parityFind(parent, parity, site);
     const needed = req * par; // 支符号须等于 req·parity_i
     const prev = compSign.get(root);
     if (prev !== undefined && prev !== needed) {
@@ -123,7 +124,7 @@ export function classifyDiagonalGaugeDesignable(terms: GeneralDriverTerms, n: nu
     compSign.set(root, needed);
   }
   for (let i = 0; i < n; i++) {
-    const { root, par } = find2(parent, parity, i);
+    const { root, par } = parityFind(parent, parity, i);
     const sign = compSign.get(root) ?? 1;
     epsilon[i] = sign * par;
   }

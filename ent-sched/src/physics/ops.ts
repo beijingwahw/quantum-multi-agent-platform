@@ -8,7 +8,8 @@
  * Derivations: see docs/theory.md.
  */
 
-import { type BellVec, werner } from "./bell.js";
+import { type BellVec, werner, wernerWeight } from "./bell.js";
+import { SchedError } from "../core/errors.js";
 
 /**
  * Bilateral twirl: average over the 12 bilateral π/2 rotations. Fixes Φ+,
@@ -80,16 +81,16 @@ export function wernerSwapF(f1: number, f2: number): number {
 export function purify2to1(l: BellVec, m: BellVec): { p: number; out: BellVec } {
   const f1 = l[0]!; // BellVec is length 4 by construction
   const f2 = m[0]!;
-  const w1 = (1 - f1) / 3;
-  const w2 = (1 - f2) / 3;
+  const w1 = wernerWeight(f1);
+  const w2 = wernerWeight(f2);
   const p = (f1 + w1) * (f2 + w2) + 4 * w1 * w2;
-  if (p <= 0) throw new Error("purify2to1: zero success probability");
+  if (p <= 0) throw new SchedError("PURIFY_ZERO_PROBABILITY", `p=${p} (inputs f₁=${f1}, f₂=${f2} are not Bell vectors of a physical state)`);
   return { p, out: werner((f1 * f2 + w1 * w2) / p) };
 }
 
 /** Werner-input specialization (used by scheduler projections). */
 export function purifyWerner(f: number): { p: number; fOut: number } {
-  const w = (1 - f) / 3;
+  const w = wernerWeight(f);
   const p = (f + w) ** 2 + 4 * w * w;
   return { p, fOut: (f * f + w * w) / p };
 }

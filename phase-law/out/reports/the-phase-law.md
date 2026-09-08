@@ -179,7 +179,7 @@ Nothing above is reproduced or adopted as method: this repo proves only what it 
 - **W-H**: PASS — k=1 compatibility true; monotone step 0, argmax mismatch 0; all-k face dev 0.00e+0 over 2 cells
 - **W-I**: PASS — λ=0 columns identical across k at both sizes: true; 6×8 floor collapse 0.35 → 0.05 → 0.00: true; no SA up-cross by λ=8 at any k (6×8): true; saturated corner 5×7 k=3 min 0.55 ≥ 0.5, never crosses down: true
 - **W-J**: PASS — subset-envelope dev 0.00e+0; k=1 compat true; k=2 descents 0 (3 μ-patterns × 21 seeds); k=3 descent at 4×6 seed 519, t* = 0.170000: 2 → 1 → 2: true; all-k face dev 0.00e+0 over 4 regime-verified cells
-- **W-K**: PASS — flip dev 0, tie-aware argmax mismatch 0 (2 tie probes, all set-consistent) over 35 cells; no forged staircase survived its own check (0 violations)
+- **W-K**: PASS — flip dev 0, tie-aware argmax mismatch 0 (2 tie probes, all set-consistent), integer-vs-float C_j cross-check 8.88e-13 thousandths over 35 cells; no forged staircase survived its own check (0 violations)
 - **W-E**: PASS — board legal (0 violations); anchors alive
 
 ## The law, in one paragraph

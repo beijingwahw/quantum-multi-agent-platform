@@ -1,39 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Rng } from "../src/kernel/sorter.js";
-
-interface CountRun {
-  readonly m: number;
-  readonly cntJoint: number;
-  readonly ratio: number;
-  readonly brute: number;
-}
-
-function countRun(n: number, seed: number): CountRun {
-  const N = 2 ** n;
-  const rng = new Rng(seed);
-  const g: boolean[] = new Array(N).fill(false);
-  const h: boolean[] = new Array(N).fill(false);
-  for (let x = 0; x < N; x++) {
-    g[x] = rng.next() < 0.4;
-    h[x] = rng.next() < 0.5;
-  }
-  const amp = 1 / Math.sqrt(N);
-  let weight = 0;
-  let joint = 0;
-  let m = 0;
-  let cntJoint = 0;
-  for (let x = 0; x < N; x++) {
-    if (!g[x]) continue;
-    weight += amp * amp;
-    m++;
-    if (h[x]) {
-      joint += amp * amp;
-      cntJoint++;
-    }
-  }
-  return { m, cntJoint, ratio: joint / weight, brute: cntJoint / m };
-}
+import { countRun, type CountRun } from "../src/experiments/exp-t3-counting.js";
 
 test("T3.A every branch outcome probability is an exact integer ratio (#P fraction)", () => {
   for (const [n, seed] of [

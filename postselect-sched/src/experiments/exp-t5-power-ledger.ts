@@ -1,6 +1,7 @@
 /**
  * T5 — the two-column ledger for counting power, printed in full.
  */
+import { KernelError } from "../kernel/errors.js";
 import {
   exchangeEntry,
   powerLedgerRow,
@@ -29,7 +30,7 @@ export function main(): void {
     if (nearTie === null && row.gap > 0 && row.gap <= 1.25 / (2 * row.m)) nearTie = { inst, row };
     if (moderate !== null && nearTie !== null) break;
   }
-  if (moderate === null || nearTie === null) throw new Error("exp T5: instance scan failed");
+  if (moderate === null || nearTie === null) throw new KernelError("EXP-SCAN-FAILED", "exp T5: instance scan failed");
 
   lines.push("## A. the power column: threshold decisions on real 3-SAT instances\n");
   lines.push("| instance | n | clauses | m = models | models with x_0=1 | branch ratio | integer referee | deviation | gap to 1/2 | single-shot error | decision |");

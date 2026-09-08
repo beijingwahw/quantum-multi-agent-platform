@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { Rng } from "../src/core/rng.js";
 import { energies, randomIsing } from "../src/core/ising.js";
+import type { ZSpectrum } from "../src/core/spectra.js";
 import { xBasisEnergies } from "../src/anneal/driver.js";
 import { projectGroundState } from "../src/anneal/project.js";
 import { mpsAmplitude, mpsFromDense } from "../src/tn/mps.js";
@@ -110,7 +111,7 @@ test("dmrg at scale: kappa=0.5 develops negative amplitudes at n=20 (sign struct
 });
 
 
-function energiesNearest(model: ReturnType<typeof randomIsing>): Float64Array {
+function energiesNearest(model: ReturnType<typeof randomIsing>): ZSpectrum {
   // 链哈密顿量只用近邻键的能量表（与 MPO 一致）
   const nnModel = { n: model.n, fields: model.fields, couplings: model.couplings.filter((c) => Math.abs(c.k - c.j) === 1) };
   return energies(nnModel);

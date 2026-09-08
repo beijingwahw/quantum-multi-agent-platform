@@ -19,6 +19,7 @@
  */
 
 import { Rng } from "../core/rng.js";
+import { SchedError } from "../core/errors.js";
 import { type BellVec, werner } from "../physics/bell.js";
 import { agePair, keyFraction, purify2to1, swapBell } from "../physics/ops.js";
 import { type SensorPlan, triangularNoise } from "./sensors.js";
@@ -173,7 +174,47 @@ function quantile(sorted: number[], q: number): number {
   return sorted[idx]!; // 0 ≤ idx ≤ length−1 clamped just above
 }
 
+/**
+ * Named rejection of configs whose failures would otherwise be silent:
+ * rounds=0 or warmup ≥ rounds divide by zero into NaN aggregates; unknown
+ * request nodes produce a request that can never complete; duplicate request
+ * ids collapse the per-request accounting maps.
+ */
+function validateSimConfig(cfg: SimConfig): void {
+  if (!Number.isInteger(cfg.rounds) || cfg.rounds < 1)
+    throw new SchedError("SIM_CONFIG_ROUNDS", `rounds=${cfg.rounds} is not an integer ≥ 1 (goodput would divide by zero)`);
+  const warmup = cfg.warmupRounds ?? Math.floor(cfg.rounds * 0.1);
+  if (!Number.isInteger(warmup) || warmup < 0 || warmup >= cfg.rounds)
+    throw new SchedError("SIM_CONFIG_WARMUP", `warmupRounds=${cfg.warmupRounds} (effective ${warmup}) is not an integer in [0, rounds=${cfg.rounds}) (effective throughput would divide by zero)`);
+  const nodes = new Set(cfg.net.nodes);
+  const ids = new Set<string>();
+  for (const r of cfg.requests) {
+    if (r.id.length === 0) throw new SchedError("SIM_CONFIG_REQUEST", "request id must be non-empty");
+    if (ids.has(r.id))
+      throw new SchedError("SIM_CONFIG_REQUEST", `duplicate request id '${r.id}' (per-request accounting would silently merge)`);
+    ids.add(r.id);
+    if (!nodes.has(r.src) || !nodes.has(r.dst))
+      throw new SchedError("SIM_CONFIG_REQUEST", `request '${r.id}': endpoint '${nodes.has(r.src) ? r.dst : r.src}' is not a network node — the request can never complete`);
+    if (!Number.isFinite(r.fMin) || r.fMin < 0 || r.fMin > 1)
+      throw new SchedError("SIM_CONFIG_REQUEST", `request '${r.id}': fMin=${r.fMin} outside [0,1]`);
+  }
+  if (typeof cfg.policy.name !== "string" || cfg.policy.name.length === 0)
+    throw new SchedError("SIM_CONFIG_POLICY", "policy.name must be a non-empty string");
+  if (typeof cfg.policy.allocateAttempts !== "function" || typeof cfg.policy.decideOps !== "function")
+    throw new SchedError("SIM_CONFIG_POLICY", "policy must implement allocateAttempts and decideOps");
+  const s = cfg.sensors;
+  if (s) {
+    if (!Number.isFinite(s.calibRate) || s.calibRate < 0 || s.calibRate > 1)
+      throw new SchedError("SIM_CONFIG_SENSORS", `calibRate=${s.calibRate} outside [0,1]`);
+    if (!Number.isFinite(s.tomoSigma) || s.tomoSigma < 0)
+      throw new SchedError("SIM_CONFIG_SENSORS", `tomoSigma=${s.tomoSigma} is negative or not finite`);
+    if (s.t2Belief !== undefined && !(s.t2Belief > 0))
+      throw new SchedError("SIM_CONFIG_SENSORS", `t2Belief=${s.t2Belief} must be > 0`);
+  }
+}
+
 export function runSim(cfg: SimConfig): SimReport {
+  validateSimConfig(cfg);
   const { net, requests, policy, seed, rounds } = cfg;
   const warmup = cfg.warmupRounds ?? Math.floor(rounds * 0.1);
   const rng = new Rng(seed);
@@ -216,7 +257,7 @@ export function runSim(cfg: SimConfig): SimReport {
 
   const beliefVec = (pair: Pair, round: number): BellVec => {
     const bv = beliefs.get(pair.id);
-    if (bv === undefined) throw new Error(`sensor layer: no belief vector for pair ${pair.id}`);
+    if (bv === undefined) throw new SchedError("SENSOR_BELIEF_MISSING", `sensor layer: no belief vector for pair ${pair.id}`);
     return agePair(bv, round - pair.tA - pair.sA, round - pair.tB - pair.sB, t2Belief);
   };
 
@@ -293,7 +334,7 @@ export function runSim(cfg: SimConfig): SimReport {
         const rev = p.endB === from && p.endA === to;
         if (fwd) return [...p.links];
         if (rev) return [...p.links].reverse();
-        throw new Error("swap orientation invariant violated");
+        throw new SchedError("SWAP_ORIENTATION_INVARIANT", `pair ${p.id} (${from}→${to}) does not sit on the merge boundary — engine bookkeeping bug`);
       };
       const merged: Pair = {
         id: nextPairId++,

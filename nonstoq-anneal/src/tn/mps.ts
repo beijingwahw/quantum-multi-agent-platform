@@ -1,4 +1,5 @@
 import { Rng } from "../core/rng.js";
+import { jacobiEigenWithVectors } from "../core/jacobi.js";
 
 /**
  * 矩阵乘积态（MPS）—— 实数、开链、物理维 d=2。
@@ -29,7 +30,7 @@ export function randomMps(n: number, chiMax: number, seed: number): Mps {
   return mps;
 }
 
-export function mpsNorm(mps: Mps): number {
+function mpsNorm(mps: Mps): number {
   let env = new Float64Array(1); // env[a*χ + a']，初始 [1]
   let chi = 1;
   for (let i = 0; i < mps.n; i++) {
@@ -161,53 +162,4 @@ export function mpsFromDense(vec: Float64Array, n: number, chiMax: number): Mps 
   tensors.push(tLast);
   chis.push(1);
   return { n, tensors, chis };
-}
-
-/** Jacobi 特征分解（值 + 向量），供 SVD 使用（矩阵维 ≤ ~64）。 */
-export function jacobiEigenWithVectors(matrix: number[][]): {
-  eigenvalues: number[];
-  eigenvectors: number[][];
-} {
-  const m = matrix.length;
-  const a = matrix.map((r) => [...r]);
-  const V: number[][] = Array.from({ length: m }, (_, i) =>
-    Array.from({ length: m }, (_, j): number => (i === j ? 1 : 0)),
-  );
-  for (let sweep = 0; sweep < 100; sweep++) {
-    let off = 0;
-    for (let p = 0; p < m; p++) for (let q = p + 1; q < m; q++) off += a[p]![q]! * a[p]![q]!;
-    if (off < 1e-24) break;
-    for (let p = 0; p < m; p++) {
-      for (let q = p + 1; q < m; q++) {
-        if (Math.abs(a[p]![q]!) < 1e-15) continue;
-        const theta = (a[q]![q]! - a[p]![p]!) / (2 * a[p]![q]!);
-        const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
-        const c = 1 / Math.sqrt(t * t + 1);
-        const s = t * c;
-        for (let i = 0; i < m; i++) {
-          const aip = a[i]![p]!;
-          const aiq = a[i]![q]!;
-          a[i]![p] = c * aip - s * aiq;
-          a[i]![q] = s * aip + c * aiq;
-        }
-        for (let i = 0; i < m; i++) {
-          const api = a[p]![i]!;
-          const aqi = a[q]![i]!;
-          a[p]![i] = c * api - s * aqi;
-          a[q]![i] = s * api + c * aqi;
-        }
-        for (let i = 0; i < m; i++) {
-          const vip = V[i]![p]!;
-          const viq = V[i]![q]!;
-          V[i]![p] = c * vip - s * viq;
-          V[i]![q] = s * vip + c * viq;
-        }
-      }
-    }
-  }
-  const eigenvalues: number[] = [];
-  for (let i = 0; i < m; i++) eigenvalues.push(a[i]![i]!);
-  const eigenvectors: number[][] = [];
-  for (let j = 0; j < m; j++) eigenvectors.push(V.map((row) => row[j]!));
-  return { eigenvalues, eigenvectors };
 }

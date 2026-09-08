@@ -1,6 +1,6 @@
 {
   "name": "phase-law",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "The combinatorial phase law the platform's research line promised and nobody had built: WHERE, in coupling-strength x size space, do polynomial classical heuristics lose the exact optimum on the coupled assignment track? The bench (QuantumSched-Bench, ds v1.11) measured points; this repo extracts the LAW. L1 the lambda=0 lemma (greedy is optimal on linear instances — provable, machine-verified); L2 the 2xn closed-form threshold lambda* (the exact coupling bonus at which the global optimum leaves the uncoupled argmax — a small theorem proved by complete case enumeration); L3 the threshold census (hit-rate curves in lambda for greedy / 1-exchange local search / simulated annealing, every optimum by exhaustive enumeration, lambda*(m,n) extracted at the 50% crossing); L4 the landscape mechanism (why the wall: local-optima counts and the global optimum's basin fraction vs lambda, measured exactly on the enumerated landscape); L5 the scaling report (lambda* vs size, DATA with no unwitnessed closed form). The referee is always enumeration; both sides of every comparison are scored by one accounting; losses ship as losses.",
   "type": "module",
   "engines": { "node": ">=22.11.0" },

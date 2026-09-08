@@ -2,14 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Rng } from "../src/kernel/sorter.js";
 import { eStarGrover, groverPClosed, lubyUniversal, payExpected } from "../src/kernel/restart.js";
-
-function geometricRounds(rng: Rng, q: number): number {
-  let rounds = 0;
-  for (;;) {
-    rounds++;
-    if (rng.next() < q) return rounds;
-  }
-}
+import { geometricRounds } from "../src/experiments/exp-t4-contact.js";
 
 test("T4.A identical geometric waiting law; only the query column differs", () => {
   const trials = 120000;

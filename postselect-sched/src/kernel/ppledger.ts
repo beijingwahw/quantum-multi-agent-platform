@@ -16,6 +16,7 @@
  * ledger), so the TOTAL depreciation of deciding at confidence 1-delta is
  * k(delta) * N/m — the exchange rate of postselected counting power, exact.
  */
+import { KernelError } from "./errors.js";
 import { Rng, runPayload } from "./sorter.js";
 
 export interface SatInstance {
@@ -39,6 +40,13 @@ export function satisfies(inst: SatInstance, x: number): boolean {
 
 /** random 3-SAT over vars 0..n-1 (skipVar: a variable forced absent — the tie construction) */
 export function randomSat(n: number, numClauses: number, seed: number, skipVar = -1): SatInstance {
+  if (!Number.isInteger(n) || n < 1) throw new KernelError("BAD-VAR-COUNT", `randomSat: n must be a positive integer (got ${n})`);
+  if (!Number.isInteger(numClauses) || numClauses < 0) throw new KernelError("BAD-CLAUSE-COUNT", `randomSat: numClauses must be a non-negative integer (got ${numClauses})`);
+  // v0.3.0 hang conviction: with fewer than 3 available variables the clause
+  // loop `while (vars.size < 3)` can never terminate — randomSat(2, ...) used
+  // to spin forever instead of refusing. Named refusal now.
+  const availableVars = n - (skipVar >= 0 && skipVar < n ? 1 : 0);
+  if (availableVars < 3) throw new KernelError("INSUFFICIENT-VARIABLES", `randomSat: 3-SAT needs >= 3 distinct variables, but only ${availableVars} are available (n=${n}, skipVar=${skipVar})`);
   const rng = new Rng(seed);
   const clauses: Array<[number, number, number]> = [];
   while (clauses.length < numClauses) {
@@ -85,7 +93,7 @@ export function powerLedgerRow(inst: SatInstance): PowerLedgerRow {
   const N = 2 ** n;
   const models = modelsOf(inst);
   const m = models.length;
-  if (m === 0) throw new Error("powerLedgerRow: unsatisfiable instance");
+  if (m === 0) throw new KernelError("UNSATISFIABLE-INSTANCE", "powerLedgerRow: unsatisfiable instance");
   const payload: boolean[] = new Array<boolean>(N);
   for (let x = 0; x < N; x++) payload[x] = (x & 1) === 1;
   const run = runPayload(n, models, payload);
@@ -108,6 +116,11 @@ export function powerLedgerRow(inst: SatInstance): PowerLedgerRow {
 
 /** smallest ODD k with exp(-2 k gap^2) <= delta (Infinity on exact ties) */
 export function repetitionsFor(gap: number, delta: number): number {
+  // v0.3.0 conviction: delta > 1 used to fall through Math.ceil of a negative
+  // log and return a NEGATIVE schedule (repetitionsFor(0.1, 2) returned -33)
+  // instead of refusing. delta is a confidence bound: it lives in (0,1].
+  if (!(delta > 0) || delta > 1) throw new KernelError("BAD-DELTA", `repetitionsFor: delta must be in (0,1] (got ${delta})`);
+  if (gap < 0) throw new KernelError("BAD-GAP", `repetitionsFor: gap must be >= 0 (got ${gap})`);
   if (gap <= 0) return Number.POSITIVE_INFINITY;
   const raw = Math.ceil(Math.log(1 / delta) / (2 * gap * gap));
   return raw % 2 === 1 ? raw : raw + 1;
@@ -131,6 +144,12 @@ function lnFactTable(k: number): Float64Array {
  *  atMost — stable because the pmf decreases to the left of the mode and
  *  p >= 1/2 puts the mode at or right of k/2. */
 export function binomTailAtMost(k: number, p: number, atMost: number): number {
+  // v0.3.0 conviction: p = 0 used to fall into 0 * log(0) = NaN and return
+  // NaN where the tail is exactly 1 (P[Bin(k,0) <= atMost] = 1 for atMost >= 0)
+  // — a silent wrong answer. p lives in (0,1]; the p = 1 endpoint is sound.
+  if (!(p > 0) || p > 1) throw new KernelError("BAD-PROBABILITY", `binomTailAtMost: p must be in (0,1] (got ${p})`);
+  if (!Number.isInteger(k) || k < 1) throw new KernelError("BAD-TRIAL-COUNT", `binomTailAtMost: k must be an integer >= 1 (got ${k})`);
+  if (!Number.isInteger(atMost)) throw new KernelError("BAD-TAIL-INDEX", `binomTailAtMost: atMost must be an integer (got ${atMost})`);
   if (atMost < 0) return 0;
   if (atMost >= k) return 1;
   const lnF = lnFactTable(k);

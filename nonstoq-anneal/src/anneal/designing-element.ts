@@ -38,6 +38,8 @@
  * 上机器复核 NO 侧。
  */
 import { Rng } from "../core/rng.js";
+import { NonstoqError } from "../core/errors.js";
+import { parityFind } from "./designing.js";
 
 export interface ElementField {
   readonly i: number;
@@ -95,17 +97,44 @@ export interface PairNoGo {
   readonly resolution: number;
 }
 
-export interface ElementDecision {
-  readonly verdict: "YES" | "NO" | "UNRESOLVED";
-  /** 搜索到的最优 max-元素（YES 证书的精确值；NO/UNRESOLVED 时为上界）。 */
-  readonly bestMax: number;
-  readonly certificate: LocalRotation | null;
-  /** YES 时：证书是否把所有非对角元都转到恰为零（平凡对角/断开驱动器）。 */
-  readonly vacuous: boolean;
-  readonly noGo: PairNoGo | null;
-  readonly denseReferee: "pass" | "fail" | "skipped";
-  readonly method: string;
-}
+/**
+ * 判决 = 可辨识联合（0.3.0 类型硬化）：YES 必带旋转证书、NO 必带 no-go
+ * 证书、UNRESOLVED 两者皆空。字段名与旧扁平接口一致（消费方按 verdict
+ * 收窄后访问），但"YES 却没证书"这类不变量破坏从运行时约定升级为
+ * 编译期不可表示。
+ */
+export type ElementDecision =
+  | {
+      readonly verdict: "YES";
+      /** 搜索到的最优 max-元素（YES 证书的精确值）。 */
+      readonly bestMax: number;
+      readonly certificate: LocalRotation;
+      /** 证书是否把所有非对角元都转到恰为零（平凡对角/断开驱动器）。 */
+      readonly vacuous: boolean;
+      readonly noGo: null;
+      readonly denseReferee: "pass" | "fail" | "skipped";
+      readonly method: string;
+    }
+  | {
+      readonly verdict: "NO";
+      /** 搜索到的最优 max-元素（上界——真实最小值 ≥ 它）。 */
+      readonly bestMax: number;
+      readonly certificate: null;
+      readonly vacuous: false;
+      readonly noGo: PairNoGo;
+      readonly denseReferee: "skipped";
+      readonly method: string;
+    }
+  | {
+      readonly verdict: "UNRESOLVED";
+      /** 搜索到的最优 max-元素（上界）。 */
+      readonly bestMax: number;
+      readonly certificate: null;
+      readonly vacuous: false;
+      readonly noGo: null;
+      readonly denseReferee: "skipped";
+      readonly method: string;
+    };
 
 export interface DecideOptions {
   /** 多起点数（默认随 n 缩放）。 */
@@ -156,34 +185,6 @@ export function normalizeTerms(terms: ElementTerms): ElementTerms {
     }
   }
   return { ...terms, pairs: [...merged.values()] };
-}
-
-/**
- * 翻转 i 的矩阵元 A_i(z)（z 为邻位 ±1 符号数组，按 pairs 顺序）。
- * 求和抵消在这里暴露：同一行上 XX/ZZ 交叉项与场项相加。
- */
-export function singleFlipElement(
-  terms: ElementTerms,
-  rot: LocalRotation,
-  site: number,
-  zSigns: readonly number[],
-): number {
-  const { a, b } = cosSin(rot.psi);
-  const g = fieldArray(terms.n, terms.xFields);
-  const p = fieldArray(terms.n, terms.zFields);
-  let value = g[site]! * a[site]! - rot.d[site]! * p[site]! * b[site]!;
-  let idx = 0;
-  for (const e of terms.pairs) {
-    if (e.i === site || e.j === site) {
-      const other = e.i === site ? e.j : e.i;
-      const z = zSigns[idx]!;
-      value +=
-        z *
-        (e.kappa * a[site]! * b[other]! - rot.d[site]! * rot.d[other]! * e.zz * b[site]! * a[other]!);
-      idx++;
-    }
-  }
-  return value;
 }
 
 /** worst-case z 显式取每个邻位贡献的符号（同邻位多重边先合并）——max_z A_i(z) 精确。 */
@@ -364,7 +365,7 @@ function siteMatrix(psi: number, d: number): number[][] {
  */
 export function denseRotatedMatrix(terms: ElementTerms, rot: LocalRotation): number[][] {
   const n = terms.n;
-  if (n > 10) throw new Error(`dense referee capped at n=10, got ${n}`);
+  if (n > 10) throw new NonstoqError("DenseRefereeCap", `dense referee capped at n=10, got ${n}`);
   const dim = 1 << n;
   // 原始 H（稀疏项直接写进稠密表）
   const H = Array.from({ length: dim }, () => new Array<number>(dim).fill(0));
@@ -587,13 +588,7 @@ function vacuousSeed(terms: ElementTerms): LocalRotation | null {
   const p = fieldArray(terms.n, terms.zFields);
   const parent = Array.from({ length: terms.n }, (_, i) => i);
   const parity = new Array<number>(terms.n).fill(1);
-  const find = (x: number): { root: number; par: number } => {
-    if (parent[x]! === x) return { root: x, par: 1 };
-    const r = find(parent[x]!);
-    parent[x] = r.root;
-    parity[x] = parity[x]! * r.par;
-    return { root: r.root, par: parity[x] };
-  };
+  const find = (x: number): { root: number; par: number } => parityFind(parent, parity, x);
   for (const e of terms.pairs) {
     if (e.zz === 0) continue;
     const ra = find(e.i);
@@ -680,7 +675,7 @@ function isolatedPairTerms(terms: ElementTerms, e: ElementPair): ElementTerms {
  * 对每条边做孤立对松弛 + 网格 + Lipschitz 下界。孤立子系统是原问题的
  * 松弛（约束子集），故其不可行 ⟹ 原问题不可行（定理级 NO）。
  */
-export function pairLipschitzNoGo(
+function pairLipschitzNoGo(
   terms: ElementTerms,
   options: DecideOptions = {},
 ): PairNoGo | null {
@@ -806,7 +801,7 @@ export function uniformPairDichotomy(gamma: number, kappa: number): {
   readonly detail: string;
 } {
   if (gamma <= 0 || kappa <= 0) {
-    throw new Error(`dichotomy stated for gamma, kappa > 0 (got Γ=${gamma}, κ=${kappa})`);
+    throw new NonstoqError("DichotomyDomain", `dichotomy stated for gamma, kappa > 0 (got Γ=${gamma}, κ=${kappa})`);
   }
   if (kappa <= gamma) {
     return {
@@ -899,7 +894,7 @@ export function decideElementDesignable(
   if (noGo) {
     const reVerified = verifyNoGoCertificate(norm, noGo);
     if (!reVerified.accepted) {
-      throw new Error(`internal no-go certificate failed re-derivation: ${reVerified.reason}`);
+      throw new NonstoqError("InternalNoGoReverifyFailed", `internal no-go certificate failed re-derivation: ${reVerified.reason}`);
     }
     return {
       verdict: "NO",

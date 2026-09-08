@@ -8,7 +8,7 @@ import { census, campaign, islandCampaign, thresholds } from "../kernel/census.j
 import { landscapeStats, makeInstance } from "../kernel/law.js";
 import { densityCampaign } from "../kernel/density.js";
 import { makeNuInstance, nuSubsetEnvelope } from "../kernel/nonuniform.js";
-import { staircaseCell, staircaseStats } from "../kernel/staircase.js";
+import { staircaseArgmaxMismatch, staircaseCell, staircaseFlipDeviation, staircaseFloatCrossCheck, staircaseStats } from "../kernel/staircase.js";
 import { writeReport } from "./report.js";
 
 export function renderBoard(board: readonly BoardRow[] = BOARD): string {
@@ -132,6 +132,20 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
         for (let s = 1; s <= 15; s++) cells.push(staircaseCell(m, n, 500 * s, k));
       }
     }
+    // PL20's checks derived on THIS horizon (v0.6.0: the numbers below are
+    // machine-computed here, not hand-copied from an earlier run)
+    const probeGrid = [0, 0.001, 0.01, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1, 1.5, 2, 3, 4, 6, 8];
+    let worstFlip = 0;
+    let worstArgmax = 0;
+    let worstCross = 0;
+    let tieProbes = 0;
+    for (const cell of cells) {
+      worstFlip = Math.max(worstFlip, staircaseFlipDeviation(cell));
+      worstCross = Math.max(worstCross, staircaseFloatCrossCheck(cell));
+      const r = staircaseArgmaxMismatch(cell.m, cell.n, cell.seed, cell.k, probeGrid);
+      worstArgmax = Math.max(worstArgmax, r.worst);
+      tieProbes += r.ties;
+    }
     const sat68 = staircaseStats(cells.filter((c) => c.m === 6));
     for (const st of sat68) {
       out.push(
@@ -139,7 +153,7 @@ export function renderBoard(board: readonly BoardRow[] = BOARD): string {
       );
     }
     out.push(
-      `\nThe staircase's verdict: every breakpoint is an exact rational λ* = (C_a − C_b)/(b − a) over integer thousandths (denominators ≤ k), and at λ* ± 1e-6 the argmax sits precisely on the two hull neighbours — flip deviation 0 over 105 cells, tie-aware argmax-vs-enumeration mismatch 0 (7 exact-tie probes, all set-consistent), integer-vs-float C_j cross-check 8.88e-13 thousandths. The scaling in k is DATA ONLY: at 6×8 the last breakpoint (the all-k threshold) grows with k — medians ${sat68[0]!.lastBreakMedian.toFixed(3)} → ${sat68[1]!.lastBreakMedian.toFixed(3)} → ${sat68[2]!.lastBreakMedian.toFixed(3)} and maxima ${sat68[0]!.lastBreakMax.toFixed(3)} → ${sat68[1]!.lastBreakMax.toFixed(3)} → ${sat68[2]!.lastBreakMax.toFixed(3)} — while FULL staircases vanish (the hull SKIPS levels as k grows; no 6×8 cell realizes all 3 steps at k=3). No scaling law is claimed.\n`,
+      `\nThe staircase's verdict: every breakpoint is an exact rational λ* = (C_a − C_b)/(b − a) over integer thousandths (denominators ≤ k), and at λ* ± 1e-6 the argmax sits precisely on the two hull neighbours — flip deviation ${worstFlip} over ${cells.length} cells, tie-aware argmax-vs-enumeration mismatch ${worstArgmax} (${tieProbes} exact-tie probes, all set-consistent), integer-vs-float C_j cross-check ${worstCross.toExponential(2)} thousandths. The scaling in k is DATA ONLY: at 6×8 the last breakpoint (the all-k threshold) grows with k — medians ${sat68[0]!.lastBreakMedian.toFixed(3)} → ${sat68[1]!.lastBreakMedian.toFixed(3)} → ${sat68[2]!.lastBreakMedian.toFixed(3)} and maxima ${sat68[0]!.lastBreakMax.toFixed(3)} → ${sat68[1]!.lastBreakMax.toFixed(3)} → ${sat68[2]!.lastBreakMax.toFixed(3)} — while FULL staircases vanish (the hull SKIPS levels as k grows; no 6×8 cell realizes all 3 steps at k=3). No scaling law is claimed.\n`,
     );
   }
 

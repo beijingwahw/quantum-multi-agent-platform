@@ -184,12 +184,14 @@ ledger declines to quote"), executed as its own theorem layer:
 
 ```
 npm ci
-npm test          # 33/33
+npm test          # 47/47
 npm run repro     # rebuilds out/reports/t1..t6 markdown tables, seconds
 ```
 
 TypeScript strict (exactOptionalPropertyTypes), zero runtime dependencies,
-NodeNext, node:test.
+NodeNext, node:test. Every kernel refusal is a named `KernelError` with a
+machine-checkable code (src/kernel/errors.ts) — the smuggling trials in
+test/errors.test.ts assert the code, never the prose.
 
 ## Honest boundaries
 
@@ -241,6 +243,16 @@ NodeNext, node:test.
    suppressed their mains when imported), so the shipped out/reports were
    stale relative to the code. run-all now calls the exported mains
    explicitly; all six reports re-render deterministically.
+10. The 0.2.0 → 0.3.0 drop was a code-quality wave, math frozen: all six
+   reports are byte-identical across it (checksum-verified). It convicted
+   three latent defects by named refusal — `randomSat(2, ...)` used to hang
+   forever (fewer than 3 available variables never satisfies the clause
+   loop), `repetitionsFor(gap, delta > 1)` returned a NEGATIVE schedule
+   (-33 at the anchor witness), and `binomTailAtMost(k, 0, atMost)`
+   returned NaN where the tail is exactly 1 — single-sourced the xorshift32
+   stream and the T3/T4 instance generators that tests and experiments
+   carried as verbatim copies, and removed the dead exports matMul, payStar,
+   payClosed (zero references workspace-wide).
 
 ## Atlas wiring
 

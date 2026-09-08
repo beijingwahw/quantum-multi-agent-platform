@@ -1,3 +1,5 @@
+import { SchedError } from "./errors.js";
+
 /**
  * Minimal dense complex-matrix kernel for the physics referee.
  *
@@ -28,7 +30,10 @@ export function eye(n: number): CxMat {
 export function fromReal(n: number, entries: readonly number[][]): CxMat {
   // boundary guard (numeric kernel: no per-iteration checks inside)
   if (entries.length !== n || entries.some((row) => row.length !== n))
-    throw new Error("fromReal: entries must be an n×n matrix");
+    throw new SchedError(
+      "KERNEL_SHAPE_MISMATCH",
+      `fromReal: entries must be an n×n matrix (got ${entries.length}×${entries.length ? entries[0]!.length : 0} for n=${n})`
+    );
   const m = zeros(n);
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++) m.re[i * n + j] = entries[i]![j]!;
@@ -56,7 +61,7 @@ export function kron(a: CxMat, b: CxMat): CxMat {
 }
 
 export function mul(a: CxMat, b: CxMat): CxMat {
-  if (a.n !== b.n) throw new Error("mul: size mismatch");
+  if (a.n !== b.n) throw new SchedError("KERNEL_SIZE_MISMATCH", `mul: size mismatch (${a.n} vs ${b.n})`);
   const n = a.n;
   const out = zeros(n);
   for (let i = 0; i < n; i++)

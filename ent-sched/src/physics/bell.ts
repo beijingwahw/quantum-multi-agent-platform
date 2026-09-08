@@ -22,21 +22,24 @@ export function bellVec(p0: number, p1: number, p2: number, p3: number): BellVec
   return v;
 }
 
+/**
+ * Single source of the Werner error weight w = (1−F)/3 — the definition of
+ * the Werner class. Every site that needs the weight (werner, the BBPSSW
+ * recurrence, the referee's density matrix) imports THIS; a second literal
+ * copy is how the class definition drifts.
+ */
+export function wernerWeight(F: number): number {
+  return (1 - F) / 3;
+}
+
 /** Werner state with fidelity F = ⟨Φ+|ρ|Φ+⟩. */
 export function werner(F: number): BellVec {
-  const w = (1 - F) / 3;
+  const w = wernerWeight(F);
   return bellVec(F, w, w, w);
 }
 
+/** Fidelity F = λ₀ of a Bell vector (BellVec is length 4 by construction). */
 export function fidelity(l: BellVec): number {
-  return l[0]!; // BellVec is length 4 by construction (see header)
-}
-
-export function isWerner(l: BellVec, tol = 1e-12): boolean {
-  return Math.abs(l[1]! - l[2]!) < tol && Math.abs(l[2]! - l[3]!) < tol;
-}
-
-export function wernerFidelity(l: BellVec): number {
   return l[0]!;
 }
 

@@ -1,6 +1,7 @@
 import { Rng } from "../core/rng.js";
 import { energies, randomIsing } from "../core/ising.js";
 import type { IsingModel } from "../core/ising.js";
+import type { ZSpectrum } from "../core/spectra.js";
 import { xBasisEnergies } from "../anneal/driver.js";
 import { projectGroundState } from "../anneal/project.js";
 import { runSignMeasurement, sseConfigFrom } from "../sse/sse.js";
@@ -16,7 +17,7 @@ function driverOf(model: IsingModel, kappa: number) {
   return { gamma: 1, couplings: model.couplings.map((c) => ({ j: c.j, k: c.k, w: kappa })) };
 }
 
-function deltaE0(model: IsingModel, kappa: number, E: Float64Array): number {
+function deltaE0(model: IsingModel, kappa: number, E: ZSpectrum): number {
   const xPlus = xBasisEnergies(model.n, driverOf(model, kappa));
   const xMinus = xBasisEnergies(model.n, driverOf(model, -kappa));
   return (

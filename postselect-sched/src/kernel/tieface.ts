@@ -23,6 +23,7 @@
  * identities; floats appear only as readouts, cross-checked against the
  * exact value.
  */
+import { KernelError } from "./errors.js";
 import {
   binomTailAtMost,
   modelsOf,
@@ -54,7 +55,7 @@ function bgcd(a: bigint, b: bigint): bigint {
 }
 
 export function rat(num: bigint, den = 1n): Rat {
-  if (den === 0n) throw new Error("rat: zero denominator");
+  if (den === 0n) throw new KernelError("ZERO-DENOMINATOR", "rat: zero denominator");
   if (den < 0n) {
     num = -num;
     den = -den;
@@ -95,7 +96,7 @@ export function ratToString(r: Rat): string {
 
 /** integer square root (Newton on BigInt) */
 export function isqrt(n: bigint): bigint {
-  if (n < 0n) throw new Error("isqrt: negative");
+  if (n < 0n) throw new KernelError("NEGATIVE-SQRT", "isqrt: negative");
   if (n < 2n) return n;
   let x = n;
   let y = (x + 1n) / 2n;
@@ -119,7 +120,7 @@ export function isqrt(n: bigint): bigint {
  * identity, nothing here is pre-decided.
  */
 export function halfBinomialSum(k: number): { sum: bigint; total: bigint; half: bigint } {
-  if (k < 1 || k % 2 === 0) throw new Error("halfBinomialSum: k must be odd and >= 1");
+  if (k < 1 || k % 2 === 0) throw new KernelError("BAD-ODD-K", "halfBinomialSum: k must be odd and >= 1");
   let c = 1n; // C(k, 0)
   let sum = 0n;
   const m = (k - 1) / 2;
@@ -178,7 +179,7 @@ export function quoteDecision(row: PowerLedgerRow, delta: number): LedgerQuote {
   }
   const k = repetitionsFor(row.gap, delta);
   if (!Number.isFinite(k)) {
-    throw new Error("quoteDecision: non-tie row produced infinite k (gap <= 0 without 2*both === m?)");
+    throw new KernelError("INCONSISTENT-ROW", "quoteDecision: non-tie row produced infinite k (gap <= 0 without 2*both === m?)");
   }
   return {
     status: "quoted",
@@ -364,7 +365,7 @@ export function lambdaStarRat(table: readonly bigint[]): RationalStar {
       optima.push(t);
     }
   }
-  if (best === null) throw new Error("lambdaStarRat: empty table");
+  if (best === null) throw new KernelError("EMPTY-TABLE", "lambdaStarRat: empty table");
   return { value: best, optima, lambdas };
 }
 
@@ -420,7 +421,7 @@ export function tieCensusFirstTwo(dMax: number): TieCensus {
         const table = tableWith(d, a1, a2);
         const l1 = lambdaRat(table, 1);
         const l2 = lambdaRat(table, 2);
-        if (l1 === null || l2 === null) throw new Error("tieCensusFirstTwo: degenerate table");
+        if (l1 === null || l2 === null) throw new KernelError("EMPTY-TABLE", "tieCensusFirstTwo: degenerate table");
         if (ratEq(l1, l2)) entries.push({ d, a1, a2 });
         else characterizationHolds = false;
       } else {
@@ -471,7 +472,7 @@ export interface PlateauCertificate {
  */
 export function plateauCertificate(table: readonly bigint[]): PlateauCertificate {
   const star = lambdaStarRat(table);
-  if (star.optima.length < 2) throw new Error("plateauCertificate: no exact tie at the optimum");
+  if (star.optima.length < 2) throw new KernelError("NO-EXACT-TIE", "plateauCertificate: no exact tie at the optimum");
   const dist = tableToDist(table);
   const target = ratToNumber(star.value);
   const tied = [...star.optima];
@@ -666,7 +667,7 @@ function polyEvalNum(p: Poly, num: bigint, den: bigint): bigint {
  * root of Q_k = P_k^2 - (k+1) — an integer polynomial.
  */
 export function racePoly(k: number): Poly {
-  if (k < 1) throw new Error("racePoly: k >= 1");
+  if (k < 1) throw new KernelError("BAD-RACE-ORDER", "racePoly: k >= 1");
   // U_n in x: U_0 = 1, U_1 = 2x, U_{n+1} = 2x U_n - U_{n-1}
   let un1: Poly = [1n]; // U_0
   let un: Poly = [0n, 2n]; // U_1 = 2x
@@ -714,14 +715,14 @@ export function isolateSmallestRoot(poly: Poly, gridDen = 1024, bits = 130): Roo
   const ev = (num: bigint, den: bigint): bigint => polyEvalNum(poly, num, den);
   const s0 = ev(0n, 1n);
   const s1 = ev(1n, 1n);
-  if (s0 === 0n || s1 === 0n) throw new Error("isolateSmallestRoot: root at an endpoint");
+  if (s0 === 0n || s1 === 0n) throw new KernelError("ROOT-AT-ENDPOINT", "isolateSmallestRoot: root at an endpoint");
   let gridFlips = 0;
   let loI = -1;
   let prevSign = s0 < 0n ? -1 : 1;
   for (let i = 1; i <= gridDen; i++) {
     const num = BigInt(i);
     const v = ev(num, BigInt(gridDen));
-    if (v === 0n) throw new Error(`isolateSmallestRoot: exact root on the grid at ${i}/${gridDen}`);
+    if (v === 0n) throw new KernelError("ROOT-ON-GRID", `isolateSmallestRoot: exact root on the grid at ${i}/${gridDen}`);
     const sign = v < 0n ? -1 : 1;
     if (sign !== prevSign) {
       gridFlips++;
@@ -729,7 +730,7 @@ export function isolateSmallestRoot(poly: Poly, gridDen = 1024, bits = 130): Roo
       prevSign = sign;
     }
   }
-  if (loI < 0) throw new Error("isolateSmallestRoot: no sign change on (0,1)");
+  if (loI < 0) throw new KernelError("NO-SIGN-CHANGE", "isolateSmallestRoot: no sign change on (0,1)");
   let lo = rat(BigInt(loI - 1), BigInt(gridDen));
   let hi = rat(BigInt(loI), BigInt(gridDen));
   for (let it = 0; it < bits + 10; it++) {
@@ -737,7 +738,7 @@ export function isolateSmallestRoot(poly: Poly, gridDen = 1024, bits = 130): Roo
     const half = rat(1n, 2n);
     const m = ratMul(mid, half);
     const vm = polyEvalNum(poly, m.num, m.den);
-    if (vm === 0n) throw new Error("isolateSmallestRoot: hit the root exactly");
+    if (vm === 0n) throw new KernelError("ROOT-ON-GRID", "isolateSmallestRoot: hit the root exactly (rational root — bracket needs strict signs)");
     const vLo = polyEvalNum(poly, lo.num, lo.den);
     const loSign = vLo < 0n ? -1 : 1;
     if ((vm < 0n ? -1 : 1) === loSign) lo = m;

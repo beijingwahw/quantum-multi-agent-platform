@@ -101,7 +101,7 @@ export function main(): void {
   lines.push("## D. the universal doubling sequence (LSZ93 Thm 5, empirical)\n");
   lines.push("| distribution | lambda* | T(S_univ) | ratio | bound (19/2)lambda*(log2 lambda* + 5) |");
   lines.push("| --- | --- | --- | --- | --- |");
-  const univ = lubyUniversal(5); // 121 terms, cutoffs up to 16
+  const univ = lubyUniversal(5); // 31 terms (|S_k| = 2|S_{k-1}|+1 -> 31), cutoffs up to 16
   for (const [name, p] of dists) {
     const fast = makeFastRenewal(p, [1, 2, 4, 8, 16]);
     const star = lambdaStar(p);

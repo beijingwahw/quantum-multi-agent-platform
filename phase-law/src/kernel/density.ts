@@ -10,6 +10,7 @@
  */
 import { makeRng } from "../core/rng.js";
 import { enumerateKPair, makeKPairInstance, type KPairInstance } from "./law.js";
+import { firstDownCross, firstUpCrossAfter, minIndex } from "./curves.js";
 
 export type DensitySolver = "local-search" | "anneal";
 
@@ -170,8 +171,17 @@ export interface DensityCell {
 }
 
 function solveDensity(solver: DensitySolver, inst: KPairInstance): number {
-  if (solver === "local-search") return kPairWelfareOf(inst, kPairLocalSearch(inst, kPairGreedy(inst)));
-  return kPairWelfareOf(inst, kPairAnneal(inst, 42));
+  switch (solver) {
+    case "local-search":
+      return kPairWelfareOf(inst, kPairLocalSearch(inst, kPairGreedy(inst)));
+    case "anneal":
+      return kPairWelfareOf(inst, kPairAnneal(inst, 42));
+    default: {
+      // compile-time exhaustiveness: a new DensitySolver member fails HERE, not in a run
+      const exhausted: never = solver;
+      throw new Error(`solveDensity: unhandled solver '${String(exhausted)}'`);
+    }
+  }
 }
 
 export function densityCampaign(
@@ -211,24 +221,9 @@ export function densityCampaign(
           }
           return hits / seeds;
         });
-        let down = -1;
-        for (let i = 0; i < lambdas.length; i++) {
-          if (hitRates[i]! < 0.5) {
-            const prev = i > 0 ? hitRates[i - 1]! : 1;
-            const prevLambda = i > 0 ? lambdas[i - 1]! : 0;
-            down = prev >= 0.5 ? (prevLambda + lambdas[i]!) / 2 : lambdas[i]!;
-            break;
-          }
-        }
-        let minIdx = 0;
-        for (let i = 1; i < hitRates.length; i++) if (hitRates[i]! < hitRates[minIdx]!) minIdx = i;
-        let up = -1;
-        for (let i = minIdx + 1; i < lambdas.length; i++) {
-          if (hitRates[i]! >= 0.5) {
-            up = (lambdas[i - 1]! + lambdas[i]!) / 2;
-            break;
-          }
-        }
+        const down = firstDownCross(lambdas, hitRates);
+        const minIdx = minIndex(hitRates);
+        const up = firstUpCrossAfter(lambdas, hitRates, minIdx);
         cells.push({
           m,
           n,
@@ -279,33 +274,18 @@ export function densityTableViolations(
     if (Math.abs(c.rateAtMax - last) > 1e-12) {
       out.push(`${name}: claimed rate@max ${c.rateAtMax} but the table's last rate is ${last}`);
     }
-    let down = -1;
-    for (let i = 0; i < lambdas.length; i++) {
-      if (c.hitRates[i]! < 0.5) {
-        const prev = i > 0 ? c.hitRates[i - 1]! : 1;
-        const prevLambda = i > 0 ? lambdas[i - 1]! : 0;
-        down = prev >= 0.5 ? (prevLambda + lambdas[i]!) / 2 : lambdas[i]!;
-        break;
-      }
-    }
+    const down = firstDownCross(lambdas, c.hitRates);
     if (down !== c.downCross) {
       out.push(`${name}: claimed down-cross ${c.downCross} but the rates give ${down}`);
     }
-    let minIdx = 0;
-    for (let i = 1; i < c.hitRates.length; i++) if (c.hitRates[i]! < c.hitRates[minIdx]!) minIdx = i;
+    const minIdx = minIndex(c.hitRates);
     if (Math.abs(c.minRate - c.hitRates[minIdx]!) > 1e-12) {
       out.push(`${name}: claimed min ${c.minRate} but the table's minimum is ${c.hitRates[minIdx]}`);
     }
     if (Math.abs(c.minLambda - lambdas[minIdx]!) > 1e-12) {
       out.push(`${name}: claimed λ at min ${c.minLambda} but the table's minimum sits at λ=${lambdas[minIdx]}`);
     }
-    let up = -1;
-    for (let i = minIdx + 1; i < lambdas.length; i++) {
-      if (c.hitRates[i]! >= 0.5) {
-        up = (lambdas[i - 1]! + lambdas[i]!) / 2;
-        break;
-      }
-    }
+    const up = firstUpCrossAfter(lambdas, c.hitRates, minIdx);
     if (up !== c.upCross) {
       out.push(
         `${name}: claimed up-cross ${c.upCross < 0 ? "none" : c.upCross} but the rates give ${up < 0 ? "none" : up}`,

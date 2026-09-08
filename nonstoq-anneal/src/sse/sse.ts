@@ -52,6 +52,21 @@ export function sseConfigFrom(model: IsingModel, driver: DriverSpec, s: number, 
 // 算符编码：0 = 恒等；2b+1 = 键 b 上的对角算符；2b+2 = 键 b 上的非对角算符。
 // 键序：0..n−1 站点键（σx 场），n..n+E−1 边键（ZZ 问题项 + XX 驱动）。
 
+/**
+ * 对角矩阵元（平移非负约定）——采样器与精确枚举裁判的单一来源。
+ * 站点键：s·(h·z + |h|)；边键：s·(w·z_i·z_j + |w|)。|W| 系综要求该平移
+ * 对每个构型非负，这是裁判与采样器必须逐位一致的约定（此前两处各持
+ * 一份拷贝，裁判漂移风险即藏于此——0.3.0 单源化）。
+ */
+export function sseDiagElement(cfg: SseConfig, bond: number, z: Int8Array): number {
+  if (bond < cfg.n) {
+    const h = cfg.fields[bond]!;
+    return cfg.s * (h * z[bond]! + Math.abs(h));
+  }
+  const e = cfg.edges[bond - cfg.n]!;
+  return cfg.s * (e.w * z[e.i]! * z[e.j]! + Math.abs(e.w));
+}
+
 export class SseSampler {
   readonly nBonds: number;
   readonly M: number;
@@ -71,15 +86,9 @@ export class SseSampler {
     this.rng = new Rng(options.seed ?? 0x5ee);
   }
 
-  /** 对角元素（平移非负）：站点 s·(h·z+|h|)；边 s·(w·z_i z_j+|w|)。 */
+  /** 对角元素（平移非负）：与精确枚举裁判共用 sseDiagElement（单一来源）。 */
   private diagElement(bond: number, z: Int8Array): number {
-    const { cfg } = this;
-    if (bond < cfg.n) {
-      const h = cfg.fields[bond]!;
-      return cfg.s * (h * z[bond]! + Math.abs(h));
-    }
-    const e = cfg.edges[bond - cfg.n]!;
-    return cfg.s * (e.w * z[e.i]! * z[e.j]! + Math.abs(e.w));
+    return sseDiagElement(this.cfg, bond, z);
   }
 
   /** 非对角元素幅值：站点 (1−s)·Γ；边 (1−s)·|κ|。 */

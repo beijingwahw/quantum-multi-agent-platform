@@ -5,8 +5,11 @@
 > 工程原型**：可编程 XX 驱动器引擎（实时退火 + 虚时投影基态）、
 > stoquasticity 矩阵级验证器、符号结构度量 P = Σψ/Σ|ψ| 的定量扫描，
 > 以及 0.2.0 新增的**元素级 de-signing 判定器**（证书化 YES/NO/
-> UNRESOLVED，含两比特封闭二分法）。TypeScript 严格模式，零运行时
-> 依赖，种子化可复现。
+> UNRESOLVED，含两比特封闭二分法）。0.3.0 为代码质量波：品牌化 Z/X
+> 谱表（基槽互换 = 编译错误）、全部 throw 具名错误码（走私审判按
+> code 定罪）、Jacobi/矩阵元/磁化/并查集四族重复定义单源化、判决
+> 可辨识联合化——数学主张与常数冻结不变。TypeScript 严格模式，
+> 零运行时依赖，种子化可复现。
 
 ## 这是什么 / 这不是什么（诚实边界）
 
@@ -43,7 +46,7 @@
 
 ```bash
 npm install
-npm test        # 51/51
+npm test        # 64/64
 npm run repro   # 重生成 out/ 下全部报告（约 10 分钟）
 ```
 
@@ -147,14 +150,18 @@ Karakashian-Hen arXiv:2607.18596 (2026)（VGP 提议，锚不作声称）。
 ```
 src/
   core/     rng.ts ising.ts（与 ft-qaoa 同构） statevector.ts（+Walsh-Hadamard +虚时衰减）
+            jacobi.ts（稠密对称特征分解：值/向量两路径同一旋转核心，单一来源）
+            spectra.ts（品牌化 Z/X 谱表：基槽互换 = 编译错误）
+            errors.ts（NonstoqError 具名错误码：非法输入按 code 定罪）
   anneal/   driver.ts（DriverSpec + stoquasticity 验证器 + X 基能量表）
             project.ts（虚时投影基态 + 全局符号约定） anneal.ts（实时退火）
             designing.ts（对角规范判定器：π 旋转层，并查集闭式）
             designing-element.ts（元素级判定器：O(2) 共轭精确公式 + 证书化
-            YES/NO/UNRESOLVED + 两比特二分法 + 防走私裁决器）
+            YES/NO/UNRESOLVED（可辨识联合）+ 两比特二分法 + 防走私裁决器）
   experiments/  exp1..exp5 + exp6-designability / run-all
-test/       13 项文件 51 测试：含 3 项走私审判（伪造证书/伪造 stoq 声明/
-            伪造 no-go 必须被点名拒绝）
+test/       8 项文件 64 测试：含 8 项走私审判（伪造证书/伪造 stoq 声明/
+            伪造 no-go/逐入口非法输入按具名错误码驳回；另有品牌谱表的
+            编译期负对照——@ts-expect-error 即断言本体）
 docs/       theory.md — Perron-Frobenius、符号问题、模型与文献（§1.7 判定层）
 ```
 

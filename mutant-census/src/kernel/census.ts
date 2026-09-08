@@ -92,6 +92,14 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   { repo: "ent-sched", file: "rng.ts", reason: "own rng lineage" },
   { repo: "ft-qaoa", file: "rng.ts", reason: "own rng lineage" },
   { repo: "nonstoq-anneal", file: "rng.ts", reason: "own rng lineage" },
+  // -- the batch-82 wave append (the quality wave's dead-code purge) -----------
+  // phase-law's v0.6.0 E face deleted the 994-line quantum-template leftovers
+  // (src/core/{cmat,states,measures,channels}.ts gone wholesale — those files
+  // read NOT-PRESENT, a legal status) and pared rng.ts's dead exports; the
+  // surviving rng.ts bytes differ from the canon. Registered as debt, not
+  // adjudicated: whether the member re-converges (or drops the file entirely)
+  // is the appeal court's call.
+  { repo: "phase-law", file: "rng.ts", reason: "the v0.6.0 dead-export purge removed this member's unused rng exports (the E face of the quality wave; the template-era cmat/states/measures/channels files were deleted outright and read NOT-PRESENT); re-convergence is the appeal court's call" },
 ];
 
 export type FamilyStatus =

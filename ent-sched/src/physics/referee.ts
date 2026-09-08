@@ -36,14 +36,15 @@ import {
   trace,
   zeros,
 } from "../core/cx.js";
-import { BELL_STATES, type BellVec } from "./bell.js";
+import { BELL_STATES, type BellVec, wernerWeight } from "./bell.js";
 
 /** Density matrix (4×4) of a Werner state with fidelity F. */
 export function wernerDM(f: number): CxMat {
   const m = zeros(4);
-  // F|Φ+⟩⟨Φ+| + (1−F)/3 · (I − |Φ+⟩⟨Φ+|)
+  // F|Φ+⟩⟨Φ+| + w·(I − |Φ+⟩⟨Φ+|), w = wernerWeight(F) — the one declared
+  // shared definition between referee and analytic algebra (see header)
   const pp = BELL_STATES[0]!; // BELL_STATES is a literal 4-entry table
-  const w = (1 - f) / 3;
+  const w = wernerWeight(f);
   for (let i = 0; i < 4; i++)
     for (let j = 0; j < 4; j++)
       m.re[i * 4 + j] = f * pp[i]! * pp[j]! + (i === j ? w : 0) - w * pp[i]! * pp[j]!;

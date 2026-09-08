@@ -1,4 +1,7 @@
 import type { Rng } from "./rng.js";
+import { NonstoqError } from "./errors.js";
+import { zSpectrumOf } from "./spectra.js";
+import type { ZSpectrum } from "./spectra.js";
 
 /** Weighted Ising coupling between qubits j < k. */
 export interface Coupling {
@@ -66,7 +69,7 @@ export function randomIsing(rng: Rng, n: number, options: RandomIsingOptions = {
  */
 export function maxcut3Reg(rng: Rng, n: number): IsingModel {
   if (n < 4 || n % 2 !== 0) {
-    throw new Error(`3-regular graph needs even n >= 4, got ${n}`);
+    throw new NonstoqError("Maxcut3RegDomain", `3-regular graph needs even n >= 4, got ${n}`);
   }
   const isCycleEdge = (a: number, b: number): boolean => {
     const lo = Math.min(a, b);
@@ -97,7 +100,7 @@ export function maxcut3Reg(rng: Rng, n: number): IsingModel {
     matched = ok;
   }
   if (!matched) {
-    throw new Error(`could not build a 3-regular matching on n=${n} in 200 attempts`);
+    throw new NonstoqError("Maxcut3RegMatchFailed", `could not build a 3-regular matching on n=${n} in 200 attempts`);
   }
   for (let i = 0; i < n; i += 2) {
     const a = perm[i]!;
@@ -107,8 +110,9 @@ export function maxcut3Reg(rng: Rng, n: number): IsingModel {
   return { n, fields: new Array<number>(n).fill(0), couplings };
 }
 
-/** Energy of every computational basis state, indexed by bit pattern. O(2^n * |couplings|). */
-export function energies(model: IsingModel): Float64Array {
+/** Energy of every computational basis state, indexed by bit pattern. O(2^n * |couplings|).
+ *  返回 Z 谱表（品牌）：进引擎的 energies 槽位，与 X 基驱动表互不可换。 */
+export function energies(model: IsingModel): ZSpectrum {
   const dim = 1 << model.n;
   const out = new Float64Array(dim);
   const { fields, couplings } = model;
@@ -124,7 +128,7 @@ export function energies(model: IsingModel): Float64Array {
     }
     out[s] = e;
   }
-  return out;
+  return zSpectrumOf(out);
 }
 
 export interface BruteForceResult {

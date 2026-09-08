@@ -1,3 +1,5 @@
+import { KernelError } from "./errors.js";
+
 /**
  * T2 kernel — restart algebra (Luby-Sinclair-Zuckerman layer).
  *
@@ -47,12 +49,10 @@ export function lambdaClosed(p: Dist, t: number): number {
   return (t - deficit) / q;
 }
 
-/** LSZ L(t) = t/q(t) — the always-pay fixed-cutoff objective */
-export function payClosed(p: Dist, t: number): number {
-  const q = qOf(p, t);
-  if (q <= 0) return Number.POSITIVE_INFINITY;
-  return t / q;
-}
+/** LSZ L(t) = t/q(t) — the always-pay fixed-cutoff objective. Deleted at
+ *  v0.3.0 together with payStar: both were zero-reference exports (the
+ *  always-pay face is executed through payExpected/payStarMenu, whose
+ *  round ratio c/p at unit-cost rounds IS L(t)). */
 
 export interface StarResult {
   readonly value: number;
@@ -64,19 +64,6 @@ export function lambdaStar(p: Dist): StarResult {
   let bestT = 1;
   for (let t = 1; t < p.length; t++) {
     const v = lambdaClosed(p, t);
-    if (v < best) {
-      best = v;
-      bestT = t;
-    }
-  }
-  return { value: best, t: bestT };
-}
-
-export function payStar(p: Dist): StarResult {
-  let best = Number.POSITIVE_INFINITY;
-  let bestT = 1;
-  for (let t = 1; t < p.length; t++) {
-    const v = payClosed(p, t);
     if (v < best) {
       best = v;
       bestT = t;
@@ -107,7 +94,7 @@ export interface Strategy {
  *  Truncated once R < 1e-18; the omitted remainder is at most
  *  R * max(lambda) and stays below 1e-12 for every distribution used. */
 export function renewalEarlyStop(p: Dist, s: Strategy): number {
-  if (s.prefix.length === 0) throw new Error("renewalEarlyStop: empty prefix");
+  if (s.prefix.length === 0) throw new KernelError("EMPTY-PREFIX", "renewalEarlyStop: empty prefix");
   let T = 0;
   let R = 1;
   let i = 0;
@@ -117,7 +104,7 @@ export function renewalEarlyStop(p: Dist, s: Strategy): number {
     T += R * expectMin(p, t);
     R *= 1 - qOf(p, t);
     i++;
-    if (++guard > 1_000_000) throw new Error("renewalEarlyStop: cycle never succeeds");
+    if (++guard > 1_000_000) throw new KernelError("CYCLE-NEVER-SUCCEEDS", "renewalEarlyStop: cycle never succeeds");
   }
   return T;
 }
@@ -136,7 +123,7 @@ export interface ConvexDecomposition {
  *  expectations. This is the algebraic root of "no strategy beats the best
  *  fixed cutoff", here verified on a third arithmetic path. */
 export function convexDecomposition(p: Dist, s: Strategy): ConvexDecomposition {
-  if (s.prefix.length === 0) throw new Error("convexDecomposition: empty prefix");
+  if (s.prefix.length === 0) throw new KernelError("EMPTY-PREFIX", "convexDecomposition: empty prefix");
   let R = 1;
   let gSum = 0;
   let weighted = 0;
@@ -149,7 +136,7 @@ export function convexDecomposition(p: Dist, s: Strategy): ConvexDecomposition {
     weighted += g * lambdaClosed(p, t);
     R *= 1 - qOf(p, t);
     i++;
-    if (++guard > 1_000_000) throw new Error("convexDecomposition: cycle never succeeds");
+    if (++guard > 1_000_000) throw new KernelError("CYCLE-NEVER-SUCCEEDS", "convexDecomposition: cycle never succeeds");
   }
   const T = renewalEarlyStop(p, s);
   return { T, gSum, weightedLambdas: weighted, deviation: Math.abs(weighted - T) };
@@ -175,7 +162,7 @@ export function makeFastRenewal(p: Dist, cutoffs: readonly number[]): FastRenewa
     eTab.set(t, expectMin(p, t));
   }
   const evaluate = (s: Strategy): { T: number; gSum: number; weighted: number } => {
-    if (s.prefix.length === 0) throw new Error("makeFastRenewal: empty prefix");
+    if (s.prefix.length === 0) throw new KernelError("EMPTY-PREFIX", "makeFastRenewal: empty prefix");
     let T = 0;
     let R = 1;
     let gSum = 0;
@@ -186,14 +173,14 @@ export function makeFastRenewal(p: Dist, cutoffs: readonly number[]): FastRenewa
       const t = s.prefix[i % s.prefix.length] as number;
       const q = qTab.get(t);
       const e = eTab.get(t);
-      if (q === undefined || e === undefined) throw new Error(`makeFastRenewal: cutoff ${t} not precomputed`);
+      if (q === undefined || e === undefined) throw new KernelError("CUTOFF-NOT-PRECOMPUTED", `makeFastRenewal: cutoff ${t} not precomputed`);
       T += R * e;
       const g = R * q;
       gSum += g;
       weighted += g * lambdaClosed(p, t);
       R *= 1 - q;
       i++;
-      if (++guard > 1_000_000) throw new Error("makeFastRenewal: cycle never succeeds");
+      if (++guard > 1_000_000) throw new KernelError("CYCLE-NEVER-SUCCEEDS", "makeFastRenewal: cycle never succeeds");
     }
     return { T, gSum, weighted };
   };
@@ -216,7 +203,7 @@ export function makeFastRenewal(p: Dist, cutoffs: readonly number[]): FastRenewa
  *  then CYCLING forever, no early-stop credit. Expected total = sum_i R_i c_i
  *  over the infinite cyclic schedule, truncated at R < 1e-18. */
 export function payExpected(costs: readonly number[], probs: readonly number[], order: readonly number[]): number {
-  if (order.length === 0) throw new Error("payExpected: empty order");
+  if (order.length === 0) throw new KernelError("EMPTY-SCHEDULE", "payExpected: empty order");
   let T = 0;
   let R = 1;
   let i = 0;
@@ -225,11 +212,11 @@ export function payExpected(costs: readonly number[], probs: readonly number[], 
     const idx = order[i % order.length] as number;
     const c = costs[idx] as number;
     const p = probs[idx] as number;
-    if (!(p > 0) || !(p <= 1)) throw new Error("payExpected: probs in (0,1]");
+    if (!(p > 0) || !(p <= 1)) throw new KernelError("BAD-ROUND-PROBABILITY", `payExpected: probs in (0,1] (got ${p})`);
     T += R * c;
     R *= 1 - p;
     i++;
-    if (++guard > 1_000_000) throw new Error("payExpected: cycle never succeeds");
+    if (++guard > 1_000_000) throw new KernelError("CYCLE-NEVER-SUCCEEDS", "payExpected: cycle never succeeds");
   }
   return T;
 }
@@ -344,6 +331,8 @@ export const ZERO_OPTIMAL_DENSITY_LIMIT = (3 - Math.SQRT2) / 4;
 
 /** truncated geometric on {1..H}: Pr[T=u] proportional to (1-r)^(u-1) */
 export function geometricDist(H: number, r: number): number[] {
+  if (!Number.isInteger(H) || H < 1) throw new KernelError("BAD-HORIZON", `geometricDist: H must be an integer >= 1 (got ${H})`);
+  if (!(r > 0) || !(r < 1)) throw new KernelError("BAD-RATE", `geometricDist: r must be in (0,1) (got ${r}) — r=0 is the all-NaN table, r=1 is a point mass at u=1`);
   const p = new Array<number>(H + 1).fill(0);
   let s = 0;
   for (let u = 1; u <= H; u++) {
@@ -356,6 +345,7 @@ export function geometricDist(H: number, r: number): number[] {
 
 /** power-law tail Pr[T=u] proportional to u^(-alpha) on {1..H} */
 export function powerLawDist(H: number, alpha: number): number[] {
+  if (!Number.isInteger(H) || H < 1) throw new KernelError("BAD-HORIZON", `powerLawDist: H must be an integer >= 1 (got ${H})`);
   const p = new Array<number>(H + 1).fill(0);
   let s = 0;
   for (let u = 1; u <= H; u++) {
@@ -378,6 +368,7 @@ export function bimodalDist(): number[] {
  *  Pr[T=u] = t/N for u <= N-t+1 window handled by hypergeometric exhaustion;
  *  exact form: P(first mark at u) = (N-t choose u-1)/(N choose u-1) * t/(N-u+1) */
 export function firstMarkDist(N: number, t: number): number[] {
+  if (!Number.isInteger(t) || t < 1 || t > N) throw new KernelError("BAD-MARKED-COUNT", `firstMarkDist: t must be an integer in 1..N (got ${t}, N=${N}) — t=0 is the all-zero table`);
   const p = new Array<number>(N + 1).fill(0);
   // probability all of the first u-1 addresses are unmarked:
   let noMark = 1;

@@ -25,12 +25,37 @@ export interface CoupledInstance {
   readonly weights: readonly number[][];
 }
 
-export function makeInstance(m: number, n: number, seed: number, lambda: number): CoupledInstance {
+// ---------------------------------------------------------------------------
+// The family's weights — THE single source (v0.6.0). Every constructor
+// (coupled v0.1, k-pair v0.4, non-uniform v0.5, staircase integers) draws
+// this one matrix for a given (m, n, seed); the k=1-compatibility witnesses
+// assert the bit-identity, so a second literal copy of the formula is
+// forbidden — import it.
+// ---------------------------------------------------------------------------
+
+/** The weight law's constants: w = WEIGHT_MIN + WEIGHT_SPAN·r(seed), 3 decimals. */
+export const WEIGHT_MIN = 0.15;
+export const WEIGHT_SPAN = 0.7;
+
+/** The shared 3-decimal weight matrix (the float face of the family). */
+export function makeWeights(m: number, n: number, seed: number): number[][] {
   const r = makeRng(seed);
-  const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => Math.round((0.15 + 0.7 * r()) * 1000) / 1000),
+  return Array.from({ length: m }, () =>
+    Array.from({ length: n }, () => Math.round((WEIGHT_MIN + WEIGHT_SPAN * r()) * 1000) / 1000),
   );
-  return { m, n, seed, lambda, weights };
+}
+
+/** The SAME weights before the /1000 division — integer thousandths, exact
+ * under summation (the staircase's referee arithmetic). */
+export function makeIntegerWeights(m: number, n: number, seed: number): number[][] {
+  const r = makeRng(seed);
+  return Array.from({ length: m }, () =>
+    Array.from({ length: n }, () => Math.round((WEIGHT_MIN + WEIGHT_SPAN * r()) * 1000)),
+  );
+}
+
+export function makeInstance(m: number, n: number, seed: number, lambda: number): CoupledInstance {
+  return { m, n, seed, lambda, weights: makeWeights(m, n, seed) };
 }
 
 export interface Assignment {
@@ -377,11 +402,7 @@ export interface KPairInstance {
 }
 
 export function makeKPairInstance(m: number, n: number, seed: number, lambda: number, k: number): KPairInstance {
-  const r = makeRng(seed);
-  const weights = Array.from({ length: m }, () =>
-    Array.from({ length: n }, () => Math.round((0.15 + 0.7 * r()) * 1000) / 1000),
-  );
-  return { m, n, seed, lambda, k, weights };
+  return { m, n, seed, lambda, k, weights: makeWeights(m, n, seed) };
 }
 
 export interface KPairAssignment {

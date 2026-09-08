@@ -1,4 +1,6 @@
 import type { Coupling } from "../core/ising.js";
+import { xSpectrumOf } from "../core/spectra.js";
+import type { XSpectrum } from "../core/spectra.js";
 
 /**
  * Non-stoquastic annealing driver: H_D = -Γ·Σ_i σ^x_i + Σ_{(i,j)} κ_ij σ^x_i σ^x_j.
@@ -65,7 +67,7 @@ export function checkStoquasticity(driver: DriverSpec): StoquasticityReport {
  * The whole driver evolution (real-time phase or imaginary-time damping) is
  * diagonal in the X basis, reached by one Walsh-Hadamard transform.
  */
-export function xBasisEnergies(n: number, driver: DriverSpec): Float64Array {
+export function xBasisEnergies(n: number, driver: DriverSpec): XSpectrum {
   const dim = 1 << n;
   const out = new Float64Array(dim);
   for (let t = 0; t < dim; t++) {
@@ -78,11 +80,15 @@ export function xBasisEnergies(n: number, driver: DriverSpec): Float64Array {
     e -= driver.gamma * magnetization(t, n);
     out[t] = e;
   }
-  return out;
+  return xSpectrumOf(out);
 }
 
-function magnetization(t: number, n: number): number {
+/**
+ * Z/X 基自旋求和 Σ_i x_i(bits)（bit 0 → +1，bit 1 → −1）——driver 的
+ * X 基能量表与 catalyst 的磁化表共用的单一来源（0.3.0 单源化）。
+ */
+export function magnetization(bits: number, n: number): number {
   let m = 0;
-  for (let i = 0; i < n; i++) m += ((t >>> i) & 1) === 0 ? 1 : -1;
+  for (let i = 0; i < n; i++) m += ((bits >>> i) & 1) === 0 ? 1 : -1;
   return m;
 }

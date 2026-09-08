@@ -5,7 +5,8 @@ import { energies, randomIsing } from "../src/core/ising.js";
 import { xBasisEnergies } from "../src/anneal/driver.js";
 import type { DriverSpec } from "../src/anneal/driver.js";
 import { antiferroRing } from "../src/anneal/instances.js";
-import { applyHamiltonian, hadamardInPlace, jacobiEigenvalues, lowestSpectrum } from "../src/anneal/lanczos.js";
+import { applyHamiltonian, hadamardInPlace, lowestSpectrum } from "../src/anneal/lanczos.js";
+import { jacobiEigenvalues } from "../src/core/jacobi.js";
 import { annealCatalystPath, magTable, pspinEnergies, xEnergiesAt, xxScaled } from "../src/anneal/catalyst.js";
 import { StateVector as StateVector2 } from "../src/core/statevector.js";
 
