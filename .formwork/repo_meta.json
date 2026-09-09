@@ -1,4 +1,4 @@
 {
-  "description": "量子多Agent调度平台：真实量子算法调度核心（QAOA/绝热退火/Born测量坍缩，纠缠=哈密顿量耦合）+ 约束子空间精确引擎（等效80量子比特，NP-hard实例5/5命中最优）+ 真QPU后端层（D-Wave Leap/Qiskit导出/本地精确引擎）｜TypeScript｜158测试",
-  "homepage": "https://github.com/beijingwahw/quantum-multi-agent-platform/blob/main/QUANTUM-SCHEDULING.md"
+  "description": "量子多Agent调度平台：真实量子算法调度核心（QAOA/绝热退火/Born测量坍缩，纠缠=哈密顿量耦合）+ 约束子空间精确引擎（等效80量子比特，NP-hard实例5/5命中最优）+ 真QPU后端层（D-Wave Leap/Qiskit导出/本地精确引擎）｜v1.12.0·核心520测试｜另含29个市场机制/量子验证/调度研究子包",
+  "homepage": "https://github.com/beijingwahw/quantum-multi-agent-platform/blob/main/ds_extracted/ds/QUANTUM-SCHEDULING.md"
 }
