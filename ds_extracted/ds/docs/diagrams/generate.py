@@ -12,6 +12,8 @@ README 原理图生成器 —— 全部图片由仓内真实工件与公开数�
 import json
 import math
 import pathlib
+import sys
+import warnings
 
 import matplotlib
 
@@ -314,7 +316,7 @@ def fig_qaoa():
     box(a, 4.25, 1.4, 2.25, 6.3, "混合层\n$U_M(\\beta)$\n\n纤维旋转 / X 旋转\n探索合法解", fc="#E4F6FA", ec=CYAN, fs=7.8)
     box(a, 6.8, 1.4, 2.25, 6.3, "代价层\n$U_C(\\gamma_2)$", fc="#E8EAFB", ec=INDIGO, fs=8.8)
     box(a, 9.35, 1.4, 2.25, 6.3, "混合层\n$U_M(\\beta_2)$", fc="#E4F6FA", ec=CYAN, fs=8.8)
-    box(a, 11.9, 1.4, 0.95, 6.3, "测量\n⟨E⟩", fc=LIGHT, ec=GREEN, fs=8.6)
+    box(a, 11.9, 1.4, 0.95, 6.3, "测量\n$\\langle E\\rangle$", fc=LIGHT, ec=GREEN, fs=8.6)
     a.text(6.5, 0.55, "角度 (γ, β) 由坐标下降离线优化；末态 Born 坍缩读出分配", fontsize=9, ha="center", color=GRAY)
 
     b = a2
@@ -339,8 +341,8 @@ def fig_annealing():
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11.6, 4.6))
     fig.suptitle("绝热退火：慢过临界点，基态全程跟随（能级为示意图）", fontsize=14, fontweight="bold")
 
-    a1.plot(s, e0, color=INDIGO, lw=2.6, label="基态 E₀(s)")
-    a1.plot(s, e1, color=AMBER, lw=2.2, ls="--", label="第一激发态 E₁(s)")
+    a1.plot(s, e0, color=INDIGO, lw=2.6, label="基态 $E_0(s)$")
+    a1.plot(s, e1, color=AMBER, lw=2.2, ls="--", label="第一激发态 $E_1(s)$")
     a1.fill_between(s, e0, e1, color=INDIGO, alpha=0.06)
     imin = int(np.argmin(gap))
     a1.annotate("最小 gap（临界点）\n步长在此最细", xy=(s[imin], (e0[imin] + e1[imin]) / 2), xytext=(0.28, 0.42),
@@ -353,10 +355,10 @@ def fig_annealing():
     a2.set_xlim(0, 10); a2.set_ylim(0, 10); clean(a2)
     a2.set_title("本仓的执行口径", fontsize=11.5)
     box(a2, 0.5, 6.4, 9.0, 2.9,
-        "初态：均匀叠加 |s⟩\n(Perron–Frobenius：非负邻接阵的顶本征矢\n恰为 −ΣA 的基态——初态即基态，无制备缺口)",
+        "初态：均匀叠加 $|s\\rangle$\n(Perron–Frobenius：非负邻接阵的顶本征矢\n恰为 −ΣA 的基态——初态即基态，无制备缺口)",
         fc="#E4F6FA", ec=CYAN, fs=9.8)
     box(a2, 0.5, 3.3, 9.0, 2.6,
-        "离散 s 网格数值积分（默认 τ=20、steps=150）\n代价相位走复乘递推：$\gamma_t$ 线性 $\Rightarrow$ ph(t)=ph(t−1)·z\n纤维旋转闭式施加——每步都是精确幺正",
+        "离散 s 网格数值积分（默认 τ=20、steps=150）\n代价相位走复乘递推：$\\gamma_t$ 线性 $\\Rightarrow$ ph(t)=ph(t−1)·z\n纤维旋转闭式施加——每步都是精确幺正",
         fc="#E8EAFB", ec=INDIGO, fs=9.8)
     box(a2, 0.5, 0.4, 9.0, 2.4,
         "8×10 实例（1,814,400 维）实测：\n退火最优率 100.0%（穷举枚举裁判）",
@@ -535,7 +537,7 @@ def fig_ma_qaoa():
     ax.set_ylabel("命中最优实例数（/40）")
     ax.set_title("ma-QAOA 构造性支配（6×6 子空间变分区，实测）", fontsize=13.5, fontweight="bold", pad=12)
     ax.legend(frameon=False, loc="upper left")
-    ax.text(0.5, -0.16, "支配是定理：multi 以 layer 最优角展开态为种子（逐位相同）＋只接受严格改进 ⇒ ⟨E⟩_multi ≤ ⟨E⟩_layer；"
+    ax.text(0.5, -0.16, "支配是定理：multi 以 layer 最优角展开态为种子（逐位相同）＋只接受严格改进 $\\Rightarrow\\ \\langle E\\rangle_{multi} \\leq \\langle E\\rangle_{layer}$；"
                         "全空间坍缩读数已饱和、welfare 增益边际——如实不宣称。", transform=ax.transAxes, ha="center", fontsize=8.8, color=GRAY)
     save(fig, "13-ma-qaoa.png")
 
@@ -551,7 +553,7 @@ def fig_market():
     a.set_title("增广 WDP + Clarke 支付闭环", fontsize=11.5)
     box(a, 0.3, 7.6, 3.2, 1.7, "任务批 + 报价 bids\n（DSIC 域）", fc=LIGHT, ec=GRAY, fs=9.0)
     box(a, 8.55, 7.6, 3.15, 1.7, "联合分配 X*", fc="#E9F9F1", ec=GREEN, fs=9.3)
-    box(a, 3.75, 7.6, 4.55, 1.7, "增广 WDP\nargmax Σ(v·q̂ − b) + Σg", fc="#E8EAFB", ec=INDIGO, fs=9.0)
+    box(a, 3.75, 7.6, 4.55, 1.7, "增广 WDP\nargmax Σ(v·$\\hat q$ − b) + Σg", fc="#E8EAFB", ec=INDIGO, fs=9.0)
     box(a, 4.15, 5.0, 3.6, 1.6, "Clarke pivot 支付\nDSIC 定理成立", fc="#E4F6FA", ec=CYAN, fs=9.3)
     box(a, 0.3, 2.2, 5.3, 2.0, "在线校准：结算流 →\nBernoulli 极大似然 $(\\hat\\alpha,\\hat\\beta,R^2)$", fc=LIGHT2, ec=AMBER, fs=9.3)
     box(a, 6.6, 2.2, 5.1, 2.0, "$\\hat q(k)$ 学习曲线 + g 增长影子价值\n级数和天然有界", fc=LIGHT2, ec=AMBER, fs=9.3)
@@ -568,7 +570,7 @@ def fig_market():
     k = np.linspace(0, 60, 300)
     base, alpha, beta = 0.458, 0.58, 0.09
     q = base + alpha * (1 - base) * (1 - np.exp(-beta * k))
-    b.plot(k, q, color=INDIGO, lw=2.6, label="健康案例库：$\hat q(k)$ 拟合")
+    b.plot(k, q, color=INDIGO, lw=2.6, label="健康案例库：$\\hat q(k)$ 拟合")
     b.axhline(0.747, color=INDIGO, lw=1, ls=":")
     b.text(41, 0.757, "实测 0.458→0.747（+0.289）", fontsize=8.8, color=INDIGO)
     qp = 0.129 + (0.747 - 0.129) * np.exp(-0.35 * (k - 30))
@@ -577,7 +579,7 @@ def fig_market():
     b.axhline(0.129, color=RED, lw=1, ls=":")
     b.text(40, 0.145, "污染 = 负资本（增益 −0.704）", fontsize=8.8, color=RED)
     b.set_xlabel("累积案例数 k")
-    b.set_ylabel("隐性技能 q̂")
+    b.set_ylabel("隐性技能 $\\hat q$")
     b.set_title("学习曲线与污染坍缩（30 例后污染，示意重建）", fontsize=11)
     b.set_ylim(0, 0.9)
     b.legend(frameon=False, fontsize=9, loc="lower right")
@@ -702,28 +704,39 @@ def fig_timeline():
 
 
 if __name__ == "__main__":
-    fig_architecture()
-    fig_pipeline()
-    fig_hamiltonian()
-    fig_subspace()
-    fig_fiber()
-    fig_qaoa()
-    fig_annealing()
-    fig_born()
-    fig_ladder()
-    fig_linear()
-    fig_nphard()
-    fig_parallel()
-    fig_ma_qaoa()
-    fig_market()
-    fig_execution_tier()
-    fig_quality()
-    fig_hotpath()
-    fig_timeline()
+    # 缺字零容忍以退出码执法：任何 "Glyph ... missing" 警告即失败（豆腐块确定性检测）
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fig_architecture()
+        fig_pipeline()
+        fig_hamiltonian()
+        fig_subspace()
+        fig_fiber()
+        fig_qaoa()
+        fig_annealing()
+        fig_born()
+        fig_ladder()
+        fig_linear()
+        fig_nphard()
+        fig_parallel()
+        fig_ma_qaoa()
+        fig_market()
+        fig_execution_tier()
+        fig_quality()
+        fig_hotpath()
+        fig_timeline()
+    glyphs = sorted({str(w.message) for w in caught if "Glyph" in str(w.message)})
     print("all diagrams rendered ->", HERE, VER)
+    if glyphs:
+        print(f"!! GLYPH SELF-CHECK FAILED: {len(glyphs)} distinct missing-glyph warning(s):")
+        for g in glyphs:
+            print("   ", g)
+    else:
+        print("glyph self-check: 0 missing-glyph warnings")
     if OVERFLOWS:
         print("!! OVERFLOW WARNINGS (text wider/taller than box):")
         for o in OVERFLOWS:
             print("   ", o)
     else:
         print("overflow self-check: no box text exceeds its box (<=102%)")
+    sys.exit(1 if (glyphs or OVERFLOWS) else 0)
