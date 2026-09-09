@@ -56,8 +56,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 89;
-export const DECLARED_TOTAL_ERRORS = 719;
+export const DECLARED_TOTAL_BATCHES = 93;
+export const DECLARED_TOTAL_ERRORS = 726;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4469,6 +4469,81 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[orchestrator, this batch] the diagram generator's first drafts carried two escape-level slips that crashed it on first run — a single-backslash \\r inside a non-raw Python string (mathtext \\rangle degenerating into a carriage return) and the \\le alias matplotlib's mathtext does not know — both caught by the generator's own crash, fixed in the same breath",
         right: "mathtext in double-quoted Python strings doubles its backslashes (or takes a raw string), and symbols are spelled the renderer knows (\\leq not \\le) — the generator's own crash loop is the factory check; the shipped set renders with ZERO missing-glyph warnings and ZERO box overflows by its own machine self-check",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 90,
+    repo: "burial-record",
+    date: "2026-09-09",
+    context:
+      "the derived render lagged its own registry — two consecutive landing waves updated registry.ts with batch eighty-nine enrolled while the committed out/reports artifact still rendered the eight-eight state, a counting lag no gate could see (nothing re-renders at commit time); caught while verifying b89#13/#14's booking under the user's confirmation order, re-rendered same-session with the refresh committed (383c65a); the batch installs the permanent guard — the fresh render and the committed artifact asserted identical on every suite run, the books-agree pattern the lockfile family already proved",
+    source: { file: "memory/2026-09-09.md", heading: "关键经验（第九十批" },
+    errors: [
+      {
+        wrong: "the committed burial report rendered the registry as eighty-eight batches while registry.ts already carried batch eighty-nine — two landing waves in a row updated the registry without re-rendering, the derived count prose drifting from the count data (a counting lag the checker itself cannot convict: the render is not gated at commit time)",
+        right: "npm run repro re-rendered with the checker green and the refresh committed in the same breath it was found (383c65a), and the books-agree guard now holds the class: the suite renders fresh and asserts byte-identity with the committed artifact on every run — a derived artifact is a data copy of its source, and the count-drift law owns it exactly as it owns prose counts",
+        category: "statistics",
+      },
+    ],
+  },
+  {
+    batch: 91,
+    repo: "ds_extracted/ds",
+    date: "2026-09-09",
+    context:
+      "the diagram confirmation visit under the user's order — the booked b89#14 right column claimed the shipped set self-checks to zero missing-glyph warnings while the same machine, on the same tree, emitted thirty-two distinct missing-glyph warning lines (a false-negative acceptance whose green light masked tofu actually shipped inside four figures); the escape-slip class carried latent members beside the booked pair — single-backslash gamma, Rightarrow and hat sequences in non-raw strings, rendering literally today and refusing to compile on future Python — while seven plain-text math sites (angle brackets, subscript digits, the implies arrow, two q-hat combining clusters) sat outside mathtext where neither YaHei nor SimHei carries their glyphs; and the orchestrator itself re-offended the banned channel while wiring the repair's factory check — ds package.json edited through a python heredoc, the b81#4 twin, content landing clean; the confirmation rebuilt both machine faces (the glyph check hardened to an exit-code gate, the escape face executed at -W error::SyntaxWarning through the new npm run diagrams script, every math segment audited glyph-by-glyph, a machine text-overlap detector driving all eighteen figures to zero collisions)",
+    source: { file: "memory/2026-09-09.md", heading: "关键经验（第九十一批" },
+    errors: [
+      {
+        wrong: "[orchestrator, the confirmation visit] the booked acceptance prose claimed the shipped diagram set 'self-checks to zero missing-glyph warnings and zero box overflows' while the same machine, on the same tree, emitted thirty-two distinct missing-glyph warning lines — the acceptance had read the wrong stream or the wrong pattern, and its green light became the mask: the claim shipped in the census right column and README prose alike, a statement about machine state that the machine itself contradicted",
+        right: "the generator's glyph check hardened from print-only to an exit-code gate (warnings caught and recorded, any Glyph message failing the run) and wired as npm run diagrams — acceptance claims are written against the machine's output, never against intent; every plain-text math site converted to mathtext whose DejaVu fonts carry the glyphs, and the README's two-self-check claim is machine-true for the first time",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[orchestrator, the confirmation visit] the escape-slip class shipped latent members beside the booked pair — a single-backslash gamma, a Rightarrow and a hat sequence in non-raw strings (invalid escapes kept literally today, SyntaxWarning on the running interpreter, SyntaxError on the future) — and seven plain-text math sites rendered through YaHei where neither it nor SimHei carries those glyphs: tofu boxes shipped inside four figures through a render no gate executed",
+        right: "an AST-level escape audit over every string literal (zero slips standing), the seven sites converted to mathtext (every glyph machine-verified against its font's charmap), and the render executed with -W error::SyntaxWarning — the escape face dies the day it lands and the glyph face at the generator's own exit-code gate; a repair's sweep is exhaustive over the class, never only the spots the crash named",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] ds package.json was edited through a python heredoc piped from the shell — wiring the very diagrams gate this batch installs, the banned channel's next canonical act on a repo manifest (the b81#4 twin); the JSON landed parseable and the script ran green on its first breath, but the channel rule has no clean-content exception",
+        right: "booked on the channel-act face with the twin's precedent held, every later edit of the visit through the Edit tool — the session that confirmed the heredoc family's twentieth sighting booked its twenty-first inside the confirmation itself; the irony is the record",
+        category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 92,
+    repo: "burial-record",
+    date: "2026-09-09",
+    context:
+      "the booking visit's own channel face and the drift it exposed — wiring the version bump through sed -i rewrote a DEPENDENCY's version line beside the intended slots (the @eslint/config-helpers entry carrying 0.8.0 against its own 0.7.0 resolved URL), caught on the diff before any install or gate consumed it and reverted in the same breath; and the pre-flight that followed found the lockfile's own top-level slots already drifting — visit eighty-two's 0.7.0 bump had left both slots at 0.6.0, the manifest-lock face shipped latent through a green total gate because the E3 needle quotes the lock's own digits and nothing asserted manifest against lock; both slots pinned to the live version, the needle repointed with them",
+    source: { file: "memory/2026-09-09.md", heading: "关键经验（第九十二批" },
+    errors: [
+      {
+        wrong: "[orchestrator self-report, this batch] package-lock.json version slots were synced through sed -i with a bare version-substitution — the pattern matched a dependency's version line as well as the intended slots, rewriting @eslint/config-helpers' 0.7.0 to 0.8.0 while its resolved URL still said 0.7.0 (a corrupted lock npm ci would have refused); caught on the diff before any consumer ran, reverted in the same breath",
+        right: "the collateral reverted and the real slots set through the Edit tool with the context lines visible — a version edit quotes its target's own context, never a bare digit pattern across a whole file (the anchors board's own lesson: a needle must quote its target's own digits, not a dependency's)",
+        category: "toolchain",
+      },
+      {
+        wrong: "[pre-flight conviction, found while wiring batch ninety-two] burial-record's package-lock.json carried 0.6.0 at BOTH top-level slots against package.json's 0.7.0 — visit eighty-two's version bump never reached the lock, the drift shipping latent through a green total gate (the census E3 needle quotes the lock's own digits, which still matched; no gate asserted manifest against lock)",
+        right: "both slots pinned to the live version with the bump and the census needle repointed to follow — the books-agree pattern the lockfile family already proved in its siblings (stable-world's T11, dtc-clock's permanent guard): the manifest and the lock's two slots are one number or the suite names the drift",
+        category: "citation-drift",
+      },
+    ],
+  },
+  {
+    batch: 93,
+    repo: "mutant-census",
+    date: "2026-09-09",
+    context:
+      "the registrar's own books caught by the same pre-flight — visit eighty-two's 0.32.0 bump left the census's package-lock.json at 0.31.0 in both top-level slots while the needle quoted the stale digits and stayed green; the repo that enrolled the version-pin family carried its own manifest-lock drift one version deep, found one batch after its sibling's",
+    source: { file: "memory/2026-09-09.md", heading: "关键经验（第九十三批" },
+    errors: [
+      {
+        wrong: "[pre-flight conviction, found while wiring batch ninety-three] mutant-census's own package-lock.json carried 0.31.0 at BOTH top-level slots against package.json's 0.32.0 — the repo that enrolled the lockfile face and pins every sibling's slots shipped its own drift one version deep, the E3 needle quoting the stale lock digits and convicting nothing",
+        right: "both slots pinned to the live version with the 0.33.0 bump and the needle repointed to follow it — the registrar's own books agree before it audits anyone else's",
+        category: "citation-drift",
       },
     ],
   },
