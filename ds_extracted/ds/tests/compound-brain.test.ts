@@ -587,7 +587,11 @@ describe('CompoundBrain · 在途台账积压可观测性', () => {
     assert.equal(backlog.count, 1, '未结算任务必须计入积压');
     assert.ok(backlog.oldestAgeMs >= 0, '滞留时长非负');
 
-    await new Promise((r) => setTimeout(r, 5));
+    // 睡眠余量必须远大于断言阈值：setTimeout 走 libuv 的粗粒度单调钟
+    // （Linux CLOCK_MONOTONIC_COARSE，粒度可达 4ms），墙钟上可提前 ~1ms
+    // 到期——5ms 睡眠配 >=5 断言在 ubuntu runner 上实测只攒到 4ms（CI
+    // 2026-09-09 连续两次），25ms 余量吞掉粒度与提前量后仍稳过阈值。
+    await new Promise((r) => setTimeout(r, 25));
     assert.ok(
       brain.getState().pendingBacklog.oldestAgeMs >= 5,
       '滞留时长随时间增长（观测时钟真实走动）',
