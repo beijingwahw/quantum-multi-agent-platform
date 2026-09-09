@@ -354,7 +354,7 @@ npm run format    # Prettier 统一格式
 python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，中文用微软雅黑）
 ```
 
-数据来源：`out/bench/bench-report.json`（`npm run bench` 产物）+ README/QUANTUM-SCHEDULING.md 公开实测数字；生成器自带两项机器自检（缺字警告零容忍、框内文本溢出零容忍），物理示意图（退火能级/Born/纤维）按公式解析绘制并在图题标注「示意」。
+数据来源：`out/bench/bench-report.json`（`npm run bench` 产物）+ README/QUANTUM-SCHEDULING.md 公开实测数字；生成器自带三项机器自检（缺字警告零容忍、框内文本溢出零容忍、文本/框碰撞与越界零容忍），物理示意图（退火能级/Born/纤维）按公式解析绘制并在图题标注「示意」。
 
 ---
 
