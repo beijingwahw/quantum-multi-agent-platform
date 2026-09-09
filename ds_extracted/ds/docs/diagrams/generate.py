@@ -250,9 +250,9 @@ def fig_subspace():
     for i, (f, s) in enumerate(zip(full, sub)):
         ax.text(i - 0.2, f * 1.6, f"2^{[30, 48, 63, 80][i]}", ha="center", fontsize=9, color=RED)
         ax.text(i + 0.2, s * 1.6, f"{s:,}", ha="center", fontsize=8.6, color=INDIGO, rotation=0)
-    ax.annotate("$2^{80}\\approx1.2\\times10^{24}$ 维\n≈ 10¹⁵ TB 内存（不可行）", xy=(3 - 0.2, full[3]), xytext=(1.35, 1e18),
+    ax.annotate("$2^{80}\\approx1.2\\times10^{24}$ 维\n≈ 10¹⁵ TB 内存（不可行）", xy=(3 - 0.2, full[3]), xytext=(1.6, 4e22),
                 fontsize=9.5, color=RED, arrowprops=dict(arrowstyle="->", color=RED))
-    ax.annotate("1,814,400 维 ≈ 150 MB\n42 秒端到端精确解（实测）", xy=(3 + 0.2, sub[3]), xytext=(2.1, 3e2),
+    ax.annotate("1,814,400 维 ≈ 150 MB\n42 秒端到端精确解（实测）", xy=(3 + 0.05, sub[3] * 0.45), xytext=(1.9, 4e8), ha="center",
                 fontsize=9.5, color=INDIGO, arrowprops=dict(arrowstyle="->", color=INDIGO))
     ax.legend(loc="upper left", frameon=False)
     ax.text(0.01, -0.16, "P(n,m) = n!/(n−m)!：每任务占一个不同 agent 的所有排列——「每行恰一个 1」的约束直接长在基上，罚项为零。",
@@ -376,6 +376,7 @@ def fig_born():
     labels = [f"$|x_{{{i}}}\\rangle$" for i in xs]
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11.8, 4.4), gridspec_kw={"width_ratios": [1, 1]})
     fig.suptitle("Born 规则坍缩：概率就是末态振幅的模方（12 基态玩具示例，示意）", fontsize=13.5, fontweight="bold")
+    fig.subplots_adjust(top=0.82)
 
     a1.bar(xs, amp, color=INDIGO, alpha=0.85)
     a1.set_xticks(xs, labels, fontsize=8.5)
@@ -401,15 +402,14 @@ def fig_ladder():
     dims = [720, 20160, 181440, 1814400]
     build = [4, 49, 575, 8700]
     anneal = [9, 296, 2900, 32600]
+    eq = [30, 48, 63, 80]
     x = np.arange(4)
     fig, ax = plt.subplots(figsize=(10.2, 5.8))
     ax.bar(x, dims, 0.5, color=INDIGO, alpha=0.9)
     ax.set_yscale("log")
-    ax.set_xticks(x, [f"{c}\n（{d:,} 维）" for c, d in zip(cases, dims)])
+    ax.set_xticks(x, [f"{c} · 等效 {e} qubit\n（{d:,} 维）" for c, d, e in zip(cases, dims, eq)])
     ax.set_ylabel("子空间维度（对数刻度）")
     ax.set_title("子空间规模阶梯：等效 30→80 量子比特，最优率全程 100%（实测）", fontsize=14, fontweight="bold", pad=12)
-    for i, d in enumerate(dims):
-        ax.text(i, d * 1.25, f"{d:,}", ha="center", fontsize=9, color=INDIGO)
     ax2 = ax.twinx()
     ax2.plot(x, build, "o-", color=AMBER, lw=2, ms=6, label="构建时间")
     ax2.plot(x, anneal, "s-", color=CYAN, lw=2, ms=6, label="退火时间")
@@ -417,11 +417,10 @@ def fig_ladder():
     ax2.set_ylabel("时间（ms，对数刻度）")
     ax2.grid(False)
     for i, (b, an) in enumerate(zip(build, anneal)):
-        ax2.text(i + 0.06, b * 1.3, f"{b}ms" if b < 1000 else f"{b / 1000:g}s", fontsize=8.6, color=AMBER)
-        ax2.text(i + 0.06, an * 1.3, f"{an}ms" if an < 1000 else f"{an / 1000:g}s", fontsize=8.6, color=CYAN)
-    eq = [30, 48, 63, 80]
-    for i, e in enumerate(eq):
-        ax.text(i, dims[i] * 0.45, f"等效 {e} qubit", ha="center", fontsize=8.6, color="white", fontweight="bold")
+        ax2.text(i + 0.06, b * 1.3, f"{b}ms" if b < 1000 else f"{b / 1000:g}s", fontsize=8.6, color=AMBER,
+                 bbox=dict(fc="white", alpha=0.8, ec="none", pad=1.2))
+        ax2.text(i + 0.06, an * 1.3, f"{an}ms" if an < 1000 else f"{an / 1000:g}s", fontsize=8.6, color=CYAN,
+                 bbox=dict(fc="white", alpha=0.8, ec="none", pad=1.2))
     h1, l1 = ax2.get_legend_handles_labels()
     ax2.legend(h1, l1, loc="upper left", frameon=False)
     ax.text(0.01, -0.22, "贪心差距 14.1% / 16.5% / 5.2% / 6.7%；退火最优率四档全部 100.0%（穷举裁判）。时间口径：同机同状态实测，绝对值随热状态浮动。",
@@ -445,10 +444,12 @@ def fig_linear():
         hits = sum(1 for r in lin if r["solver"] == solver and r["hit"])
         ax.plot([lo, hi], [lo, hi], color=GRID, lw=1.2, ls="--", zorder=1)
         ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=46, color=color, alpha=0.85, zorder=3, edgecolor="white", lw=0.6)
+        ax.margins(0.05)
         ax.set_title(f"{label} — {hits}/25 命中最优", fontsize=11.5)
         ax.set_xlabel("穷举枚举最优福利（裁判）")
         ax.set_aspect("equal")
     axes[0].set_ylabel("求解器福利")
+    fig.subplots_adjust(bottom=0.17)
     fig.text(0.5, 0.015, "数据：out/bench/bench-report.json（npm run bench 一键重建，公开种子）；两种独立算法落在同一条对角线上。",
              ha="center", fontsize=9, color=GRAY)
     save(fig, "10-bench-linear.png")
@@ -511,7 +512,7 @@ def fig_parallel():
     for b, t, mm in zip(bars, times, mult):
         ax.text(b.get_x() + b.get_width() / 2, t * 1.18, f"{t}s" + (f"  ({mm})" if mm != 1 else ""), ha="center",
                 fontsize=11, fontweight="bold", color=DEEP)
-    ax.text(0.5, 0.06, "并行＝确定性：worker_threads + SharedArrayBuffer + Atomics 屏障，每条纤维完整归属单线程，"
+    ax.text(0.5, -0.26, "并行＝确定性：worker_threads + SharedArrayBuffer + Atomics 屏障，每条纤维完整归属单线程，"
                        "与串行路径共享同一份内核源码——结果逐位一致（测试逐位断言钉死）",
             transform=ax.transAxes, ha="center", fontsize=9.3, color=GRAY,
             bbox=dict(boxstyle="round,pad=0.45", fc=LIGHT2, ec=GRID))
@@ -666,6 +667,7 @@ def fig_hotpath():
     colors = [GRAY, INDIGO, CYAN, AMBER]
     bars = ax.bar(names, vals, 0.52, color=colors, alpha=0.92)
     ax.set_yscale("log")
+    ax.set_ylim(1e3, 3e6)
     ax.set_ylabel("吞吐（ops/s · msgs/s，对数刻度）")
     ax.set_title("平台热路径性能（经典 hybrid 模式，npm run performance 一键复现）", fontsize=13.5, fontweight="bold", pad=12)
     for b, v, m in zip(bars, vals, mult):
@@ -697,8 +699,8 @@ def fig_timeline():
     for x, v, desc, side in marks:
         ax.add_patch(Circle((x, 5), 0.14, fc=INDIGO, ec="white", lw=1.5, zorder=4))
         y = 6.3 if side > 0 else 2.5
-        ax.plot([x, x], [5, y - 0.65 if side > 0 else y + 1.35], color=GRID, lw=1.1, zorder=2)
-        ax.text(x, y + 0.75 if side > 0 else y + 1.25, v, ha="center", fontsize=10.5, fontweight="bold", color=INDIGO)
+        ax.plot([x, x], [5, y - 0.65 if side > 0 else y + 1.75], color=GRID, lw=1.1, zorder=2)
+        ax.text(x, y + 0.75 if side > 0 else y + 1.6, v, ha="center", fontsize=10.5, fontweight="bold", color=INDIGO)
         ax.text(x, y - 0.15 if side > 0 else y, desc, ha="center", fontsize=8.2, color=DEEP, va="top" if side > 0 else "bottom", linespacing=1.5)
     save(fig, "18-timeline.png")
 
