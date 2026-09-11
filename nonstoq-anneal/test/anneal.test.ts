@@ -144,3 +144,36 @@ test("signRatio: uniform state gives 1; partially negative state gives < 1", () 
   sv.re[3] = -sv.re[3]!;
   assert.ok(sv.signRatio() < 1);
 });
+
+test("determinism: same inputs give bit-identical engine results on re-run (no hidden RNG state)", () => {
+  // R7 钉死：SSE 采样器已有同种子重跑测试；这里把引擎其余三族内核
+  // （虚时投影 / 实时退火 / DMRG）一并钉住——任何意外的全局随机源或
+  // 未播种状态都会在这里现形（逐位相等，不是容差比较）。
+  const model = randomIsing(new Rng(77), 8);
+  const E = energies(model);
+  const optimum = bruteForce(E).optimum;
+  const driver: DriverSpec = {
+    gamma: 1,
+    couplings: model.couplings.map((c) => ({ j: c.j, k: c.k, w: 0.5 })),
+  };
+  const xE = xBasisEnergies(8, driver);
+
+  const runProjection = () => projectGroundState(8, E, xE, 0.5, { dtau: 0.06, maxSteps: 500, tolerance: 1e-10 });
+  const a = runProjection();
+  const b = runProjection();
+  assert.equal(b.steps, a.steps);
+  assert.equal(b.energy, a.energy, "projection energy must be bit-identical");
+  assert.equal(b.signRatio, a.signRatio);
+  assert.deepEqual(Array.from(b.state.re), Array.from(a.state.re), "state vector must be bit-identical");
+
+  const runAnneal = () => anneal(model, E, optimum, driver, { time: 4, slices: 60 });
+  const r1 = runAnneal();
+  const r2 = runAnneal();
+  assert.equal(r2.successProbability, r1.successProbability, "anneal success must be bit-identical");
+  assert.equal(r2.meanEnergy, r1.meanEnergy);
+
+  // 合法近邻：换种子（投影初态种子化）确实改变初态——对照证明上面的
+  // 相等不是"两次调用都返回同一缓存"类假象
+  const c = projectGroundState(8, E, xE, 0.5, { dtau: 0.06, maxSteps: 500, tolerance: 1e-10, seed: 0x1234 });
+  assert.notEqual(c.energy, a.energy, "a different projection seed must give a different trajectory");
+});

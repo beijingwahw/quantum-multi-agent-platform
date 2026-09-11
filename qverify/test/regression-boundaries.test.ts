@@ -14,13 +14,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { makeRng, meanStdErr } from '../src/core/rng.js';
-import { sampleIndex, applyLocalVec, randomCircuit, circuitProbs } from '../src/core/gates.js';
+import { sampleIndex, applyLocalVec, randomCircuit, circuitProbs, type RandomCircuit } from '../src/core/gates.js';
 import { vKron, type CMat, type CVec, mat, identity } from '../src/core/cmat.js';
 import { vKronAll, fromVec, equatorial, KET0 } from '../src/core/states.js';
 import { applyKraus } from '../src/core/channels.js';
 import { marginals, cutSpoofDist, xebMC } from '../src/protocol/xeb.js';
 import { windowSweep } from '../src/protocol/selftest.js';
 import { fidelityShotValue, type PauliBasis } from '../src/protocol/shadows.js';
+import { mirrorReturnProb } from '../src/protocol/mirror.js';
 import { runIfMain } from '../src/experiments/report.js';
 
 // ---------------- smuggling: degenerate inputs are named refusals ----------------
@@ -240,4 +241,33 @@ test('regression: xebMC still reproduces the exact depolarized identity', () => 
   for (const p of probs) s += p * p;
   const closed = probs.length * s - 1;
   assert.ok(Math.abs(mc.mean - closed) < 5 * mc.stdErr, `mean=${mc.mean} closed=${closed}`);
+});
+
+// ---------------- the 2026-09-12 R7 wave ----------------
+
+test('regression: mirror refuses a unitary-less u1 op by the SAME code as runCircuitVec (was: bare twin)', () => {
+  // applyOpRho's guard was the one uncoded protocol-layer throw after the
+  // QV_ sweep — runCircuitVec refuses the identical contract by name
+  const unguarded: RandomCircuit = { n: 1, layers: [[{ kind: 'u1', qubits: [0] }]], ops: [{ kind: 'u1', qubits: [0] }] };
+  assert.throws(() => mirrorReturnProb(unguarded, 0), /QV_OP_NO_UNITARY/);
+  // the legal neighbor: with the unitary attached the mirror runs and its
+  // noiseless lambda = 0 return probability is exactly 1
+  const guarded: RandomCircuit = { n: 1, layers: [[{ kind: 'u1', qubits: [0], u: identity(2) }]], ops: [] };
+  assert.ok(Math.abs(mirrorReturnProb(guarded, 0) - 1) < 1e-12);
+});
+
+test('regression: importing run-all renders nothing (was: bare module-level main())', async () => {
+  // run-all used to call main() at module level — importing it rendered all
+  // five experiment reports as a side effect; it now carries the house guard
+  const { resolve } = await import('node:path');
+  const { readdirSync, statSync } = await import('node:fs');
+  const outDir = resolve(process.cwd(), 'out');
+  const before = readdirSync(outDir).sort();
+  assert.ok(before.length >= 5, 'committed reports present before the import');
+  const mtimes = new Map(before.map((f) => [f, statSync(resolve(outDir, f)).mtimeMs]));
+  await import('../src/experiments/run-all.js');
+  assert.deepEqual(readdirSync(outDir).sort(), before, 'import must not add or remove reports');
+  for (const f of before) {
+    assert.equal(statSync(resolve(outDir, f)).mtimeMs, mtimes.get(f), `${f} was rewritten by a mere import`);
+  }
 });

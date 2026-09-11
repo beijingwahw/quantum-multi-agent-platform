@@ -87,3 +87,17 @@ test('regression: runIfMain fires only on an exact process.argv[1] hit', () => {
   });
   assert.equal(calls, 1);
 });
+
+test('regression: importing run-all spawns nothing (was: module-level child-process repro chain)', async () => {
+  // R7: run-all used to execFileSync all seven experiments at module level —
+  // importing it (a test, a tool) ran the full repro as a side effect. The
+  // chain now lives in main() behind the same runIfMain guard; importing the
+  // module must return without spawning a single child process.
+  const t0 = Date.now();
+  await import('../src/experiments/run-all.js');
+  const elapsed = Date.now() - t0;
+  // the full repro takes tens of seconds; a bare import is a module
+  // registration only. Generous ceiling, tight enough to catch one spawned
+  // experiment (each takes > 1s).
+  assert.ok(elapsed < 1000, `import took ${elapsed}ms — did the repro chain fire?`);
+});

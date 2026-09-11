@@ -63,6 +63,14 @@ describe("T1 the model holds", () => {
   it("all nine witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
   });
+
+  it("the witnesses re-run byte-identically: same seeds, same digits, detail strings included", () => {
+    // every MC draw in the witnesses comes from a fixed makeRng seed, so the
+    // full re-derivation (pass flags AND the measured digits inside detail)
+    // must be a pure function of nothing — pin that, or a silent
+    // generation-order change would move swept digits with no suite failure
+    assert.deepEqual(JSON.stringify(runWitnesses()), JSON.stringify(runWitnesses()));
+  });
 });
 
 describe("T2 the language machinery", () => {

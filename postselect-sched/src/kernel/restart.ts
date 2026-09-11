@@ -376,6 +376,10 @@ export function geometricDist(H: number, r: number): number[] {
 /** power-law tail Pr[T=u] proportional to u^(-alpha) on {1..H} */
 export function powerLawDist(H: number, alpha: number): number[] {
   if (!Number.isInteger(H) || H < 1) throw new KernelError("BAD-HORIZON", `powerLawDist: H must be an integer >= 1 (got ${H})`);
+  // a non-finite exponent poisons every cell into NaN and the normalization
+  // never notices (NaN/s = NaN) — the same silent-table class geometricDist
+  // refuses by name at its rate
+  if (!Number.isFinite(alpha)) throw new KernelError("BAD-EXPONENT", `powerLawDist: alpha must be finite (got ${alpha}) — a NaN/Infinite exponent silently builds the all-NaN table`);
   const p = new Array<number>(H + 1).fill(0);
   let s = 0;
   for (let u = 1; u <= H; u++) {

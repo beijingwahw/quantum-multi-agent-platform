@@ -1,6 +1,10 @@
-/** v0.2.0 lifetime scratch — numbers first. */
+/** v0.2.0 lifetime scratch — numbers first. Entry-guarded (the render.ts
+ * shape): importing executes nothing, only `tsx src/experiments/scratch-life.ts`
+ * runs (the batch-21/33 house law, retrofitted with the scratch.ts fix). */
+import { pathToFileURL } from "node:url";
 import { chainLifetimeCensus, heatingRelaxation, isolatedEchoLifetime } from "../kernel/beat.js";
 
+function main(): void {
 // TC18: the isolated closed form vs direct simulation
 for (const d of [0.1, 0.2, 0.3]) {
   const tau = isolatedEchoLifetime(d, 0.5);
@@ -32,4 +36,9 @@ for (const d of [0.1, 0.2, 0.4]) {
   console.log(
     `TC20 δ=${d}: τ_heat ${r.tauHeat < 0 ? ">" + 1500 : r.tauHeat}, drift ${r.totalDrift.toFixed(3)} (E₀ ${r.e0.toFixed(2)} → E∞ ${r.eInf.toFixed(2)})`,
   );
+}
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
 }

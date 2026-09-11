@@ -4,6 +4,7 @@ import { mat, mAdd } from "../src/core/cmat.js";
 import { applyKraus, filterBasisDigit } from "../src/core/channels.js";
 import { traceDistance } from "../src/core/measures.js";
 import { maximallyMixed } from "../src/core/states.js";
+import { makeRng } from "../src/core/rng.js";
 import {
   concurrence,
   eF,
@@ -127,6 +128,32 @@ describe("regression: named refusals on degenerate and out-of-domain input (no s
     for (let k = 0; k < out.re.length; k++) {
       assert.strictEqual(out.re[k]!, two.re[k]!);
       assert.strictEqual(out.im[k]!, 0);
+    }
+  });
+
+  it("rng.int refuses a degenerate domain by name, before any draw (the missed mulberry32 sibling)", () => {
+    // convicted: this lineage's int carried no domain guard while every
+    // audited sibling (qverify/quantum-mech/k-switch/qram-sched/ft-qaoa/
+    // nonstoq-anneal) refuses by name — int(2.5) drew 0/1/2 at 40/40/20 and
+    // int(0)/int(-1)/int(Infinity) silently returned impossible indices
+    for (const bad of [0, -1, 2.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+      assert.throws(() => makeRng(9).int(bad), /EC_INT_RANGE/);
+    }
+    // the refusal sits BEFORE any draw: a refused call leaves the stream
+    // untouched, so the next legal draw equals a fresh seed's first draw
+    const refused = makeRng(9);
+    assert.throws(() => refused.int(0), /EC_INT_RANGE/);
+    const fresh = makeRng(9);
+    assert.equal(refused(), fresh());
+    // legal neighbor pin: int(n) still consumes exactly one draw and lands in
+    // range — the floor of the same stream a bare next() would produce
+    const r = makeRng(42);
+    const draws: number[] = [r(), r(), r()];
+    const r2 = makeRng(42);
+    for (const u of draws) {
+      const k = r2.int(1000);
+      assert.equal(k, Math.floor(u * 1000));
+      assert.ok(k >= 0 && k < 1000);
     }
   });
 });

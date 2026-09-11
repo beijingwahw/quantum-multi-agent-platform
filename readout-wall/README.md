@@ -38,6 +38,6 @@ The χ values are binary-ensemble Holevo quantities (capacity lower bounds, the 
 
 ```bash
 npm ci
-npm test        # 31/31 — checker, six witnesses, collapse machinery, theorem certificates, smuggling trials, entry guard, refusal codes, single-source interchange + linalg exact anchors
+npm test        # 43/43 — checker, six witnesses, collapse machinery, theorem certificates, smuggling trials, entry guard, refusal codes, single-source interchange + linalg exact anchors, same-seed determinism
 npm run repro   # renders out/reports/the-readout-wall.md (seconds)
 ```

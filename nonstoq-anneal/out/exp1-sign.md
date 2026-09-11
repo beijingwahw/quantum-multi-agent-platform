@@ -1,6 +1,6 @@
 # Experiment 1 — Sign-structure barrier of non-stoquastic drivers
 
-Ground state of H(s) = s·C + (1−s)·H_D at s=0.5, imaginary-time projection.
+Ground state of H(s) = (1−s)·H_D − s·C at s=0.5 (H_P := −C), imaginary-time projection.
 P = Σψ/Σ|ψ|: 1 for every stoquastic ground state (Perron-Frobenius);
 P < 1 certifies the sign structure that worldline samplers pay for exponentially.
 Regenerate with `npm run exp:sign`.

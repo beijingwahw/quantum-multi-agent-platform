@@ -4,7 +4,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { LEDGER, LEGAL_VERDICTS, type LedgerRow } from "../src/kernel/ledger.js";
-import { booksCost, checkLedger, quotesNumbers, readPackageScripts, runWitnesses } from "../src/kernel/audit.js";
+import { booksCost, checkLedger, quotesNumbers, readPackageScripts, runWitnesses, type Violation, type WitnessResult } from "../src/kernel/audit.js";
+import { assertBalances, IllegalLedgerError } from "../src/experiments/render.js";
 
 test("L-all: the ledger balances — every law holds on all 17 rows", () => {
   const v = checkLedger();
@@ -185,4 +186,40 @@ test("single source: the verdict vocabulary is ONE list, and the five-witness pr
     witnesses.map((w) => w.name.slice(0, 3)),
     ["W-A", "W-B", "W-C", "W-D", "W-E"],
   );
+});
+
+test("the renderer's refusal is thrown BY NAME — IllegalLedgerError carries the conviction lines", () => {
+  // where v0.2.x threw an anonymous Error, the sibling renderers of this
+  // family (binding-price's MARKET-REJECTED, burial-record's
+  // IllegalRegistryError) refuse by name — a caller must be able to convict
+  // the rejection without parsing prose
+  const violations: Violation[] = [
+    { claimId: "#99", law: "L1", detail: "quotes numbers without booking a cost" },
+  ];
+  assert.throws(
+    () => {
+      assertBalances(violations, []);
+    },
+    (err: unknown) => err instanceof IllegalLedgerError && err.name === "IllegalLedgerError" && /#99 \[L1\]/.test(err.message),
+    "an illegal ledger is refused by the named error naming the law, not an anonymous one",
+  );
+  const failingWitness: WitnessResult = { name: "W-D Grover E* at (256,1) ~ 11.619", pass: false, detail: "recomputed 12.5000" };
+  assert.throws(
+    () => {
+      assertBalances([], [failingWitness]);
+    },
+    (err: unknown) => err instanceof IllegalLedgerError && /W-D/.test(err.message),
+    "a failing witness is named on the same refusal",
+  );
+  // the clean book is the gate's silence (the legal neighbor)
+  assert.doesNotThrow(() => {
+    assertBalances(checkLedger(), runWitnesses());
+  });
+});
+
+test("re-run determinism: the checker and the witnesses reproduce byte-identically", () => {
+  // every witness is seeded/fixed arithmetic, so both the violation list and
+  // the full witness detail strings must be pure functions of nothing
+  assert.deepEqual(JSON.stringify(checkLedger()), JSON.stringify(checkLedger()));
+  assert.deepEqual(JSON.stringify(runWitnesses()), JSON.stringify(runWitnesses()));
 });

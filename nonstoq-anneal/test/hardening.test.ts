@@ -1,5 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { Rng } from "../src/core/rng.js";
 import { maxcut3Reg } from "../src/core/ising.js";
 import { NonstoqError } from "../src/core/errors.js";
@@ -295,4 +297,30 @@ test("zeroSpectrum: all-zero table of length 2^n, valid in the Z slot of the eng
   const proj = projectGroundState(2, zeroSpectrum(2), xE, 0);
   assert.ok(proj.converged);
   assert.ok(Math.abs(proj.energy - -2) < 1e-9, `E0 = ${proj.energy}`);
+});
+
+// ---------------------------------------------------------------------------
+// 错误税类守护：README 声称"全部 throw 具名错误码"——静态扫描钉死该声称。
+// exp4 的两个渲染层 throw 曾是裸 Error（2026-09-12 R7 抓获）：内部不变量
+// 破坏也走 NonstoqError（ReportRowMissing），走私审判才能按 code 定罪。
+// ---------------------------------------------------------------------------
+
+test("taxonomy guard: every throw site in src/ constructs a NonstoqError (no bare Error/TypeError)", () => {
+  const srcDir = join(process.cwd(), "src");
+  const offenders: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".ts")) {
+        const text = readFileSync(full, "utf8");
+        const noComments = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "");
+        for (const m of noComments.matchAll(/throw\s+new\s+([A-Za-z_$][\w$]*)/g)) {
+          if (m[1] !== "NonstoqError") offenders.push(`${relative(process.cwd(), full)}: throw new ${m[1]}`);
+        }
+      }
+    }
+  };
+  walk(srcDir);
+  assert.deepEqual(offenders, [], `README claims 全部 throw 具名错误码; bare throw sites:\n${offenders.join("\n")}`);
 });

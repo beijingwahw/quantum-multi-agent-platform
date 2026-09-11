@@ -107,3 +107,25 @@ describe("realization referee (DATA — never a theorem claim)", () => {
     assert.ok(mc.worstSurvivorSigma < 5, `survivor ${mc.worstSurvivorSigma} sigma`);
   });
 });
+
+describe("determinism — one seed, one machine (reruns are bit-identical)", () => {
+  it("two Rng instances from one seed draw identical streams", () => {
+    const a = new Rng(20260906);
+    const b = new Rng(20260906);
+    for (let i = 0; i < 1000; i++) assert.equal(a.next(), b.next(), `draw ${i} diverged`);
+  });
+
+  it("the seeded referee reproduces itself exactly (same seed, same numbers)", () => {
+    const counts = [1, 2, 3, 4, 0, 2, 1, 5];
+    const marked = [1, 3];
+    const r1 = realizationCheck(3, counts, marked, 20260906, 400);
+    const r2 = realizationCheck(3, counts, marked, 20260906, 400);
+    assert.equal(r1.waitingSigma, r2.waitingSigma);
+    assert.equal(r1.worstSurvivorSigma, r2.worstSurvivorSigma);
+    assert.equal(r1.trials, r2.trials);
+    // legal neighbor: a different seed stays a legal finite referee (the pin
+    // is same-seed identity, not cross-seed equality)
+    const r3 = realizationCheck(3, counts, marked, 20260907, 400);
+    assert.ok(Number.isFinite(r3.waitingSigma));
+  });
+});

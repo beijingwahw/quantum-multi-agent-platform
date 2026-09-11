@@ -27,7 +27,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { adversarialRun, etcRun } from "../src/bandit/classical.js";
-import { groverFindBetter } from "../src/online/grover.js";
+import { quantumReplayRun } from "../src/bandit/quantum.js";
+import { durHoyerFindBest, groverFindBetter } from "../src/online/grover.js";
 import { rankingMatch, randomInstance } from "../src/online/matching.js";
 import { Rng } from "../src/core/rng.js";
 import { BucketBrigadeQram } from "../src/qram/bucket.js";
@@ -133,4 +134,43 @@ test("regression: BucketBrigadeQram.write refuses fractional addresses (was: sil
   qram.write(1, 0.9);
   assert.equal(qram.cells[1], 0.9);
   assert.equal(qram.totalActivations, 2); // one write = n routing-node activations
+});
+
+// ---------------- the 2026-09-12 R7 wave ----------------
+
+test("regression: importing run-all neither wipes nor renders out/reports (was: module-level rmSync + render chain)", async () => {
+  // run-all used to delete out/reports and render all six experiments at
+  // module level — any import of it (a test, a future tool) destroyed the
+  // committed reports as a side effect. The aggregator now carries the same
+  // runIfMain guard as its targets.
+  const { reportDir } = await import("../src/experiments/report.js");
+  const { readdirSync, statSync } = await import("node:fs");
+  const before = readdirSync(reportDir).sort();
+  assert.ok(before.includes("exp1-qram.md") && before.includes("exp6-kvv.md"), "committed reports present before the import");
+  const mtimes = new Map(before.map((f) => [f, statSync(`${reportDir}/${f}`).mtimeMs]));
+  await import("../src/experiments/run-all.js");
+  const after = readdirSync(reportDir).sort();
+  assert.deepEqual(after, before, "import must not add or remove reports");
+  for (const f of after) {
+    assert.equal(statSync(`${reportDir}/${f}`).mtimeMs, mtimes.get(f), `${f} was rewritten by a mere import`);
+  }
+});
+
+test("determinism: the seeded scheduler pipelines re-run byte-identically (JSON-exact)", () => {
+  // every reported number draws from the seeded Rng — the same call twice
+  // must serialize identically (an unseeded Math.random or shared mutable
+  // stream state anywhere in the pipeline breaks this parity)
+  const runTwice = (): string =>
+    JSON.stringify([
+      quantumReplayRun([0.55, 0.45, 0.3], 400, 21),
+      rankingMatch(randomInstance(12, 12, 0.25, new Rng(33)), new Rng(9), "grover"),
+      durHoyerFindBest(Array.from({ length: 32 }, (_, i) => (i * 7919) % 101), (x, y) => x < y, new Rng(4)),
+    ]);
+  assert.equal(runTwice(), runTwice());
+  // the negative control: a different seed must move the stream (close means
+  // make the query ledger measurement-sensitive — seeds 1 and 2 diverge)
+  assert.notEqual(
+    JSON.stringify(quantumReplayRun([0.5, 0.495], 4000, 1)),
+    JSON.stringify(quantumReplayRun([0.5, 0.495], 4000, 2)),
+  );
 });

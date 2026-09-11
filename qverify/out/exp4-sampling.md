@@ -60,11 +60,11 @@ Depolarized MC (200k shots each):
 
 | n | layers | ms |
 | --- | --- | --- |
-| 8 | 8 | 0.6 |
-| 10 | 10 | 1.3 |
-| 12 | 12 | 6.4 |
-| 14 | 14 | 28.1 |
-| 16 | 16 | 160.7 |
+| 8 | 8 | 0.7 |
+| 10 | 10 | 1.1 |
+| 12 | 12 | 5.4 |
+| 14 | 14 | 28.8 |
+| 16 | 16 | 156.0 |
 
 Doubling per qubit — XEB verification requires computing p_ideal(x) per sample:
 the verifier pays the classical simulation cost. Extrapolated: n=40 would need

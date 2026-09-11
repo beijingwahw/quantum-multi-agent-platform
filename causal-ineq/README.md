@@ -90,7 +90,7 @@ trial has teeth.
 
 ```
 npm install
-npm test        # 19/19
+npm test        # 22/22
 npm run repro   # ~20 s — rebuilds all five reports (exp4's sweep dominates)
 ```
 

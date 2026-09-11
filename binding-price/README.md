@@ -39,6 +39,6 @@ The market layer prices the HJW-style commitment family at the qubit level; quan
 
 ```bash
 npm ci
-npm test        # 44/44
+npm test        # 45/45
 npm run repro   # renders out/reports/the-binding-price.md (seconds)
 ```

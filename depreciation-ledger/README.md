@@ -49,7 +49,7 @@ and law.
 
 ```
 npm ci
-npm test          # 12/12
+npm test          # 14/14
 npm run repro     # renders out/reports/the-ledger.md, or throws
 ```
 
@@ -59,7 +59,7 @@ npm run repro     # renders out/reports/the-ledger.md, or throws
    re-derive only the headline closed forms. Full proofs live in the appeal
    repos named on each row.
 2. Verdict tags mirror the bqp-map atlas; pairing of row↔verdict is enforced
-   by the atlas's own discipline checker (43/43), not re-derived here.
+   by the atlas's own discipline checker (29/29 entries), not re-derived here.
 3. This ledger makes no new physics claims and cites no new literature — it
    is the accounting layer over the correspondence's existing, already
    verified claims.

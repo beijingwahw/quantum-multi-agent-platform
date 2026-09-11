@@ -171,7 +171,7 @@ Nothing above is reproduced or adopted as method: this repo proves only what it 
 ## Witnesses
 
 - **W-A**: PASS — envelope switch deviation 0 (exactly 0) over 2 sizes x 13 λ points
-- **W-B**: PASS — accord 6x8 λ=0.35: greedy 2/5, LS 2/5, SA 3/5 — the bench's exact numbers (2/2/3)
+- **W-B**: PASS — accord 6x8 λ=0.35: greedy 2/5, LS 2/5, SA 3/5 — the bench's exact numbers (2/2/3); optima re-scored 5/5 against the independent scorer and the enumeration maximum
 - **W-C**: PASS — global optimum a local optimum at λ=0 and λ=1.5 (both sizes): true; basin halves or worse by λ=1.5: true
 - **W-D**: PASS — LS λ-flat true (0.60→0.70 at 3×5), LS matching-fragile true (0.60→0.40), SA coupling-fragile true (0.90→0.60 at 6×8)
 - **W-F**: PASS — 2x6 closed form vs sweep: 3 finite thresholds, worst dev 0.0010 (≤ one 0.001 grid step); SA crossings at 20 seeds coarse rerun monotone in size: 1.25 → 1.25 → 0.75

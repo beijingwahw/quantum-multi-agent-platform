@@ -19,7 +19,7 @@ Quantum 9, 1922 (2025))的插入成本/机会成本论证是 EXP1-D 计量普查
 
 ```bash
 npm install          # dev deps only (tsx, typescript); runtime is zero-dependency
-npm test             # 59/59 referee tests (incl. three 走私审判 smuggling trials)
+npm test             # 67/67 referee tests (incl. three 走私审判 smuggling trials)
 npm run repro        # rebuild all six experiment reports (~30s) into out/reports/
 ```
 
@@ -75,7 +75,7 @@ Montanaro arXiv:1504.06987。经典下界: Lai-Robbins 1985;Auer et al. SICOMP 3
 src/core/     seeded RNG, LU, Jacobi            src/walk/    Szegedy 行走 + 经典命中裁判
 src/qram/     bucket-brigade 模型 + 振幅编码流   src/bandit/  UCB1/ETC/Exp3 + 量子重放调度器
 src/ae/       精确 QPE 振幅估计 + 全空间 Grover  src/online/  Dürr-Høyer 搜索 + 在线匹配 + KVV 紧实例
-src/experiments/  exp1..exp6 + run-all          test/        59 项裁判测试(含三场走私审判)
+src/experiments/  exp1..exp6 + run-all          test/        67 项裁判测试(含三场走私审判)
 ```
 
 MIT。

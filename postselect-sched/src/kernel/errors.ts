@@ -32,6 +32,7 @@ export const ERROR_CODES = [
   "BAD-ROUND-PROBABILITY",
   "BAD-HORIZON",
   "BAD-RATE",
+  "BAD-EXPONENT",
   "BAD-MARKED-COUNT",
   // ledger face
   "BAD-VAR-COUNT",

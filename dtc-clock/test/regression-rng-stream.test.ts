@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { makeRng } from "../src/core/rng.js";
+import { randomClockCensus } from "../src/kernel/clock.js";
+import { DEMO_CIRCUIT } from "../src/kernel/audit.js";
 
 /**
  * Regression: the v0.21.1 rng dead-member sweep (int/normal/pick removed,
@@ -25,5 +27,18 @@ describe("regression: the makeRng stream is bit-stable across the dead-member sw
     const r1 = makeRng(20260906);
     const r2 = makeRng(20260906);
     for (let k = 0; k < 64; k++) assert.equal(r1(), r2());
+  });
+
+  it("same seed, same census: a seeded census re-runs byte-identically (the repro contract at the pipeline level)", () => {
+    // the rng anchor above pins the stream primitive; this pins the WHOLE
+    // seeded pipeline — the census every witness and render consumes must be
+    // bit-identical across independent runs, not merely statistically close
+    const runA = randomClockCensus(makeRng(31), 4, DEMO_CIRCUIT, 3, 3);
+    const runB = randomClockCensus(makeRng(31), 4, DEMO_CIRCUIT, 3, 3);
+    assert.equal(JSON.stringify(runA), JSON.stringify(runB));
+    // the legal neighbor: a DIFFERENT seed must produce a different census —
+    // the equality above is content, not a constant-returning stub
+    const runC = randomClockCensus(makeRng(32), 4, DEMO_CIRCUIT, 3, 3);
+    assert.notEqual(JSON.stringify(runA), JSON.stringify(runC));
   });
 });

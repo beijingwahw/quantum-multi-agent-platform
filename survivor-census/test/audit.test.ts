@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { auditCensus } from "../src/kernel/audit.js";
 import type { Census, CensusRow } from "../src/kernel/audit.js";
 import { renderReport } from "../src/experiments/report.js";
@@ -128,5 +128,20 @@ describe("the repro entry point", () => {
       stdio: "pipe",
     });
     assert.ok(existsSync(outFile));
+  });
+
+  it("the entry guard survives argv[1] === undefined (no `as string` hiding the shape)", () => {
+    // regression (R7): the guard used to read pathToFileURL(process.argv[1] as string)
+    // — the cast silenced the string | undefined boundary, and an import under
+    // a scriptless invocation (`node -e`, REPL, stdin) crashed at IMPORT with
+    // ERR_INVALID_ARG_TYPE instead of falling through to "not the entry".
+    // The house form (?? "") matches every sibling repo's guard.
+    const target = pathToFileURL(resolve(here, "..", "src", "experiments", "render.ts")).href;
+    const out = execFileSync(
+      "node",
+      ["--import", "tsx", "-e", `await import(${JSON.stringify(target)}); console.log("IMPORT-OK");`],
+      { cwd: join(here, ".."), stdio: "pipe", encoding: "utf8" },
+    );
+    assert.match(out, /IMPORT-OK/);
   });
 });

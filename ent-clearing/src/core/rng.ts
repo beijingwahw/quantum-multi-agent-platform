@@ -18,7 +18,17 @@ export function makeRng(seed: number): Rng {
   };
   let spare: number | null = null;
   const rng: Rng = Object.assign(next, {
-    int: (maxExclusive: number): number => Math.floor(next() * maxExclusive),
+    int: (maxExclusive: number): number => {
+      // refuse BEFORE any draw so legal seeded streams stay bit-identical —
+      // the same domain guard every guarded mulberry32 lineage carries
+      // (qverify/quantum-mech/k-switch/qram-sched/ft-qaoa/nonstoq-anneal):
+      // int(2.5) draws 0/1/2 at 40/40/20 and 0/negative/Infinity return
+      // impossible indices silently
+      if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
+        throw new Error(`EC_INT_RANGE: rng.int(maxExclusive) draws uniformly from [0, maxExclusive): integer >= 1 required, got ${maxExclusive}`);
+      }
+      return Math.floor(next() * maxExclusive);
+    },
     normal: (): number => {
       if (spare !== null) {
         const v = spare;

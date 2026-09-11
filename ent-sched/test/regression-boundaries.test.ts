@@ -17,6 +17,7 @@ import { runSim, type NetSpec, type Policy, type RequestSpec } from "../src/net/
 import { purify2to1 } from "../src/physics/ops.js";
 import { bellVec, werner } from "../src/physics/bell.js";
 import { isCodedError } from "../src/core/errors.js";
+import { Rng } from "../src/core/rng.js";
 
 const net: NetSpec = {
   nodes: ["A", "B"],
@@ -65,5 +66,51 @@ describe("regression: purify2to1 rejects the p > 1 face of unphysical inputs", (
     const { p, out } = purify2to1(werner(1), werner(1));
     ok(p === 1, `p ${p}`);
     ok(out[0] === 1, `out F ${out[0]}`);
+  });
+});
+
+describe("regression: the rng twin carries the ft-qaoa guards (refuse before any draw)", () => {
+  // convicted: this rng is the verbatim port of ft-qaoa's, but when wave R5
+  // guarded the twin's range/int degenerate domains this copy was missed —
+  // int(2.5) drew 0/1/2 at 40/40/20 and range(1, 0) silently drew descending
+  // garbage. The guards sit BEFORE any draw, so legal streams are unchanged.
+  it("int refuses non-integer / <1 / non-finite domains by name (RNG_INT_RANGE)", () => {
+    for (const bad of [0, -1, 2.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+      throws(
+        () => new Rng(9).int(bad),
+        (err: unknown) => isCodedError(err) && err.code === "RNG_INT_RANGE" && err.message.includes(String(bad)),
+      );
+    }
+  });
+
+  it("range refuses reversed / non-finite bounds by name (RNG_RANGE)", () => {
+    throws(
+      () => new Rng(9).range(1, 0),
+      (err: unknown) => isCodedError(err) && err.code === "RNG_RANGE",
+    );
+    throws(
+      () => new Rng(9).range(Number.NaN, 1),
+      (err: unknown) => isCodedError(err) && err.code === "RNG_RANGE",
+    );
+  });
+
+  it("the refusals sit before any draw; legal draws are the unchanged stream", () => {
+    const refused = new Rng(9);
+    throws(() => refused.int(0), /RNG_INT_RANGE/);
+    const fresh = new Rng(9);
+    ok(refused.next() === fresh.next(), "a refused call must not consume a draw");
+    // int(n) still floors the same stream a bare next() produces
+    const r = new Rng(42);
+    const draws = [r.next(), r.next(), r.next()];
+    const r2 = new Rng(42);
+    for (const u of draws) {
+      const k = r2.int(1000);
+      ok(k === Math.floor(u * 1000) && k >= 0 && k < 1000);
+    }
+    // range still interpolates the same stream
+    const r3 = new Rng(7);
+    const u0 = r3.next();
+    const r4 = new Rng(7);
+    ok(r4.range(0.3, 1) === 0.3 + 0.7 * u0);
   });
 });

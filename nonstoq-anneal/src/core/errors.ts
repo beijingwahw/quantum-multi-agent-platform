@@ -27,7 +27,9 @@ export type NonstoqErrorCode =
   /** Rng.int：maxExclusive 必须是 ≥ 1 的整数（非整数/越界值静默产生有偏或不可能的索引）。 */
   | "RngIntDomain"
   /** Rng.range：区间端点必须有限且 min <= max（倒序/非有限区间静默产生倒序垃圾或 NaN）。 */
-  | "RngRangeDomain";
+  | "RngRangeDomain"
+  /** 实验/报告层：渲染表格找不到对应数据行（内部不变量破坏，不是用户输入错）。 */
+  | "ReportRowMissing";
 
 export class NonstoqError extends Error {
   readonly code: NonstoqErrorCode;

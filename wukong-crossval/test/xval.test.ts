@@ -405,3 +405,39 @@ describe("T10 hand-checkable anchors — the gates and bounds pinned by hand ari
     assert.ok(Math.abs(probOf(psi, 0) - 1) < 1e-15, "0.36 + 0.64 = 1");
   });
 });
+
+describe("T11 determinism — one seed, one machine (reruns bit-identical)", () => {
+  it("two makeRng(seed) streams draw identically", () => {
+    const a = makeRng(20260906);
+    const b = makeRng(20260906);
+    for (let k = 0; k < 1000; k++) assert.equal(a(), b(), `draw ${k} diverged`);
+  });
+
+  it("the offline optimizer and the dry-run QPU reproduce themselves exactly on a second run", () => {
+    const base = {
+      id: "det-n6",
+      n: 6,
+      kind: "coupled" as const,
+      linear: [3, -1, 4, -1, -5, 9],
+      coupling: [[1, -2, 1, 1, 1], [1, 1, 1, 1, 1], [-1, 1, 1, 1], [1, 1, 1], [2, 1], [1]],
+    };
+    const { optBits } = enumerateOptimum(base);
+    const inst: Instance = { ...base, optBits, optValue: quboValue(base, optBits) };
+    // offline optimization twice: identical angles, bitwise
+    const p1 = optimizeOffline(inst, 1);
+    const p2 = optimizeOffline(inst, 1);
+    assert.deepEqual(p1.betas, p2.betas);
+    assert.deepEqual(p1.gammas, p2.gammas);
+    // the seeded dry run on the optimized state: identical counts and rates
+    const psi = runQaoa(inst, p1);
+    const d1 = sampleWithReadoutNoise(psi, 6, optBits, 500, 0.02, makeRng(77));
+    const d2 = sampleWithReadoutNoise(psi, 6, optBits, 500, 0.02, makeRng(77));
+    assert.deepEqual([...d1.counts.entries()].sort(), [...d2.counts.entries()].sort());
+    assert.equal(d1.rawHitRate, d2.rawHitRate);
+    assert.equal(d1.observedHitRate, d2.observedHitRate);
+    assert.equal(d1.calibratedHitRate, d2.calibratedHitRate);
+    // legal neighbor: a different seed stays a legal finite referee
+    const d3 = sampleWithReadoutNoise(psi, 6, optBits, 500, 0.02, makeRng(78));
+    assert.ok(Number.isFinite(d3.rawHitRate));
+  });
+});

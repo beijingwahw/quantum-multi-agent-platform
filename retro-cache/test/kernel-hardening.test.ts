@@ -236,3 +236,25 @@ test("K.I single-source sharp anchors: the converged constants are exact at the 
   // public after-path at the clean endpoint (already exact-zero anchors in W5.B)
   assert.equal(paMeasure(8, 8, 0.5).afterMean, 0);
 });
+
+test("K.N determinism: one seed, one machine — reruns are byte-identical", () => {
+  // the rng's own header promises "every experiment rerun must reproduce
+  // bit-for-bit"; pinned here directly: two instances of the same seed draw
+  // identical streams, and the stochastic kernels built on them (structured
+  // CPTP maps) return identical matrices, cell for cell
+  const a = new Rng(777);
+  const b = new Rng(777);
+  for (let i = 0; i < 1000; i++) assert.equal(a.next(), b.next(), `draw ${i} diverged`);
+  const ax = new Rng(20260906);
+  const bx = new Rng(20260906);
+  for (let i = 0; i < 100; i++) assert.deepEqual(ax.axis(), bx.axis(), `axis draw ${i} diverged`);
+  const rho = wernerPair(0.75);
+  const r1 = new Rng(42);
+  const r2 = new Rng(42);
+  for (let i = 0; i < 5; i++) {
+    const m1 = cptpOnB(rho, r1);
+    const m2 = cptpOnB(rho, r2);
+    assert.deepEqual(m1.re, m2.re, `cptpOnB pass ${i}: real part diverged`);
+    assert.deepEqual(m1.im, m2.im, `cptpOnB pass ${i}: imaginary part diverged`);
+  }
+});

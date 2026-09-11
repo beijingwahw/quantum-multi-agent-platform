@@ -135,7 +135,7 @@ unenrolled, no row padded); quantum-binding stays as the audit-added no-go row:
 
 ```
 npm install
-npm test        # 57/57 — includes re-running every machine certificate
+npm test        # 69/69 — includes re-running every machine certificate
 npm run repro   # ~4 s — rebuilds all six experiment reports + the atlas
 ```
 

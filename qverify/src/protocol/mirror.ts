@@ -19,7 +19,9 @@ import type { Rng } from '../core/rng.js';
 
 function applyOpRho(rho: CMat, n: number, op: CircuitOp): CMat {
   if (op.kind === 'u1') {
-    if (!op.u) throw new Error('u1 op without unitary');
+    // the same contract runCircuitVec refuses by name — the uncoded twin was
+    // the one bare protocol-layer throw left after the QV_ sweep
+    if (!op.u) throw new Error('QV_OP_NO_UNITARY: mirror applyOpRho met a u1 op without its unitary');
     return applyLocalRho(rho, n, op.qubits[0]!, op.u);
   }
   // CZ ρ CZ: element (i,j) picks up a −1 exactly when one of i,j lies in the

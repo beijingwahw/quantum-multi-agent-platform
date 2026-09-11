@@ -3,8 +3,12 @@
  *
  * Uses only uint32 integer arithmetic, so the sequence is bit-identical across
  * platforms and Node versions — a hard requirement for reproducible reports.
- * Ported verbatim from ft-qaoa so both prototypes share one noise model.
+ * Ported verbatim from ft-qaoa so both prototypes share one noise model
+ * (the degenerate-bound refusals below mirror the twin's wave-R5 guards —
+ * they sit BEFORE any draw, so every legal seeded stream is unchanged).
  */
+import { SchedError } from "./errors.js";
+
 export class Rng {
   private state: number;
 
@@ -27,11 +31,28 @@ export class Rng {
 
   /** Uniform in [min, max). */
   range(min: number, max: number): number {
+    if (!(Number.isFinite(min) && Number.isFinite(max) && min <= max)) {
+      throw new SchedError(
+        "RNG_RANGE",
+        `range(min, max) needs finite bounds with min <= max (a reversed or non-finite interval silently draws descending garbage or NaN), got min=${min}, max=${max}`,
+      );
+    }
     return min + (max - min) * this.next();
   }
 
   /** Uniform integer in [0, maxExclusive). */
   int(maxExclusive: number): number {
+    // refuse BEFORE any draw so legal seeded streams stay bit-identical —
+    // a non-integer bound has no uniform value (int(2.5) draws 0/1/2 at
+    // 40/40/20) and 0/negative/Infinity return impossible indices; the same
+    // guard the ft-qaoa twin and the qverify/quantum-mech/k-switch/qram-sched
+    // cores carry
+    if (!(Number.isInteger(maxExclusive) && maxExclusive >= 1)) {
+      throw new SchedError(
+        "RNG_INT_RANGE",
+        `int(maxExclusive) draws uniformly from [0, maxExclusive): integer >= 1 required, got ${maxExclusive}`,
+      );
+    }
     return Math.floor(this.next() * maxExclusive);
   }
 

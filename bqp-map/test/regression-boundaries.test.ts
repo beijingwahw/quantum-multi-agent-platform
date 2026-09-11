@@ -83,6 +83,25 @@ describe("regression: rng and solver boundary contracts enforced", () => {
     assert.equal(new Rng(1).pick([42]), 42);
   });
 
+  it("Rng.int refuses non-integer and empty ranges — int(0) used to return 0, int(2.5) a biased draw", () => {
+    // the sibling lineage guard (dsic-noether/qram-sched/ft-qaoa already carry
+    // it): int(0) "returned" 0 (an impossible draw from [0,0)), int(-2) returned
+    // -1, and a fractional n skewed the floor silently
+    assert.throws(() => new Rng(7).int(0), /integer >= 1/);
+    assert.throws(() => new Rng(7).int(-2), /integer >= 1/);
+    assert.throws(() => new Rng(7).int(2.5), /got 2\.5/);
+    assert.throws(() => new Rng(7).int(Number.POSITIVE_INFINITY), /integer >= 1/);
+    // a refusal draws nothing: two seed-101 streams that drew once each stay
+    // locked together even when one of them hit a refused call in between
+    const r1 = new Rng(101);
+    r1.int(3);
+    assert.throws(() => r1.int(0));
+    const r2 = new Rng(101);
+    r2.int(3);
+    assert.equal(r1.next(), r2.next());
+    assert.equal(new Rng(101).int(1), 0); // the one-element range [0,1) is legal
+  });
+
   it("minMakespanPm and bruteForceMakespanPm reject m < 1 (used to return Infinity/0 silently)", () => {
     assert.throws(() => minMakespanPm([3, 1], 0), /at least one machine/);
     assert.throws(() => bruteForceMakespanPm([3, 1], 0), /at least one machine/);

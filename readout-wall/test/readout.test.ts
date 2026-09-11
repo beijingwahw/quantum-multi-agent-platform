@@ -8,8 +8,9 @@ import { classicalMixture, dephase, partialDephase, readoutSlices } from "../src
 import { KET0, KET1, PAULI_Z, PLUS, vecToRho } from "../src/core/states.js";
 import { fidelity, holevo, traceDistance } from "../src/core/measures.js";
 import { RefusalError } from "../src/core/errors.js";
+import { makeRng } from "../src/core/rng.js";
 import { krausToStinespring, makeSwitchedChannel } from "../src/switch/isometry.js";
-import { completelyDepolarizingKraus } from "../src/switch/chanlib.js";
+import { completelyDepolarizingKraus, randomChannelStinespring } from "../src/switch/chanlib.js";
 import { switch3 } from "../src/kernel/kswitch3.js";
 import { partialTrace } from "../src/core/channels.js";
 import type { CMat } from "../src/core/cmat.js";
@@ -475,6 +476,34 @@ describe("T8 the core kernel under the quality wave (v0.4.0)", () => {
     const cited = new Set(EXCHANGE.map((r) => r.witness));
     for (const w of WITNESS_ROSTER) {
       assert.ok(cited.has(w), `witness ${w} is in the roster but no ledger row cites it`);
+    }
+  });
+});
+
+describe("T9 determinism — the same seed reproduces the machine byte-for-byte", () => {
+  const rho2: CMat = mat(2, 2); // |0><0|
+  rho2.re[0] = 1;
+
+  it("two rng instances from one seed draw identical streams", () => {
+    const a = makeRng(0x5ead07);
+    const b = makeRng(0x5ead07);
+    for (let k = 0; k < 1000; k++) {
+      const x = a();
+      const y = b();
+      assert.equal(x, y, `draw ${k} diverged: ${x} vs ${y}`);
+    }
+  });
+
+  it("same-seed random channels and the switched pipeline on them are byte-identical", () => {
+    const ca = randomChannelStinespring(makeRng(20260906), 2, 3);
+    const cb = randomChannelStinespring(makeRng(20260906), 2, 3);
+    assert.deepEqual(Array.from(ca.V.re), Array.from(cb.V.re));
+    assert.deepEqual(Array.from(ca.V.im), Array.from(cb.V.im));
+    const sa = readoutSlices(makeSwitchedChannel(ca, ca), vecToRho(PLUS), rho2);
+    const sb = readoutSlices(makeSwitchedChannel(cb, cb), vecToRho(PLUS), rho2);
+    for (const key of ["full", "readout", "control", "target"] as const) {
+      assert.deepEqual(Array.from(sa[key].re), Array.from(sb[key].re), `${key}.re diverged`);
+      assert.deepEqual(Array.from(sa[key].im), Array.from(sb[key].im), `${key}.im diverged`);
     }
   });
 });

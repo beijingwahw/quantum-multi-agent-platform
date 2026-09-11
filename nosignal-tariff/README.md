@@ -35,6 +35,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 27/27 — checker, eight witnesses, correlator machinery, interior theorem, smuggling trials, coded refusals, entry guard
+npm test        # 35/35 — checker, eight witnesses, correlator machinery, interior theorem, smuggling trials, coded refusals, entry guard, witness determinism
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

@@ -1,5 +1,6 @@
 import { fmt, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
+import { NonstoqError } from "../core/errors.js";
 import { minGapFixedLambda, annealCatalystPath, pspinEnergies, magTable, xxScaled } from "../anneal/catalyst.js";
 
 const P = 5;
@@ -81,7 +82,7 @@ export function main(): void {
     ...SIZES.map((n) => {
       const row = (l: number): { gap: number; sStar: number } => {
         const found = gapRows.find((g) => g.n === n && g.lambda === l);
-        if (found === undefined) throw new Error(`exp4: gap row missing for n=${n}, lambda=${l}`);
+        if (found === undefined) throw new NonstoqError("ReportRowMissing", `exp4: gap row missing for n=${n}, lambda=${l}`);
         return found;
       };
       const f = (l: number) => {
@@ -101,7 +102,7 @@ export function main(): void {
     ...SIZES.map((n) => {
       const fT = (t: number, l: number): string => {
         const found = successRows.find((r) => r.n === n && r.time === t && r.lambda0 === l);
-        if (found === undefined) throw new Error(`exp4: success row missing for n=${n}, T=${t}, lambda0=${l}`);
+        if (found === undefined) throw new NonstoqError("ReportRowMissing", `exp4: success row missing for n=${n}, T=${t}, lambda0=${l}`);
         return fmt(found.success, 4);
       };
       return `| ${n} | 4/8/16 λ=1 | ${fT(4, 1)}/${fT(8, 1)}/${fT(16, 1)} | ${fT(4, 0.3)}/${fT(8, 0.3)}/${fT(16, 0.3)} | ${fT(4, 0.1)}/${fT(8, 0.1)}/${fT(16, 0.1)} |`;

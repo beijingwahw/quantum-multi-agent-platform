@@ -23,6 +23,6 @@ function main(): void {
   console.log(`rendered -> ${outFile}`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] as string).href) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   main();
 }

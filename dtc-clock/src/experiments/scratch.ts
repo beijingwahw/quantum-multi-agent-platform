@@ -2,7 +2,13 @@
  * Scratch witness run — numbers FIRST, board text AFTER (house law: run the
  * witness before writing any number into prose). Not the renderer; not a
  * test. `tsx src/experiments/scratch.ts`.
+ *
+ * Entry guard (the render.ts shape): the whole run fires only when this file
+ * is the invoked program — an import executes nothing (the batch-21/33 house
+ * law; the body used to run unconditionally at module level, the exact
+ * defect class causal-ineq's experiment files were convicted of in wave R5).
  */
+import { pathToFileURL } from "node:url";
 import { makeRng } from "../core/rng.js";
 import {
   alternationDeviation,
@@ -10,7 +16,13 @@ import {
   pairingDeviations,
   rigidityCensus,
 } from "../kernel/beat.js";
-import { fredkinConservesWeight, multiplierVerdict } from "../kernel/compile.js";
+import {
+  classicalAfter,
+  fredkinConservesWeight,
+  multiplierCircuit,
+  multiplierVerdict,
+  productNibble,
+} from "../kernel/compile.js";
 import { detunedCensus, orbitRun, randomClockCensus, readDephasingCensus } from "../kernel/clock.js";
 import {
   beatEnergyDeviation,
@@ -24,6 +36,7 @@ import {
 import { tombstoneCensus } from "../kernel/tombstone.js";
 import type { RevGate } from "../kernel/compile.js";
 
+function main(): void {
 const rng = makeRng(0xd7c10c);
 
 // B1
@@ -47,9 +60,7 @@ console.log("B3 multiplier:", JSON.stringify(mul));
 console.log("B3 fredkin weight conservation:", fredkinConservesWeight(6, 0, 1, 2));
 {
   // independent classical spec: bit0=a1, bit1=a0, bit2=b1, bit3=b0 (wire order)
-  const gates = (await import("../kernel/compile.js")).multiplierCircuit();
-  const classicalAfter = (await import("../kernel/compile.js")).classicalAfter;
-  const productNibble = (await import("../kernel/compile.js")).productNibble;
+  const gates = multiplierCircuit();
   let wrong = 0;
   for (let x = 0; x < 16; x++) {
     const a = (((x >> 0) & 1) << 1) | ((x >> 1) & 1); // wire0=a1 (MSB), wire1=a0
@@ -103,3 +114,8 @@ console.log("B4 joules: 5 units @300K:", joulePrices(5).t300.toExponential(4), "
 // B6
 const tomb = tombstoneCensus(5, 1.0, 0.7, 7);
 console.log("B6 tombstone n=5:", JSON.stringify(tomb, (_k: string, v: number) => (typeof v === "number" ? Number(v.toPrecision(6)) : v)));
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

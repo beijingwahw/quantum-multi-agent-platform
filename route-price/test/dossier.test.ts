@@ -43,6 +43,25 @@ test("R5: all executable witnesses pass", () => {
   for (const w of runWitnesses()) assert.ok(w.pass, `${w.name}: ${w.detail}`);
 });
 
+test("determinism: one seed, one machine — reruns are byte-identical", () => {
+  // the rng header's own promise ("every random claim in this repo is
+  // reproducible from the seed printed in its witness detail"), pinned
+  // directly: two instances of one seed draw identical streams, and the
+  // witness suite — whose detail strings carry the seeded Monte Carlo
+  // numbers — renders byte-identically on a second run
+  const a = new Rng(20260906);
+  const b = new Rng(20260906);
+  for (let i = 0; i < 1000; i++) assert.equal(a.next(), b.next(), `draw ${i} diverged`);
+  for (let i = 0; i < 200; i++) assert.equal(a.gaussian(), b.gaussian(), `gaussian ${i} diverged`);
+  const w1 = runWitnesses();
+  const w2 = runWitnesses();
+  assert.deepEqual(
+    w1.map((w) => [w.id, w.pass, w.detail]),
+    w2.map((w) => [w.id, w.pass, w.detail]),
+    "a witness rerun changed a byte — the seed contract is broken",
+  );
+});
+
 test("census: every milestone is priced, falsified, and anchored; every dossier is fully furnished", () => {
   for (const d of DOSSIERS) {
     assert.ok(d.milestones.length >= 4, `${d.id}: too few milestones`);

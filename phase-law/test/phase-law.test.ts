@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, it } from "node:test";
@@ -394,6 +395,48 @@ describe("the board and the witnesses", () => {
 
   it("all witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.ok, `${w.witness}: ${w.detail}`);
+  });
+
+  it("W-B's optimum referee is real: every reported optimum re-scores through the independent scorer", () => {
+    // the earlier witness counted Number.isFinite(opt) — a check no run could
+    // ever fail; the referee now re-scores the optimum's own assignment and
+    // confirms no enumerated leaf beats it (5/5 on the accord instances)
+    const wb = runWitnesses().find((w) => w.witness === "W-B")!;
+    assert.ok(wb.ok, wb.detail);
+    assert.match(wb.detail, /re-scored 5\/5/);
+    // the re-score bites: the scorer distinguishes the enumerated worst leaf
+    // from the optimum by the family's full welfare spread
+    const inst = makeInstance(6, 8, 500, 0.35);
+    const best = optimumOf(inst);
+    const worst = enumerateAll(inst).reduce((a, b) => (b.welfare < a.welfare ? b : a));
+    assert.ok(Math.abs(welfareOf(inst, worst.assignment) - best.welfare) > 1, "the independent scorer must separate leaves");
+    assert.ok(Math.abs(welfareOf(inst, best.assignment) - best.welfare) < 1e-12, "and re-score the optimum to itself");
+  });
+});
+
+describe("determinism and the frozen artifact", () => {
+  it("campaign kernels re-run byte-identically (compact horizons, JSON-exact)", () => {
+    // the shipped tables draw exclusively from seeded makeRng streams — the
+    // same horizon run twice must serialize identically (any Math.random or
+    // unseeded state anywhere in the campaign machinery breaks this)
+    const runCampaign = () =>
+      JSON.stringify([
+        campaign([[4, 6], [6, 8]], [0, 0.5, 1.5], 5),
+        densityCampaign([[5, 7]], [1, 2], 4, [0, 1, 4]),
+        islandCampaign([[5, 7]], [0, 1, 4], 4),
+      ]);
+    assert.equal(runCampaign(), runCampaign());
+  });
+
+  it("the committed report is the frozen artifact (sha256 pin — digits do not drift silently)", () => {
+    // the render is deterministic but expensive (~30 s); pinning the shipped
+    // bytes catches the R5-class failure where a source change alters the
+    // render and the committed report silently goes stale. A deliberate digit
+    // change must re-render AND consciously update this pin.
+    const report = readFileSync(resolve(process.cwd(), "out", "reports", "the-phase-law.md"), "utf8");
+    const sha = createHash("sha256").update(report).digest("hex");
+    assert.equal(sha, "4505735910191f842a07489812f5148739c3db38d0f5df8cc319f53806d4dec8");
+    assert.ok(report.length > 10000, "the report body is present, not a stub");
   });
 });
 

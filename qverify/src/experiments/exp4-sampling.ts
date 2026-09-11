@@ -94,7 +94,7 @@ export function main(): void {
   const worstChernoffExcess = Math.max(...wallChecks);
   // MC cross-check at (λ₀=0.5, δ=0.01): measured false-accept rate at N_C and at N/4
   const mcRow = wallRows.find((r) => r.lambdaTarget === 0.5 && r.delta === 0.01);
-  if (mcRow === undefined) throw new Error('wall grid lost the MC anchor point');
+  if (mcRow === undefined) throw new Error('QV_WALL_ANCHOR: exp4 wall grid lost the MC anchor point (lambda 0.5, delta 0.01)');
   const wallRng = makeRng(0x5eed01);
   const mcAtN = uniformFalseAcceptMC(probs, mcRow.threshold, mcRow.nChernoff, 2500, wallRng);
   const mcAtQuarter = uniformFalseAcceptMC(probs, mcRow.threshold, Math.floor(mcRow.nChernoff / 4), 2500, wallRng);

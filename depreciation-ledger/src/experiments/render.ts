@@ -2,13 +2,27 @@
  * Renders THE LEDGER — the visitor's seventeen claims, both columns, one page.
  */
 import { LEDGER } from "../kernel/ledger.js";
-import { checkLedger, quotesNumbers, runWitnesses } from "../kernel/audit.js";
+import { checkLedger, quotesNumbers, runWitnesses, type Violation, type WitnessResult } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
 import { pathToFileURL } from "node:url";
 
-function main(): void {
-  const violations = checkLedger();
-  const witnesses = runWitnesses();
+/** the renderer's refusal, by name (the burial-record family form): an
+ * illegal ledger is not rendered, and the rejection is distinguishable from
+ * any incidental crash a caller might otherwise catch by accident — where
+ * v0.2.x threw an anonymous Error, every sibling renderer in this family
+ * (binding-price's MARKET-REJECTED, burial-record's IllegalRegistryError)
+ * already carried a name. */
+export class IllegalLedgerError extends Error {
+  constructor(reasons: readonly string[]) {
+    super(`LEDGER REJECTED — the book does not balance:\n${reasons.join("\n")}`);
+    this.name = "IllegalLedgerError";
+  }
+}
+
+/** the render's gate as a pure function — the same verdict main() acts on,
+ * testable without executing the render (the entry guard keeps the write out
+ * of the trial). */
+export function assertBalances(violations: readonly Violation[], witnesses: readonly WitnessResult[]): void {
   if (violations.length > 0 || witnesses.some((w) => !w.pass)) {
     // the renderer refuses to print an illegal ledger — the rule is a gate,
     // not a decoration
@@ -16,8 +30,14 @@ function main(): void {
       ...violations.map((v) => `${v.claimId} [${v.law}]: ${v.detail}`),
       ...witnesses.filter((w) => !w.pass).map((w) => `${w.name}: ${w.detail}`),
     ];
-    throw new Error(`LEDGER REJECTED — the book does not balance:\n${reasons.join("\n")}`);
+    throw new IllegalLedgerError(reasons);
   }
+}
+
+function main(): void {
+  const violations = checkLedger();
+  const witnesses = runWitnesses();
+  assertBalances(violations, witnesses);
 
   const lines: string[] = [];
   lines.push("# THE LEDGER — the visitor's seventeen claims, both columns on one page\n");

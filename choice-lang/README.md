@@ -44,6 +44,6 @@ Every public entry of the language boundary now rejects illegal input by **named
 
 ```bash
 npm ci
-npm test        # 33/33
+npm test        # 47/47
 npm run repro   # renders out/reports/the-choice-model.md (seconds)
 ```

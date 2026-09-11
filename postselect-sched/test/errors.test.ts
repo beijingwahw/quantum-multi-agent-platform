@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { ERROR_CODES, isKernelError, KernelError } from "../src/kernel/errors.js";
 import { conditionalDm, feedforwardCheck, runPayload, runSorter } from "../src/kernel/sorter.js";
 import { convexDecomposition, firstMarkDist, geometricDist, makeFastRenewal, payExpected, powerLawDist, renewalEarlyStop } from "../src/kernel/restart.js";
@@ -83,6 +85,12 @@ test("ERR.05 distribution generators refuse the all-NaN / all-zero tables", () =
   rejects(() => geometricDist(0, 0.5), "BAD-HORIZON");
   rejects(() => geometricDist(7.5, 0.5), "BAD-HORIZON");
   rejects(() => powerLawDist(0, 2), "BAD-HORIZON");
+  // R7 sibling conviction: a NaN exponent used to build the all-NaN table
+  // silently (u ** NaN = NaN, NaN/s = NaN) — geometricDist refuses its rate
+  // by name; powerLawDist now refuses its exponent the same way
+  rejects(() => powerLawDist(50, Number.NaN), "BAD-EXPONENT");
+  rejects(() => powerLawDist(50, Number.POSITIVE_INFINITY), "BAD-EXPONENT");
+  rejects(() => powerLawDist(50, Number.NEGATIVE_INFINITY), "BAD-EXPONENT");
   rejects(() => firstMarkDist(256, 0), "BAD-MARKED-COUNT");
   rejects(() => firstMarkDist(256, 257), "BAD-MARKED-COUNT");
   // negative controls: the generators still produce honest distributions
@@ -92,6 +100,29 @@ test("ERR.05 distribution generators refuse the all-NaN / all-zero tables", () =
   let s2 = 0;
   for (const v of firstMarkDist(256, 4)) s2 += v;
   assert.ok(Math.abs(s2 - 1) < 1e-12);
+  let s3 = 0;
+  for (const v of powerLawDist(50, 1.5)) s3 += v;
+  assert.ok(Math.abs(s3 - 1) < 1e-12, "the legal exponent still normalizes");
+  assert.ok(Number.isFinite(powerLawDist(50, 0)[1]), "alpha = 0 (uniform tail) stays a legal neighbor");
+});
+
+test("ERR.13 importing run-all renders nothing (the batch-33 law covers the aggregator too)", async () => {
+  // R7: run-all used to call t1()..t6() at module level — importing it would
+  // have rendered all six reports as an import side effect. The aggregator
+  // now carries the same runIfMain guard as its targets; importing it must
+  // leave every committed report untouched.
+  const dir = resolve(process.cwd(), "out", "reports");
+  const before = new Map<string, number>();
+  for (const f of readdirSync(dir)) before.set(f, statSync(resolve(dir, f)).mtimeMs);
+  await import("../src/experiments/run-all.js");
+  const after = readdirSync(dir);
+  assert.deepEqual([...after].sort(), [...before.keys()].sort(), "no report added");
+  for (const f of after) {
+    assert.ok(
+      Math.abs(statSync(resolve(dir, f)).mtimeMs - (before.get(f) ?? -Infinity)) < 1,
+      `${f} was rewritten by a mere import`,
+    );
+  }
 });
 
 test("ERR.06 randomSat hang conviction: fewer than 3 available variables is NAMED, not spun", () => {

@@ -120,7 +120,7 @@ exact algebra bounds.
 ## Run
 
 ```bash
-npm test          # 63/63 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials)
+npm test          # 68/68 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials)
 npm run typecheck # tsc --noEmit, zero errors
 npm run repro     # renders out/reports/the-stable-world.md in seconds
 ```

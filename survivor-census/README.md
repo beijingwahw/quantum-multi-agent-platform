@@ -179,7 +179,7 @@ stay" has no referent at all. That is this repo.
 
 ```
 npm ci
-npm test          # 51/51
+npm test          # 60/60
 npm run repro     # renders out/reports/the-survivor-census.md, seconds
 ```
 

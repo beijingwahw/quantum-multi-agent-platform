@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkAtlas, runMachineCertificates, verdictGroups } from "../src/atlas/check.js";
 import { ATLAS } from "../src/atlas/entries.js";
@@ -36,5 +38,21 @@ describe("T5 atlas discipline", () => {
     for (const c of checks) {
       assert.ok(c.pass, `${c.id} FAILED: ${c.detail}`);
     }
+  });
+
+  it("the books agree: the committed atlas.json IS a fresh render of the registry (bit-for-bit)", () => {
+    // the committed artifact once drifted silently (the retired-0/5-prose
+    // incident): the source shed prose visits ago while out/reports/atlas.json
+    // still carried it, and nothing failed until a human re-rendered. The
+    // registry, the machine certificates, and the render are all deterministic
+    // given the fixed seed, so the committed JSON must equal a fresh run.
+    const committed = JSON.parse(readFileSync(resolve(process.cwd(), "out", "reports", "atlas.json"), "utf8")) as {
+      violations: unknown[];
+      machine: unknown;
+      entries: unknown;
+    };
+    assert.deepEqual(committed.violations, []);
+    assert.deepEqual(committed.machine, runMachineCertificates());
+    assert.deepEqual(committed.entries, ATLAS);
   });
 });

@@ -59,6 +59,15 @@ describe("T1 the market clears", () => {
   it("all eight witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
   });
+
+  it("the witnesses re-run byte-identically: same grids, same digits, detail strings included", () => {
+    // every witness sweeps deterministic grids (the eigensolver's only
+    // randomness is a fixed-seed LCG), so the full re-derivation — pass flags
+    // AND the measured digits inside detail — must be a pure function of
+    // nothing; pin it, or a silent grid/generation-order change would move
+    // quoted digits with no suite failure
+    assert.deepEqual(JSON.stringify(runWitnesses()), JSON.stringify(runWitnesses()));
+  });
 });
 
 describe("T2 the market machinery", () => {

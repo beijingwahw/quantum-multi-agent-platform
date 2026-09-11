@@ -24,6 +24,22 @@ describe("T1 the schedule clears customs", () => {
   it("all eight witnesses pass", () => {
     for (const w of runWitnesses()) assert.ok(w.pass, `${w.name} FAILED: ${w.detail}`);
   });
+
+  it("the witnesses re-run byte-identically — seeded streams make the repro deterministic", () => {
+    // R7 determinism pin: every float the report prints comes from seeded
+    // makeRng streams and pure arithmetic — an unseeded Math.random or a
+    // hidden Date.now anywhere in the witness path would break this parity
+    const a = runWitnesses();
+    const b = runWitnesses();
+    assert.deepEqual(
+      a.map((w) => `${w.pass}|${w.name}|${w.detail}`),
+      b.map((w) => `${w.pass}|${w.name}|${w.detail}`),
+    );
+    // and the floors are the quoted constants, not merely self-consistent
+    // (README T1/T8: 2.3e-16 / 2.2e-16 rounding floors)
+    assert.match(a[0]!.detail, /floor 2\.30e-16/);
+    assert.match(a[7]!.detail, /floor 2\.20e-16/);
+  });
 });
 
 describe("T2 the correlator machinery", () => {

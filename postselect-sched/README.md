@@ -184,7 +184,7 @@ ledger declines to quote"), executed as its own theorem layer:
 
 ```
 npm ci
-npm test          # 47/47
+npm test          # 53/53
 npm run repro     # rebuilds out/reports/t1..t6 markdown tables, seconds
 ```
 

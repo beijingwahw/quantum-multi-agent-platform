@@ -25,7 +25,7 @@
 
 ```bash
 npm install
-npm test        # 50/50
+npm test        # 57/57
 npm run repro   # 重生成 out/ 下全部 JSON+MD 报告（约 2 分钟，exp4 密度矩阵占大头）
 ```
 

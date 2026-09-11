@@ -22,6 +22,15 @@ export class Rng {
 
   /** Uniform integer in [0, n). */
   int(n: number): number {
+    // a non-integer n has no uniform value in [0, n): floor(next()*n) would
+    // silently draw a biased index (int(2.5) draws 0/1/2 at 40/40/20), and
+    // n <= 0 or n = Infinity return impossible indices — the guard every other
+    // mulberry32 lineage in this workspace already carries (dsic-noether,
+    // qram-sched, ft-qaoa, nonstoq-anneal, qverify, quantum-mech, k-switch);
+    // the refusal draws nothing, so legal seeded streams stay bit-identical
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(`Rng.int: n must be an integer >= 1 (got ${n}) — no uniform value exists in [0, ${n})`);
+    }
     return Math.floor(this.next() * n);
   }
 

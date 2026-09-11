@@ -36,7 +36,7 @@ The renderer refuses to print an illegal board — or an illegal yield table, le
 ## Run
 
 ```
-npm test        # the full suite: 45 tests (machinery, witnesses, 12 smuggling trials, entry guard, render mains, quality anchors)
+npm test        # the full suite: 58 tests (machinery, witnesses, 12 smuggling trials, entry guard, render mains, quality anchors, boundary/determinism regressions)
 npm run typecheck
 npm run lint
 npm run repro   # renders out/reports/the-ent-clearing.md (board + yield table + ledger + GHZ bank + witnesses)

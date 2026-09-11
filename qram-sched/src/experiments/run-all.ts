@@ -10,7 +10,15 @@
  * precedent: run-all now imports each experiment's EXPORTED main() and calls
  * it directly. Entry guards remain in place so `npm run exp:<name>` still
  * works when a module is the process entry.
+ *
+ * R7: the wipe-and-render chain moved inside main() behind the same runIfMain
+ * guard — at module level it was an import side effect that DELETED
+ * out/reports on any import (and the old rendered-counter check could never
+ * fire: the loop either calls all six mains or crashes inside one). The
+ * REPRO_INCOMPLETE guard now verifies each main actually wrote its report.
  */
+import { pathToFileURL } from "node:url";
+import { readdirSync, rmSync, mkdirSync } from "node:fs";
 import { reportDir } from "./report.js";
 import { main as exp1 } from "./exp1-qram.js";
 import { main as exp2 } from "./exp2-walk.js";
@@ -19,27 +27,34 @@ import { main as exp4 } from "./exp4-regret.js";
 import { main as exp5 } from "./exp5-matching.js";
 import { main as exp6 } from "./exp6-kvv.js";
 import { reject } from "../core/errors.js";
-import { rmSync, mkdirSync } from "node:fs";
 
-const t0 = Date.now();
-rmSync(reportDir, { recursive: true, force: true });
-mkdirSync(reportDir, { recursive: true });
+export function main(): void {
+  const t0 = Date.now();
+  rmSync(reportDir, { recursive: true, force: true });
+  mkdirSync(reportDir, { recursive: true });
 
-const experiments: ReadonlyArray<[string, () => void]> = [
-  ["exp1-qram", exp1],
-  ["exp2-walk", exp2],
-  ["exp3-ae", exp3],
-  ["exp4-regret", exp4],
-  ["exp5-matching", exp5],
-  ["exp6-kvv", exp6],
-];
+  const experiments: ReadonlyArray<[string, () => void, string]> = [
+    ["exp1-qram", exp1, "exp1-qram.md"],
+    ["exp2-walk", exp2, "exp2-walk.md"],
+    ["exp3-ae", exp3, "exp3-ae.md"],
+    ["exp4-regret", exp4, "exp4-regret.md"],
+    ["exp5-matching", exp5, "exp5-matching.md"],
+    ["exp6-kvv", exp6, "exp6-kvv.md"],
+  ];
 
-let rendered = 0;
-for (const [name, main] of experiments) {
-  main();
-  rendered++;
-  console.log(`rendered: ${name}`);
+  let rendered = 0;
+  for (const [name, run, report] of experiments) {
+    run();
+    if (!readdirSync(reportDir).includes(report)) {
+      reject("REPRO_INCOMPLETE", `${name} returned without writing ${report} (rendered ${rendered}/${experiments.length})`);
+    }
+    rendered++;
+    console.log(`rendered: ${name}`);
+  }
+  console.log(`\nAll ${rendered} experiments complete in ${((Date.now() - t0) / 1000).toFixed(1)}s. Reports in out/reports/.`);
 }
 
-if (rendered !== experiments.length) reject("REPRO_INCOMPLETE", `rendered ${rendered}/${experiments.length} experiments`);
-console.log(`\nAll ${rendered} experiments complete in ${((Date.now() - t0) / 1000).toFixed(1)}s. Reports in out/reports/.`);
+// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main();
+}

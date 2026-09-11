@@ -46,7 +46,7 @@
 
 ```bash
 npm install
-npm test        # 64/64
+npm test        # 68/68
 npm run repro   # 重生成 out/ 下全部报告（约 10 分钟）
 ```
 
@@ -159,7 +159,7 @@ src/
             designing-element.ts（元素级判定器：O(2) 共轭精确公式 + 证书化
             YES/NO/UNRESOLVED（可辨识联合）+ 两比特二分法 + 防走私裁决器）
   experiments/  exp1..exp5 + exp6-designability / run-all
-test/       8 项文件 64 测试：含 8 项走私审判（伪造证书/伪造 stoq 声明/
+test/       9 项文件 68 测试：含 8 项走私审判（伪造证书/伪造 stoq 声明/
             伪造 no-go/逐入口非法输入按具名错误码驳回；另有品牌谱表的
             编译期负对照——@ts-expect-error 即断言本体）
 docs/       theory.md — Perron-Frobenius、符号问题、模型与文献（§1.7 判定层）

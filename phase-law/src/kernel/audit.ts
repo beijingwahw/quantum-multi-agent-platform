@@ -26,6 +26,7 @@ import { BOARD, type BoardRow, type Face } from "./board.js";
 import {
   anneal,
   coupledRegimeDeviation,
+  enumerateAll,
   envelopeThreshold,
   greedy,
   hungarianMax,
@@ -117,10 +118,18 @@ export function runWitnesses(): WitnessResult[] {
     let optimaAgree = 0;
     for (let k = 1; k <= 5; k++) {
       const inst = makeInstance(6, 8, 500 * k, 0.35);
-      const opt = optimumOf(inst).welfare;
-      // independent second referee: the full enumeration, sorted top — cross
-      // check the optimum against the enumeration maximum directly
-      optimaAgree += Number.isFinite(opt) ? 1 : 0;
+      const best = optimumOf(inst);
+      const opt = best.welfare;
+      // independent second referee: the reported optimum must re-score to
+      // itself through welfareOf (a separate implementation of the scoring)
+      // and no enumerated leaf may beat it — the accord counts are counts
+      // against a REAL optimum, not against a number that happens to be
+      // finite (the earlier Number.isFinite check could never fail)
+      optimaAgree +=
+        Math.abs(welfareOf(inst, best.assignment) - opt) < 1e-12 &&
+        enumerateAll(inst).every((a) => a.welfare <= opt + 1e-12)
+          ? 1
+          : 0;
       if (Math.abs(welfareOf(inst, greedy(inst)) - opt) < 1e-9) g++;
       if (Math.abs(welfareOf(inst, localSearch(inst, greedy(inst))) - opt) < 1e-9) ls++;
       if (Math.abs(welfareOf(inst, anneal(inst, 42)) - opt) < 1e-9) sa++;
@@ -128,7 +137,7 @@ export function runWitnesses(): WitnessResult[] {
     out.push({
       witness: "W-B",
       ok: g === 2 && ls === 2 && sa === 3 && optimaAgree === 5,
-      detail: `accord 6x8 λ=0.35: greedy ${g}/5, LS ${ls}/5, SA ${sa}/5 — the bench's exact numbers (2/2/3)`,
+      detail: `accord 6x8 λ=0.35: greedy ${g}/5, LS ${ls}/5, SA ${sa}/5 — the bench's exact numbers (2/2/3); optima re-scored ${optimaAgree}/5 against the independent scorer and the enumeration maximum`,
     });
   }
 
