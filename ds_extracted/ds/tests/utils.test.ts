@@ -14,6 +14,7 @@ import {
   BackendError,
   ToolError,
   NumericDomainError,
+  DateValidationError,
 } from '../src/utils/errors.js';
 
 describe('utils/rng（全平台唯一 PRNG）', () => {
@@ -202,6 +203,7 @@ describe('utils/errors（领域错误层级）', () => {
       [new QuantumEngineError('q'), 'QuantumEngineError'],
       [new BackendError('b'), 'BackendError'],
       [new ToolError('t'), 'ToolError'],
+      [new DateValidationError('d'), 'DateValidationError'],
     ];
     for (const [err, name] of cases) {
       assert.ok(err instanceof PlatformError, `${name} 应是 PlatformError`);

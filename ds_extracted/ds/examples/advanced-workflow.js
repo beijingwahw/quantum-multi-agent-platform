@@ -4,16 +4,15 @@ async function advancedWorkflowExample() {
   console.log('=== Quantum Multi-Agent Platform Advanced Workflow Example ===\n');
 
   // 配置平台
+  // （历史上这里的 dsh 配置块——工具集成/工作流引擎两个开关——从未被
+  //  任何组件消费、已从 PlatformConfig 删除：deepMerge 静默忽略未知键，
+  //  这里不再演示"看似可开关实则无效"的死配置）
   const platform = new QuantumMultiAgentPlatform({
     scheduling: {
       maxConcurrentTasks: 100,
     },
     communication: {
       port: 0, // 系统分配临时端口：固定端口在并行/重跑时会冲突
-    },
-    dsh: {
-      toolIntegration: true,
-      workflowEngine: true,
     },
   });
 

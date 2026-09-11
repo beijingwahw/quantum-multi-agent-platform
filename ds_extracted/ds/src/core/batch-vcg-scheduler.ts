@@ -560,8 +560,10 @@ export class BatchVCGScheduler {
       const second = scored[1];
       // 逐项 round9（01#17）：与精确 VCG 路径（payments[agentId] = round9(pay)）
       // 同口径——聚合值 round9 不能代替逐项舍入，浮点累加误差会以未舍入
-      // 形态渗进 paymentShare 与 platformTake
-      const pay = round9(Math.min(Math.max(winner.v - (second?.s ?? 0), 0), winner.v));
+      // 形态渗进 paymentShare 与 platformTake。上界取 max(v, 0)：短视基线
+      // 无免费处置（s<0 也强制分配），v<0 时原 min(max(x,0),v) 会输出
+      // 负支付（赢家倒贴平台），与「支付 ≥ 0」的口径矛盾
+      const pay = round9(Math.min(Math.max(winner.v - (second?.s ?? 0), 0), Math.max(winner.v, 0)));
       payments[winner.rt.spec.id] = (payments[winner.rt.spec.id] ?? 0) + pay;
       remaining.set(winner.rt.spec.id, remaining.get(winner.rt.spec.id)! - 1);
       assignments.push({
@@ -820,9 +822,19 @@ export class BudgetPacer {
     return this.mu;
   }
 
-  /** 每批结算后调用：spend = 该批实际总支付 */
+  /** 每批结算后调用：spend = 该批实际总支付（Σp ≥ 0） */
   update(spend: number): void {
-    if (this.budget <= 0 || spend < 0) return;
+    // 构造期守卫只挡住了 budget/kappa/maxMu 的 NaN；spend 是同一条污染链
+    // 的另一端：NaN 击穿 `spend < 0` 惰性守卫（NaN 比较恒 false）→
+    // ratio=NaN → μ 永久 NaN（Math.max/min 不再恢复），下游
+    // allocateAffineBatch 只能拿到一个不指名来源的 mu 拒绝。负 spend
+    // 同为调用方笔误（Σp ≥ 0 恒成立），一并具名拒绝。
+    if (typeof spend !== 'number' || !Number.isFinite(spend) || spend < 0) {
+      throw new MechanismError(
+        `BudgetPacer.update spend must be a finite non-negative number, got ${String(spend)}`,
+      );
+    }
+    if (this.budget <= 0) return;
     const ratio = spend / this.budget;
     this.mu = Math.min(this.maxMu, Math.max(1, this.mu * Math.pow(ratio, this.kappa)));
   }

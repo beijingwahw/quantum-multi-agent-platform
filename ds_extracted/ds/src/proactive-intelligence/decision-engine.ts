@@ -78,6 +78,23 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
+/**
+ * 条件侧（规则作者书写的比较目标/边界）数值化：与字段侧 toNumber 的
+ * 严格有限性不同，±Infinity 在这里是合法的规则语义——`between [5, Infinity]`
+ * 表达「≥5」（预设规则 highCpuUsageRule 即此形态），若按 toNumber 拒绝，
+ * 该上界恒为 null、条件恒假，规则永不触发（预设规则曾被整体判死）。
+ * 仅拒绝 NaN/非数值形状；字段值（事件/状态侧）仍走 toNumber 严格口径。
+ */
+function toBound(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isNaN(value) ? null : value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
 export class DecisionEngine extends EventEmitter {
   private rules = new Map<string, Rule>();
   /** 规则最后执行时间旁路表：不写回规则对象，拷贝出库时合并呈现 */
@@ -338,17 +355,17 @@ export class DecisionEngine extends EventEmitter {
         return contains ? hit : !hit;
       }
       case 'greaterThan': {
-        const [num, target] = [toNumber(value), toNumber(condition.value)];
+        const [num, target] = [toNumber(value), toBound(condition.value)];
         return num !== null && target !== null && num > target;
       }
       case 'lessThan': {
-        const [num, target] = [toNumber(value), toNumber(condition.value)];
+        const [num, target] = [toNumber(value), toBound(condition.value)];
         return num !== null && target !== null && num < target;
       }
       case 'between': {
         const num = toNumber(value);
-        const lower = toNumber(condition.value[0]);
-        const upper = toNumber(condition.value[1]);
+        const lower = toBound(condition.value[0]);
+        const upper = toBound(condition.value[1]);
         return num !== null && lower !== null && upper !== null && num >= lower && num <= upper;
       }
       case 'matches': {

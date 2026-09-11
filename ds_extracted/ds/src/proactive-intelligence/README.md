@@ -368,7 +368,7 @@ console.log(stats);
 //     averageDecisionTime: 15.2,
 //     rulesTriggered: { 'cpu-high-usage': 3 }
 //   },
-//   executor: { running: 2, history: 10 },
+//   executor: { running: 2, history: 10, backlog: 0 },
 //   running: true
 // }
 ```

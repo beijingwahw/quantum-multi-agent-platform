@@ -12,7 +12,9 @@
  *           e^{-iγC}（对角，精确）与混合算符 e^{-iβΣX_j}（单比特旋转
  *           之积，X_j 相互对易故亦精确），变分优化角度 (γ, β) 最小化 ⟨C⟩；
  *        b) 绝热量子退火：H(s) = (1-s)·ΣX_j + s·C，s: 0→1 的
- *           Trotter 化薛定谔演化，初态 |+⟩^nq 为横场基态；
+ *           Trotter 化薛定谔演化，初态 |−⟩^nq 为横场基态（|+⟩^n 是
+ *           H_X 的最高态，从它出发的绝热跟随会落到能量最高点——
+ *           见 setTransverseGroundState 的实测注记）；
  *   3. 干涉：低能量（高福利）分配方案的振幅相长，高能量方案相消——
  *      这是相位（复数虚部）真实参与运算的体现；
  *   4. 坍缩：测量按 |amp(x)|² 采样；SchedulingDecision.probability
@@ -989,6 +991,26 @@ function selectSolution(
     repaired = true;
   }
 
+  // 概率与报告的分配同源（「指标与决策同源」口径）：修复路径此前上报
+  // bestValidProb——那是**另一个**（概率最大的合法）分配的 Born 概率，
+  // 与 QuantumSolution.probability 的字段契约「所选分配的 Born 概率」
+  // 相违。修复分配若完整（每任务有 agent），它本身就是合法基态，按其
+  // 真实 Born 概率上报；不可行残缺分配（存在 -1）无对应基态，如实报 0。
+  // nqubits ≤ FULLSPACE_QUBIT_LIMIT(30) 由 computeEnergies 前置保证，
+  // 1 << q 无 int32 回绕。
+  let probability: number;
+  if (chosenState >= 0) {
+    probability = probs[chosenState]!;
+  } else if (repaired && assignment.every((a) => a >= 0)) {
+    let repairedState = 0;
+    for (let t = 0; t < m; t++) repairedState |= 1 << (t * n + assignment[t]!);
+    probability = probs[repairedState]!;
+  } else if (repaired) {
+    probability = 0;
+  } else {
+    probability = bestValidProb;
+  }
+
   // top-K 候选（按 Born 概率降序；线性选择与全量稳定排序逐项相同——
   // 见 solver-common.topKByProbabilityDesc 的等价性说明）。
   // index 是 validStates 的**位置**而非基态（probabilityAt 经 validStates
@@ -1012,7 +1034,7 @@ function selectSolution(
 
   return {
     assignment,
-    probability: chosenState >= 0 ? probs[chosenState]! : bestValidProb,
+    probability,
     repaired,
     validMass,
     candidates,

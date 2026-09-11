@@ -118,6 +118,7 @@ function parseArgs(argv) {
         .filter(Boolean);
     } else if (a === '--postinstall') out.isPostinstall = true;
     else if (a === '--help' || a === '-h') out.cmd = 'help';
+    else throw new Error(`unknown argument '${a}' — see --help for the supported flags`);
   }
   return out;
 }
@@ -524,13 +525,17 @@ async function listStatus(options = {}) {
 
 // ─── CLI 入口 ────────────────────────────────────────────────────────────
 async function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  if (opts.cmd === 'help') {
-    printHelp();
-    return;
-  }
-
+  // parseArgs 可能抛（未知参数/缺值）：opts 用 let 声明并在 catch 里
+  // 可选链读取——const 的 TDZ 会让 catch 里的 opts.isPostinstall 二次抛错，
+  // 干净拒绝退化成带栈崩溃
+  let opts;
   try {
+    opts = parseArgs(process.argv.slice(2));
+    if (opts.cmd === 'help') {
+      printHelp();
+      return;
+    }
+
     if (opts.cmd === 'list') {
       await listStatus(opts);
       return;
@@ -541,7 +546,7 @@ async function main() {
     }
   } catch (e) {
     console.error(err(`[dsh-proactive] ${e.message}`));
-    if (!opts.isPostinstall) process.exit(1);
+    if (!opts?.isPostinstall) process.exit(1);
   }
 }
 
@@ -562,19 +567,26 @@ export {
 };
 
 // ─── 直接执行入口 ────────────────────────────────────────────────────────
-// 入口判定用 URL 规范比较（06#19）：endsWith 匹配文件名，改名即静默失效
+// 入口判定用 URL 规范比较（06#19）：endsWith 匹配文件名，改名即静默失效。
+// 执行条件就是 isEntry 本身：仅被 import（如测试）时不执行任何真实写入，
+// 但「独立 CLI 直跑」（文档化的触发方式 1）不得要求 npm 生命周期环境——
+// 旧条件 `isEntry && npm_lifecycle_event !== undefined` 让裸 node 直跑
+// 静默空转退出 0，独立 CLI 模式整体死亡。
 const isEntry =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-// postinstall 触发同样要求本文件是入口：仅被 import（如测试）时即使处于
-// 任意 npm 生命周期也不得对用户的 DSH profiles 做真实写入
-const invokedDirectly = isEntry && process.env.npm_lifecycle_event !== undefined;
-if (invokedDirectly) {
+if (isEntry) {
   if (process.env.npm_lifecycle_event === 'postinstall') {
-    const opts = parseArgs(process.argv.slice(2));
-    opts.isPostinstall = true;
-    await installToDsh(opts).catch(() => {
-      /* swallow in postinstall */
-    });
+    // postinstall 必须非致命：解析失败也只警告（npm 生命周期里崩栈会
+    // 中断整个 install）
+    try {
+      const opts = parseArgs(process.argv.slice(2));
+      opts.isPostinstall = true;
+      await installToDsh(opts).catch(() => {
+        /* swallow in postinstall */
+      });
+    } catch (e) {
+      console.warn(err(`[dsh-proactive] postinstall argument error: ${e.message}`));
+    }
   } else {
     await main();
   }

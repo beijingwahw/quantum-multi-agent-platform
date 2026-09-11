@@ -51,15 +51,17 @@ export function toQiskitProgram(
   const ising = toIsing(problem);
   const runtime = options.runtime ?? 'aer';
 
-  // 角度：缺省用解析好的单层启发值
-  const angles =
-    options.angles && options.angles.length >= 2 ? options.angles : [Math.PI / 2, Math.PI / 4];
-  if (angles.length % 2 !== 0) {
-    // 奇数长度静默截断会丢掉最后一个角度，电路与训练结果不一致
+  // 角度：缺省（undefined/空数组）用解析好的单层启发值。奇偶校验必须
+  // 覆盖调用方传入的**原始**数组：此前 `[γ]`（length=1）经 `length >= 2`
+  // 前置条件绕过校验、静默换成缺省角——单 γ 无 β 的调用错误以「训练好
+  // 的角度」的形态被丢弃，与下方错误信息声明的契约自相矛盾
+  if (options.angles !== undefined && options.angles.length % 2 !== 0) {
     throw new QuantumEngineError(
-      `angles must be an even-length [γ1..γp, β1..βp] array (got ${angles.length})`,
+      `angles must be an even-length [γ1..γp, β1..βp] array (got ${options.angles.length})`,
     );
   }
+  const angles =
+    options.angles && options.angles.length >= 2 ? options.angles : [Math.PI / 2, Math.PI / 4];
   const layers = angles.length / 2;
   const gammas = angles.slice(0, layers);
   const betas = angles.slice(layers, layers * 2);

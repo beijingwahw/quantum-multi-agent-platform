@@ -146,6 +146,10 @@ describe('Web控制台协议 端到端', () => {
     const { latest } = await connectConsole(platform.quantumBus.getPort()!);
     await waitFor(latest, (snap) => snap.agents.length >= 4);
 
+    // 回发断言必须可失败：旧写法 waitFor(latest, snap => snap.agents.length >= 4)
+    // 在初始快照上恒真——命令是否真的触发了新一次广播无从定罪。快照带
+    // timestamp，以「收到时间戳不同于命令前」钉住回发确实发生
+    const tsBefore = String(latest().timestamp);
     const ws = clients[clients.length - 1]!;
     ws.send(
       JSON.stringify({
@@ -155,8 +159,9 @@ describe('Web控制台协议 端到端', () => {
       }),
     );
 
-    // 收到回发快照且平台未崩溃
-    await waitFor(latest, (snap) => snap.agents.length >= 4);
+    // 收到回发快照（时间戳更新）且平台未崩溃
+    await waitFor(latest, (snap) => String(snap.timestamp) !== tsBefore);
+    assert.ok(latest().agents.length >= 4);
     assert.ok(platform.quantumBus.isStarted());
   });
 });

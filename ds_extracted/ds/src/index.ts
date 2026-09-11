@@ -747,6 +747,7 @@ export {
   QuantumEstimateError,
   NumericDomainError,
   MessageValidationError,
+  DateValidationError,
 } from './utils/errors.js';
 export { QuantumBus } from './communication/quantum-bus.js';
 export { DSHIntegration } from './dsh/dsh-integration.js';

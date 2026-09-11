@@ -18,6 +18,13 @@ export interface AgentManagerConfig {
   communication?: {
     heartbeatInterval?: number;
   };
+  /**
+   * 单调时钟注入（与 CompoundBrain 08#5 的 now 同款）：失联判定的
+   * 单调旁账读数。缺省 performance.now()；测试注入虚拟时钟即可
+   * 确定性驱动「超过失联阈值」的 offline 判定——不必真睡 30 秒
+   * （staleThresholdMs 的下限），也不必退回操纵墙钟字段。
+   */
+  monotonicClock?: () => number;
 }
 
 // agent统计指标快照（getAgentMetrics返回结构）
@@ -64,10 +71,12 @@ export class AgentManager extends EventEmitter {
    */
   private lastBeatMonotonic = new Map<string, number>();
   private config: AgentManagerConfig;
+  private readonly monotonicClock: () => number;
 
   constructor(config: AgentManagerConfig = {}) {
     super();
     this.config = config;
+    this.monotonicClock = config.monotonicClock ?? (() => performance.now());
   }
 
   /**
@@ -84,10 +93,10 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /** 心跳时戳双账同刷：公开 Date + 内部单调毫秒 */
+  /** 心跳时戳双账同刷：公开 Date + 内部单调毫秒（经注入时钟，缺省 performance.now） */
   private touchHeartbeat(agent: Agent): void {
     agent.lastHeartbeat = new Date();
-    this.lastBeatMonotonic.set(agent.id, performance.now());
+    this.lastBeatMonotonic.set(agent.id, this.monotonicClock());
   }
 
   // Agent注册和管理
@@ -122,6 +131,12 @@ export class AgentManager extends EventEmitter {
     };
 
     this.agents.set(agent.id, agent);
+
+    // 单调旁账必须在注册时同步播种（08#45 补漏）：lastBeatMonotonic 此前
+    // 要等第一次心跳 interval（默认 5s）才写入——窗口期内 checkSystemHealth
+    // 走墙钟 fallback，NTP 跳变恰好在注册后头几秒发生时仍会凭空制造或
+    // 掩盖 offline（正是旁账设计要关闭的洞）。双账在同一处刷新。
+    this.touchHeartbeat(agent);
 
     // 设置心跳检测
     this.startHeartbeat(agent.id);
@@ -456,7 +471,8 @@ export class AgentManager extends EventEmitter {
     // 在 NTP 跳变/手动调整时会凭空制造或掩盖 offline。单调毫秒对
     // 「多久没心跳」才是忠实的度量。无旁账的 agent（理论上只有旁账
     // 尚未初始化的窗口期）退回墙钟判定，保持行为连续。
-    const nowMono = performance.now();
+    // 旁账时钟可注入（见 AgentManagerConfig.monotonicClock）。
+    const nowMono = this.monotonicClock();
     const nowWall = Date.now();
     const agentsArray = Array.from(this.agents.values());
 

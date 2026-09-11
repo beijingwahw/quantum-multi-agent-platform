@@ -2,7 +2,7 @@ import { logWarn } from '../utils/logger.js';
 import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { stat } from 'fs/promises';
-import { resolve } from 'path';
+import { resolve, sep } from 'path';
 import { ToolError } from '../utils/errors.js';
 
 /**
@@ -180,11 +180,16 @@ async function validateWorkdir(workdir?: string): Promise<Record<string, never> 
   const absolute = resolve(workdir);
   if (policy.workdirRoot) {
     const root = resolve(policy.workdirRoot);
-    const rootWithSep = root.endsWith('/') || root.endsWith('\\') ? root : root + '/';
+    // 与 fs-tools 沙箱同口径：分隔符必须取 path.sep——resolve 在 win32 上
+    // 产出反斜杠路径，此前拼 '/' 使前缀比对恒假，Windows 下任何 workdir
+    //（含根目录自身）都被误判越界，工作目录沙箱整体失效。根目录等值
+    // 同样合法（fs-tools 的 real !== sandboxRoot 同款例外）。
+    const rootWithSep = root.endsWith(sep) ? root : root + sep;
     const inside =
-      process.platform === 'win32'
+      absolute === root ||
+      (process.platform === 'win32'
         ? absolute.toLowerCase().startsWith(rootWithSep.toLowerCase())
-        : absolute.startsWith(rootWithSep);
+        : absolute.startsWith(rootWithSep));
     if (!inside) {
       throw new ToolError(`workdir '${workdir}' is outside the allowed root ${root}`);
     }

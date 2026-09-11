@@ -44,7 +44,11 @@ export interface QpuSampleSet {
 }
 
 export interface QpuSolveOptions {
-  /** 采样次数（默认 100） */
+  /**
+   * 采样次数。缺省依后端而定（不是统一值）：D-Wave 提交参数 100；
+   * 本地精确引擎 128（annealSolveSubspace 的 DEFAULT_SHOTS，经
+   * solveAssignmentOnBackend 显式钉住并原样上报 totalReads）。
+   */
   numReads?: number;
   /** 轮询超时毫秒（异步求解器，默认 60_000） */
   timeoutMs?: number;

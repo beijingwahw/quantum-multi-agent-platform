@@ -618,6 +618,14 @@ export class QuantumBus extends EventEmitter {
    * 载荷（数字 id、数组 sourceAgentId）可透传进路由/日志/订阅比较。
    * 以 unknown 视图逐字段断言运行时形状（声明类型来自 JSON.parse 断言，
    * 边界处不可信任）。
+   *
+   * 目标字段同口径校验（F05 姊妹缺口）：targetAgentId/targetAgentIds 是
+   * 对端可控的任意 JSON 值——数字目标可直达离线队列建桶（Map<string,…>
+   * 键类型被打破，且数字键永不投递：authenticate 只接受非空字符串，
+   * 桶成为只进不出的静默垃圾并挤占 MAX_QUEUED_AGENTS 基数预算）；
+   * 非数组 targetAgentIds 此前以裸 TypeError 击穿 processMessage，被
+   * ws 处理器误计入「消息解析失败」桶（错误分类失真）。与 createMessage
+   * 出站契约同判定：非空字符串 / 非空字符串数组，不合法按无效格式丢弃。
    */
   private validateMessage(message: QuantumMessage): boolean {
     const raw = message as {
@@ -625,16 +633,21 @@ export class QuantumBus extends EventEmitter {
       sourceAgentId?: unknown;
       type?: unknown;
       quantumState?: unknown;
+      targetAgentId?: unknown;
+      targetAgentIds?: unknown;
     };
+    const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
     return (
-      typeof raw.id === 'string' &&
-      raw.id !== '' &&
-      typeof raw.sourceAgentId === 'string' &&
-      raw.sourceAgentId !== '' &&
-      typeof raw.type === 'string' &&
-      raw.type !== '' &&
+      isNonEmptyString(raw.id) &&
+      isNonEmptyString(raw.sourceAgentId) &&
+      isNonEmptyString(raw.type) &&
       typeof raw.quantumState === 'object' &&
-      raw.quantumState !== null
+      raw.quantumState !== null &&
+      (raw.targetAgentId === undefined || isNonEmptyString(raw.targetAgentId)) &&
+      (raw.targetAgentIds === undefined ||
+        (Array.isArray(raw.targetAgentIds) &&
+          raw.targetAgentIds.length > 0 &&
+          raw.targetAgentIds.every(isNonEmptyString)))
     );
   }
 

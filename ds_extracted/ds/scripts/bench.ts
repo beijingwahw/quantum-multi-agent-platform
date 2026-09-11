@@ -4,6 +4,8 @@
  *   npm run bench -- regenerate --seed 7   — rebuild the instance set from a
  *                                            seed, verify determinism (two
  *                                            builds must agree byte-for-byte)
+ * Unknown flags / malformed --seed values are refused with exit 1 (naming the
+ * offending token) — never silently ignored.
  * Every public number regenerates from here.
  */
 import { makeBenchInstance, recordFamily } from '../src/bench/generator.js';
@@ -28,12 +30,48 @@ function fingerprint(spec: ReturnType<typeof recordFamily>[number]): string {
   return parts.join('|');
 }
 
+/**
+ * 解析 `--seed <n>`：缺失或非有限数值时干净拒绝并指名收到的值——
+ * 旧行为把 `Number(undefined)`/`Number('abc')` 静默变成 NaN，打印
+ * "--seed NaN is accepted…" 的注记继续退出 0，坏参数被吞而非被拒。
+ */
+function parseSeed(command: string, args: readonly string[]): number {
+  const seedIdx = args.indexOf('--seed');
+  if (seedIdx < 0) return 42;
+  const raw = args[seedIdx + 1];
+  const seed = Number(raw);
+  if (raw === undefined || !Number.isFinite(seed)) {
+    console.error(`bench ${command}: --seed requires a finite number, got ${String(raw)}`);
+    process.exit(1);
+  }
+  return seed;
+}
+
+/** 未知旗标/多余位置参数一律拒绝：静默忽略会让打错的参数带着默认行为跑完全程 */
+function refuseUnknownTokens(command: string, args: readonly string[]): void {
+  const rest = args.slice(1);
+  const knownFlags = command === 'regenerate' ? new Set(['--seed']) : new Set<string>();
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i]!;
+    if (a.startsWith('--')) {
+      if (!knownFlags.has(a)) {
+        console.error(`bench ${command}: unknown flag '${a}' — see header of scripts/bench.ts`);
+        process.exit(1);
+      }
+      if (a === '--seed') i++; // 值由 parseSeed 校验
+    } else {
+      console.error(`bench ${command}: unexpected argument '${a}'`);
+      process.exit(1);
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   const command = args[0] ?? 'run';
   if (command === 'regenerate') {
-    const seedIdx = args.indexOf('--seed');
-    const seed = seedIdx >= 0 ? Number(args[seedIdx + 1]) : 42;
+    refuseUnknownTokens(command, args);
+    const seed = parseSeed(command, args);
     const specs = recordFamily();
     let mismatches = 0;
     for (const spec of specs) {
@@ -53,6 +91,7 @@ function main(): void {
     return;
   }
   if (command === 'run') {
+    refuseUnknownTokens(command, args);
     const run = runBenchmark(recordFamily(), defaultSolvers(42), 42);
     const paths = writeReports(run);
     const npRows = run.rows.filter((r) => r.track === 'np-hard');

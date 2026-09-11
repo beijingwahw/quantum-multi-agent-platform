@@ -91,3 +91,12 @@ export class NumericDomainError extends PlatformError {}
  * 本类只用于进程内 createMessage 出站构造的 fail-fast。
  */
 export class MessageValidationError extends PlatformError {}
+
+/**
+ * 入站 DTO 的 Date 字段非法：reviveDateRequired 收到缺失或不可解析的
+ * DateLike（解析为 Invalid Date）。此前是 src 错误面收敛（73 处裸 Error
+ * →层级子类）的最后一条漏网——公开复活帮助函数抛裸 TypeError，调用方
+ * 按 PlatformError 类别统一捕获的契约在此处被击穿；收敛后消息仍指名
+ * 字段与实际收到的类型。
+ */
+export class DateValidationError extends PlatformError {}

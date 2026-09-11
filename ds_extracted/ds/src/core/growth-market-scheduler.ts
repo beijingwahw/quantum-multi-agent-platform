@@ -200,8 +200,13 @@ export class GrowthMarketScheduler {
    * - market：按 s_i = v_i − bid_i 择优，支付采用 Clarke pivot：
    *   p_w = clamp(v_w − max_{j≠w} s_j, 0, v_w)。
    *   赢家的支付不依赖自身报价 → 如实报价是弱占优策略。
-   * - greedy：最低价中标，按报价支付（一价拍卖基线）。
-   * - round-robin：轮流坐庄基线。
+   *   免费处置（与批量路径 score≤0 不建边同口径）：最优 s < 0（估值不抵
+   *   报价）时返回 null 而非强制分配——否则 v_w < 0 会使上面的 clamp
+   *   输出负支付（赢家倒贴平台），如实报价者被迫接下亏损任务，违反
+   *   本模块头部的 IR/DSIC 声明（Brain 接口文档的 null 语义同样如此）。
+   * - greedy：最低价中标，按报价支付（一价拍卖基线；无免费处置，
+   *   对照基线保持「总是分配」的既有行为）。
+   * - round-robin：轮流坐庄基线（同上，无免费处置）。
    */
   submitTask(capability: string, policy: AllocationPolicy = 'market'): TaskAssignment | null {
     // 在途任务TTL清理：调用方永远不结算的任务不应无界驻留内存
@@ -237,7 +242,10 @@ export class GrowthMarketScheduler {
       payment = winner.bid;
     } else {
       const withScore = scored.map((x) => ({ ...x, s: x.v - x.bid }));
-      winner = withScore.reduce((a, b) => (b.s > a.s ? b : a));
+      const best = withScore.reduce((a, b) => (b.s > a.s ? b : a));
+      // 免费处置：最优分数为负 = 全员估值不抵报价，弃标（见方法 JSDoc）
+      if (best.s < 0) return null;
+      winner = best;
       const secondBest = withScore
         .filter((x) => x.rt !== winner.rt)
         .reduce<number | null>((m, x) => (m === null || x.s > m ? x.s : m), null);

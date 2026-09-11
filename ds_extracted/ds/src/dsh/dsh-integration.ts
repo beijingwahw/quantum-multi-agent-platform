@@ -138,6 +138,11 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private initializeWorkflows(): Promise<void> {
+    // 注意：以下模板的 execute_command 步骤使用 npm 脚本（lint/test/build/
+    // deploy）。npm 不在 system-tools 的默认程序白名单（包管理器会执行
+    // 依赖生命周期脚本，等价任意代码执行）——运行这些模板前宿主须显式
+    // configureCommandPolicy({ allowedPrograms: [..., 'npm'] })，否则对应
+    // 步骤以 ToolError 失败（这是加固管道的预期行为，不是模板缺陷）。
     const defaultWorkflows: DSHWorkflow[] = [
       {
         id: 'code_analysis_workflow',

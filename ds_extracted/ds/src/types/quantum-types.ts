@@ -16,7 +16,9 @@
 //      下述 reviveDate / reviveDateRequired 在入站边界显式复活，
 //      不得对反序列化产物直接调用 Date 方法；
 //   3. 仅透传/再序列化的中间层（如总线转发）无需复活——string 经过
-//      stringify 仍是同一字符串，保持零行为变更。
+//   stringify 仍是同一字符串，保持零行为变更。
+
+import { DateValidationError } from '../utils/errors.js';
 
 /** Date 字段在 DTO 边界的可接受形态：Date 实例、ISO 8601 字符串或 epoch 毫秒数 */
 export type DateLike = Date | string | number;
@@ -37,13 +39,14 @@ export function reviveDate(value: DateLike | null | undefined): Date | undefined
 }
 
 /**
- * 入站 DTO 的必填 Date 字段复活：缺失或不可解析时抛 TypeError
- * （指名字段，便于在边界处定位坏载荷），绝不静默给出错误纪元的 Date。
+ * 入站 DTO 的必填 Date 字段复活：缺失或不可解析时抛 DateValidationError
+ * （PlatformError 层级子类，指名字段与实际类型，便于在边界处定位坏载荷），
+ * 绝不静默给出错误纪元的 Date。
  */
 export function reviveDateRequired(value: DateLike, field: string): Date {
   const revived = reviveDate(value);
   if (revived === undefined) {
-    throw new TypeError(
+    throw new DateValidationError(
       `Invalid date for required field '${field}': expected Date, ISO string or epoch ms, got ${typeof value}`,
     );
   }

@@ -65,6 +65,7 @@ import { QuantumBus } from '../../src/communication/quantum-bus.js';
 import QuantumMultiAgentPlatform from '../../src/index.js';
 import { reviveDate, reviveDateRequired } from '../../src/types/quantum-types.js';
 import type { QuantumMessage } from '../../src/types/quantum-types.js';
+import { DateValidationError, PlatformError } from '../../src/utils/errors.js';
 
 // ----------------------------------------------------------------------------
 // 工厂
@@ -497,13 +498,24 @@ describe('A3#10 Date 字段 DTO 复活', () => {
     assert.equal(reviveDate(undefined), undefined);
   });
 
-  it('reviveDateRequired：坏载荷指名抛 TypeError，合法值返回 Date', () => {
+  it('reviveDateRequired：坏载荷指名抛 DateValidationError（PlatformError 层级），合法值返回 Date', () => {
     const ok = reviveDateRequired('2026-09-06T00:00:00.000Z', 'timestamp');
     assert.ok(ok instanceof Date);
-    assert.throws(
-      () => reviveDateRequired('garbage', 'timestamp'),
-      (err: unknown) => err instanceof TypeError && err.message.includes('timestamp'),
-    );
+    // 错误面收敛回归（R8-C）：此前是 src 内仅存的裸 TypeError——调用方按
+    // PlatformError 类别统一捕获的契约在公开复活帮助函数上被击穿
+    try {
+      reviveDateRequired('garbage', 'timestamp');
+      assert.fail('垃圾 DateLike 必须被拒绝');
+    } catch (err) {
+      assert.ok(
+        err instanceof DateValidationError,
+        `应是 DateValidationError，got: ${String(err)}`,
+      );
+      assert.ok(err instanceof PlatformError, 'DateValidationError 应是 PlatformError 子类');
+      assert.equal(err.name, 'DateValidationError');
+      assert.match(err.message, /'timestamp'/, '消息必须指名字段');
+      assert.match(err.message, /got string/, '消息必须指名实际收到的类型');
+    }
   });
 
   it('QuantumMessage JSON 往返：timestamp 退化为 string（DTO 语义），revive 后恢复 Date 且时刻不变', () => {

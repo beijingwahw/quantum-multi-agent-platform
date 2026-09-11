@@ -278,13 +278,13 @@ console.log('='.repeat(86));
     scheduler.submitTask({
       name: `量子任务-${i}`,
       type: 'quantum',
-      priority: priorities[i],
+      priority: priorities[i]!, // i < priorities.length（循环上界钉死）
       requirements: [{ type: 'capability', name: 'quantum-task', value: null, weight: 1 }],
       dependencies: [],
       estimatedDuration: 5000,
       actualDuration: 0,
       status: 'pending',
-    } as any);
+    });
   }
 
   const report = scheduler.scheduleBatchQuantum();
@@ -427,13 +427,13 @@ console.log('\n  调度器端到端（6任务×8agent，20160维子空间，等�
     scheduler.submitTask({
       name: `量子任务-${i}`,
       type: 'quantum',
-      priority: priorities[i],
+      priority: priorities[i]!, // i < priorities.length（循环上界钉死）
       requirements: [{ type: 'capability', name: 'quantum-task', value: null, weight: 1 }],
       dependencies: [],
       estimatedDuration: 5000,
       actualDuration: 0,
       status: 'pending',
-    } as any);
+    });
   }
   const report = scheduler.scheduleBatchQuantum();
   console.log(

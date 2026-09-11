@@ -601,6 +601,9 @@ export async function runAllExamples() {
     console.log('✓ 所有示例运行完成！');
   } catch (error) {
     console.error('✗ 示例运行失败:', error);
+    // 失败必须反映到退出码（CI/脚本依赖非零退出感知失败——与
+    // basic-usage.js 同口径的纪律，静默吞掉会让示例失败不可见）
+    process.exitCode = 1;
   }
 }
 

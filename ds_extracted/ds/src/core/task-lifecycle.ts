@@ -11,11 +11,13 @@
  * 1. **转移表**：TASK_TRANSITIONS 声明每对 (from → to) 的合法性，
  *    非法转移在 debug 断言模式下抛 SchedulingError（生产模式由
  *    调用方的守卫静默拒绝，行为与修复后的守卫语义一致）；
- * 2. **单一写点**：scheduler 全部状态写入经 transitionTask() 收口，
- *    转移表是唯一裁决者；
- * 3. **不变量断言**：checkTaskInvariants() 在调试模式下验证计数器
- *    与派生真值的一致性（activeAssignments === |assigned∪running|、
- *    pendingCount === pendingTracked.size、agent.load 与在途任务一致），
+ * 2. **转移表是唯一裁决者**：scheduler 的全部状态写点
+ *    （updateTaskStatus / completeTask / assignTaskToAgent / 巡检超时）
+ *    都经 isLegalTaskTransition + assertLegalTaskTransition 这对守卫
+ *    过表——写入合法性只在转移表里定义一次，写点不再各自判断；
+ * 3. **不变量断言**：checkTaskInvariants() 验证计数器与派生真值的
+ *    一致性（activeAssignments === |assigned∪running|、
+ *    pendingCount === pendingTracked.size、任务态自洽），
  *    回归在 CI 中第一时间暴露而不是腐蚀指标。
  */
 
@@ -64,7 +66,9 @@ export function assertLegalTaskTransition(from: TaskStatus, to: TaskStatus): voi
   }
 }
 
-/** 不变量断言总开关（模块级一次解析——与 SAB/env 探测同口径） */
+/** 不变量断言总开关。逐次读 env（而非模块加载期固化）：测试需要在
+ * 同一进程内开/关切换（coverage-recovery 与 quality-task-invariants
+ * 的 try/finally 套路依赖运行时翻转），读取本身不在热路径 */
 export function taskInvariantAssertionsEnabled(): boolean {
   return process.env.QUANTUM_ASSERT_INVARIANTS === '1';
 }

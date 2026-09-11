@@ -183,7 +183,7 @@ async function main(): Promise<void> {
         estimatedDuration: 5000,
         actualDuration: 0,
         status: 'pending',
-      } as any);
+      });
     }
     const report = await scheduler.scheduleBatchQuantumQpu(new LocalQuantumBackend(), {
       numReads: 512,

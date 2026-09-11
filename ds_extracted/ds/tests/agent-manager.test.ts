@@ -12,8 +12,8 @@ describe('AgentManager', () => {
     });
   });
 
-  function newManager(): AgentManager {
-    const manager = new AgentManager({});
+  function newManager(config: ConstructorParameters<typeof AgentManager>[0] = {}): AgentManager {
+    const manager = new AgentManager(config);
     managers.push(manager);
     return manager;
   }
@@ -83,18 +83,38 @@ describe('AgentManager', () => {
     assert.equal(agent.state, 'idle');
   });
 
-  it('健康检查不会因同一agent双重计数而为负', () => {
-    const manager = newManager();
+  it('健康检查不会因同一agent双重计数而为负（注入单调时钟驱动真离线）', () => {
+    // 08#45 之后失联判定只读单调旁账——操纵公开的 lastHeartbeat 墙钟
+    // 字段对 checkSystemHealth 已是死路径。经 monotonicClock 注入虚拟
+    // 时钟，才能真正把 agent 推过 staleThreshold（max(30s, 3×间隔)），
+    // 使「同时离线且过载」的并集去重被实际执行而非空转。
+    let mono = 0;
+    const manager = newManager({ monotonicClock: () => mono });
     const agent = manager.registerAgent({ name: 'A1', type: 'developer', capabilities: [] });
+    const fresh = manager.registerAgent({ name: 'A2', type: 'developer', capabilities: [] });
 
-    // 同时离线且过载
     manager.setAgentState(agent.id, 'overloaded');
-    agent.lastHeartbeat = new Date(Date.now() - 60000);
+    mono += 60_000; // 超过 30s 下限：两个旁账都陈旧……
+    manager.heartbeat(fresh.id); // ……但 fresh 刚心跳：旁账刷新到 60s 时点
 
     const health = manager.checkSystemHealth();
-    assert.equal(health.healthyAgents, 0);
-    assert.equal(health.systemHealth, 0);
-    assert.ok(health.systemHealth >= 0);
+    assert.equal(health.offlineAgents, 1, '只有时钟推进的 agent 判离线');
+    assert.equal(health.overloadedAgents, 1);
+    // agent 同时命中离线与过载两个集合——并集去重后只计一次异常
+    assert.equal(health.healthyAgents, 1, 'fresh agent 仍健康');
+    assert.equal(health.systemHealth, 0.5);
+    assert.ok(health.systemHealth >= 0, '并集去重保证健康度不为负');
+  });
+
+  it('单调旁账口径：墙钟字段回拨不影响失联判定（NTP 跳变免疫）', () => {
+    const mono = 0;
+    const manager = newManager({ monotonicClock: () => mono });
+    const agent = manager.registerAgent({ name: 'A1', type: 'developer', capabilities: [] });
+    // 墙钟被回拨 1 小时（旧路径会凭空制造 offline）
+    agent.lastHeartbeat = new Date(Date.now() - 3_600_000);
+    const health = manager.checkSystemHealth();
+    assert.equal(health.offlineAgents, 0, '旁账新鲜：墙钟回拨不产生假离线');
+    assert.equal(health.healthyAgents, 1);
   });
 
   it('空系统健康度为1且平均负载不为NaN', () => {

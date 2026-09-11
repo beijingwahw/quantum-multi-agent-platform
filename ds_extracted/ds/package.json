@@ -16,7 +16,7 @@
     "format:check": "prettier --check .",
     "prepublishOnly": "npm run build",
     "start": "tsx src/cli.ts",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/cli.ts",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "example:basic": "tsx examples/basic-usage.js",
     "example:advanced": "tsx examples/advanced-workflow.js",

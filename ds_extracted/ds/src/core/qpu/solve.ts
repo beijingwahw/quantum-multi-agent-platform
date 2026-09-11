@@ -3,10 +3,14 @@
  *
  * 真实量子硬件有噪声与读出误差：任何 QPU 采样结果在进入调度器之前
  * 必须过三道闸门：
- *   1. 合法性校验（one-hot / 容量 / 资格）——非法样本丢弃，可修复的修复；
- *   2. 能量核对（Ising 能量 = −福利 + 罚项，自洽性检验）；
+ *   1. 合法性校验（one-hot / 容量 / 资格）——非法样本**直接丢弃**并计入
+ *      invalidSamples（不做修复：修复产物不是测量结果）；
+ *   2. 福利聚合排名——合法样本按福利（并列取出现次数）选出最优分配，
+ *      后端上报的 energies 仅随样本记录、**不参与校验**（刻意的信任
+ *      姿态：对后端数值的不信任由下一道闸门兜底）；
  *   3. 本地精确最优对照（子空间枚举在 ≤2²¹ 维时给出精确最优，
- *      QPU 解的 optimalityRatio 因此是可验证的观测量）。
+ *      QPU 解的 optimalityRatio 因此是可验证的观测量——采样值或解码
+ *      的退化在这里暴露，而不是被静默接受）。
  */
 
 import type { AssignmentProblem } from '../quantum-optimizer.js';
@@ -151,6 +155,8 @@ export async function solveAssignmentOnBackend(
       continue;
     }
     const welfare = welfareOf(problem, assignment);
+    // 后端能量是**信息性**字段（缺省时以 −福利 占位）：不参与闸门校验，
+    // 退化由最优率对照兜底——见文件头「三道闸门」第 2 条的信任姿态说明
     const energy = samples.energies[s] ?? -welfare;
     const key = assignment.join(',');
     const existing = stateStats.get(key);
