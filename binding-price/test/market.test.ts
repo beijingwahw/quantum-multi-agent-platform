@@ -41,7 +41,7 @@ import {
   partialTrace,
 } from "../src/core/channels.js";
 import * as channelsModule from "../src/core/channels.js";
-import { identity, kron, mat, mMul, mDagger } from "../src/core/cmat.js";
+import { basisVec, identity, kron, mat, mMul, mDagger } from "../src/core/cmat.js";
 import { traceDistance, traceReal } from "../src/core/measures.js";
 import { MarketError } from "../src/kernel/errors.js";
 
@@ -167,9 +167,15 @@ describe("T4 the renderer refuses to print an illegal market", () => {
   });
 
   it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
-    await import("../src/experiments/render.js");
     const p = resolve(process.cwd(), "out", "reports", "the-binding-price.md");
-    assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+    // mtime snapshot BEFORE the import, compared for equality after — the old
+    // wall-clock freshness probe ("file younger than 1s = written by the
+    // import") misattributed a legitimately fresh report from a just-finished
+    // `npm run repro` to the import and failed spuriously.
+    const mtimeOrZero = (): number => (existsSync(p) ? statSync(p).mtimeMs : 0);
+    const before = mtimeOrZero();
+    await import("../src/experiments/render.js");
+    assert.equal(mtimeOrZero(), before, "import must not write the report (mtime must be untouched)");
   });
 });
 
@@ -552,5 +558,24 @@ describe("T12 single-source and closed-set anchors (v0.3.0)", () => {
     for (let k = 0; k < WITNESS_IDS.length; k++) {
       assert.ok(names[k]!.startsWith(`${WITNESS_IDS[k]} `), `${names[k]} does not lead with ${WITNESS_IDS[k]}`);
     }
+  });
+});
+
+describe("core family guard: basisVec (R9-A — the silent zero-vector hole)", () => {
+  it("refuses out-of-range and fractional indices instead of returning the zero vector", () => {
+    // an out-of-range/fractional index into the Float64Array was a silent
+    // no-op write: the caller received a confident-looking |0...0> — the
+    // hole the hardened siblings (stable-world R4, ent-clearing R7,
+    // dtc-clock) already refuse by name
+    assert.throws(() => basisVec(3, 3), /basisVec: index 3 out of range for dimension 3/);
+    assert.throws(() => basisVec(3, -1), /basisVec: index -1 out of range for dimension 3/);
+    assert.throws(() => basisVec(3, 1.5), /basisVec: index 1.5 out of range for dimension 3/);
+  });
+
+  it("still builds the exact legal vector", () => {
+    const v = basisVec(3, 1);
+    assert.deepEqual(Array.from(v.re), [0, 1, 0]);
+    assert.deepEqual(Array.from(v.im), [0, 0, 0]);
+    assert.equal(v.n, 3);
   });
 });

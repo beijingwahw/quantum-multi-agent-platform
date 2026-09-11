@@ -3,7 +3,7 @@
 > 🇨🇳 **中文版（主文档）**: [README.md](./README.md) — the diagrams' in-figure labels are Chinese; captions below each embed carry the key English terms.
 
 ![version](https://img.shields.io/badge/version-1.12.0-blue)
-![tests](https://img.shields.io/badge/tests-520-brightgreen)
+![tests](https://img.shields.io/badge/tests-639-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -87,7 +87,7 @@ Task allocation as a **market for intellectual capital**: settlement streams cal
 ```bash
 git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform && npm install
-npm test                 # 520 tests · 0 failures
+npm test                 # 639 tests · 0 failures
 npm run typecheck        # strict + noUncheckedIndexedAccess, whole repo
 npm run bench            # QuantumSched-Bench full comparison
 npm run example:qpu      # real-QPU entry (auto-detects DWAVE_API_TOKEN)
@@ -96,7 +96,7 @@ npm run dev              # start the platform (WS :8080)
 
 ## Tests & Quality
 
-**520 tests · 0 failures · 48 files / 152 suites**; six gates green; coverage ratchet 92/82/92/92 with measured 94.2% statements / 86.2% branches; knip dead-code sweep clean; single runtime dependency (`ws`).
+**639 tests · 0 failures · 63 files / 193 suites**; six gates green; coverage ratchet 92/82/92/92 with measured 94.2% statements / 86.2% branches; knip dead-code sweep clean; single runtime dependency (`ws`).
 
 ![Quality gates](docs/diagrams/16-quality.png)
 

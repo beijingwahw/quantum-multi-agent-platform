@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Rng, auditFilter, feedforwardCheck, runPayload, runSorter } from "../src/kernel/sorter.js";
 import { lcgMarked } from "../src/experiments/exp-t1-sorter.js";
 
@@ -70,4 +72,21 @@ test("T1.E single-source anchor: the kernel Rng IS the xorshift32 stream (v0.3.0
   assert.ok(z.next() > 0 && z.next() > 0);
   // the LCG marked-set helper: deterministic values at (n=6, t=3, seed=101)
   assert.deepEqual(lcgMarked(6, 3, 101), [58, 0, 0]);
+});
+
+test("T1.D instance truth: the printed t is the deduplicated marked set, not the requested LCG draws", () => {
+  // the glibc-parameter LCG's low bits collapse after the first draw — the
+  // requested 11/37 marked draws deduplicate to 2/3 distinct addresses. The
+  // report's t column must describe the instance the referee scored: the
+  // kernel deduplicates its marked input first (feedforwardCheck spreads it
+  // through a Set before scoring), so the sigma digits are identical either
+  // way — only the printed column was wrong
+  assert.equal(new Set(lcgMarked(6, 11, 101)).size, 2);
+  assert.equal(new Set(lcgMarked(8, 37, 202)).size, 3);
+  const report = readFileSync(resolve(process.cwd(), "out", "reports", "t1-sorter.md"), "utf8");
+  assert.match(report, /^\| 6 \| 2 \| 40000 \| /m);
+  assert.match(report, /^\| 8 \| 3 \| 60000 \| /m);
+  // the misdescribing rows (requested counts in the t column) are gone
+  assert.doesNotMatch(report, /^\| 6 \| 11 \| /m);
+  assert.doesNotMatch(report, /^\| 8 \| 37 \| /m);
 });

@@ -50,7 +50,7 @@ machine-checks: `local-exact` (n ≤ 24: replay and compare bit-exactly),
 
 ```bash
 npm ci
-npm test          # 82/82
+npm test          # 84/84
 npm run repro     # regenerates out/exp{1..5}-*.md|json in ~16 s
 ```
 

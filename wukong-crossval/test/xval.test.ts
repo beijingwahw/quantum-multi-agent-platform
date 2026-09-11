@@ -291,9 +291,15 @@ describe("T4 the renderer refuses to print an illegal package", () => {
   });
 
   it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
-    await import("../src/experiments/render.js");
     const p = resolve(process.cwd(), "out", "reports", "the-xval-package.md");
-    assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+    // mtime snapshot BEFORE the import, compared for equality after — the old
+    // wall-clock freshness probe ("file younger than 1s = written by the
+    // import") misattributed a legitimately fresh report from a just-finished
+    // `npm run repro` to the import and failed spuriously.
+    const mtimeOrZero = (): number => (existsSync(p) ? statSync(p).mtimeMs : 0);
+    const before = mtimeOrZero();
+    await import("../src/experiments/render.js");
+    assert.equal(mtimeOrZero(), before, "import must not write the report (mtime must be untouched)");
   });
 });
 

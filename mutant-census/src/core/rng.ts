@@ -17,7 +17,14 @@ export function makeRng(seed: number): Rng {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   const rng = next as Rng;
-  rng.int = (maxExclusive: number): number => Math.floor(next() * maxExclusive);
+  rng.int = (maxExclusive: number): number => {
+    // a maxExclusive < 1 has no legal value in [0, maxExclusive) — returning 0
+    // would smuggle an out-of-range index into every consumer
+    if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
+      throw new Error(`rng.int: maxExclusive must be an integer >= 1, got ${maxExclusive}`);
+    }
+    return Math.floor(next() * maxExclusive);
+  };
   let spare: number | null = null;
   rng.normal = (): number => {
     if (spare !== null) {

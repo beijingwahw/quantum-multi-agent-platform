@@ -30,6 +30,12 @@ export function mat(rows: number, cols: number): CMat {
 }
 
 export function basisVec(n: number, i: number): CVec {
+  // an out-of-range or fractional index is a silently-ignored Float64Array
+  // write — the caller would receive a confident-looking zero vector instead
+  // of an error; refuse it at the boundary
+  if (!Number.isInteger(i) || i < 0 || i >= n) {
+    throw new Error(`basisVec: index ${i} out of range for dimension ${n}`);
+  }
   const v = vec(n);
   v.re[i] = 1;
   return v;

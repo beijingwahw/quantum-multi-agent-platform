@@ -36,7 +36,7 @@ Conditioning is affine only in the branch-weighted sense: cond(sum lambda_i rho_
 
 | n | t | samples | accept sigma | worst cell sigma |
 | --- | --- | --- | --- | --- |
-| 6 | 11 | 40000 | 0.75 | 0.63 |
-| 8 | 37 | 60000 | 0.18 | 1.12 |
+| 6 | 2 | 40000 | 0.75 | 0.63 |
+| 8 | 3 | 60000 | 0.18 | 1.12 |
 
-Both statistics inside 5 sigma: the physical procedure lands on the conditional distribution the algebra predicts.
+The t column is the deduplicated marked set: the glibc-parameter LCG's low bits collapse after the first draw (T1.E pins [58, 0, 0]), so the requested 11 and 37 draws land on t = 2 and t = 3 distinct addresses — the kernel deduplicates the marked input before every statistic, so the referee scores exactly this instance. Both statistics inside 5 sigma: the physical procedure lands on the conditional distribution the algebra predicts.

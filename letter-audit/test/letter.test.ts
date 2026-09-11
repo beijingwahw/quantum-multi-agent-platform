@@ -231,9 +231,14 @@ describe("T4 the renderer refuses to print an illegal audit", () => {
   });
 
   it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
-    await import("../src/experiments/render.js");
+    // before/after mtime snapshot (0 for missing), not wall-clock freshness:
+    // a just-finished `npm run repro` legitimately leaves a fresh artifact,
+    // and age-based checks would misattribute it to the import
     const p = resolve(process.cwd(), "out", "reports", "the-letter-audit.md");
-    assert.ok(!existsSync(p) || Date.now() - statSync(p).mtimeMs >= 1000, "import must not write a fresh report");
+    const before = existsSync(p) ? statSync(p).mtimeMs : 0;
+    await import("../src/experiments/render.js");
+    const after = existsSync(p) ? statSync(p).mtimeMs : 0;
+    assert.equal(after, before, "import must not write the report");
   });
 });
 

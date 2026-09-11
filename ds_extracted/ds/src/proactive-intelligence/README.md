@@ -602,8 +602,8 @@ A: 检查：
 ## 🔗 相关资源
 
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-- [量子多Agent平台](./README.md)
-- [DSH插件开发指南](./deepseek-harness-plugin-guide.md)
+- [量子多Agent平台](../../README.md)
+- [DSH插件开发指南](../../deepseek-harness-plugin-guide.md)
 
 ## 📄 许可证
 

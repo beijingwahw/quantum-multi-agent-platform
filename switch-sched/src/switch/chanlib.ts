@@ -50,7 +50,11 @@ export function completelyDepolarizingKraus(d: number): CMat[] {
  */
 export function depolarizingKraus(d: number, p: number): CMat[] {
   const pMax = (d * d) / (d * d - 1);
-  if (p < 0 || p > pMax + 1e-12) throw new Error(`depolarizing p must be in [0, ${pMax.toFixed(3)}]`);
+  // NaN slips both comparisons (NaN < 0 and NaN > pMax are both false) and
+  // would ship sqrt(NaN) weights into every Kraus operator — refuse it too
+  if (!Number.isFinite(p) || p < 0 || p > pMax + 1e-12) {
+    throw new Error(`depolarizing p must be in [0, ${pMax.toFixed(3)}], got ${p}`);
+  }
   const kraus: CMat[] = [];
   const K0 = mat(d, d);
   const c0 = Math.sqrt(Math.max(0, 1 - (p * (d * d - 1)) / (d * d)));

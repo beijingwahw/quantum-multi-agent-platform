@@ -433,7 +433,12 @@ describe("determinism and the frozen artifact", () => {
     // bytes catches the R5-class failure where a source change alters the
     // render and the committed report silently goes stale. A deliberate digit
     // change must re-render AND consciously update this pin.
-    const report = readFileSync(resolve(process.cwd(), "out", "reports", "the-phase-law.md"), "utf8");
+    // Line endings are normalized before hashing: the repo blob is LF, but a
+    // fresh Windows clone with core.autocrlf=true checks the artifact out as
+    // CRLF — hashing raw bytes would fail on the same commit (the pin is over
+    // the LF content, exactly what git stores; CRLF checkouts are an identity
+    // git itself normalizes away).
+    const report = readFileSync(resolve(process.cwd(), "out", "reports", "the-phase-law.md"), "utf8").replace(/\r\n/g, "\n");
     const sha = createHash("sha256").update(report).digest("hex");
     assert.equal(sha, "4505735910191f842a07489812f5148739c3db38d0f5df8cc319f53806d4dec8");
     assert.ok(report.length > 10000, "the report body is present, not a stub");

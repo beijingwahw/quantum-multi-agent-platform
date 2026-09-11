@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { type CMat, identity, isUnitary, mMul, mDagger, mat, eigenvaluesHermitian, eigHermitian } from '../src/core/cmat.js';
+import { type CMat, identity, isUnitary, mMul, mDagger, mat, eigenvaluesHermitian, eigHermitian, basisVec } from '../src/core/cmat.js';
 import { applyKraus, partialTrace, depolarize } from '../src/core/channels.js';
 import { traceDistance, fidelity, vonNeumannEntropy } from '../src/core/measures.js';
 import { bellState, fromVec, wernerFidelity, equatorial, equatorialRho, maximallyMixed, PLUS } from '../src/core/states.js';
@@ -137,4 +137,22 @@ test('mDagger/mMul roundtrip on random unitary', () => {
     assert.ok(Math.abs(prod.re[k]! - eye.re[k]!) < 1e-12);
     assert.ok(Math.abs(prod.im[k]!) < 1e-12);
   }
+});
+
+test('basisVec refuses out-of-range and fractional indices (R9-A: was the silent zero vector)', () => {
+  // an out-of-range/fractional index into the Float64Array was a silent
+  // no-op write: the caller received a confident-looking |0...0> — the hole
+  // the hardened siblings (stable-world R4, ent-clearing R7, dtc-clock)
+  // already refuse by name
+  assert.throws(() => basisVec(3, 3), /basisVec: index 3 out of range for dimension 3/);
+  assert.throws(() => basisVec(3, -1), /basisVec: index -1 out of range for dimension 3/);
+  assert.throws(() => basisVec(3, 1.5), /basisVec: index 1.5 out of range for dimension 3/);
+});
+
+test('basisVec still builds the exact legal vector (and the bell states built on it)', () => {
+  const v = basisVec(3, 1);
+  assert.deepEqual(Array.from(v.re), [0, 1, 0]);
+  assert.deepEqual(Array.from(v.im), [0, 0, 0]);
+  assert.equal(v.n, 3);
+  assert.deepEqual(Array.from(basisVec(4, 1).re), [0, 1, 0, 0]);
 });

@@ -41,7 +41,7 @@
 
 ## K-board — the kernel family census (live)
 
-Canonical hashes (sha256/16): cmat.ts=70369052cdbf4714, states.ts=a9c6e43a93158d4c, channels.ts=8f1f9b8806364be1, rng.ts=923f757b556d2542, measures.ts=00432a11fbf10a3d. Across 140 repo-file pairs: 86 NOT-PRESENT, 43 REGISTERED-DIVERGENCE, 11 IDENTICAL.
+Canonical hashes (sha256/16): cmat.ts=934bb41c5a388ec8, states.ts=a9c6e43a93158d4c, channels.ts=8f1f9b8806364be1, rng.ts=86473d79d00462d3, measures.ts=00432a11fbf10a3d. Across 140 repo-file pairs: 86 NOT-PRESENT, 42 REGISTERED-DIVERGENCE, 12 IDENTICAL.
 
 | registered divergence | reason |
 | --- | --- |
@@ -87,9 +87,8 @@ Canonical hashes (sha256/16): cmat.ts=70369052cdbf4714, states.ts=a9c6e43a93158d
 | switch-sched/src/core/channels.ts | the v0.3.0 absorption sweep deleted this member's unused channels exports (depolarize and filterBasisDigit); the canon's algorithmic faces are untouched between the deletions; re-convergence is the appeal court's call |
 | switch-sched/src/core/rng.ts | the v0.3.0 absorption sweep deleted this member's unused rng export (fmt; the Box-Muller callers moved to the canon's complexGaussian in the same wave); the bit stream is untouched; re-convergence is the appeal court's call |
 | qverify/src/core/rng.ts | the 2026-09-11 quality wave hardened this member's own copy at the degenerate boundary (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0 — the mirror of rng.pick's existing guard); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call |
-| quantum-mech/src/core/rng.ts | the 2026-09-11 quality wave hardened this member's own copy at the same degenerate boundary as qverify's in the same sweep (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call |
 
-0 epoch members byte-identical in all 5 files ( — plus this census itself, the canon); partial members: binding-price shares 2 of 3, bqp-map shares 0 of 1, causal-ineq shares 0 of 1, choice-lang shares 0 of 2, dsic-noether shares 0 of 1, dtc-clock shares 0 of 5, ent-clearing shares 0 of 5, ent-sched shares 0 of 1, ft-qaoa shares 0 of 1, k-switch shares 0 of 1, nonstoq-anneal shares 0 of 1, nosignal-tariff shares 0 of 4, phase-law shares 0 of 1, qram-sched shares 0 of 1, quantum-mech shares 2 of 5, qverify shares 3 of 5, readout-wall shares 3 of 5, stable-world shares 0 of 5, switch-sched shares 1 of 5, vacuum-compiler shares 0 of 1. The law is symmetric: an unregistered drift fails the build, and so does a stale registration — the register must match reality exactly.
+0 epoch members byte-identical in all 5 files ( — plus this census itself, the canon); partial members: binding-price shares 2 of 3, bqp-map shares 0 of 1, causal-ineq shares 0 of 1, choice-lang shares 0 of 2, dsic-noether shares 0 of 1, dtc-clock shares 0 of 5, ent-clearing shares 0 of 5, ent-sched shares 0 of 1, ft-qaoa shares 0 of 1, k-switch shares 0 of 1, nonstoq-anneal shares 0 of 1, nosignal-tariff shares 0 of 4, phase-law shares 0 of 1, qram-sched shares 0 of 1, quantum-mech shares 3 of 5, qverify shares 3 of 5, readout-wall shares 3 of 5, stable-world shares 0 of 5, switch-sched shares 1 of 5, vacuum-compiler shares 0 of 1. The law is symmetric: an unregistered drift fails the build, and so does a stale registration — the register must match reality exactly.
 
 ## W-board — the workspace hygiene census (live)
 
@@ -1291,7 +1290,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-A kill census (9/9 killed as declared — EXACT 6, CRASH 1, DATA 2, SURVIVED 0; margins MU1:1.8e+0 MU2:1.0e+0 MU3:4.0e+0 MU5:3580 MU6:8.5e-1 MU7:8.4e-1 MU8:5.9e+2 MU9:6.7e+1)
 - PASS — W-B property battery (10 properties green on the canonical family; worst deviations P1=0.0e+0 P2=4.4e-16 P3=6.7e-16 P4=6.7e-16 P5=4.4e-16 P6=6.7e-16 P7=1.6e-13 P8=5.4e-1 P9=1.5e+0 P10=5.6e-16)
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
-- PASS — W-D family census (11 file-pairs byte-identical to the canon; 43 registered divergences live (43 registered); 0 unregistered, 0 stale — the register matches reality exactly)
+- PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: probe.ts) — the root-stray gate, v0.9.0)
 - PASS — W-F enrollment census (726 errors enrolled LIVE against a registry of 93 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 265, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)

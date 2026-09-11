@@ -179,7 +179,28 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   // row here. Registered as debt, not adjudicated: whether the canon adopts
   // the guard (or the members re-converge) is the appeal court's call.
   { repo: "qverify", file: "rng.ts", reason: "the 2026-09-11 quality wave hardened this member's own copy at the degenerate boundary (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0 — the mirror of rng.pick's existing guard); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call" },
-  { repo: "quantum-mech", file: "rng.ts", reason: "the 2026-09-11 quality wave hardened this member's own copy at the same degenerate boundary as qverify's in the same sweep (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call" },
+  // -- the 2026-09-12 R9-A family hardening (the canon's own last unguarded
+  // faces, the two items the R7 wave deferred to a single owner) -----------
+  // (1) cmat.basisVec: an out-of-range or fractional index wrote the
+  // Float64Array at a non-index — a silent no-op — returning the ZERO vector
+  // (the exact hole stable-world R4 and ent-clearing R7 were convicted of).
+  // The canon and the three members still standing byte-identical to it
+  // (binding-price, quantum-mech, qverify) were guarded IN THE SAME BREATH
+  // with identical bytes, so the identity class holds and no row is needed;
+  // readout-wall's (BASISVEC_INDEX_RANGE, this member's refuse() idiom) and
+  // switch-sched's (bare descriptive Error, this member's cmat idiom) guards
+  // landed inside their already-registered cmat lineages — the 2026-09-11
+  // precedent, no rows here. (2) rng.int: the canon's own copy was the
+  // lineage's last unguarded int() (int(2.5) drew biased, int(0)/int(-2)
+  // returned impossible indices); the guard is the EXACT text qverify and
+  // quantum-mech landed 2026-09-11, so the canon ADOPTED the members' fix —
+  // the appeal court's convergence answered rootward. readout-wall, still
+  // byte-identical to the canon, was guarded in the same edit and stays
+  // identical; quantum-mech re-converged to the canon byte-for-byte and its
+  // 2026-09-11 debt row is PRUNED here (the batch-79 precedent: the
+  // register matches reality exactly); qverify keeps its row (its meanStdErr
+  // append still differs). Both guards sit BEFORE any draw/write, so every
+  // legal seeded stream and every committed digit is bit-identical.
 ];
 
 export type FamilyStatus =

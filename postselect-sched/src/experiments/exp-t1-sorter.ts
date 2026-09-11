@@ -64,15 +64,21 @@ export function main(): void {
   lines.push("## D. physical realization referee (measure flag, keep the branch)\n");
   lines.push("| n | t | samples | accept sigma | worst cell sigma |");
   lines.push("| --- | --- | --- | --- | --- |");
-  for (const [n, t, seed, samples] of [
+  for (const [n, tRequested, seed, samples] of [
     [6, 11, 101, 40000],
     [8, 37, 202, 60000],
   ] as const) {
-    const marked = lcgMarked(n, t, seed);
+    // the glibc-parameter LCG's low bits collapse after the first draw (T1.E
+    // pins [58, 0, 0]): the requested marked draws deduplicate to a tiny
+    // distinct set — print the instance the referee actually scored, never
+    // the requested count (the kernel deduplicates either way)
+    const marked = [...new Set(lcgMarked(n, tRequested, seed))];
     const chk = feedforwardCheck(n, marked, seed, samples);
-    lines.push(`| ${n} | ${t} | ${samples} | ${fmt(chk.acceptSigma, 2)} | ${fmt(chk.worstSigma, 2)} |`);
+    lines.push(`| ${n} | ${marked.length} | ${samples} | ${fmt(chk.acceptSigma, 2)} | ${fmt(chk.worstSigma, 2)} |`);
   }
-  lines.push("\nBoth statistics inside 5 sigma: the physical procedure lands on the conditional distribution the algebra predicts.\n");
+  lines.push(
+    "\nThe t column is the deduplicated marked set: the glibc-parameter LCG's low bits collapse after the first draw (T1.E pins [58, 0, 0]), so the requested 11 and 37 draws land on t = 2 and t = 3 distinct addresses — the kernel deduplicates the marked input before every statistic, so the referee scores exactly this instance. Both statistics inside 5 sigma: the physical procedure lands on the conditional distribution the algebra predicts.\n",
+  );
 
   const path = writeReport("t1-sorter.md", lines.join("\n"));
   console.log(`exp T1 done -> ${path}`);

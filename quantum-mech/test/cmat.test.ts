@@ -8,6 +8,7 @@ import {
   mMul,
   identity,
   reconstruct,
+  basisVec,
 } from '../src/core/cmat.js';
 import {
   BELL_PHI_PLUS,
@@ -131,4 +132,24 @@ test('depolarize keeps trace 1 and shrinks purity', () => {
   let purity = 0;
   for (let i = 0; i < 4; i++) purity += sq.re[i * 4 + i]!;
   assert.ok(purity < 1 - 1e-9 && purity > 0.25);
+});
+
+test('basisVec refuses out-of-range and fractional indices (R9-A: was the silent zero vector)', () => {
+  // an out-of-range/fractional index into the Float64Array was a silent
+  // no-op write: the caller received a confident-looking |0...0> — the hole
+  // the hardened siblings (stable-world R4, ent-clearing R7, dtc-clock)
+  // already refuse by name
+  assert.throws(() => basisVec(3, 3), /basisVec: index 3 out of range for dimension 3/);
+  assert.throws(() => basisVec(3, -1), /basisVec: index -1 out of range for dimension 3/);
+  assert.throws(() => basisVec(3, 1.5), /basisVec: index 1.5 out of range for dimension 3/);
+});
+
+test('basisVec still builds the exact legal vector (and the states built on it)', () => {
+  const v = basisVec(3, 1);
+  assert.deepEqual(Array.from(v.re), [0, 1, 0]);
+  assert.deepEqual(Array.from(v.im), [0, 0, 0]);
+  assert.equal(v.n, 3);
+  // HJW/GHZ faces ride basisVec with legal indices — their exact cells
+  // are pinned elsewhere; here pin the primitive itself
+  assert.deepEqual(Array.from(basisVec(4, 3).re), [0, 0, 0, 1]);
 });

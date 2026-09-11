@@ -74,7 +74,7 @@ README 引用的所有数字。
 
 ```bash
 npm install
-npm test          # 60 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层、走私审判与具名错误审判
+npm test          # 67 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层、走私审判与具名错误审判
 npm run repro     # ~13 分钟重建 out/*.md 全部报告
 npm run exp:physics   # 单跑某一实验（exp:chain / exp:network / exp:purify / exp:scaling / exp:robustness）
 ```

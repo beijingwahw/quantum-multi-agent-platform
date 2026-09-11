@@ -18,11 +18,18 @@ function smuggle(mutate: (b: BurialBatch[]) => void): BurialBatch[] {
   return copy;
 }
 
-/** stale (from an earlier repro) counts as absent — the import must not produce a fresh file */
-function freshReportExists(): boolean {
+/** a report written by THIS process must be newer than the process itself.
+ *  The old wall-clock freshness probe ("younger than 1s" — stale counts as
+ *  absent) misattributed a legitimately fresh report from a just-finished
+ *  `npm run repro` to the module load and failed spuriously; performance.timeOrigin
+ *  (process start, same clock domain as mtimeMs) is the race-free anchor:
+ *  this file statically imports render.js at the top, so by the time any test
+ *  body runs, the load-time write — if it existed — would already have
+ *  happened, inside this process. */
+function reportWrittenByThisProcess(): boolean {
   const p = resolve(process.cwd(), "out", "reports", "the-burial-record.md");
   if (!existsSync(p)) return false;
-  return Date.now() - statSync(p).mtimeMs < 1000;
+  return statSync(p).mtimeMs >= performance.timeOrigin;
 }
 
 describe("T1 the record buries cleanly", () => {
@@ -274,7 +281,7 @@ describe("T3 the renderer refuses to print an illegal registry", () => {
 
   it("importing the render module does not execute the render (batch 21's entry guard)", async () => {
     await import("../src/experiments/render.js");
-    assert.equal(freshReportExists(), false, "importing render.ts must not write a fresh out/reports file");
+    assert.equal(reportWrittenByThisProcess(), false, "importing render.ts must not write the out/reports file");
   });
 
   it("the refusal is thrown BY NAME — IllegalRegistryError carries the conviction lines (the previously untested gate face)", () => {
