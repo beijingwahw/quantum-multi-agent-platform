@@ -3,8 +3,10 @@
  * application's own specification.
  */
 
+/** How a price was established: exact arithmetic, or measured data. */
 export type Exactness = "EXACT" | "DATA";
 
+/** One line of the ledger: a claim, its price, tag, witness, and anchors. */
 export interface XvalRow {
   readonly id: string;
   readonly claim: string;
@@ -14,11 +16,13 @@ export interface XvalRow {
   readonly anchors: readonly string[];
 }
 
+/** Headline constants — the witnesses re-derive these, never copy. */
 export const QUOTED_INSTANCES = 20;
 export const QUOTED_LINEAR = 5;
 export const QUOTED_COUPLED = 15;
 export const QUOTED_P0_TOL = 1e-12;
 
+/** The ledger itself — X1 through X8, the rows the checker must clear. */
 export const XVAL: readonly XvalRow[] = [
   {
     id: "X1",

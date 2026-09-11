@@ -94,6 +94,8 @@ export interface ProcessValidity {
   readonly valid: boolean;
 }
 
+/** Run every validity gate at once: Hermiticity, PSD, OCB term types, and
+ * normalization over the identity pair plus the extra CPTP battery. */
 export function judgeProcess(w: CMat, extraCptp: ReadonlyArray<readonly CMat[]> = []): ProcessValidity {
   const eig = eigenSummary(w);
   const termJudge = judgeTermTypes(w);

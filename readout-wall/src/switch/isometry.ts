@@ -35,7 +35,10 @@ export interface Stinespring {
 
 /** Standard Stinespring dilation of a Kraus set: V = Σ_m K_m ⊗ |m⟩_E. */
 export function krausToStinespring(kraus: readonly CMat[]): Stinespring {
-  const d = kraus[0]?.rows ?? 0;
+  // an empty list would dilate to a 0-dimensional "channel" that passes every
+  // vacuous check and flows downstream as a live object
+  if (kraus.length === 0) refuse('KRAUS_SHAPE', 'kraus list must be non-empty');
+  const d = kraus[0]!.rows; // length checked directly above
   if (kraus.some((k) => k.rows !== d || k.cols !== d)) refuse('KRAUS_SHAPE', 'kraus operators must be d×d');
   const envDim = kraus.length;
   const V = mat(d * envDim, d);
@@ -61,8 +64,9 @@ export function assertStinespring(st: Stinespring, tol = 1e-12): void {
   }
 }
 
-/** Boundary check: V must be the (d·envDim)×d buffer the index conventions assume. */
-function checkStinespringShape(st: Stinespring, caller: string): void {
+/** Boundary check: V must be the (d·envDim)×d buffer the index conventions assume.
+ * Exported for the k=3 builder, whose loops index V the same way. */
+export function checkStinespringShape(st: Stinespring, caller: string): void {
   if (st.V.rows !== st.d * st.envDim || st.V.cols !== st.d) {
     refuse('STINESPRING_SHAPE', `${caller}: V must be ${st.d * st.envDim}x${st.d}, got ${st.V.rows}x${st.V.cols}`);
   }

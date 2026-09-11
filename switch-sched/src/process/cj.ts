@@ -109,6 +109,15 @@ export function firstPartyProcess(
   if (rhoIn.rows !== 2 || rhoIn.cols !== 2) {
     throw new Error(`firstPartyProcess: input state must be 2x2 on the first party's wire, got ${rhoIn.rows}x${rhoIn.cols}`);
   }
+  // same boundary class, channel side: the loop below indexes the channel CJ
+  // with qubit strides, so a non-2x2 Kraus set silently produces a Hermitian,
+  // correctly-normalized, plausible-looking 16x16 GARBAGE process (probed:
+  // identity(4) passes every casual sanity check) — refuse it by name
+  const k0 = channelKraus[0];
+  if (k0 === undefined) throw new Error('firstPartyProcess: empty channel Kraus set');
+  if (k0.rows !== 2 || k0.cols !== 2) {
+    throw new Error(`firstPartyProcess: channel Kraus must be 2x2 on the qubit wires, got ${k0.rows}x${k0.cols}`);
+  }
   const cj = cjMatrix(channelKraus);
   const w = mat(16, 16);
   for (let i1 = 0; i1 < 2; i1++) {

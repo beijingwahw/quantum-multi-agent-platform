@@ -36,6 +36,7 @@ export const ERROR_CODES = [
   // ledger face
   "BAD-VAR-COUNT",
   "BAD-CLAUSE-COUNT",
+  "BAD-LITERAL",
   "INSUFFICIENT-VARIABLES",
   "UNSATISFIABLE-INSTANCE",
   "BAD-GAP",

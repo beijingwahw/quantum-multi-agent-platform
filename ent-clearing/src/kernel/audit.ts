@@ -94,6 +94,8 @@ import {
 } from "./ghz.js";
 import { BOARD, type BoardRow } from "./board.js";
 
+/** The workspace root this package is checked against (parent of the cwd the
+ * checker runs from — anchors are sibling repos on disk). */
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
 export interface Violation {
@@ -577,7 +579,9 @@ function witnessPurificationDesk(): WitnessResult {
     chains.push(r1.pSucc * r1.pSucc * r4.pSucc);
     for (const n of [2, 3, 4] as const) {
       const s = schemePurify(n, W);
-      worstChain = Math.max(worstChain, Math.abs(s.pSucc - (chains[n - 2] as number)));
+      const chain = chains[n - 2];
+      if (chain === undefined) throw new Error(`EC_CHAIN: the scheme chain lost its n=${n} entry`);
+      worstChain = Math.max(worstChain, Math.abs(s.pSucc - chain));
       minted = minted || s.fidelityOut >= 1 - 1e-9;
       worstEf = Math.max(worstEf, s.pSucc * eF(s.finalState) - n * eF(W));
     }
@@ -644,6 +648,8 @@ function witnessGhzBank(): WitnessResult {
   };
 }
 
+/** Run every witness (W-A .. W-I) — the independent re-derivations the
+ * renderer's tail prints and the test suite holds to PASS. */
 export function runWitnesses(): readonly WitnessResult[] {
   return [
     witnessRedemption(),

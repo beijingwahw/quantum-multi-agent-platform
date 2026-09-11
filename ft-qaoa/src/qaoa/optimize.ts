@@ -1,4 +1,5 @@
 import type { IsingModel } from "../core/ising.js";
+import { requireThat } from "../core/errors.js";
 import { qaoaExpectation, makeParams } from "./engine.js";
 import type { QaoaParams } from "./engine.js";
 import { linearRamp, interp } from "./params.js";
@@ -10,6 +11,11 @@ export interface GoldenResult {
 
 /** Golden-section maximization of a unimodal-ish objective on [a, b]. */
 export function goldenMax(f: (x: number) => number, a: number, b: number, iters: number): GoldenResult {
+  requireThat(
+    Number.isFinite(a) && Number.isFinite(b) && a <= b,
+    "GOLDEN_BRACKET_INVALID",
+    `golden section needs a finite bracket a <= b (a reversed or NaN bracket silently returns garbage), got a=${a}, b=${b}`,
+  );
   const invPhi = (Math.sqrt(5) - 1) / 2;
   let lo = a;
   let hi = b;
@@ -67,6 +73,11 @@ export function optimizeRampT(
   const tMax = options.tMax ?? 60;
   const gridSize = options.gridSize ?? 24;
   const iters = options.iters ?? 18;
+  requireThat(
+    Number.isInteger(p) && p >= 0 && Number.isFinite(tMin) && tMin > 0 && Number.isFinite(tMax) && tMax > tMin && Number.isInteger(gridSize) && gridSize >= 2 && Number.isInteger(iters) && iters >= 0,
+    "RAMP_T_RANGE_INVALID",
+    `ramp search needs integer depth p >= 0, 0 < tMin < tMax (a non-positive bound makes the log grid NaN), and integer gridSize >= 2, iters >= 0, got p=${p}, tMin=${tMin}, tMax=${tMax}, gridSize=${gridSize}, iters=${iters}`,
+  );
   const objective = (T: number): number => qaoaExpectation(model, energyOf, linearRamp(p, T));
 
   const logMin = Math.log(tMin);

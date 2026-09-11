@@ -16,6 +16,7 @@ import {
   instanceSet,
   makeRng,
   optimizeOffline,
+  probOf,
   runQaoa,
   sampleWithReadoutNoise,
   uniformState,
@@ -31,12 +32,14 @@ import { DISC_PROBE_IDS, discriminatorRow, MC_SHELL_DEMO, mcShellDemo } from "./
 
 const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
+/** One conviction: which row, which law, and the prosecutor's prose. */
 export interface Violation {
   readonly row: string;
   readonly law: string;
   readonly detail: string;
 }
 
+/** The closed witness set, W-A through W-H. */
 const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"];
 
 /** The instance set is pure and deterministic (seeded); the n=20 universe
@@ -64,6 +67,8 @@ export function requireInstance(id: string): Instance {
  * to plain string and the guard stays. */
 export type XvalRowInput = Omit<XvalRow, "exactness"> & { readonly exactness: string };
 
+/** Runs the four package laws over the rows — the real ledger by default, a
+ *  smuggled copy when the caller is a trial. Every violation is named. */
 export function checkXval(rows: readonly XvalRowInput[] = XVAL): Violation[] {
   const violations: Violation[] = [];
   const seen = new Set<string>();
@@ -80,6 +85,7 @@ export function checkXval(rows: readonly XvalRowInput[] = XVAL): Violation[] {
   return violations;
 }
 
+/** One witness verdict: a name, a pass, and the measured detail behind it. */
 export interface WitnessResult {
   readonly name: string;
   readonly pass: boolean;
@@ -116,7 +122,7 @@ function witnessOffline(): WitnessResult {
   let psum = 0;
   const psi1 = runQaoa(target, params);
   const dim = psi1.length >> 1;
-  for (let k = 0; k < dim; k++) psum += psi1[k]! * psi1[k]! + psi1[dim + k]! * psi1[dim + k]!;
+  for (let k = 0; k < dim; k++) psum += probOf(psi1, k);
   const ok = Math.abs(e0 - mean) < QUOTED_P0_TOL && e1 < e0 && Math.abs(psum - 1) < 1e-9;
   return { name: "W-B offline optimization anchors", pass: ok, detail: `p=0: E = mean cost (${e0.toFixed(6)} vs ${mean.toFixed(6)}); p=1 improves to ${e1.toFixed(4)}; norm 1 at ${psum.toFixed(12)}` };
 }
@@ -343,6 +349,7 @@ function witnessDiscriminator(): WitnessResult {
   };
 }
 
+/** All eight witnesses, W-A through W-H, each re-derived from scratch. */
 export function runWitnesses(): WitnessResult[] {
   return [
     witnessInstances(),

@@ -3,6 +3,7 @@
  */
 import { Rng } from "../kernel/sorter.js";
 import { eStarGrover, groverPClosed, lubyUniversal, payExpected } from "../kernel/restart.js";
+import { KernelError } from "../kernel/errors.js";
 import { writeReport, fmt } from "./report.js";
 import { pathToFileURL } from "node:url";
 
@@ -10,6 +11,12 @@ import { pathToFileURL } from "node:url";
  *  since v0.3.0 — test/t4-contact.test.ts previously carried a verbatim
  *  local copy of it. */
 export function geometricRounds(rng: Rng, q: number): number {
+  // degenerate q used to spin FOREVER (q <= 0: rng.next() < q never fires)
+  // or "succeed" without a draw (q > 1) — the round probability lives in
+  // (0,1], named refusal, same conviction class as the randomSat hang
+  if (!(q > 0) || q > 1) {
+    throw new KernelError("BAD-ROUND-PROBABILITY", `geometricRounds: q must be in (0,1] (got ${q})`);
+  }
   let rounds = 0;
   for (;;) {
     rounds++;

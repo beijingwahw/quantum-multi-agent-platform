@@ -11,8 +11,10 @@
  * bounds the two-coin question (per-coin flat, joint movable).
  */
 
+/** How a price was established: re-derived by a witness, or measured data. */
 export type Exactness = "MARKET-EXACT" | "DATA";
 
+/** One line of the market: a good, its price, its tag, witness, and anchors. */
 export interface MarketRow {
   readonly id: string;
   readonly good: string;
@@ -37,6 +39,7 @@ export const QUOTED_CONFISCATION_DEV = 1e-15; // |output loss at r=0 minus gamma
 // v0.2.0 — the two-coin bounded census (W-H)
 export const QUOTED_JOINT_SPREAD_MIN = 0.2; // measured spread of the joint reveal across perfectly concealing strategies
 
+/** The market itself — G1 through G8, the rows the checker must clear. */
 export const MARKET: readonly MarketRow[] = [
   {
     id: "G1",

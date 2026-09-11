@@ -64,14 +64,17 @@ export function rat(num: bigint, den = 1n): Rat {
   return { num: num / g, den: den / g };
 }
 
+/** a + b, exact. */
 export function ratAdd(a: Rat, b: Rat): Rat {
   return rat(a.num * b.den + b.num * a.den, a.den * b.den);
 }
 
+/** a - b, exact. */
 export function ratSub(a: Rat, b: Rat): Rat {
   return rat(a.num * b.den - b.num * a.den, a.den * b.den);
 }
 
+/** a * b, exact. */
 export function ratMul(a: Rat, b: Rat): Rat {
   return rat(a.num * b.num, a.den * b.den);
 }
@@ -82,14 +85,17 @@ export function ratCmp(a: Rat, b: Rat): -1 | 0 | 1 {
   return d < 0n ? -1 : d > 0n ? 1 : 0;
 }
 
+/** Exact a == b. */
 export function ratEq(a: Rat, b: Rat): boolean {
   return ratCmp(a, b) === 0;
 }
 
+/** Nearest float — readout only, certificates stay in BigInt. */
 export function ratToNumber(r: Rat): number {
   return Number(r.num) / Number(r.den);
 }
 
+/** Canonical "num/den" form. */
 export function ratToString(r: Rat): string {
   return `${r.num}/${r.den}`;
 }
@@ -333,6 +339,7 @@ export function lambdaRat(table: readonly bigint[], t: number): Rat | null {
   return rat(BigInt(t) * d - deficit, q);
 }
 
+/** d = sum_u table[u] (the denominator). */
 export function tableTotal(table: readonly bigint[]): bigint {
   let d = 0n;
   for (let u = 1; u < table.length; u++) d += table[u] as bigint;
@@ -346,6 +353,7 @@ export interface RationalStar {
   readonly lambdas: readonly string[];
 }
 
+/** Exact argmin of lambda over the table — exact ties surface as multiple optima. */
 export function lambdaStarRat(table: readonly bigint[]): RationalStar {
   let best: Rat | null = null;
   const optima: number[] = [];

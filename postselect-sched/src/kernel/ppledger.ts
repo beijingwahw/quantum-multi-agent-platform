@@ -25,6 +25,7 @@ export interface SatInstance {
   readonly clauses: ReadonlyArray<readonly [number, number, number]>;
 }
 
+/** Does assignment x (bitmask, little-endian vars) satisfy every clause? */
 export function satisfies(inst: SatInstance, x: number): boolean {
   for (const c of inst.clauses) {
     const a = c[0] < 0 ? ((x >> (-c[0] - 1)) & 1) === 0 : ((x >> (c[0] - 1)) & 1) === 1;
@@ -62,7 +63,19 @@ export function randomSat(n: number, numClauses: number, seed: number, skipVar =
   return { n, clauses };
 }
 
+/** All satisfying assignments x of inst, in 0..2^n-1. */
 export function modelsOf(inst: SatInstance): number[] {
+  // malformed literals evaluate to SILENT GARBAGE bits (probed: literal 0
+  // shifts by -1 and reads bit 31; |lit| > n reads a bit no assignment ever
+  // sets, a permanently-false ghost literal) — refuse them before any model
+  // count is trusted downstream
+  for (const c of inst.clauses) {
+    for (const lit of c) {
+      if (!Number.isInteger(lit) || lit === 0 || Math.abs(lit) > inst.n) {
+        throw new KernelError("BAD-LITERAL", `modelsOf: literals are +/-var with var in 1..n (got ${lit} on n=${inst.n})`);
+      }
+    }
+  }
   const out: number[] = [];
   for (let x = 0; x < 2 ** inst.n; x++) if (satisfies(inst, x)) out.push(x);
   return out;
@@ -88,6 +101,7 @@ export interface PowerLedgerRow {
   readonly singleShotError: number;
 }
 
+/** Both ledger columns of one instance: the branch decision with its gap, and the raw integers behind it. */
 export function powerLedgerRow(inst: SatInstance): PowerLedgerRow {
   const n = inst.n;
   const N = 2 ** n;
@@ -121,6 +135,9 @@ export function repetitionsFor(gap: number, delta: number): number {
   // instead of refusing. delta is a confidence bound: it lives in (0,1].
   if (!(delta > 0) || delta > 1) throw new KernelError("BAD-DELTA", `repetitionsFor: delta must be in (0,1] (got ${delta})`);
   if (gap < 0) throw new KernelError("BAD-GAP", `repetitionsFor: gap must be >= 0 (got ${gap})`);
+  // gap is a distance from 1/2 of a probability — it cannot exceed 1/2, and
+  // beyond it the vote-error inputs (1/2 + gap > 1) are nonsense
+  if (gap > 0.5) throw new KernelError("BAD-GAP", `repetitionsFor: gap = |P(h=1|g=1) - 1/2| cannot exceed 1/2 (got ${gap})`);
   if (gap <= 0) return Number.POSITIVE_INFINITY;
   const raw = Math.ceil(Math.log(1 / delta) / (2 * gap * gap));
   return raw % 2 === 1 ? raw : raw + 1;
@@ -177,6 +194,7 @@ export interface ExchangeEntry {
   readonly queries: number;
 }
 
+/** The exchange-rate row: the Hoeffding schedule k, the exact vote tail it achieves, the bound, and the total query price. */
 export function exchangeEntry(row: PowerLedgerRow, delta: number): ExchangeEntry {
   const k = repetitionsFor(row.gap, delta);
   if (!Number.isFinite(k)) {

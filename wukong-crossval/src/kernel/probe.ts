@@ -25,6 +25,7 @@ export interface ExactProbe {
 
 const memo = new Map<string, ExactProbe>();
 
+/** The exact probe for (instance, depth), computed once per process. */
 export function exactProbe(inst: Instance, depth: number): ExactProbe {
   const key = `${inst.id}#${depth}`;
   const hit = memo.get(key);

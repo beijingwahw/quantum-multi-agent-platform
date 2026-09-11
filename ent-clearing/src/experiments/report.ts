@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+/** Write a rendered report page under out/reports (created on demand) and
+ * return its absolute path. */
 export function writeReport(name: string, content: string): string {
   const dir = resolve(process.cwd(), "out", "reports");
   mkdirSync(dir, { recursive: true });

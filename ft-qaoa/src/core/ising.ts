@@ -111,6 +111,18 @@ export function maxcut3Reg(rng: Rng, n: number): IsingModel {
 /** Energy of every computational basis state, indexed by bit pattern. O(2^n * |couplings|). */
 export function energies(model: IsingModel): Float64Array {
   requireQubitCount(model.n);
+  requireThat(
+    model.fields.length === model.n,
+    "FIELDS_LENGTH_MISMATCH",
+    `fields table length must equal n=${model.n}, got ${model.fields.length} (a stray field silently reads as a constant)`,
+  );
+  for (const c of model.couplings) {
+    requireThat(
+      Number.isInteger(c.j) && Number.isInteger(c.k) && c.j >= 0 && c.k > c.j && c.k < model.n,
+      "COUPLING_INDEX_INVALID",
+      `coupling indices must be integers 0 <= j < k < n=${model.n} (k >= 32 wraps the bit shift silently), got j=${c.j}, k=${c.k}`,
+    );
+  }
   const dim = 1 << model.n;
   const out = new Float64Array(dim);
   const { fields, couplings } = model;

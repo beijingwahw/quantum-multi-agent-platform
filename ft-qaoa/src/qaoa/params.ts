@@ -1,5 +1,6 @@
 import { makeParams } from "./engine.js";
 import type { QaoaParams } from "./engine.js";
+import { requireThat } from "../core/errors.js";
 
 /**
  * Adiabatically inspired linear ramp: discretized schedule s(t) = t/p over total
@@ -38,6 +39,11 @@ function piecewiseLinear(xs: readonly number[], ys: readonly number[], x: number
  */
 export function interp(params: QaoaParams, pTarget: number): QaoaParams {
   const p = params.gammas.length;
+  requireThat(
+    Number.isInteger(p) && p >= 1 && Number.isInteger(pTarget) && pTarget >= 1,
+    "INTERP_DEPTH_INVALID",
+    `interp needs integer depths >= 1 (an empty schedule silently injects undefined angles), got p=${p}, pTarget=${pTarget}`,
+  );
   if (pTarget === p) return params;
   const xs = Array.from({ length: p }, (_, i) => (i + 1) / p);
   const gammas: number[] = [];

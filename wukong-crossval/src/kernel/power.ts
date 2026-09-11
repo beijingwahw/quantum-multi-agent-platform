@@ -162,11 +162,14 @@ export function minShots(p0: number, p1: number, alpha: number, target: number, 
   const chernoff = chernoffShots(p0, p1, alpha, 1 - target);
   let hi = 1;
   while (hi < cap && powerAt(hi, p0, p1, alpha) < target) hi *= 2;
-  let reached = powerAt(hi, p0, p1, alpha) >= target;
-  if (!reached && powerAt(cap, p0, p1, alpha) >= target) {
-    hi = cap; // the doubling overshot the cap into a region that works; clamp
-    reached = true;
-  }
+  // the doubling can overshoot the cap to the next power of two, and the
+  // overshoot bracket [cap/2+1, 2^k] would happily ship an uncensored minimum
+  // beyond the cap (measured: p0=0.2, p1=0.25, cap=257 returned N=454
+  // uncensored) — censoring semantics live AT the cap, so clamp before
+  // deciding. The bisection bracket below is then the same one the
+  // clamp-into-a-working-cap case has always used.
+  if (hi > cap) hi = cap;
+  const reached = powerAt(hi, p0, p1, alpha) >= target;
   if (!reached) return { shots: null, power: null, dips: null, chernoff };
   let lo = hi === 1 ? 1 : (hi >> 1) + 1; // the step below hi failed the doubling walk
   while (lo < hi) {

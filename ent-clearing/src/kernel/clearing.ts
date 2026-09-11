@@ -97,6 +97,9 @@ function spinFlip(rho: CMat): CMat {
 
 /** Wootters concurrence of a 2-qubit (possibly mixed) state. */
 export function concurrence(rho: CMat): number {
+  if (rho.rows !== 4 || rho.cols !== 4) {
+    throw new Error(`EC_SHAPE: concurrence is defined on 2-qubit (4x4) states, got ${rho.rows}x${rho.cols}`);
+  }
   const sq = sqrtPSD(rho);
   const inner = mMul(mMul(sq, spinFlip(rho)), sq);
   const sorted = Array.from(eigenvaluesHermitian(inner))
@@ -113,7 +116,7 @@ export function concurrence(rho: CMat): number {
 /** Binary entropy, path 1 (direct log2). Tolerance-clamps eigensolver noise
  * at the endpoints; genuinely out-of-range input is rejected by name. */
 export function h2(x: number): number {
-  if (x < -1e-12 || x > 1 + 1e-12) {
+  if (!Number.isFinite(x) || x < -1e-12 || x > 1 + 1e-12) {
     throw new Error(`EC_H2_RANGE: binary entropy needs x in [0,1], got ${x}`);
   }
   const a = Math.min(Math.max(x, 0), 1);
@@ -126,7 +129,7 @@ export function h2(x: number): number {
 /** Binary entropy, path 2 (natural log / ln 2) — the independent route
  * (deliberately NOT single-sourced with path 1: this is the cross-check). */
 export function h2ViaLn(x: number): number {
-  if (x < -1e-12 || x > 1 + 1e-12) {
+  if (!Number.isFinite(x) || x < -1e-12 || x > 1 + 1e-12) {
     throw new Error(`EC_H2_RANGE: binary entropy needs x in [0,1], got ${x}`);
   }
   const a = Math.min(Math.max(x, 0), 1);
@@ -165,6 +168,9 @@ export interface Redemption {
  * in the Bell basis, B applies the paired correction.
  */
 export function redeem(payload: CMat): Redemption {
+  if (payload.rows !== 2 || payload.cols !== 2) {
+    throw new Error(`EC_SHAPE: redeem needs a 1-qubit (2x2) payload, got ${payload.rows}x${payload.cols}`);
+  }
   const rho = kron(payload, PHI_PLUS); // q1 (x) (q2 q3)
   const proj = bellProjectors();
   const corr = corrections();
@@ -199,6 +205,12 @@ export interface DenseQuote {
   readonly coinReturned: CMat;
 }
 
+/**
+ * The dense-coding quote: the four corrections turn A's half of the coin into
+ * four mutually orthogonal signals; the Bell measurement decodes them at
+ * probability exactly 1 (2 cbits from 1 transmitted qubit), and the decode
+ * RETURNS the coin as a known Bell pair.
+ */
 export function denseCode(): DenseQuote {
   const proj = bellProjectors();
   const corr = corrections();
@@ -250,7 +262,9 @@ export interface Netting {
 /**
  * Net a weak coin |psi> = sqrt(l0)|00> + sqrt(l1)|11> (l1 <= 1/2) to one
  * standard coin: local filter K_succ = diag(sqrt(l1/l0), 1) on B's half.
- * Success branch is exactly |Phi+>; p = 2*l1; failure leaves |00>.
+ * Success branch is exactly |Phi+>; p = 2*l1; failure leaves |00>. At
+ * l_min = 1/2 the failure branch has probability exactly 0; its conditional
+ * state is then the finite zero matrix, never a NaN from dividing by zero.
  */
 export function netWeakCoin(lambdaMin: number): Netting {
   if (lambdaMin <= 0 || lambdaMin > 0.5) {
@@ -271,7 +285,7 @@ export function netWeakCoin(lambdaMin: number): Netting {
   return {
     pSucc,
     successState: mScale(succUn, 1 / pSucc),
-    failState: mScale(failUn, 1 / pFail),
+    failState: pFail > 0 ? mScale(failUn, 1 / pFail) : failUn,
     pFail,
     weakConcurrence: 2 * Math.sqrt(l0 * lambdaMin),
   };
@@ -281,8 +295,8 @@ export function netWeakCoin(lambdaMin: number): Netting {
 /* T4 — The mint wall                                                 */
 /* ------------------------------------------------------------------ */
 
-/** A random local (single-side) qubit channel: Kraus rank 2, K0 scaled */
-/** Ginibre, K1 = sqrt(I - K0^ K0). */
+/** A random local (single-side) qubit channel: Kraus rank 2, K0 scaled
+ * Ginibre, K1 = sqrt(I - K0^ K0). */
 export function randomLocalKraus(rng: Rng): readonly CMat[] {
   const A = mat(2, 2);
   for (let k = 0; k < 4; k++) {
@@ -368,9 +382,9 @@ export function entropyOfMixedQubit(): number {
 /* Census states                                                       */
 /* ------------------------------------------------------------------ */
 
-/** Fidelity of rho to a PURE reference |phi>: <phi|rho|phi> — exact linear */
-/** algebra, no eigensolver (the Uhlmann route carries ~1e-8 eigenvector */
-/** noise on rank-deficient states; pure references deserve the exact route). */
+/** Fidelity of rho to a PURE reference |phi>: <phi|rho|phi> — exact linear
+ * algebra, no eigensolver (the Uhlmann route carries ~1e-8 eigenvector
+ * noise on rank-deficient states; pure references deserve the exact route). */
 export function pureFidelity(rho: CMat, phi: CVec): number {
   const n = phi.n;
   const re = new Float64Array(n);

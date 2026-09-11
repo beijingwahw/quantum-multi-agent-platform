@@ -21,7 +21,7 @@ import {
   type CVec,
 } from "../core/cmat.js";
 import { refuse } from "../core/errors.js";
-import type { Stinespring } from "../switch/isometry.js";
+import { checkStinespringShape, type Stinespring } from "../switch/isometry.js";
 
 export const PERMUTATIONS: ReadonlyArray<[number, number, number]> = [
   [0, 1, 2],
@@ -75,9 +75,19 @@ function permuteSlots(
  * to canonical order.
  */
 export function branchIsometry3(vs: readonly Stinespring[], pi: readonly [number, number, number]): CMat {
-  // fewer than three channels would crash on vs[0]/vs[k] with a raw TypeError
-  if (vs.length < 3) refuse("SWITCH3_CHANNEL_COUNT", "branchIsometry3: the k=3 switch needs exactly three channels");
+  // the message says "exactly three": a short list would crash on vs[0]/vs[k]
+  // with a raw TypeError, a long one would silently ignore its tail
+  if (vs.length !== 3) {
+    refuse("SWITCH3_CHANNEL_COUNT", "branchIsometry3: the k=3 switch needs exactly three channels");
+  }
   const d = vs[0]!.d; // length checked directly above
+  // mismatched target dims and malformed dilation buffers read past V's end —
+  // undefined entries that surface as NaN columns nowhere else in the pipeline
+  // (the exported builder has no final isometry certificate to catch them)
+  for (const st of vs) {
+    if (st.d !== d) refuse("SWITCH3_DIM_MATCH", "branchIsometry3: all three channels must share the target dimension");
+    checkStinespringShape(st, "branchIsometry3");
+  }
   const eEnv = vs.map((v) => v.envDim);
   const canonical = [d, eEnv[0]!, eEnv[1]!, eEnv[2]!];
   const rows = canonical.reduce((a, b) => a * b, 1);
@@ -152,7 +162,7 @@ export interface Switch3 {
 }
 
 export function switch3(vs: readonly Stinespring[]): Switch3 {
-  if (vs.length < 3) refuse("SWITCH3_CHANNEL_COUNT", "switch3: the k=3 switch needs exactly three channels");
+  if (vs.length !== 3) refuse("SWITCH3_CHANNEL_COUNT", "switch3: the k=3 switch needs exactly three channels");
   const d = vs[0]!.d; // length checked directly above
   const branches = PERMUTATIONS.map((pi) => branchIsometry3(vs, pi));
   const branchRows = branches[0]!.rows; // PERMUTATIONS has six entries, branches is its map

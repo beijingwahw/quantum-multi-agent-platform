@@ -30,6 +30,7 @@ export interface SorterRun {
   readonly offMarkedLeak: number;
 }
 
+/** One oracle query + postselect flag=1: exact branch amplitudes, the two-path flag check, and readout deviations. */
 export function runSorter(n: number, markedInput: readonly number[]): SorterRun {
   if (!Number.isInteger(n) || n < 1 || n > 30) throw new KernelError("BAD-QUBIT-COUNT", `runSorter: n must be an integer in 1..30 (got ${n})`);
   const N = 2 ** n;
@@ -130,6 +131,7 @@ export function runPayload(n: number, markedInput: readonly number[], payload: r
 
 export type Matrix = ReadonlyArray<readonly number[]>;
 
+/** tr m (diagonal sum). */
 export function trace(m: Matrix): number {
   let s = 0;
   for (let i = 0; i < m.length; i++) s += (m[i] as readonly number[])[i] as number;
@@ -257,6 +259,7 @@ function projectBoth(rho: Matrix, pi0: readonly number[], pi1: readonly number[]
 // measure-and-feedforward realization reproduces the conditional statistics.
 // ---------------------------------------------------------------------------
 
+/** xorshift32 stream on [0,1) — the single seeded generator (13,17,5 shift triple). */
 export class Rng {
   private s: number;
   constructor(seed: number) {

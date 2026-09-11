@@ -18,6 +18,7 @@ export function makeRng(seed: number): () => number {
   };
 }
 
+/** One seeded problem: a QUBO with its exhaustive verdict attached. */
 export interface Instance {
   readonly id: string;
   readonly n: number;
@@ -35,6 +36,7 @@ export interface Instance {
  * assignable, so callers pass either). */
 export type QuboSpec = Omit<Instance, "optBits" | "optValue">;
 
+/** The QUBO objective at one bitstring (MSB = qubit 0). */
 export function quboValue(inst: QuboSpec, bits: number): number {
   if (inst.linear.length !== inst.n) {
     // a short linear row would poison the sum with undefined -> NaN (the
@@ -200,6 +202,7 @@ export function applyRX(psi: Float64Array, n: number, q: number, theta: number):
   }
 }
 
+/** QAOA variational parameters: one beta and one gamma per layer. */
 export interface QaoaParams {
   readonly betas: readonly number[];
   readonly gammas: readonly number[];
@@ -211,6 +214,7 @@ function requirePairedParams(params: QaoaParams, what: string): void {
   }
 }
 
+/** The exact statevector after p cost+mixer layers from the uniform state. */
 export function runQaoa(inst: Instance, params: QaoaParams): Float64Array {
   const n = inst.n;
   requirePairedParams(params, "runQaoa");
@@ -224,6 +228,7 @@ export function runQaoa(inst: Instance, params: QaoaParams): Float64Array {
   return psi;
 }
 
+/** <psi|cost|psi>: the expectation the offline optimizer minimizes. */
 export function expectation(psi: Float64Array, costs: Float64Array): number {
   const half = dimOf(psi);
   if (costs.length < half) {
@@ -363,6 +368,7 @@ export interface ExportedCircuit {
   readonly shots: number;
 }
 
+/** The circuit the hardware runs: angles, cost coefficients, shot count. */
 export function exportCircuit(inst: Instance, params: QaoaParams, shots: number): ExportedCircuit {
   requirePairedParams(params, "exportCircuit");
   return {

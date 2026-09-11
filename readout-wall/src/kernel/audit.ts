@@ -275,7 +275,9 @@ function witnessInterpolation(): WitnessResult {
  * complex-random trials below share it bit-for-bit.
  */
 function sixOrderMixture(sw: Switch3, rhoS: CMat, envDims: readonly [number, number, number]): CMat {
-  const dims = [2, envDims[0], envDims[1], envDims[2]];
+  // the target dimension comes from the switch itself — a hardcoded 2 is only
+  // correct while every showcase channel is a qubit channel
+  const dims = [sw.d, envDims[0], envDims[1], envDims[2]];
   const mix = mat(12, 12);
   for (let p = 0; p < 6; p++) {
     const W = sw.branches[p]!; // p < 6 = PERMUTATIONS.length

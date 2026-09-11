@@ -23,6 +23,7 @@ import { krausToStinespring, makeSwitchedChannel } from '../switch/isometry.js';
 import { kronRho } from '../switch/witnesses.js';
 import { measurePrepareKraus, processProbability } from './cj.js';
 
+/** ½ — the recurring factor in projector normalizations and the maximally mixed prepare. */
 export const HALF = 1 / 2;
 /** (2+√2)/4 = cos²(π/8) — the OCB quantum value; also √2/2 + 1/2. */
 export const OCB_QUANTUM_VALUE = (2 + Math.SQRT2) / 4;
@@ -73,6 +74,7 @@ export function bobSendCJ(y: number, b: number): CMat {
   return kron(projectorX(y === 0 ? 1 : -1), projectorZ((b ^ y) === 0 ? 1 : -1));
 }
 
+/** Bob's full operation for task b′: send b (b′ = 0) or read the input (b′ = 1). */
 export function bobCJ(y: number, b: number, bPrime: number): CMat {
   return bPrime === 0 ? bobSendCJ(y, b) : bobReadCJ(y, b);
 }

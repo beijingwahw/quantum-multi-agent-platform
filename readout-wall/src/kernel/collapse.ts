@@ -30,6 +30,19 @@ export function dephase(rho: CMat, dims: readonly number[], sys: number): CMat {
   if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
     refuse("DEPHASE_SYS_RANGE", `dephase: subsystem index ${sys} out of range for ${m} subsystems`);
   }
+  // same silent-garbage class, one step earlier: a zero/fractional dim zeroes
+  // the whole matrix (NaN !== NaN), and a dims product that misses the matrix
+  // decomposes digits that do not exist — corruption invisible on diagonals
+  let prod = 1;
+  for (const d of dims) {
+    if (!Number.isInteger(d) || d < 1) {
+      refuse("DEPHASE_DIMS_MISMATCH", `dephase: dims must be positive integers, got [${dims.join(", ")}]`);
+    }
+    prod *= d;
+  }
+  if (rho.rows !== rho.cols || prod !== rho.rows) {
+    refuse("DEPHASE_DIMS_MISMATCH", `dephase: dims product ${prod} must match the ${rho.rows}x${rho.cols} matrix`);
+  }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
@@ -52,7 +65,11 @@ export function dephase(rho: CMat, dims: readonly number[], sys: number): CMat {
 
 /** Partial dephasing of strength λ ∈ [0,1]: (1−λ)ρ + λ·Δ(ρ) — the weak readout. */
 export function partialDephase(rho: CMat, dims: readonly number[], sys: number, lambda: number): CMat {
-  if (lambda < 0 || lambda > 1) refuse("PARTIAL_DEPHASE_LAMBDA", "lambda must be in [0,1]");
+  // NaN fails both comparisons below and would bleed into every entry — a
+  // state that looks built while carrying no number
+  if (!Number.isFinite(lambda) || lambda < 0 || lambda > 1) {
+    refuse("PARTIAL_DEPHASE_LAMBDA", "lambda must be in [0,1]");
+  }
   const full = dephase(rho, dims, sys);
   const out: CMat = { rows: rho.rows, cols: rho.cols, re: new Float64Array(rho.re.length), im: new Float64Array(rho.im.length) };
   for (let k = 0; k < rho.re.length; k++) {

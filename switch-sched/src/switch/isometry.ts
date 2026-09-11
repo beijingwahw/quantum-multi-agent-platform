@@ -34,7 +34,12 @@ export interface Stinespring {
 
 /** Standard Stinespring dilation of a Kraus set: V = Σ_m K_m ⊗ |m⟩_E. */
 export function krausToStinespring(kraus: readonly CMat[]): Stinespring {
-  const d = kraus[0]?.rows ?? 0;
+  // an empty set must be refused by name: d would collapse to 0 and the
+  // V†V = I certificate would pass VACUOUSLY on the 0×0 matrix, releasing a
+  // degenerate dilation into the pipeline
+  const k0 = kraus[0];
+  if (k0 === undefined) throw new Error('krausToStinespring: empty Kraus set');
+  const d = k0.rows;
   if (kraus.some((k) => k.rows !== d || k.cols !== d)) throw new Error('kraus operators must be d×d');
   const envDim = kraus.length;
   const V = mat(d * envDim, d);

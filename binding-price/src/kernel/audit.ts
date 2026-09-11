@@ -58,11 +58,13 @@ import {
   type MarketRow,
 } from "./ledger.js";
 
+/** Where the sibling anchor repos live: one directory above this package. */
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
 /** The market laws the checker enforces — a closed set (M6 does not exist). */
 export type MarketLaw = "M1" | "M2" | "M3" | "M4" | "M5";
 
+/** One conviction: which row, which law, and the prosecutor's prose. */
 export interface Violation {
   readonly row: string;
   readonly law: MarketLaw;
@@ -85,6 +87,8 @@ const WITNESS_ID_SET: ReadonlySet<string> = new Set(WITNESS_IDS);
  */
 export type UntrustedMarketRow = Omit<MarketRow, "exactness"> & { readonly exactness: string };
 
+/** Runs the five market laws over the rows — the real ledger by default, a
+ *  smuggled copy when the caller is a trial. Every violation is named. */
 export function checkMarket(rows: readonly UntrustedMarketRow[] = MARKET): Violation[] {
   const violations: Violation[] = [];
   const seen = new Set<string>();
@@ -109,6 +113,7 @@ export function checkMarket(rows: readonly UntrustedMarketRow[] = MARKET): Viola
   return violations;
 }
 
+/** One witness verdict: a name, a pass, and the measured detail behind it. */
 export interface WitnessResult {
   readonly name: string;
   readonly pass: boolean;
@@ -368,6 +373,7 @@ function witnessTwoCoins(): WitnessResult {
   };
 }
 
+/** All eight witnesses, W-A through W-H, each re-derived from scratch. */
 export function runWitnesses(): WitnessResult[] {
   return [
     witnessIdentity(),

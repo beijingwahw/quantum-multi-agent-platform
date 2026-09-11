@@ -147,6 +147,7 @@ export function purifyRound(source: CMat, target: CMat): PurifyRound {
  * F' = (F^2 + g^2)/p. Improvement (F' > F) exactly iff F > 1/2.
  */
 export function wernerRoundClosedForm(F: number): { pSucc: number; fidelityOut: number } {
+  if (!Number.isFinite(F) || F <= 0 || F >= 1) throw new Error(`EC_F_RANGE: wernerRoundClosedForm needs F in (0,1), got ${F}`);
   const g = (1 - F) / 3;
   const pSucc = F * F + 2 * F * (1 - F) / 3 + 5 * (1 - F) * (1 - F) / 9;
   const fidelityOut = (F * F + g * g) / pSucc;
@@ -170,6 +171,9 @@ export function bellRoundClosedForm(
     throw new Error(`EC_WEIGHTS: bellRoundClosedForm needs two 4-weight Bell spectra, got ${lam.length}/${mu.length}`);
   }
   const pSucc = (lam[0]! + lam[1]!) * (mu[0]! + mu[1]!) + (lam[2]! + lam[3]!) * (mu[2]! + mu[3]!);
+  if (pSucc <= 1e-12) {
+    throw new Error(`EC_ZERO_BRANCH: bellRoundClosedForm hit a probability-zero keep branch (pSucc ${pSucc}) — dividing would smuggle NaN`);
+  }
   const out = [
     (lam[0]! * mu[0]! + lam[1]! * mu[1]!) / pSucc,
     (lam[0]! * mu[1]! + lam[1]! * mu[0]!) / pSucc,
@@ -303,6 +307,7 @@ export function schemePurify(nCoins: number, coin: CMat): SchemeResult {
   return finish(4, r1.pSucc * r1.pSucc * r2.pSucc, bellTwirl(r2.successState), 3, coin);
 }
 
+/** Assemble a finished scheme result from the chain's delivered coin. */
 function finish(n: number, pSucc: number, out: CMat, rounds: number, coin: CMat): SchemeResult {
   const efOut = eF(out);
   const efIn = eF(coin);
@@ -337,6 +342,7 @@ function hashingLineBell(lam: readonly number[]): number {
 
 /** The line for a Werner coin: R(F) = 1 + F log2 F + (1-F) log2((1-F)/3). */
 export function hashingLineWerner(F: number): number {
+  if (!Number.isFinite(F) || F <= 0 || F >= 1) throw new Error(`EC_F_RANGE: hashingLineWerner needs F in (0,1), got ${F}`);
   const g = (1 - F) / 3;
   return hashingLineBell([F, g, g, g]);
 }

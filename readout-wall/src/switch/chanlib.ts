@@ -8,7 +8,7 @@
 import { type CMat, mat } from '../core/cmat.js';
 import { refuse } from '../core/errors.js';
 import type { Rng } from '../core/rng.js';
-import { type Stinespring } from './isometry.js';
+import { type Stinespring, assertStinespring } from './isometry.js';
 
 /**
  * Replacer channel Λ(ρ) = |v⟩⟨v| · Tr ρ for the uniform |v⟩: K_i = |v⟩⟨i|.
@@ -97,6 +97,8 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
     }
   }
   const st: Stinespring = { d, envDim, V };
-  // isometry certificate happens inside krausToStinespring-equivalent check
+  // the isometry certificate, same as krausToStinespring: a Gram-Schmidt
+  // conjugation slip would otherwise flow downstream as an unphysical channel
+  assertStinespring(st);
   return st;
 }

@@ -291,6 +291,15 @@ export function hungarianMax(weights: readonly number[][]): number[] {
   const m = weights.length;
   const n = weights[0]?.length ?? 0;
   if (m === 0) return [];
+  // a ragged or non-finite matrix silently reads undefined entries and returns
+  // a confident-looking assignment scored on NaN — validate the matrix itself
+  // before the shape constraint, so ragged inputs are always named as ragged
+  for (const row of weights) {
+    if (row.length !== n) throw new Error("hungarianMax requires a rectangular matrix — ragged rows are not a matching");
+    for (const w of row) {
+      if (!Number.isFinite(w)) throw new Error("hungarianMax requires finite weights — NaN/Infinity is not a matching");
+    }
+  }
   if (m > n) throw new Error("hungarianMax requires tasks <= agents");
   // min-cost on −w; classic O(m²n) potentials form
   const cost = weights.map((row) => row.map((w) => -w));
@@ -502,6 +511,11 @@ export function kPairMonotoneDeviation(
  */
 export function kPairAllRegimeOptimum(inst: KPairInstance): number {
   const { m, n, weights, k, lambda } = inst;
+  // the slot matrix reads weights[t][s] for s < 2k — with fewer agents than
+  // slots the entries are undefined and the builder crashes on a raw TypeError
+  // (densityCampaign and integerCj already refuse this at their boundaries)
+  if (2 * k > n) throw new Error("all-k regime requires n >= 2k — wrong object");
+  if (2 * k > m) throw new Error("all-k regime requires m >= 2k — wrong object");
   // slot matrix: task t, slot s (agent index 0..2k-1) → weight w[t][s]
   const slotMatrix = Array.from({ length: m }, (_, t) =>
     Array.from({ length: 2 * k }, (_, s) => weights[t]![s]!),
@@ -515,9 +529,6 @@ export function kPairAllRegimeOptimum(inst: KPairInstance): number {
       chosen.push(t);
       slotW += weights[t]![s]!;
     }
-  }
-  if (chosen.length !== 2 * k) {
-    throw new Error("all-k regime requires m >= 2k — wrong object");
   }
   // the remaining tasks over the remaining agents
   const restAgents: number[] = [];

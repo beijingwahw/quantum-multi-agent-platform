@@ -25,6 +25,7 @@ import { KernelError } from "./errors.js";
 /** p[u] = Pr[T = u] for u = 1..H; p[0] is padding. Finite support. */
 export type Dist = readonly number[];
 
+/** q(t) = Pr[T <= t] = sum_{u<=t} p[u]. */
 export function qOf(p: Dist, t: number): number {
   let s = 0;
   const hi = Math.min(t, p.length - 1);
@@ -54,11 +55,13 @@ export function lambdaClosed(p: Dist, t: number): number {
  *  always-pay face is executed through payExpected/payStarMenu, whose
  *  round ratio c/p at unit-cost rounds IS L(t)). */
 
+/** An argmin over a menu: the winning value and its index/cutoff. */
 export interface StarResult {
   readonly value: number;
   readonly t: number;
 }
 
+/** The best fixed cutoff and its lambda — LSZ93 Thm 3's optimum, by exhaustive scan. */
 export function lambdaStar(p: Dist): StarResult {
   let best = Number.POSITIVE_INFINITY;
   let bestT = 1;
@@ -154,6 +157,7 @@ export interface FastRenewal {
   readonly gSum: (s: Strategy) => number;
 }
 
+/** Build the memoized evaluator over a fixed cutoff menu (a speedup, not a second model). */
 export function makeFastRenewal(p: Dist, cutoffs: readonly number[]): FastRenewal {
   const qTab = new Map<number, number>();
   const eTab = new Map<number, number>();
@@ -221,6 +225,7 @@ export function payExpected(costs: readonly number[], probs: readonly number[], 
   return T;
 }
 
+/** The cheapest single round type c_i/p_i — the always-pay optimum, LSZ's L-function. */
 export function payStarMenu(costs: readonly number[], probs: readonly number[]): StarResult {
   let best = Number.POSITIVE_INFINITY;
   let idx = 0;
@@ -241,6 +246,7 @@ export function payStarMenu(costs: readonly number[], probs: readonly number[]):
 // built by S_k = S_{k-1} ++ S_{k-1} ++ [2^(k-1)] (LSZ93 sec. 3).
 // ---------------------------------------------------------------------------
 
+/** The universal doubling sequence through depth k: 1,1,2,1,1,2,4,... (|S_k| = 2^k - 1). */
 export function lubyUniversal(depth: number): number[] {
   let s: number[] = [1];
   for (let k = 2; k <= depth; k++) {
@@ -253,6 +259,7 @@ export function lubyUniversal(depth: number): number[] {
 // Grover curves — closed form vs iterated 2D evolution (two-path referee).
 // ---------------------------------------------------------------------------
 
+/** theta = asin(sqrt(t/N)) — the Grover rotation half-angle. */
 export function groverTheta(N: number, t: number): number {
   return Math.asin(Math.sqrt(t / N));
 }
@@ -290,6 +297,7 @@ export interface EStarResult {
   readonly ratio: number;
 }
 
+/** E*(N,t) = min_k (k+1)/p_k with its argmin, against the pure-sorter ledger N/t. */
 export function eStarGrover(N: number, t: number): EStarResult {
   const theta = groverTheta(N, t);
   const hi = Math.ceil(Math.PI / (4 * theta)) + 3;
