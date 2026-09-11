@@ -53,6 +53,11 @@ export interface InverseCensus {
 /** every nonzero element invertible <=> the polynomial is irreducible <=> the
  *  toy structure is a field (exhaustive: a*b over all pairs is the search). */
 export function inverseCensus(m: number): InverseCensus {
+  // the census must enumerate to mean anything: at m <= 0 or m >= 31 the
+  // `1 << m` bound wraps (or empties), the loops never run, gfMul's own field
+  // gate never fires, and a vacuous {0, 0} certificate ships silently —
+  // refused at the field gate instead, the same code gfMul would raise
+  if (FIELD_POLY[m] === undefined) throw new RcError("RC_NO_FIELD", `inverseCensus: no toy field GF(2^${m}) on file`);
   const n = 1 << m;
   let invertible = 0;
   for (let a = 1; a < n; a++) {
@@ -88,6 +93,10 @@ export interface CollisionCensus {
 
 export function collisionCensus(m: number, k: number): CollisionCensus {
   if (k < 1 || k > m) throw new RcError("RC_K_RANGE", `collisionCensus: need 1 <= k <= m (got m=${m}, k=${k})`);
+  // the shift-wrap face of inverseCensus: `1 << m` wraps at m >= 31, the
+  // family count goes non-positive, and the census would return universal2:
+  // true over zero evidence (or a negative family) without ever multiplying
+  if (FIELD_POLY[m] === undefined) throw new RcError("RC_NO_FIELD", `collisionCensus: no toy field GF(2^${m}) on file`);
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const fam = n - 1;

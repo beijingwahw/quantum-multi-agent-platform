@@ -27,6 +27,19 @@ export const cabs2 = (a: C): number => a.re * a.re + a.im * a.im;
 export type Vec = readonly C[];
 export type Mat = ReadonlyArray<readonly C[]>;
 
+/** Named kernel error — degenerate linear algebra is refused by name, never
+ *  normalized into NaN cells: NaN defeats every threshold comparison
+ *  downstream, so corruption would read as a pass. The message always embeds
+ *  the stable code, in the workspace's [CODE] convention. */
+export class LinAlgError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(`[${code}] ${message}`);
+    this.code = code;
+    this.name = "LinAlgError";
+  }
+}
+
 export function identity(n: number): Mat {
   return Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) => (i === j ? c(1) : c(0))),
@@ -120,6 +133,11 @@ export function conditionalData(rho: Mat, dimData: number, g: number): Mat {
   );
   let p = 0;
   for (let i = 0; i < dimData; i++) p += (block[i] as readonly C[])[i]?.re ?? 0;
+  // a control outcome of probability zero (or a NaN trace off a corrupt rho)
+  // has no conditional state: dividing by the null trace used to hand back
+  // NaN cells that read as "no leakage" in every threshold check downstream
+  // (NaN > epsilon is false) — refused by name instead
+  if (!(p > 0)) throw new LinAlgError("COND_NULL_OUTCOME", `conditionalData: control outcome ${g} has trace ${p} — a null event conditions nothing`);
   return block.map((row) => row.map((x) => cscale(1 / p, x)));
 }
 

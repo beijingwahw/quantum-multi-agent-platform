@@ -651,6 +651,11 @@ export function diamondSideIdentities(): {
 /** Composite Simpson on [0,1] of dt/(2t^2-2t+1) — numeric cross-check of
  * the exact antiderivative identity (O(h^4) convergence). */
 export function diamondSideSimpson(n: number): number {
+  // Simpson needs an even panel count: n = 0 divides by zero into Infinity,
+  // odd n silently applies the wrong quadrature — both refused by name
+  if (!Number.isInteger(n) || n < 2 || n % 2 !== 0) {
+    throw new KernelError("diamond/simpson-n", `diamondSideSimpson: n must be an even integer >= 2, got ${n}`);
+  }
   const f = (t: number): number => 1 / (2 * t * t - 2 * t + 1);
   const h = 1 / n;
   let s = f(0) + f(1);

@@ -238,7 +238,12 @@ export function checkDossiers(rows: readonly DossierInput[] = DOSSIERS): Violati
         }
       } else if (anchor.startsWith("local:")) {
         const repo = anchor.slice("local:".length).split(/\s+/)[0] as string;
-        if (!existsSync(resolve(WORKSPACE_ROOT, repo))) {
+        if (repo.length === 0) {
+          // the empty local anchor resolves to the workspace root, which
+          // exists by construction — the cite: branch already names its own
+          // empty id; this branch used to wave the same degeneracy through
+          violations.push({ dossierId: d.id, law: "R4", detail: `local anchor names no repo — the empty path resolves to the workspace root, which exists by construction and certifies nothing` });
+        } else if (!existsSync(resolve(WORKSPACE_ROOT, repo))) {
           violations.push({ dossierId: d.id, law: "R4", detail: `local anchor ${repo} missing on disk` });
         }
       } else {

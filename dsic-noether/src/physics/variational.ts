@@ -22,6 +22,8 @@
  * drifts for the broken one.
  */
 
+import { KernelError } from "../core/errors.js";
+
 export interface Vec2 {
   readonly x: number;
   readonly y: number;
@@ -30,6 +32,15 @@ export interface Vec2 {
 export interface Quad {
   readonly ax: number;
   readonly ay: number;
+}
+
+/** Every public entry below divides by the step size: h = 0 turns the
+ * Lagrangian into 0/0 = NaN and the DEL solve into NaN cascades that still
+ * "return" — refuse the boundary by name instead. */
+function assertStep(h: number): void {
+  if (!Number.isFinite(h) || h <= 0) {
+    throw new KernelError("variational/step-range", `variational integrator: step size h must be finite and > 0, got ${h}`);
+  }
 }
 
 export function add(a: Vec2, b: Vec2): Vec2 {
@@ -58,6 +69,7 @@ function gradV(q: Vec2, quad: Quad): Vec2 {
 }
 
 export function discreteLagrangian(q: Vec2, qPlus: Vec2, h: number, quad: Quad): number {
+  assertStep(h);
   const d = sub(qPlus, q);
   const mid = scale(add(q, qPlus), 0.5);
   return dot(d, d) / (2 * h) - h * 0.5 * (quad.ax * mid.x * mid.x + quad.ay * mid.y * mid.y);
@@ -65,29 +77,34 @@ export function discreteLagrangian(q: Vec2, qPlus: Vec2, h: number, quad: Quad):
 
 /** D_1 L_d (derivative wrt the left argument). */
 export function d1Ld(q: Vec2, qPlus: Vec2, h: number, quad: Quad): Vec2 {
+  assertStep(h);
   const mid = scale(add(q, qPlus), 0.5);
   return sub(scale(sub(q, qPlus), 1 / h), scale(gradV(mid, quad), h / 2));
 }
 
 /** D_2 L_d (derivative wrt the right argument). */
 export function d2Ld(q: Vec2, qPlus: Vec2, h: number, quad: Quad): Vec2 {
+  assertStep(h);
   const mid = scale(add(q, qPlus), 0.5);
   return sub(scale(sub(qPlus, q), 1 / h), scale(gradV(mid, quad), h / 2));
 }
 
 /** The closedness identity, from the derivative definitions. */
 export function closednessComputed(q: Vec2, qPlus: Vec2, h: number, quad: Quad): number {
+  assertStep(h);
   return dot(d1Ld(q, qPlus, h, quad), xiQ(q)) + dot(d2Ld(q, qPlus, h, quad), xiQ(qPlus));
 }
 
 /** The closed form of the SAME identity: h (a_x - a_y) mid_x mid_y. */
 export function closednessClosedForm(q: Vec2, qPlus: Vec2, h: number, quad: Quad): number {
+  assertStep(h);
   const mid = scale(add(q, qPlus), 0.5);
   return h * (quad.ax - quad.ay) * mid.x * mid.y;
 }
 
 /** The discrete Noether charge J(q, q+) = D_1 L_d . xi_Q(q). */
 export function chargeJ(q: Vec2, qPlus: Vec2, h: number, quad: Quad): number {
+  assertStep(h);
   return dot(d1Ld(q, qPlus, h, quad), xiQ(q));
 }
 
@@ -99,6 +116,7 @@ export function chargeJ(q: Vec2, qPlus: Vec2, h: number, quad: Quad): number {
  * so  [I/h + (h/4) A] q+ = (2q - q-)/h - (h/2) grad V(mid(q-,q)) - (h/4) A q.
  * Returns the residual as a certificate (should be ~1e-16). */
 export function delStep(qMinus: Vec2, q: Vec2, h: number, quad: Quad): { qPlus: Vec2; residual: number } {
+  assertStep(h);
   const mid1 = scale(add(qMinus, q), 0.5);
   const g1 = gradV(mid1, quad);
   const rhsX = (2 * q.x - qMinus.x) / h - (h / 2) * g1.x - (h / 4) * quad.ax * q.x;
@@ -124,6 +142,7 @@ export interface Trajectory {
 
 /** Evolve N DEL steps from (q0, q1); certifies residuals and charge drift. */
 export function trajectory(q0: Vec2, q1: Vec2, n: number, h: number, quad: Quad): Trajectory {
+  assertStep(h);
   const points: Vec2[] = [q0, q1];
   let maxResidual = 0;
   let maxJDrift = 0;

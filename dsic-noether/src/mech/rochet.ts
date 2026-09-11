@@ -58,6 +58,11 @@ function greedyAlloc(w: GrovesWorld, report: readonly number[]): number[] {
  * fall-through into another rule's branch (the old if-chain fell through to
  * anti-efficient for any unrecognized kind). */
 export function ruleAllocation(w: RuledWorld, k: number): readonly number[] {
+  // greedy and anti-efficient read the report directly (no allocationAt on
+  // their path) — the same report-index contract, refused at the same boundary
+  if (!Number.isInteger(k) || k < 0 || k >= w.reports.length) {
+    throw new KernelError("groves/report-index-range", `ruleAllocation: report index ${k} out of range for ${w.reports.length} reports`);
+  }
   switch (w.rule) {
     case "greedy":
       return greedyAlloc(w, w.reports[k] as readonly number[]);

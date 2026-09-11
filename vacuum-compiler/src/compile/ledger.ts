@@ -104,11 +104,13 @@ export function pricedWalk(
   tMax: number,
   step = 0.25,
 ): PricedWalk {
-  if (!(step > 0)) {
-    throw new VacuumError("ledger/walk-step-out-of-domain", `pricedWalk: step = ${step}, expected > 0 (a non-positive step never advances the sweep)`);
+  if (!(step > 0) || !Number.isFinite(step)) {
+    throw new VacuumError("ledger/walk-step-out-of-domain", `pricedWalk: step = ${step}, expected a finite value > 0 (a non-positive step never advances the sweep; an infinite one overshoots it)`);
   }
-  if (!(tMax >= 0)) {
-    throw new VacuumError("ledger/walk-horizon-out-of-domain", `pricedWalk: tMax = ${tMax}, expected >= 0`);
+  if (!(tMax >= 0) || !Number.isFinite(tMax)) {
+    // a non-finite horizon made the sweep condition `t <= tMax + 1e-9` always
+    // true — a synchronous loop no timeout could interrupt
+    throw new VacuumError("ledger/walk-horizon-out-of-domain", `pricedWalk: tMax = ${tMax}, expected a finite value >= 0`);
   }
   if (!Number.isInteger(clockStates) || clockStates < 1 || psi0.dim % clockStates !== 0) {
     throw new VacuumError("readout/clock-not-divisor", `pricedWalk: state dim ${psi0.dim} is not a multiple of clockStates ${clockStates}`);

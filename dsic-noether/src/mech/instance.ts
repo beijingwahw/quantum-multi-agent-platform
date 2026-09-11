@@ -73,8 +73,21 @@ export interface AllocResult {
  * distinct items, maximizing total value. Ties broken by first enumeration
  * order; runnerUp reported for the guard. */
 export function bestAllocation(values: ReadonlyArray<readonly number[]>, agents: readonly number[]): AllocResult {
-  const k = agents.length;
+  // degenerate shapes used to surface as silent -Infinity "results" (more
+  // agents than items enumerates nothing) or opaque TypeErrors (empty values,
+  // agent index off the rows) — refused by name, one code for the site
+  if (values.length === 0) throw new KernelError("instance/alloc-shape", "bestAllocation: values must have at least one row");
   const nItems = (values[0] as readonly number[]).length;
+  for (const row of values) {
+    if (row.length !== nItems) throw new KernelError("instance/alloc-shape", `bestAllocation: value rows must share length ${nItems}, got ${row.length}`);
+  }
+  for (const a of agents) {
+    if (!Number.isInteger(a) || a < 0 || a >= values.length) {
+      throw new KernelError("instance/alloc-shape", `bestAllocation: agent index ${a} out of range for ${values.length} value rows`);
+    }
+  }
+  const k = agents.length;
+  if (k > nItems) throw new KernelError("instance/alloc-shape", `bestAllocation: ${k} agents cannot be injectively assigned to ${nItems} items`);
   const options = k === nItems ? permutations(k) : injections(k, nItems);
   let bestWelfare = -Infinity;
   let runnerUp = -Infinity;

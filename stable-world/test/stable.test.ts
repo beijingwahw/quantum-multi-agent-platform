@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkBoard, runWitnesses } from "../src/kernel/audit.js";
@@ -341,9 +341,13 @@ describe("T4 the renderer refuses to print an illegal board", () => {
   });
 
   it("the entry guard: importing the renderer writes no report", async () => {
-    const probe = resolve(process.cwd(), "out", "reports", "guard-probe-should-not-exist.md");
+    // the probe must name the file a fired render would actually write —
+    // a sentinel name nothing writes made this assertion unable to fail
+    const report = resolve(process.cwd(), "out", "reports", "the-stable-world.md");
+    const before = existsSync(report) ? statSync(report).mtimeMs : undefined;
     await import("../src/experiments/render.js");
-    assert.ok(!existsSync(probe), "importing the renderer must not execute the render");
+    const after = existsSync(report) ? statSync(report).mtimeMs : undefined;
+    assert.equal(after, before, "importing the renderer must not execute the render");
   });
 });
 

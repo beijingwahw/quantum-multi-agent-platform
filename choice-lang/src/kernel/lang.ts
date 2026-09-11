@@ -54,6 +54,12 @@ export function stepOperator(step: ChooseStep, controlsSoFar: number): CMat {
 
 /** The control state cos(th)|0> + sin(th)|1> as a density matrix. */
 export function controlState(theta: number): CMat {
+  if (!Number.isFinite(theta)) {
+    throw new ChoiceLangError(
+      "STEP_THETA",
+      `controlState: non-finite control angle (${theta}) — the same refusal runOnRegister makes, at the preparation it feeds`,
+    );
+  }
   const c = Math.cos(theta);
   const s = Math.sin(theta);
   const m = mat(2, 2);
@@ -136,6 +142,15 @@ export function branchProduct(p: Program, pattern: ReadonlyArray<0 | 1>): CMat {
       `branchProduct: a ${p.length}-step program needs exactly ${p.length} pattern bits, got ${pattern.length} — an out-of-range bit must be rejected, not silently routed through u0`,
     );
   }
+  for (const [i, b] of pattern.entries()) {
+    const bit = b as number; // the 0|1 union proves nothing at runtime (patterns can arrive parsed or mutated)
+    if (bit !== 0 && bit !== 1) {
+      throw new ChoiceLangError(
+        "PATTERN_ARITY",
+        `branchProduct: pattern bit ${i + 1} is ${bit}, not 0 or 1 — an illegal bit must be rejected, not silently routed through u0 (any value but 1 reads as 0)`,
+      );
+    }
+  }
   const d = first.u0.rows;
   let u = identity(d);
   for (const [i, step] of p.entries()) {
@@ -172,6 +187,15 @@ export function conditionOnPattern(
       `conditionOnPattern: pattern needs exactly ${nControls} bits, got ${pattern.length} — extra bits must be rejected, not silently ignored`,
     );
   }
+  for (const [i, b] of pattern.entries()) {
+    const bit = b as number; // the 0|1 union proves nothing at runtime (patterns can arrive parsed or mutated)
+    if (bit !== 0 && bit !== 1) {
+      throw new ChoiceLangError(
+        "PATTERN_ARITY",
+        `conditionOnPattern: pattern bit ${i + 1} is ${bit}, not 0 or 1 — an illegal bit names no control outcome (it must be refused for the bit, not misreported as probability 0)`,
+      );
+    }
+  }
   if (!Number.isInteger(d) || d < 1) {
     throw new ChoiceLangError("DATA_SHAPE", `conditionOnPattern: the data dimension must be a positive integer, got ${d}`);
   }
@@ -200,10 +224,12 @@ export function conditionOnPattern(
     }
     p += rho.re[row * dim + row]!;
   }
-  if (p <= 0) {
+  if (!(p > 0)) {
+    // !(p > 0), not p <= 0: a NaN weight compares false against everything and
+    // would divide the conditional through by NaN silently
     throw new ChoiceLangError(
       "ZERO_PROBABILITY",
-      "conditionOnPattern: the pattern has probability 0 — the conditional state is undefined, refusing to return silent zeros",
+      "conditionOnPattern: the pattern has probability 0 (or non-finite) — the conditional state is undefined, refusing to return silent zeros",
     );
   }
   for (let k = 0; k < out.re.length; k++) {

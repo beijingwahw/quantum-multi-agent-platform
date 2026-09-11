@@ -33,7 +33,7 @@
 
 import { phaseOverlap, runPriorSorter } from "./survivor.js";
 import { Rng } from "./survivor.js";
-import { expectFound } from "./errors.js";
+import { CensusError, expectFound } from "./errors.js";
 import { TOL } from "./tol.js";
 
 export interface PhaseFamily {
@@ -140,6 +140,12 @@ export interface PhaseCensus {
 }
 
 export function runPhaseCensus(n: number, counts: readonly number[], marked: readonly number[]): PhaseCensus {
+  // named BEFORE buildPhaseFamilies: a fractional or negative n used to
+  // surface as an opaque RangeError from new Array(2**n) (invalid array
+  // length) where every sibling entry names SC/BAD-N
+  if (!Number.isInteger(n) || n < 0) {
+    throw new CensusError("SC/BAD-N", "runPhaseCensus: n must be a non-negative integer (the address space is 2^n)");
+  }
   const families = buildPhaseFamilies(n);
   const flatPhi = expectFound("flat family", families[0]);
   const flatRun = runPriorSorter(n, counts, marked, flatPhi.phi);

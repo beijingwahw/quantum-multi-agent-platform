@@ -202,6 +202,10 @@ export function negLn(x: Frac): Ivl {
  */
 export function h2Closed(q: Frac): Ivl {
   if (fIsZero(q)) return iOf(F_ZERO);
+  // the symmetric endpoint: -(1)ln(1) - 0·ln(0) = 0 by the same limit
+  // discipline as q = 0 (the schedule's q never reaches 1, but the closed
+  // form is total on [0,1] exactly as the README quotes it)
+  if (fCmp(q, F_ONE) === 0) return iOf(F_ZERO);
   if (fCmp(q, F_HALF) === 0) return iOf(F_ONE);
   if (fCmp(q, F_ZERO) <= 0 || fCmp(q, F_ONE) >= 0) refuse("H2CLOSED_DOMAIN", "h2Closed: q outside [0,1]");
   const oneMinusQ = fSub(F_ONE, q);

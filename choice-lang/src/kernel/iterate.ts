@@ -44,6 +44,14 @@ export interface LoopTrajectory {
  */
 export function loopTrajectory(body: Program, rho: CMat, k: number, piW: CMat): LoopTrajectory {
   if (k < 1) throw new ChoiceLangError("LOOP_BOUND", `loopTrajectory: k must be >= 1, got ${k}`);
+  if (!Number.isInteger(k)) {
+    // a fractional k reads membership[k] off the ledger (undefined -> NaN
+    // residual) and an infinite k never leaves the iteration loop
+    throw new ChoiceLangError(
+      "LOOP_BOUND",
+      `loopTrajectory: k must be a whole number of iterations (the ledger indexes membership[k]), got ${k}`,
+    );
+  }
   const d = rho.rows;
   const membership: number[] = [membershipExpectation(rho, piW, d)];
   let reg = rho;
@@ -62,6 +70,14 @@ export function loopTrajectory(body: Program, rho: CMat, k: number, piW: CMat): 
 /** The bounded loop as a flat program: the body's k-fold self-composition. */
 export function iteratedProgram(body: Program, k: number): Program {
   if (k < 1) throw new ChoiceLangError("LOOP_BOUND", `iteratedProgram: k must be >= 1, got ${k}`);
+  if (!Number.isInteger(k)) {
+    // the fold `i < k` runs ceil(k) times on a fractional k — a silently
+    // different program from the one the caller named
+    throw new ChoiceLangError(
+      "LOOP_BOUND",
+      `iteratedProgram: k must be a whole number of iterations (a fractional bound self-composes the wrong count), got ${k}`,
+    );
+  }
   const steps = [];
   for (let i = 0; i < k; i++) steps.push(...body);
   return steps;

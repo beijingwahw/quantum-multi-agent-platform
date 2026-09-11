@@ -11,6 +11,19 @@ export interface Q {
   readonly d: bigint;
 }
 
+/** Named kernel error — the exact layer's one refusal face: a zero
+ *  denominator is not a rational, and normalizing it silently used to turn
+ *  division by q(1n, 0n) into the exact-looking 0/1. Message embeds the
+ *  stable code, in the workspace's [CODE] convention. */
+export class ExactError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(`[${code}] ${message}`);
+    this.code = code;
+    this.name = "ExactError";
+  }
+}
+
 function gcd(a: bigint, b: bigint): bigint {
   let x = a < 0n ? -a : a;
   let y = b < 0n ? -b : b;
@@ -23,6 +36,10 @@ function gcd(a: bigint, b: bigint): bigint {
 }
 
 export const q = (n: bigint, d = 1n): Q => {
+  // the exact layer's boundary: a zero denominator is not a rational, and a
+  // silent normalization would launder it — division by q(1n, 0n) used to
+  // come back as the exact-looking 0/1 (the same face qDiv-by-zero has)
+  if (d === 0n) throw new ExactError("Q_ZERO_DENOMINATOR", `q: zero denominator (got ${n}/0) — not a rational, refused by name`);
   const sign = d < 0n ? -1n : 1n;
   const nn = sign * n;
   const dd = sign * d;

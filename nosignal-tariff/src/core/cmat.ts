@@ -28,6 +28,12 @@ export function identity(d: number): CMat {
 }
 
 export function mAdd(a: CMat, b: CMat): CMat {
+  if (a.rows !== b.rows || a.cols !== b.cols) {
+    // a shape mismatch used to read b's cells at a's offsets — a plausible
+    // matrix built from the wrong object (traceDistance of a 2x2 vs a 4x4
+    // returned 0.375, quietly)
+    refuse("MADD_SHAPE_MISMATCH", `shape mismatch ${a.rows}x${a.cols} + ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
     m.re[k] = a.re[k]! + b.re[k]!;
@@ -104,7 +110,12 @@ export function kron(a: CMat, b: CMat): CMat {
 export function matEq(a: CMat, b: CMat, tol = 1e-12): boolean {
   if (a.rows !== b.rows || a.cols !== b.cols) return false;
   for (let k = 0; k < a.re.length; k++) {
-    if (Math.abs(a.re[k]! - b.re[k]!) > tol || Math.abs(a.im[k]! - b.im[k]!) > tol) return false;
+    const dr = Math.abs(a.re[k]! - b.re[k]!);
+    const di = Math.abs(a.im[k]! - b.im[k]!);
+    // NaN fails both comparisons below: without this check a NaN entry
+    // compared EQUAL and the isometry certificates above could not fail on
+    // non-finite input (Infinity - Infinity is NaN too)
+    if (!Number.isFinite(dr) || !Number.isFinite(di) || dr > tol || di > tol) return false;
   }
   return true;
 }

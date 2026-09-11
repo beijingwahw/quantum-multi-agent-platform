@@ -30,7 +30,10 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
       refuse("PARTIALTRACE_INDEX_OUT_OF_RANGE", `partialTrace: traced-out subsystem index ${t} out of range for ${m} subsystems`);
     }
   }
-  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) refuse("PARTIALTRACE_DIMS_MISMATCH", "dims do not match rho");
+  // a non-square rho whose rows happen to match the product passes the check
+  // below and then reads cells at row-major [row*dIn + col] offsets that do
+  // not exist — NaN entries with the shape of a state
+  if (rho.rows !== rho.cols || rho.rows !== dims.reduce((a, b) => a * b, 1)) refuse("PARTIALTRACE_DIMS_MISMATCH", "dims do not match rho");
   const keep = dims.map((_, i) => i).filter((i) => !traceOut.includes(i));
   const keptDims = keep.map((i) => dims[i]!);
   const dOut = keptDims.reduce((a, b) => a * b, 1);

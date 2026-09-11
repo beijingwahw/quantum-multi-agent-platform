@@ -62,6 +62,15 @@ export function dataBasisState(nQubits: number, pattern: readonly number[]): CVe
 
 /** Random circuit over the gate menu; every step is unitary-verified. */
 export function randomCircuit(nQubits: number, depth: number, rng: Rng): Circuit {
+  // nQubits = 0 used to crash on a raw TypeError inside embedSingle, and a
+  // fractional depth silently composed ceil(depth) steps — the degenerate
+  // generator domain is named like every other entry
+  if (!Number.isInteger(nQubits) || nQubits < 1) {
+    throw new VacuumError("circuit/qubit-count-out-of-domain", `randomCircuit: nQubits = ${nQubits}, expected an integer >= 1`);
+  }
+  if (!Number.isInteger(depth) || depth < 0) {
+    throw new VacuumError("circuit/depth-out-of-domain", `randomCircuit: depth = ${depth}, expected a nonnegative integer`);
+  }
   const steps: PlacedGate[] = [];
   for (let t = 0; t < depth; t++) {
     if (nQubits >= 2 && rng.next() < 0.3) {

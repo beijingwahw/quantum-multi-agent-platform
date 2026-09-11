@@ -29,6 +29,15 @@ export function waitingPrice(p: number): WaitingPrice {
     throw new CensusError("SC/P-DOMAIN", "waitingPrice: p must be in (0, 1]");
   }
   const q = 1 - p;
+  // below the float64 resolution of 1-p the truncated-sum path sees no decay
+  // at all: it would print a FALSE ZERO (meanPartial 0 where the truth is
+  // 1/p) and, once 60/p overflows, a NaN — named refusal instead
+  if (q === 1) {
+    throw new CensusError(
+      "SC/P-DOMAIN",
+      "waitingPrice: p is below the float64 resolution of 1-p — the partial-sum path cannot see the geometric (it would print a false zero)",
+    );
+  }
   // K with analytic tail ((K+1) q^K)/p below 1e-12 of the mean 1/p,
   // i.e. (K+1) q^K <= 1e-12 — pK = 60 gives K e^{-pK} ~ (60/p) e^{-60}, safe for all p >= 2^-20
   const K = p === 1 ? 1 : Math.max(1, Math.ceil(60 / p));
@@ -127,5 +136,8 @@ export function mcWaiting(p: number, runs: number, rngNext: () => number): McWai
   }
   const mean = s / runs;
   const sigma = Math.sqrt((1 - p) / (p * p)) / Math.sqrt(runs);
-  return { runs, mean, sigmaUnits: Math.abs(mean - 1 / p) / sigma };
+  // p=1 (the legal endpoint of the domain): sigma is exactly 0 and so is the
+  // deviation — the 0/0 would print NaN as the referee's verdict
+  const sigmaUnits = sigma === 0 ? (mean === 1 / p ? 0 : Number.POSITIVE_INFINITY) : Math.abs(mean - 1 / p) / sigma;
+  return { runs, mean, sigmaUnits };
 }

@@ -104,7 +104,10 @@ export function runPriorSorter(
   if (marked.length === 0) {
     throw new CensusError("SC/BAD-MARKED", "runPriorSorter: at least one marked item required");
   }
-  if (marked.some((x) => x < 0 || x >= N)) {
+  if (marked.some((x) => !Number.isInteger(x) || x < 0 || x >= N)) {
+    // a fractional or NaN mark slips a bare range check (both comparisons are
+    // false) and counts[x] reads undefined — the run then returns a silent
+    // P=0 census where the integer P=0 face refuses by name
     throw new CensusError("SC/BAD-MARKED", "runPriorSorter: marked out of range");
   }
   const markedSet = new Set(marked);
@@ -290,6 +293,11 @@ export function realizationCheck(
   seed: number,
   trials: number,
 ): RealizationCheck {
+  if (!Number.isInteger(trials) || trials <= 0) {
+    // trials=0 divides by zero and yields a silent NaN referee — mcWaiting's
+    // twin refusal on runs
+    throw new CensusError("SC/MC-BAD-INPUTS", "realizationCheck: trials must be a positive integer");
+  }
   const run = runPriorSorter(n, counts, marked);
   const N = run.N;
   const rng = new Rng(seed);
@@ -326,7 +334,10 @@ export function realizationCheck(
     if (p === 0) continue;
     const freq = keptCounts[x]! / keptDraws;
     const s = Math.sqrt((p * (1 - p)) / keptDraws);
-    const z = Math.abs(freq - p) / s;
+    // p=1 (a t=1 posterior) makes s exactly 0: the 0/0 would be NaN, and NaN
+    // comparisons are false — the max-fold below would silently report a
+    // perfect 0 it never measured
+    const z = s === 0 ? (freq === p ? 0 : Number.POSITIVE_INFINITY) : Math.abs(freq - p) / s;
     if (z > worst) worst = z;
   }
   return { trials, waitingSigma, worstSurvivorSigma: worst };

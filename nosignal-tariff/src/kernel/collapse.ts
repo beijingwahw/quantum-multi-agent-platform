@@ -28,6 +28,20 @@ export function dephase(rho: CMat, dims: readonly number[], sys: number): CMat {
   if (!Number.isInteger(sys) || sys < 0 || sys >= m) {
     refuse("DEPHASE_INDEX_OUT_OF_RANGE", `dephase: subsystem index ${sys} is outside dims of length ${m}`);
   }
+  // a zero/fractional dim makes every digit NaN and NaN !== NaN silently
+  // zeroes the whole matrix (a trace-0 "state" that looks built); a dims
+  // product that misses the matrix decomposes digits that do not exist —
+  // refuse both at the boundary, like partialTrace
+  let prod = 1;
+  for (const d of dims) {
+    if (!Number.isInteger(d) || d <= 0) {
+      refuse("SUBSYSTEM_DIMS_INVALID", `dephase: subsystem dims must be positive integers, got ${d}`);
+    }
+    prod *= d;
+  }
+  if (rho.rows !== rho.cols || prod !== rho.rows) {
+    refuse("DEPHASE_DIMS_MISMATCH", `dephase: dims product ${prod} must match the ${rho.rows}x${rho.cols} matrix`);
+  }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;

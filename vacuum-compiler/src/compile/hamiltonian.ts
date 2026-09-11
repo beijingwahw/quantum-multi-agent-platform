@@ -76,6 +76,17 @@ export function buildInputCheck(nQubits: number, checkedQubits: readonly number[
   const D = dataDim(nQubits);
   const C = T + 1;
   const h = cmatZero(D * C);
+  // program() validates its own constructor inputs; the builder is a public
+  // entry in its own right, and a qubit outside [0, nQubits) shifts past the
+  // bit range ((d >> -1) reads 0) — a silently wrong penalty surface
+  for (const q of checkedQubits) {
+    if (!Number.isInteger(q) || q < 0 || q >= nQubits) {
+      throw new VacuumError(
+        "hamiltonian/checked-qubit-out-of-range",
+        `buildInputCheck: checked qubit ${q} outside [0, ${nQubits}) on an ${nQubits}-qubit register`,
+      );
+    }
+  }
   const checked = new Set(checkedQubits);
   for (let d = 0; d < D; d++) {
     let violated = false;
@@ -94,6 +105,14 @@ export function buildOutputCheck(nQubits: number, acceptPattern: ReadonlyMap<num
   const D = dataDim(nQubits);
   const C = T + 1;
   const h = cmatZero(D * C);
+  for (const q of acceptPattern.keys()) {
+    if (!Number.isInteger(q) || q < 0 || q >= nQubits) {
+      throw new VacuumError(
+        "hamiltonian/accept-qubit-out-of-range",
+        `buildOutputCheck: accept qubit ${q} outside [0, ${nQubits}) on an ${nQubits}-qubit register`,
+      );
+    }
+  }
   for (let d = 0; d < D; d++) {
     let accepting = true;
     for (const [q, bit] of acceptPattern) {
@@ -106,6 +125,12 @@ export function buildOutputCheck(nQubits: number, acceptPattern: ReadonlyMap<num
 }
 
 export function buildFuel(nQubits: number, T: number, epsilon: number): CMat {
+  // a non-finite tilt wrote NaN into the clock diagonal, and the assembled
+  // Hamiltonian then sailed through Hermiticity (`NaN > tol` compares false)
+  // into a meaningless spectrum with no named rejection anywhere
+  if (!Number.isFinite(epsilon)) {
+    throw new VacuumError("hamiltonian/epsilon-out-of-domain", `buildFuel: epsilon = ${epsilon}, expected a finite tilt strength`);
+  }
   const D = dataDim(nQubits);
   const C = T + 1;
   const h = cmatZero(D * C);
@@ -154,6 +179,17 @@ export function assemble(
  * spectrum = {1 - cos(pi k / C)} (k = 0..T), each 2^n-fold degenerate —
  * half the path-graph Laplacian on C = T+1 vertices. */
 export function clockChainEigenvalue(k: number, clockStates: number): number {
+  // the same domain its sibling bareClockChain enforces (a path graph needs
+  // >= 2 vertices): clockStates = 0 divided by zero into NaN silently, and a
+  // negative/fractional count priced a graph that does not exist
+  if (!Number.isInteger(clockStates) || clockStates < 2) {
+    throw new VacuumError("hamiltonian/clock-states-out-of-domain", `clockChainEigenvalue: clockStates ${clockStates} (the closed form prices the same path graph bareClockChain builds — it needs >= 2 vertices)`);
+  }
+  // k names a spectral row: outside [0, C-1] the formula still returns a
+  // plausible number (k = C gives 2), but it is not in the chain's spectrum
+  if (!Number.isInteger(k) || k < 0 || k > clockStates - 1) {
+    throw new VacuumError("hamiltonian/spectral-index-out-of-range", `clockChainEigenvalue: k = ${k} outside [0, ${clockStates - 1}] — the chain's spectrum is k = 0..T over C = T+1 vertices`);
+  }
   return 1 - Math.cos((Math.PI * k) / clockStates);
 }
 

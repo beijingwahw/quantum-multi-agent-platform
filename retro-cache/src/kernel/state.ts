@@ -128,6 +128,10 @@ export function projector(axis: readonly number[], sign: 1 | -1): CMat {
   // guard at the boundary: a short axis would otherwise index past its end and
   // silently seed NaN into the matrix (the old `as number` hid exactly that)
   if (axis.length !== 3) throw new RcError("RC_AXIS_LEN", `projector: axis must be a 3-vector, got length ${axis.length}`);
+  // a non-finite component is the same contraband one length off: it flows
+  // through the Pauli sum as NaN cells that survive every threshold
+  for (let i = 0; i < 3; i++)
+    if (!Number.isFinite(axis[i]!)) throw new RcError("RC_NON_FINITE", `projector: axis components must be finite (got [${axis.join(", ")}])`);
   const m = cmatZero(2);
   for (let i = 0; i < 2; i++) m.re[i]![i]! += 0.5;
   for (let p = 0; p < 3; p++) {
@@ -145,6 +149,10 @@ export function projector(axis: readonly number[], sign: 1 | -1): CMat {
 /** Werner-pair state: rho_p = (I(x)I - p sum_i sigma_i (x) sigma_i)/4 — the
  *  singlet at p = 1 (correlations -p a.b), fully depolarized at p = 0. */
 export function wernerPair(p: number): CMat {
+  // guard at the boundary, matching the ledger entries that price this state
+  // (qberOf, withdrawalRow, every adversary row): a visibility outside [0, 1]
+  // is a non-physical state whose CHSH would silently ride past Tsirelson
+  if (!(p >= 0 && p <= 1)) throw new RcError("RC_P_RANGE", `wernerPair: visibility p must lie in [0, 1] (got ${p})`);
   const out = cmatZero(4);
   for (let i = 0; i < 4; i++) out.re[i]![i] = 0.25;
   for (const s of PAULI) {
@@ -213,6 +221,11 @@ export function wernerCorrelation(p: number, a: readonly number[], b: readonly n
   // guard at the boundary: a short axis would index past its end (undefined
   // operands) and silently turn the closed form into NaN
   if (a.length !== 3 || b.length !== 3) throw new RcError("RC_AXIS_LEN", `wernerCorrelation: axes must be 3-vectors (got ${a.length}, ${b.length})`);
+  // same boundary as projector: a non-finite component turns the closed form
+  // into a confident-looking NaN/Infinity correlation
+  for (const ax of [a, b])
+    for (let i = 0; i < 3; i++)
+      if (!Number.isFinite(ax[i]!)) throw new RcError("RC_NON_FINITE", `wernerCorrelation: axis components must be finite (got [${ax.join(", ")}])`);
   return -p * (a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!);
 }
 
@@ -299,10 +312,11 @@ export class Rng {
 
 export function entropyBits(probs: readonly number[]): number {
   let h = 0;
-  // a negative or NaN weight is not a probability; skipping it (the old
-  // `p > 0` filter) would silently understate the entropy
   for (const p of probs) {
-    if (!(p >= 0)) throw new RcError("RC_NEG_PROB", `entropyBits: negative or non-finite weight ${p}`);
+    // a negative or non-finite weight is not a probability; skipping it (the
+    // old `p > 0` filter) would silently understate the entropy — and
+    // Infinity used to slip the `p >= 0` gate and hand back -Infinity
+    if (!Number.isFinite(p) || p < 0) throw new RcError("RC_NEG_PROB", `entropyBits: negative or non-finite weight ${p}`);
     if (p > 0) h -= p * Math.log2(p);
   }
   return h;

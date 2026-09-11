@@ -35,6 +35,10 @@ export interface Stinespring {
 
 /** Standard Stinespring dilation of a Kraus set: V = Σ_m K_m ⊗ |m⟩_E. */
 export function krausToStinespring(kraus: readonly CMat[]): Stinespring {
+  // an empty Kraus set used to build a 0-dimensional dilation whose
+  // V†V = I certificate held vacuously (0x0 times 0x0 equals 0x0) — a
+  // degenerate channel that shipped as certified
+  if (kraus.length === 0) refuse('KRAUS_EMPTY', 'kraus set must not be empty');
   const d = kraus[0]?.rows ?? 0;
   if (kraus.some((k) => k.rows !== d || k.cols !== d)) refuse('KRAUS_NOT_SQUARE', 'kraus operators must be d×d');
   const envDim = kraus.length;
@@ -124,7 +128,9 @@ export interface SwitchIsometry {
  * passes through untouched. Certificate: M†M = I.
  */
 export function switchIsometry(va: Stinespring, vb: Stinespring): SwitchIsometry {
-  if (va.d !== vb.d) throw new Error('target dimensions must match');
+  // the same contract branchIsometry refuses by name — a bare Error here was
+  // the one uncoded throw left in the kernel
+  if (va.d !== vb.d) refuse('BRANCH_DIM_MISMATCH', 'target dimensions must match');
   const d = va.d;
   const eA = va.envDim;
   const eB = vb.envDim;

@@ -210,8 +210,13 @@ export function perturbedLeakageBound(eps: number, gamma: number = GAMMA): numbe
   return eps / (1 - (1 - eps) * (1 - gamma));
 }
 
-/** Binary entropy, log2 route (the ln route lives in the tests' dual check). */
+/** Binary entropy, log2 route (the ln route lives in the tests' dual check).
+ * Non-finite q is refused by name: NaN fails both range comparisons below
+ * and would otherwise flow into the witnesses as a silent NaN. */
 export function h2(q: number): number {
+  if (!Number.isFinite(q)) {
+    throw new DomainError("h2:q-range", `h2: entropy argument must be finite, got ${q}`);
+  }
   if (q <= 0 || q >= 1) return 0;
   return -q * Math.log2(q) - (1 - q) * Math.log2(1 - q);
 }
@@ -324,8 +329,12 @@ export function thermalUpRate(betaGap: number, gamma: number = GAMMA): number {
   return gamma * Math.exp(-betaGap);
 }
 
-/** Stationary in-world probability of the two-rate chain (AT6's w*). */
+/** Stationary in-world probability of the two-rate chain (AT6's w*). The
+ * rate guard matches the sibling pricers (twoRateInWorld, escapeAtHorizon):
+ * a NaN or negative r must die at the boundary by name, not surface as a
+ * silent NaN/Infinity occupancy. */
 export function stationaryInWorld(r: number, gamma: number = GAMMA): number {
+  requireRate("stationaryInWorld", r);
   return gamma / (gamma + r);
 }
 
@@ -535,9 +544,19 @@ export function lindbladRhs(rho: CMat, pDown: number, pUp: number): CMat {
 }
 
 /** The extraction (Phi_theta(rho) - rho)/sin^2(theta): converges to the
- * Lindblad operator as theta -> 0 at O(theta^2). */
+ * Lindblad operator as theta -> 0 at O(theta^2). theta = 0 itself is the
+ * degenerate coupling — the collision is the identity, the numerator is the
+ * zero matrix, and the 0/0 would surface as a silent NaN matrix — so it is
+ * refused by name; the value AT theta = 0 is the limit, not a reading. */
 export function extractedGenerator(rho: CMat, theta: number, betaGap: number): CMat {
-  return mScale(mAdd(applyCollision(rho, theta, betaGap), mScale(rho, -1)), 1 / Math.sin(theta) ** 2);
+  const s2 = Math.sin(theta) ** 2;
+  if (!(s2 > 0)) {
+    throw new DomainError(
+      "extractedGenerator:theta-degenerate",
+      `extractedGenerator: sin^2(theta) must be positive (theta=0 is the degenerate coupling — the generator is the theta->0 limit), got theta=${theta}`,
+    );
+  }
+  return mScale(mAdd(applyCollision(rho, theta, betaGap), mScale(rho, -1)), 1 / s2);
 }
 
 /** The phase-alignment bank: the l1-optimal weight coherence sum_r |sigma_r|

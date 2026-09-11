@@ -74,6 +74,12 @@ export function composeStages(
   markedB: readonly number[],
   phases?: readonly number[],
 ): CompositionRun {
+  // n is validated FIRST and by name: a fractional or negative n used to
+  // surface downstream as a misnamed SC/BAD-COUNTS (no count table can have
+  // length 2^1.5) where runPriorSorter names SC/BAD-N for the same input
+  if (!Number.isInteger(n) || n < 0) {
+    throw new CensusError("SC/BAD-N", "composeStages: n must be a non-negative integer (the address space is 2^n)");
+  }
   const N = 2 ** n;
   if (counts.length !== N) {
     throw new CensusError("SC/BAD-COUNTS", "composeStages: count table must have length 2^n");
@@ -84,7 +90,13 @@ export function composeStages(
   if (markedA.length === 0 || markedB.length === 0) {
     throw new CensusError("SC/BAD-MARKED", "composeStages: both stages must mark at least one item");
   }
-  if (markedA.some((x) => x < 0 || x >= N) || markedB.some((x) => x < 0 || x >= N)) {
+  // addresses are integers: a fractional or NaN mark slips a bare range
+  // check and reads counts[x] as undefined (runPriorSorter's own hole, closed
+  // with it)
+  if (
+    markedA.some((x) => !Number.isInteger(x) || x < 0 || x >= N) ||
+    markedB.some((x) => !Number.isInteger(x) || x < 0 || x >= N)
+  ) {
     throw new CensusError("SC/BAD-MARKED", "composeStages: marked out of range");
   }
   const totalC = counts.reduce((a, b) => a + b, 0);

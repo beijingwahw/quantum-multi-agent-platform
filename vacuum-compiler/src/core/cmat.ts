@@ -34,8 +34,11 @@ export interface CVec {
   readonly im: Float64Array;
 }
 
-/** A matrix is well-formed iff dim is a positive integer and both grids are
- * exactly dim x dim (ragged re/im is the classic silent-NaN source). */
+/** A matrix is well-formed iff dim is a positive integer, both grids are
+ * exactly dim x dim (ragged re/im is the classic silent-NaN source), and
+ * every entry is finite — a NaN/Infinity entry compares false against every
+ * tolerance downstream and reads out as confident garbage, so it is a
+ * malformed grid the same way a ragged one is. */
 export function requireWellFormed(m: CMat, what: string): void {
   if (!Number.isInteger(m.dim) || m.dim < 1) {
     throw new VacuumError("cmat/malformed-grid", `${what}: dim must be a positive integer, got ${m.dim}`);
@@ -49,17 +52,28 @@ export function requireWellFormed(m: CMat, what: string): void {
     if (rr.length !== m.dim || ri.length !== m.dim) {
       throw new VacuumError("cmat/malformed-grid", `${what}: row ${i} is ${rr.length}/${ri.length} wide, expected ${m.dim}`);
     }
+    for (let j = 0; j < m.dim; j++) {
+      if (!Number.isFinite(rr[j]) || !Number.isFinite(ri[j])) {
+        throw new VacuumError("cmat/malformed-grid", `${what}: entry [${i}][${j}] is ${rr[j]}/${ri[j]} — non-finite entries compare false against every tolerance and pass every guard`);
+      }
+    }
   }
 }
 
-/** A vector is well-formed iff dim is a positive integer and both components
- * carry exactly dim entries. */
+/** A vector is well-formed iff dim is a positive integer, both components
+ * carry exactly dim entries, and every entry is finite (same doctrine as
+ * requireWellFormed). */
 export function requireWellFormedVec(v: CVec, what: string): void {
   if (!Number.isInteger(v.dim) || v.dim < 1) {
     throw new VacuumError("cvec/malformed-vector", `${what}: dim must be a positive integer, got ${v.dim}`);
   }
   if (v.re.length !== v.dim || v.im.length !== v.dim) {
     throw new VacuumError("cvec/malformed-vector", `${what}: re/im must each have ${v.dim} entries, got ${v.re.length}/${v.im.length}`);
+  }
+  for (let k = 0; k < v.dim; k++) {
+    if (!Number.isFinite(v.re[k]) || !Number.isFinite(v.im[k])) {
+      throw new VacuumError("cvec/malformed-vector", `${what}: entry [${k}] is ${v.re[k]}/${v.im[k]} — non-finite entries compare false against every tolerance and pass every guard`);
+    }
   }
 }
 

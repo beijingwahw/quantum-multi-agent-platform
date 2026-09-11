@@ -123,6 +123,13 @@ export function acceptanceProbability(output: CVec, nQubits: number, acceptPatte
   if (output.dim !== 2 ** nQubits) {
     throw new VacuumError("amplify/qubit-count-mismatch", `acceptanceProbability: output dim ${output.dim}, expected ${2 ** nQubits} = 2^${nQubits}`);
   }
+  // an accept qubit outside the register shifts past the bit range and reads
+  // 0 everywhere — the probability silently collapses to 0 or 1 on garbage
+  for (const q of acceptPattern.keys()) {
+    if (!Number.isInteger(q) || q < 0 || q >= nQubits) {
+      throw new VacuumError("amplify/accept-qubit-out-of-range", `acceptanceProbability: accept qubit ${q} outside [0, ${nQubits}) on an ${nQubits}-qubit register`);
+    }
+  }
   let p = 0;
   for (let d = 0; d < output.dim; d++) {
     let accepting = true;
@@ -257,5 +264,10 @@ export function worstSigmaUnits(rows: readonly DecayRow[]): number {
  * protocol erase k·(T+1)·log2(T+1) bits — amplification is priced, not
  * free (the wall again). */
 export function amplifiedStaticBits(clockStates: number, k: number): number {
+  // the price of a fractional or negative round count is not a number this
+  // ledger means — exactRationalPower and decayCensus already name the class
+  if (!Number.isInteger(k) || k < 0) {
+    throw new VacuumError("amplify/rounds-out-of-domain", `amplifiedStaticBits: k = ${k}, expected a nonnegative integer round count`);
+  }
   return k * staticExpectedErasureBits(clockStates);
 }

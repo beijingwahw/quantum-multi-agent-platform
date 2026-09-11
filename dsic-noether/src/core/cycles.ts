@@ -17,6 +17,10 @@ export type EdgeForm = (a: number, b: number) => number;
  * [i0, i1, ..., ik-1] meaning i0 -> i1 -> ... -> ik-1 -> i0. K!-ish growth:
  * assert K <= 7 before enumerating. */
 export function simpleCycles(k: number): number[][] {
+  // K = 0 (or negative/fractional) is not a node set: it either enumerates
+  // nothing — cycleScan would report max = -Infinity, which reads as "exact"
+  // — or crashes inside Array. Refuse it like the K > 7 blow-up.
+  if (!Number.isInteger(k) || k < 1) throw new KernelError("cycles/k-invalid", `simpleCycles: K=${k} is not a positive integer node-set size`);
   if (k > 7) throw new KernelError("cycles/k-limit", `simpleCycles: K=${k} too large (factorial blow-up)`);
   const out: number[][] = [];
   const used = new Array<boolean>(k).fill(false);

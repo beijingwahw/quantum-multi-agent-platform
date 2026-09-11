@@ -31,6 +31,11 @@ export function fkStaticBits(clockStates: number): number {
 /** Exact integer power — the ONLY definition in the repository since v0.3.0
  * (amplify.ts's identical private copy was retired). */
 export function bigPow(base: bigint, exp: number): bigint {
+  // a negative or fractional exponent ran the fold the wrong count of times
+  // and silently returned the wrong power (2^-1 came back as 1, 2^2.5 as 8)
+  if (!Number.isInteger(exp) || exp < 0) {
+    throw new VacuumError("tariff/exponent-out-of-domain", `bigPow: exp = ${exp}, expected a nonnegative integer`);
+  }
   let out = 1n;
   for (let i = 0; i < exp; i++) out *= base;
   return out;

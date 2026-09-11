@@ -95,6 +95,15 @@ export function termIsometry(t: Term, d: number): CMat {
     }
     return t.u;
   }
+  if (!Number.isFinite(t.theta)) {
+    // the nested runner refuses what the flat runner (runOnRegister) already
+    // refuses by name: a non-finite control angle would route NaN through
+    // every branch of the isometry
+    throw new ChoiceLangError(
+      "STEP_THETA",
+      `termIsometry: a choose node carries a non-finite control angle (${t.theta}) — cos/sin of it would route NaN through every branch`,
+    );
+  }
   const w0 = termWidth(t.t0);
   const w1 = termWidth(t.t1);
   const v0 = termIsometry(t.t0, d);
@@ -141,6 +150,12 @@ export interface TermPath {
 /** Every live path (root-to-leaf) of a term, with its leaf and its weight. */
 export function termPaths(t: Term): TermPath[] {
   if (t.kind === "leaf") return [{ bits: [], leafUnitary: t.u, weight: 1 }];
+  if (!Number.isFinite(t.theta)) {
+    throw new ChoiceLangError(
+      "STEP_THETA",
+      `termPaths: a choose node carries a non-finite control angle (${t.theta}) — its branch weights would be NaN`,
+    );
+  }
   const w0 = Math.cos(t.theta) ** 2;
   const w1 = Math.sin(t.theta) ** 2;
   return [
@@ -161,6 +176,13 @@ export function pathSlotPattern(t: Term, bits: ReadonlyArray<0 | 1>): Array<0 | 
   }
   const b = bits[0];
   if (b === undefined) throw new ChoiceLangError("PATH_SHORT", "pathSlotPattern: path ended at a choose node");
+  const bit = b as number; // the 0|1 union proves nothing at runtime (paths can arrive parsed or mutated)
+  if (bit !== 0 && bit !== 1) {
+    throw new ChoiceLangError(
+      "PATTERN_ARITY",
+      `pathSlotPattern: path bit is ${bit}, not 0 or 1 — an illegal bit must be rejected, not silently routed through the 1-branch`,
+    );
+  }
   const rest = bits.slice(1);
   const sub = b === 0 ? t.t0 : t.t1;
   const otherWidth = termWidth(b === 0 ? t.t1 : t.t0);

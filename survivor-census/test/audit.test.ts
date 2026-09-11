@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { describe, it } from "node:test";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditCensus } from "../src/kernel/audit.js";
@@ -109,6 +109,18 @@ describe("smuggling trials — each contraband is named and rejected", () => {
 });
 
 describe("the repro entry point", () => {
+  it("the entry guard holds: importing the renderer writes no report", async () => {
+    // the probe names the file a fired render would actually write and
+    // compares mtimes — a sentinel name nothing writes could never fail.
+    // Runs before the exec test below so nothing else writes the report
+    // in between.
+    const report = resolve(here, "..", "out", "reports", "the-survivor-census.md");
+    const before = existsSync(report) ? statSync(report).mtimeMs : undefined;
+    await import("../src/experiments/render.js");
+    const after = existsSync(report) ? statSync(report).mtimeMs : undefined;
+    assert.equal(after, before, "importing the renderer must not execute the render");
+  });
+
   it("produces the report on disk (and the guarded import does not auto-run)", () => {
     const outFile = resolve(here, "..", "out", "reports", "the-survivor-census.md");
     execFileSync("node", ["--import", "tsx", join(here, "..", "src", "experiments", "render.ts")], {

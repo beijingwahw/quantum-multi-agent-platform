@@ -17,6 +17,7 @@
  * conserved/invariant quantity of the gauge symmetry.
  */
 import { bestAllocation } from "./instance.js";
+import { KernelError } from "../core/errors.js";
 
 export interface GrovesWorld {
   readonly n: number;
@@ -42,6 +43,11 @@ function profileOf(w: GrovesWorld, report: readonly number[]): number[][] {
 /** Efficient allocation + unique-max guard + the runner-up assignment
  * (used by the second-best rule) for the profile induced by report k. */
 export function allocationAt(w: GrovesWorld, k: number): { alloc: readonly number[]; allocRunnerUp: readonly number[]; welfare: number; unique: boolean } {
+  // an out-of-range report index used to surface as an opaque TypeError from
+  // deep inside profileOf's spread — refuse it at the boundary instead
+  if (!Number.isInteger(k) || k < 0 || k >= w.reports.length) {
+    throw new KernelError("groves/report-index-range", `allocationAt: report index ${k} out of range for ${w.reports.length} reports`);
+  }
   const agents = Array.from({ length: w.n }, (_, a) => a);
   const res = bestAllocation(profileOf(w, w.reports[k] as readonly number[]), agents);
   return { alloc: res.alloc, allocRunnerUp: res.allocRunnerUp, welfare: res.welfare, unique: res.welfare > res.runnerUp };

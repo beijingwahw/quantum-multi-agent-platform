@@ -8,7 +8,7 @@
  * private copies in test/vacuum.test.ts and experiments/exp1-compile.ts — is
  * single-sourced here (the stochastic-referee module).
  */
-import { type CVec, cvecZero } from "../core/cmat.js";
+import { type CVec, cvecZero, VacuumError } from "../core/cmat.js";
 
 export class Rng {
   private state: number;
@@ -29,6 +29,12 @@ export class Rng {
 
   /** Uniform integer in [0, n). */
   int(n: number): number {
+    // int(0) silently returned 0 and int(-1) returned -1 (not indices at
+    // all), and a fractional n drew from the wrong range — the degenerate
+    // domain is named, not guessed at
+    if (!Number.isInteger(n) || n < 1) {
+      throw new VacuumError("rng/int-out-of-domain", `Rng.int: n = ${n}, expected an integer >= 1`);
+    }
     return Math.floor(this.next() * n);
   }
 
