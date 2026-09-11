@@ -198,6 +198,9 @@ export function circuitProbs(circuit: RandomCircuit): Float64Array {
 
 /** Sample an index from an exact distribution (linear CDF scan, deterministic). */
 export function sampleIndex(probs: Float64Array, rng: Rng): number {
+  // an empty distribution has no index to return — the fallthrough would
+  // hand back -1 and every consumer would index before its array
+  if (probs.length === 0) throw new Error('QV_EMPTY_INPUT: sampleIndex needs >=1 probability');
   const x = rng();
   let acc = 0;
   for (let i = 0; i < probs.length; i++) {

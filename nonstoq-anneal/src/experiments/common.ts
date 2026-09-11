@@ -10,10 +10,6 @@ export function fmt(x: number, digits = 4): string {
   return x.toFixed(digits);
 }
 
-export function fmtInt(x: number): string {
-  return Math.round(x).toLocaleString("en-US");
-}
-
 export function writeReport(name: string, payload: unknown, markdown: string): void {
   const outDir = join(process.cwd(), "out");
   mkdirSync(outDir, { recursive: true });

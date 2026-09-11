@@ -53,6 +53,11 @@ export function cmatKron(a: CMat, b: CMat): CMat {
 
 /** Matrix product a·b. */
 export function cmatMul(a: CMat, b: CMat): CMat {
+  // a dim mismatch would read past b's rows and crash with an opaque
+  // TypeError — refuse it by name at the boundary
+  if (a.dim !== b.dim) {
+    throw new Error(`CMAT-SHAPE-MISMATCH: cmatMul needs equally sized matrices, got ${a.dim}x${b.dim}`);
+  }
   const out = cmatZero(a.dim);
   for (let i = 0; i < a.dim; i++) {
     for (let k = 0; k < a.dim; k++) {

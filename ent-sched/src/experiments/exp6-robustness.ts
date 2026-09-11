@@ -19,7 +19,7 @@ import type { NetSpec } from "../net/topology.js";
 import { ersPolicy } from "../net/policies.js";
 import { auditQosClaims, LinkF0Bank, type QosClaim, type SensorPlan } from "../net/sensors.js";
 import { Topology } from "../net/topology.js";
-import { SEEDS, fmt, fmtInt, mdTable, writeReport } from "./common.js";
+import { SEEDS, chainNet, fmt, fmtInt, mdTable, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
 // batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
 if (import.meta.url !== pathToFileURL(process.argv[1] ?? "").href) {
@@ -170,26 +170,7 @@ const s2OracleGp = s2Cells[0]!.cell.goodput;
 const s2Table = s2Cells.map((c) => labeled(c.name, c.cell, s2OracleGp));
 
 // ---- S3: aging chain — T₂ misbelief axis (4 hops, T₂=300, cutoff=6) --------
-function chainNet(
-  links: number,
-  opts: { p?: number; slots?: number; f0?: number; t2?: number; cutOff?: number; qSwap?: number } = {}
-): NetSpec {
-  const nodes = Array.from({ length: links + 1 }, (_, i) => `n${i}`);
-  return {
-    nodes,
-    links: Array.from({ length: links }, (_, i) => ({
-      id: `l${i}`,
-      a: `n${i}`,
-      b: `n${i + 1}`,
-      p: opts.p ?? 0.5,
-      slots: opts.slots ?? 2,
-      f0: opts.f0 ?? 0.99,
-    })),
-    qSwap: opts.qSwap ?? 0.9,
-    ...(opts.t2 !== undefined ? { t2: opts.t2 } : {}),
-    ...(opts.cutOff !== undefined ? { cutOff: opts.cutOff } : {}),
-  };
-}
+// chainNet imported from ./common.js (was a token-identical local copy)
 const s3Net = chainNet(4, { p: 0.3, slots: 1, t2: 300, cutOff: 6 });
 const s3Req: RequestSpec[] = [{ id: "r", src: "n0", dst: "n4", fMin: 0.9 }];
 const s3Rounds = 30_000;

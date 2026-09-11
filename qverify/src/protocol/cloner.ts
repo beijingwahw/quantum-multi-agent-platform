@@ -29,6 +29,7 @@ import { equatorial, fromVec, PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.j
 import { TRAP_ANGLES, trapAcceptanceDirect } from './traps.js';
 import { helstromTwo } from './attacks.js';
 import { mulVec } from '../core/gates.js';
+import { applyKraus } from '../core/channels.js';
 
 /** Kraus operators of the shrink-(2/3) channel. */
 export function shrinkChannelKraus(): CMat[] {
@@ -44,15 +45,9 @@ export function shrinkChannelKraus(): CMat[] {
 export function shrinkAcceptanceCurve(): Array<{ theta: number; acceptance: number }> {
   const kraus = shrinkChannelKraus();
   return TRAP_ANGLES.map((theta) => {
-    const rho = fromVec(equatorial(theta));
-    const out = mat(2, 2);
-    for (const k of kraus) {
-      const t = mMul(mMul(k, rho), mDagger(k));
-      for (let i = 0; i < 4; i++) {
-        out.re[i] = out.re[i]! + t.re[i]!;
-        out.im[i] = out.im[i]! + t.im[i]!;
-      }
-    }
+    // applyKraus IS the Σ K ρ K† body the inline loop duplicated (bit-identical
+    // accumulation — anchored in test/regression-boundaries.test.ts)
+    const out = applyKraus(fromVec(equatorial(theta)), kraus);
     const psi = equatorial(theta);
     return { theta, acceptance: vInner(psi, mulVec(out, psi)).re };
   });

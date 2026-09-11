@@ -20,6 +20,7 @@ export interface IsingModel {
   readonly nums: readonly number[];
 }
 
+/** Encode a P2||Cmax instance as the diagonal ZZ + field Ising model whose ground state is the optimum. */
 export function partitionToIsing(nums: readonly number[]): IsingModel {
   const couplings: Array<{ i: number; j: number; J: number }> = [];
   for (let i = 0; i < nums.length; i++) {
@@ -38,6 +39,7 @@ export function isingValue(model: IsingModel, z: readonly number[]): number {
   return v;
 }
 
+/** sum_i a_i z_i = load0 - load1 — the imbalance the makespan reads off. */
 export function sigmaSum(nums: readonly number[], z: readonly number[]): number {
   let v = 0;
   for (let i = 0; i < nums.length; i++) v += (nums[i] as number) * (z[i] as number);

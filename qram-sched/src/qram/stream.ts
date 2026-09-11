@@ -12,6 +12,7 @@
 import type { BucketBrigadeQram } from "./bucket.js";
 import { reject } from "../core/errors.js";
 
+/** Amplitude-encoded stream state on address x bus (complex vector). */
 export interface StreamState {
   readonly re: Float64Array;
   readonly im: Float64Array;

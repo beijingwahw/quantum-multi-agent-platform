@@ -1,6 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+/** Write a report artifact under out/reports (created on demand) and return
+ * its absolute path — every repro target lands here. This module is the
+ * shared writeReport library the W-board's unguarded-entry detector exempts;
+ * it is NOT an entry: never invoke it as a program. */
 export function writeReport(name: string, content: string): string {
   const dir = resolve(process.cwd(), "out", "reports");
   mkdirSync(dir, { recursive: true });

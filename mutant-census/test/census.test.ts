@@ -235,11 +235,6 @@ test("the root-stray detector: forged strays are named, the registered probe pas
   const { REGISTERED_ROOT_FILES, liveRootStrayFiles, rootStrayFiles } = await import("../src/kernel/census.js");
   const seen = rootStrayFiles(["probe.ts", "AGENTS.md", "scratch-forged.ts", "notes.md"]);
   assert.deepEqual(seen, ["scratch-forged.ts"], "the forged stray is named; the registered probe and non-code files pass");
-  // falsifiable: strike probe.ts from the allowlist and it MUST be named — the
-  // registration is load-bearing data, not decoration
-  const { rootStrayFiles: pureWith } = await import("../src/kernel/census.js");
-  const struck = pureWith(["probe.ts"]).length === 0 || true; // probe.ts registered: not a stray
-  assert.ok(struck);
   assert.ok(!rootStrayFiles(["probe.ts"]).includes("probe.ts"));
   // the live face: the workspace root is clean right now (probe.ts registered)
   assert.deepEqual(liveRootStrayFiles(), [], "the live root carries strays — the gate must land green on delivery");

@@ -85,6 +85,7 @@ export interface BasisFamily {
   referee: number;
 }
 
+/** K seeded-random orthonormal bases of C^d plus the orthonormality referee. */
 export function makeBasisFamily(d: number, K: number, seed: number): BasisFamily {
   if (!Number.isInteger(K) || K < 1) throw new Error(`DL03-bad-K: makeBasisFamily need integer K >= 1, got ${K}`);
   const rng = makeRng(seed);
@@ -127,7 +128,9 @@ export function lockedRhos(family: BasisFamily): CMat[] {
 /** Max entrywise |ρ̄ − I/d|: because each key is a complete basis, ρ̄ = I/d
  * exactly — this referee must report ~1e-16 or the construction is broken. */
 export function averageRhoDefect(rhos: readonly CMat[]): number {
-  const d = rhos[0]!.rows;
+  const first = rhos[0];
+  if (first === undefined) throw new Error('DL06-empty: averageRhoDefect needs at least one locked state');
+  const d = first.rows;
   const rhoBar = mat(d, d);
   for (const r of rhos) {
     for (let k = 0; k < d * d; k++) rhoBar.re[k] = rhoBar.re[k]! + r.re[k]! / d;
@@ -194,7 +197,9 @@ function traceProd(a: CMat, b: CMat): number {
  * plus derived hiding defects. χ is computed from one eigendecomposition per
  * ρ_v (spectra reused for the mixed-defect metric). */
 export function accessibleBounds(rhos: readonly CMat[]): AccessibleBounds {
-  const d = rhos[0]!.rows;
+  const first = rhos[0];
+  if (first === undefined) throw new Error('DL06-empty: accessibleBounds needs at least one locked state');
+  const d = first.rows;
   const spectra = rhos.map((r) => eigenvaluesHermitian(r));
   const meanEntropy = spectra.reduce((s, e) => s + entropyBits(e), 0) / d;
   const sAvg = Math.log2(d); // S(ρ̄) with ρ̄ = I/d (referee-checked separately)
@@ -226,6 +231,9 @@ export function accessibleBounds(rhos: readonly CMat[]): AccessibleBounds {
 // overlap inside every basis (this IS the content of "post-unlock I_acc = n").
 // ---------------------------------------------------------------------------
 
+/** With-key readout exactness: worst off-diagonal overlap inside every key
+ * basis (0 ⟺ the projective measurement in basis k identifies v with
+ * probability 1). */
 export function unlockExactness(family: BasisFamily): number {
   let worst = 0;
   for (const b of family.basis) worst = Math.max(worst, basisReferee(b));
@@ -253,6 +261,7 @@ export interface LockingRow {
   familyReferee: number;
 }
 
+/** One census row at (n, K): every quantity re-derived from the construction. */
 export function lockingRow(n: number, K: number, seed: number): LockingRow {
   if (!Number.isInteger(n) || n < 1 || n > 6) throw new Error(`DL04-bad-n: lockingRow n must be 1..6 (bounded exact scale), got ${n}`);
   const d = 2 ** n;
@@ -301,6 +310,7 @@ export interface LockingCertificate {
   keyBits: number;
 }
 
+/** The honest certificate of a measured census row (re-derivable by the referee). */
 export function certificateFromRow(row: LockingRow, seed: number): LockingCertificate {
   return {
     n: row.n,

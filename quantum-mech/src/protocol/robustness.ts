@@ -36,6 +36,7 @@ import { type Verification } from './datalock.js';
 
 export type NoiseName = 'dephase' | 'ampdamp';
 
+/** Kraus operators of the census channel at strength γ. */
 export function noiseKraus(noise: NoiseName, gamma: number): CMat[] {
   if (noise === 'dephase') return phaseFlipKraus(gamma);
   return amplitudeDampKraus(gamma);

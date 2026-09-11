@@ -17,16 +17,19 @@ export interface CxMat {
   readonly im: Float64Array;
 }
 
+/** All-zero n×n complex matrix. */
 export function zeros(n: number): CxMat {
   return { n, re: new Float64Array(n * n), im: new Float64Array(n * n) };
 }
 
+/** Identity matrix. */
 export function eye(n: number): CxMat {
   const m = zeros(n);
   for (let i = 0; i < n; i++) m.re[i * n + i] = 1;
   return m;
 }
 
+/** Build from a real n×n nested array (shape-checked). */
 export function fromReal(n: number, entries: readonly number[][]): CxMat {
   // boundary guard (numeric kernel: no per-iteration checks inside)
   if (entries.length !== n || entries.some((row) => row.length !== n))
@@ -40,6 +43,7 @@ export function fromReal(n: number, entries: readonly number[][]): CxMat {
   return m;
 }
 
+/** Tensor product a ⊗ b. */
 export function kron(a: CxMat, b: CxMat): CxMat {
   const n = a.n * b.n;
   const out = zeros(n);
@@ -60,6 +64,7 @@ export function kron(a: CxMat, b: CxMat): CxMat {
   return out;
 }
 
+/** Matrix product a·b (sizes must match). */
 export function mul(a: CxMat, b: CxMat): CxMat {
   if (a.n !== b.n) throw new SchedError("KERNEL_SIZE_MISMATCH", `mul: size mismatch (${a.n} vs ${b.n})`);
   const n = a.n;
@@ -80,6 +85,7 @@ export function mul(a: CxMat, b: CxMat): CxMat {
   return out;
 }
 
+/** Conjugate transpose a†. */
 export function dagger(a: CxMat): CxMat {
   const n = a.n;
   const out = zeros(n);
@@ -96,6 +102,7 @@ export function conjugate(rho: CxMat, u: CxMat): CxMat {
   return mul(mul(u, rho), dagger(u));
 }
 
+/** Matrix trace as a complex number. */
 export function trace(a: CxMat): { re: number; im: number } {
   let re = 0;
   let im = 0;
@@ -106,6 +113,7 @@ export function trace(a: CxMat): { re: number; im: number } {
   return { re, im };
 }
 
+/** Multiply every entry by the real scalar c. */
 export function scale(a: CxMat, c: number): CxMat {
   const out = zeros(a.n);
   for (let i = 0; i < a.n * a.n; i++) {
@@ -115,6 +123,7 @@ export function scale(a: CxMat, c: number): CxMat {
   return out;
 }
 
+/** Entrywise sum a + b. */
 export function add(a: CxMat, b: CxMat): CxMat {
   const out = zeros(a.n);
   for (let i = 0; i < a.n * a.n; i++) {

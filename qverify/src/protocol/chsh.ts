@@ -53,6 +53,7 @@ export function horodeckiSMax(rho: CMat): number {
   return 2 * Math.sqrt(Math.max(0, u[0]! + u[1]!));
 }
 
+/** Eigenvalues of TᵀT, descending (u₁ ≥ u₂ feed the Horodecki formula). */
 export function tTtEigenvalues(t: ReadonlyArray<readonly number[]>): number[] {
   const a = mat(3, 3);
   for (let i = 0; i < 3; i++) {

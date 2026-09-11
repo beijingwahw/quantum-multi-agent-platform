@@ -164,7 +164,12 @@ export function adversarialRun(
     }
     decisions[t] = arm;
     const r = (rewards[arm * horizon + t] as number) === 1 ? 1 : 0;
-    // importance-weighted update
+    // importance-weighted update. Overflow note: the per-win exponent
+    // (gamma/k)·(r/p) is bounded by 1 (p >= gamma/k), but it shrinks toward
+    // (gamma/k)/(1-gamma+gamma/k) as an arm comes to dominate, so cumulative
+    // log-weight stays far below the ~709 double-precision overflow line at
+    // any sane horizon (verified empirically: well-formed exploration at
+    // T = 200000, k = 8, gamma = 0.1 — pinned in test/regression-boundaries).
     weights[arm] = weights[arm]! * Math.exp((gamma / k) * (r / p[arm]!));
     plays++;
   }

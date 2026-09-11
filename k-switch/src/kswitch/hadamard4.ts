@@ -80,6 +80,7 @@ export function gatesByIndices(indices: readonly number[]): readonly Mat2[] {
   });
 }
 
+/** 2×2 complex matrix product (the d=2 census kernel). */
 export function mul2(a: Mat2, b: Mat2): Mat2 {
   const re = [0, 1].map(() => [0, 0]);
   const im = [0, 1].map(() => [0, 0]);

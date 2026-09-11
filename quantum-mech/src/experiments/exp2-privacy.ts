@@ -14,8 +14,7 @@
 
 import { makeRng } from '../core/rng.js';
 import { lockedHolevo, lockedTraceDistance, interceptExperiment, transcriptLeakage } from '../protocol/privacy.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from "node:url";
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function main(): void {
   const rng = makeRng(42);
@@ -101,7 +100,5 @@ function main(): void {
   writeReport({ name: 'exp2-privacy', title: 'exp2 — no-cloning bid privacy: locking, disturbance, minimal transcripts' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

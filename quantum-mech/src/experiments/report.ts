@@ -2,6 +2,19 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+/**
+ * Entry-guard law (house form since batch 21), single-sourced for the seven
+ * experiment modules: a module renders ONLY when run directly (its own
+ * process, where process.argv[1] IS the experiment file — run-all.ts spawns
+ * one process per experiment for exactly this reason), never when imported.
+ * The caller MUST pass its own `import.meta.url` (the guard compares it
+ * against process.argv[1]; this module's URL would never match).
+ */
+export function runIfMain(moduleUrl: string, main: () => void): void {
+  if (moduleUrl === pathToFileURL(process.argv[1] ?? '').href) main();
+}
 
 // fmt is single-sourced in core/rng.ts (the guarded superset: non-finite
 // inputs stringify identically to toFixed, finite ones are bit-identical) —

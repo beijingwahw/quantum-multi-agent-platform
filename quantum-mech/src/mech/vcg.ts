@@ -36,6 +36,7 @@ export function permutations(n: number): number[][] {
   return out;
 }
 
+/** Total welfare Σ_a v_a(alloc(a)) of a full assignment. */
 export function welfare(v: ValueMatrix, alloc: readonly number[]): number {
   let s = 0;
   // alloc is a permutation of task indices, one per agent row
@@ -51,6 +52,13 @@ export function optimalAllocation(v: ValueMatrix): { alloc: number[]; value: num
   const T = v[0]!.length;
   if (T === 0 || v.some((row) => row.length !== T)) {
     throw new Error(`VCG02-bad-shape: optimalAllocation needs a rectangular value matrix, got ${v.length}x${v.map((r) => r.length).join('/')}`);
+  }
+  // the assignment machinery (permutations + the payments' subset walk)
+  // enumerates exactly one task per agent over the FIRST v.length task
+  // indices: non-square input would silently ignore tasks (or index past
+  // rows into NaN) — refuse it like greedyAllocator does (VCG03)
+  if (T !== v.length) {
+    throw new Error(`VCG02-nonsquare: optimalAllocation needs an n x n square value matrix (one task per agent), got ${v.length} agents x ${T} tasks`);
   }
   const perms = permutations(v.length);
   // permutations() always returns at least the identity permutation
@@ -103,6 +111,7 @@ export function vcgPayments(v: ValueMatrix, alloc: readonly number[]): number[] 
   return p;
 }
 
+/** Quasi-linear utilities v_i(a*_i) − p_i under Groves payments. */
 export function vcgUtilities(v: ValueMatrix, alloc: readonly number[]): number[] {
   const p = vcgPayments(v, alloc);
   // p has one payment per agent (length matches v)

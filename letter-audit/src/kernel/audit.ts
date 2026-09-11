@@ -67,6 +67,7 @@ const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F"
  */
 export type UntrustedAuditRow = Omit<AuditRow, "exactness"> & { readonly exactness: string };
 
+/** The letter audit's verdict: every violation of laws A1-A5 (empty = legal). */
 export function checkLetter(rows: readonly UntrustedAuditRow[] = LETTER): Violation[] {
   const violations: Violation[] = [];
   const seen = new Set<string>();
@@ -156,6 +157,7 @@ function witnessAbilities(): WitnessResult {
   return { name: "W-E five abilities priced", pass: ok, detail: `${QUOTED_ABILITIES}/5 abilities have on-disk price lists` };
 }
 
+/** All seven witnesses (W-A..W-G), each an independent re-derivation. */
 export function runWitnesses(): WitnessResult[] {
   return [witnessCensus(), witnessUniverseCounts(), witnessWalker(), witnessBookkeeping(), witnessAbilities(), witnessFrontier(), witnessSixthRung()];
 }

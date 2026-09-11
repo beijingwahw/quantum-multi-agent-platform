@@ -76,7 +76,7 @@ export async function renderCensus(
   const kills = new Map(runKillCensus(mutants).map((k) => [k.id, k] as const));
   const killTally = new Map<string, number>();
   for (const k of kills.values()) killTally.set(k.actual, (killTally.get(k.actual) ?? 0) + 1);
-  for (const m of MUTANTS) {
+  for (const m of mutants) {
     const k = kills.get(m.id);
     const margin = !k
       ? "-"
@@ -228,12 +228,15 @@ export async function renderCensus(
   out.push("| key | prototype | construction / booking | verdict | live detail |");
   out.push("| --- | --- | --- | --- | --- |");
   const printOf = (k: string): string => {
-    const spec = perError.find((r) => r.key === k)!;
+    const spec = perError.find((r) => r.key === k);
+    if (spec === undefined) throw new Error(`the J-board row ${k} has no per-error spec — the table and the census drifted`);
     if (spec.verdict === "UNBUILDABLE" || spec.verdict === "EQUIVALENT") return spec.reason ?? "";
     return spec.built ?? "";
   };
   for (const spec of perError) {
-    out.push(`| ${spec.key} | ${spec.prototype} | ${printOf(spec.key)} | ${spec.verdict} | ${wj.rows.find((r) => r.key === spec.key)!.detail} |`);
+    const row = wj.rows.find((r) => r.key === spec.key);
+    if (row === undefined) throw new Error(`the J-board row ${spec.key} has no live census row — the table and the census drifted`);
+    out.push(`| ${spec.key} | ${spec.prototype} | ${printOf(spec.key)} | ${spec.verdict} | ${row.detail} |`);
   }
   out.push("");
   const jTally = new Map<string, number>();

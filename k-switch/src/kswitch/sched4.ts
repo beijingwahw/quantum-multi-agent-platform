@@ -15,14 +15,10 @@
  * duplicates of sched3's (and cmat.ts's) kernels — now imported from the
  * single source; only the k=4 stage set (the Y write) is this file's own.
  */
-import { cmatDagger, cmatMul, cmatZero, type CMat } from "../core/cmat.js";
+import { cmatZero, type CMat } from "../core/cmat.js";
 import { X2, Y2, Z2 } from "./promise.js";
 import { S4 } from "./k4.js";
-import { erase, traceDistance } from "./sched3.js";
-
-function unitaryOnRho(u: CMat, rho: CMat): CMat {
-  return cmatMul(cmatMul(u, rho), cmatDagger(u));
-}
+import { erase, traceDistance, unitaryOnRho } from "./sched3.js";
 
 function applyStage(stage: number, gamma: number, rho: CMat): CMat {
   if (stage === 0) return unitaryOnRho(X2, rho);

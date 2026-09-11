@@ -10,6 +10,7 @@
  *             escape unless P=NP).
  */
 
+/** Sum of the values — total load, the universal lower bound on any makespan. */
 export function totalOf(nums: readonly number[]): number {
   let s = 0;
   for (const x of nums) s += x;
@@ -44,6 +45,7 @@ export interface PmSolution {
  * Jobs are assigned largest-first; equal-load branches are deduplicated.
  */
 export function minMakespanPm(nums: readonly number[], m: number): PmSolution {
+  if (m < 1) throw new Error(`minMakespanPm: need at least one machine (got m=${m})`);
   const order = nums.map((p, i) => ({ p, i })).sort((x, y) => y.p - x.p);
   const loads = new Array<number>(m).fill(0);
   const assignment = new Array<number>(nums.length).fill(0); // by sorted position
@@ -91,6 +93,7 @@ export function minMakespanPm(nums: readonly number[], m: number): PmSolution {
 
 /** Brute-force Pm||Cmax over all m^n assignments — the exhaustive referee for tiny instances. */
 export function bruteForceMakespanPm(nums: readonly number[], m: number): number {
+  if (m < 1) throw new Error(`bruteForceMakespanPm: need at least one machine (got m=${m})`);
   const n = nums.length;
   let best = Infinity;
   const total = m ** n;
@@ -98,7 +101,8 @@ export function bruteForceMakespanPm(nums: readonly number[], m: number): number
     const loads = new Array<number>(m).fill(0);
     let c = code;
     for (let i = 0; i < n; i++) {
-      loads[c % m] = loads[c % m]! + (nums[i] as number);
+      const idx = c % m;
+      loads[idx] = (loads[idx] ?? 0) + (nums[i] as number);
       c = Math.floor(c / m);
     }
     let mx = 0;

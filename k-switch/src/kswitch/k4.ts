@@ -26,7 +26,7 @@
  *   16-Pauli universe. The census machine-decides; see matchedBlindPairs().
  */
 import { cmatKron, cmatMul, cmatZero, type CMat } from "../core/cmat.js";
-import { I2, X2, Y2, Z2, randomState, randomUnitary } from "./promise.js";
+import { I2, X2, Y2, Z2, randomState, randomUnitary, applyUnitaryToState, pureTraceDistance } from "./promise.js";
 import { Rng } from "./rng.js";
 import { KSwitchError } from "./errors.js";
 
@@ -60,7 +60,8 @@ export function verificationState4(): { re: number[]; im: number[] } {
 
 /** Product for order pi: boxes applied seq[0] first (U_seq3 U_seq2 U_seq1 U_seq0). */
 export function orderedProduct4(boxes: Quad, seq: readonly [number, number, number, number]): CMat {
-  return cmatMul(cmatMul(cmatMul(boxes[seq[3]] as CMat, boxes[seq[2]] as CMat), boxes[seq[1]] as CMat), boxes[seq[0]] as CMat);
+  const [s0, s1, s2, s3] = seq;
+  return cmatMul(cmatMul(cmatMul(boxes[s3]!, boxes[s2]!), boxes[s1]!), boxes[s0]!);
 }
 
 /**
@@ -97,14 +98,17 @@ export function anticommutingQuad(): Quad {
 }
 
 /** Control states on the 24-dim order register: uniform and sign-character. */
+/** Uniform control |u⟩ = (1/√24) Σ_π |π⟩ on the 24-dim order register. */
 export function uniformControl4(): { re: number[]; im: number[] } {
   return { re: S4.map(() => 1 / Math.sqrt(24)), im: S4.map(() => 0) };
 }
 
+/** Sign-character control |u_sgn⟩ = (1/√24) Σ_π sgn(π) |π⟩. */
 export function sgnControl4(): { re: number[]; im: number[] } {
   return { re: S4.map((p) => (p.even ? 1 / Math.sqrt(24) : -1 / Math.sqrt(24))), im: S4.map(() => 0) };
 }
 
+/** Conjugate-linear inner product ⟨a|b⟩ of two 24-dim control vectors. */
 export function controlInner4(a: { re: number[]; im: number[] }, b: { re: number[]; im: number[] }): { re: number; im: number } {
   let re = 0;
   let im = 0;
@@ -261,7 +265,7 @@ export function pauliQuadCensus(): QuadCensus {
           const indices: [number, number, number, number] = [i + 1, j + 1, k + 1, l + 1]; // skip index 0 (I⊗I)
           const boxes: Quad = [PAULIS4[indices[0]]!.mat, PAULIS4[indices[1]]!.mat, PAULIS4[indices[2]]!.mat, PAULIS4[indices[3]]!.mat];
           const pairs: ReadonlyArray<[number, number]> = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
-          const signs = pairs.map(([a, b]) => pauliCommuteSign(boxes[a] as CMat, boxes[b] as CMat));
+          const signs = pairs.map(([a, b]) => pauliCommuteSign(boxes[a]!, boxes[b]!));
           if (signs.includes(0)) throw new KSwitchError("CENSUS-NON-PAULI-PAIR", `a census pair at ${indices.toString()} neither commutes nor anticommutes — the PAULIS4 table is corrupt`);
           const allC = signs.every((s) => s === 1);
           const allA = signs.every((s) => s === -1);
@@ -342,17 +346,10 @@ export function matchedBlindPair(psi: { re: number[]; im: number[] }): MatchedPa
   const pc = orderedProduct4(comm, [0, 1, 2, 3]);
   let worst = 0;
   for (let p = 0; p < 24; p++) {
-    const outC = applyMat(orderedProduct4(comm, S4[p]!.seq), psi);
-    const outA = applyMat(orderedProduct4(anti, S4[p]!.seq), psi);
-    // pure-state trace distance via overlap
-    let dotR = 0;
-    let dotI = 0;
-    for (let i = 0; i < psi.re.length; i++) {
-      dotR += outC.re[i]! * outA.re[i]! + outC.im[i]! * outA.im[i]!;
-      dotI += outC.re[i]! * outA.im[i]! - outC.im[i]! * outA.re[i]!;
-    }
-    const ov = Math.hypot(dotR, dotI);
-    worst = Math.max(worst, Math.sqrt(Math.max(0, 1 - ov * ov)));
+    const outC = applyUnitaryToState(orderedProduct4(comm, S4[p]!.seq), psi);
+    const outA = applyUnitaryToState(orderedProduct4(anti, S4[p]!.seq), psi);
+    // pureTraceDistance IS the inline overlap/sqrt formula this loop carried
+    worst = Math.max(worst, pureTraceDistance(outC, outA));
   }
   return { comm, anti, commProduct: pauliName(pc), antiProduct: pauliName(pa), maxTraceDistance: worst };
 }
@@ -378,22 +375,6 @@ export function pauliReference(m: CMat): { readonly name: string; readonly mat: 
   return null;
 }
 
-/** Apply a d×d CMat to a state vector (d = psi length). */
-function applyMat(u: CMat, psi: { re: number[]; im: number[] }): { re: number[]; im: number[] } {
-  const d = psi.re.length;
-  const re = new Array<number>(d).fill(0);
-  const im = new Array<number>(d).fill(0);
-  for (let i = 0; i < d; i++) {
-    for (let j = 0; j < d; j++) {
-      const ur = u.re[i]![j]!;
-      const ui = u.im[i]![j]!;
-      re[i] = re[i]! + ur * psi.re[j]! - ui * psi.im[j]!;
-      im[i] = im[i]! + ur * psi.im[j]! + ui * psi.re[j]!;
-    }
-  }
-  return { re, im };
-}
-
 /**
  * Random interleaved circuit between two k=4 promise instances at d = 4:
  * W0, U_a, W1, U_b, W2, U_c, W3, U_d, W4 in a fixed order, the SAME W's and
@@ -411,24 +392,17 @@ export function interleavedDistinguishability4(
   const d = 4;
   const psi = randomState(rng, d);
   const w = [randomUnitary(rng, d), randomUnitary(rng, d), randomUnitary(rng, d), randomUnitary(rng, d), randomUnitary(rng, d)];
+  // applyUnitaryToState IS the private applyMat body this probe carried
+  // (bit-identical — anchored in test/regression-boundaries.test.ts)
   const evolve = (boxes: Quad): { re: number[]; im: number[] } => {
     let s = psi;
     for (let t = 0; t < 5; t++) {
-      s = applyMat(w[t]!, s);
-      if (t < 4) s = applyMat(boxes[order[t]!]!, s);
+      s = applyUnitaryToState(w[t]!, s);
+      if (t < 4) s = applyUnitaryToState(boxes[order[t]!]!, s);
     }
     return s;
   };
   const a = evolve(boxesA);
   const b = evolve(boxesB);
-  let dotR = 0;
-  let dotI = 0;
-  for (let i = 0; i < d; i++) {
-    dotR += a.re[i]! * b.re[i]! + a.im[i]! * b.im[i]!;
-    dotI += a.re[i]! * b.im[i]! - a.im[i]! * b.re[i]!;
-  }
-  const ov = Math.hypot(dotR, dotI);
-  return Math.sqrt(Math.max(0, 1 - ov * ov));
+  return pureTraceDistance(a, b);
 }
-
-

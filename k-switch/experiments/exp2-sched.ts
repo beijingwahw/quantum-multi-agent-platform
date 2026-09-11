@@ -5,7 +5,7 @@
  * reported as found.
  */
 import { chainDistinguishability, plusPlus } from "../src/kswitch/sched3.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   // input: |+> — sensitive to both X and Z writes (the shared single source)
@@ -43,4 +43,4 @@ function run(): void {
   console.log(`exp2 done -> ${file} — switch D = ${r.switchD.toFixed(6)}, best fixed = ${best}`);
 }
 
-run();
+runIfMain(import.meta.url, run);

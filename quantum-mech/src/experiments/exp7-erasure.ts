@@ -19,8 +19,7 @@
 
 import { makeRng } from '../core/rng.js';
 import { hjwUnderNoise, interceptSeparation, noisyLockedHolevo, otpInvarianceDefect, verifyRobustnessClaim, type NoiseName } from '../protocol/robustness.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from 'node:url';
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function main(): void {
   const rng = makeRng(20260907);
@@ -164,7 +163,5 @@ function main(): void {
   writeReport({ name: 'exp7-erasure', title: 'exp7 — the erasure boundary: privacy and binding claims under dephasing and amplitude damping' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

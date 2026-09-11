@@ -22,11 +22,12 @@
  *      over random attacking channels.
  */
 
-import { type CMat, type CVec, mat, mAdd, mMul, mDagger, identity, isHermitian, eigHermitian, fromSpectral, mScale, vInner } from '../core/cmat.js';
+import { type CMat, type CVec, mat, mAdd, mMul, identity, isHermitian, eigHermitian, fromSpectral, mScale, vInner } from '../core/cmat.js';
 import { equatorial, fromVec, KET0, KET1, PLUS, MINUS, PAULIS } from '../core/states.js';
 import { traceDistance } from '../core/measures.js';
-import { makeRng } from '../core/rng.js';
+import { makeRng, meanStdErr } from '../core/rng.js';
 import { mulVec } from '../core/gates.js';
+import { applyKraus } from '../core/channels.js';
 import { randomChannel, TRAP_ANGLES } from './traps.js';
 
 /** Helstrom success probability for two states with priors (½,½). */
@@ -39,6 +40,7 @@ export function equatorialPairHelstrom(): number {
   return helstromTwo(fromVec(equatorial(0)), fromVec(equatorial(Math.PI / 4)));
 }
 
+/** Closed form of the equatorial pair game: (1 + sin(π/8))/2. */
 export function equatorialPairHelstromClosed(): number {
   return (1 + Math.sin(Math.PI / 8)) / 2;
 }
@@ -194,21 +196,12 @@ export function commitRevealMC(trials: number, seed: number): { acceptance: numb
     const kraus = randomChannel(rng, 1 + rng.int(3));
     const theta = TRAP_ANGLES[rng.int(8)]!; // rng.int(8) ∈ [0,8) matches the 8-angle grid
     const claimed = rng.int(2);
-    const rho0 = fromVec(equatorial(theta));
-    const rho = mat(2, 2);
-    for (const e of kraus) {
-      const term = mMul(mMul(e, rho0), mDagger(e));
-      for (let i = 0; i < 4; i++) {
-        rho.re[i] = rho.re[i]! + term.re[i]!;
-        rho.im[i] = rho.im[i]! + term.im[i]!;
-      }
-    }
+    const rho = applyKraus(fromVec(equatorial(theta)), kraus);
     const psi = equatorial(claimed === 0 ? theta : theta + Math.PI);
     const ip = vInner(psi, mulVec(rho, psi));
     hits.push(ip.re);
   }
-  const mean = hits.reduce((a, b) => a + b, 0) / trials;
-  const varr = hits.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, trials - 1);
-  return { acceptance: mean, stdErr: Math.sqrt(varr / trials) };
+  const { mean: acceptance, stdErr } = meanStdErr(hits);
+  return { acceptance, stdErr };
 }
 

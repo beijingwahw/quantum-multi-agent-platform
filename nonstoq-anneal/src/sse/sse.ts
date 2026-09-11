@@ -250,21 +250,6 @@ export class SseSampler {
     for (let a = 0; a < 4; a++) this.tripleToggle();
   }
 
-  /** 调试钩子：逐相位执行 sweep，返回首个破坏一致性的相位名（测试用）。 */
-  sweepDebug(): string | null {
-    this.sweepDiagonal();
-    if (!this.consistent()) return "diagonal";
-    for (let bond = 0; bond < this.nBonds; bond++) {
-      if (this.offElement(bond) > 0) this.flipBondType(bond);
-      if (!this.consistent()) return `bondType:${bond}`;
-    }
-    for (let a = 0; a < 4; a++) {
-      this.tripleToggle();
-      if (!this.consistent()) return `triple:${a}`;
-    }
-    return null;
-  }
-
   /** 当前构型的符号估计量：(−1)^{N_xx}。 */
   sign(): number {
     return this.nXx % 2 === 0 ? 1 : -1;

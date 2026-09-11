@@ -20,7 +20,7 @@ import {
 } from "../src/kswitch/switch.js";
 import { anticommutingTriple, commutingTriple, commutatorDev, pureTraceDistance, randomState, applyUnitaryToState, interleavedDistinguishability as interleavedMax, X2, Y2, Z2, I2 } from "../src/kswitch/promise.js";
 import { dag, mul, maxDevFrom } from "./kernels.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -71,9 +71,9 @@ function run(): void {
     perm[j] = tmp;
   }
   const p3: [typeof comm[0], typeof comm[1], typeof comm[2]] = [
-    cmatKron(paulis[perm[0]!] as typeof X2, I2),
-    cmatKron(paulis[perm[1]!] as typeof X2, I2),
-    cmatKron(paulis[perm[2]!] as typeof X2, I2),
+    cmatKron(paulis[perm[0]!]!, I2),
+    cmatKron(paulis[perm[1]!]!, I2),
+    cmatKron(paulis[perm[2]!]!, I2),
   ];
   instances.push(["random-pauli", p3]);
   for (const [_tag, boxes] of instances) {
@@ -127,4 +127,4 @@ function run(): void {
   console.log(`exp1 done -> ${file} — fC=${fC.toFixed(12)}, fA=${fA.toFixed(12)}`);
 }
 
-run();
+runIfMain(import.meta.url, run);

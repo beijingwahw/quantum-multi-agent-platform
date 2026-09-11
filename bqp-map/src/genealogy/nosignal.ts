@@ -28,11 +28,13 @@
  */
 import type { Rng } from "../core/rng.js";
 
+/** Dense dim x dim complex matrix, real and imaginary parts kept separate. */
 export interface CMat {
   readonly dim: number;
   readonly re: number[][];
   readonly im: number[][];
 }
+/** Complex state vector of dimension dim. */
 export interface CVec {
   readonly dim: number;
   readonly re: number[];

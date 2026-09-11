@@ -97,4 +97,4 @@ export function main(): void {
   writeReport("exp2-anneal", payload, lines.join("\n"));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

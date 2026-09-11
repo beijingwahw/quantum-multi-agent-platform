@@ -11,14 +11,17 @@
  * upper bound" certificate in the atlas.
  */
 
+/** Grover angle theta = arcsin(sqrt(t/N)) for t marked items in a space of size N. */
 export function groverTheta(N: number, t: number): number {
   return Math.asin(Math.sqrt(t / N));
 }
 
+/** Closed-form success probability sin^2((2k+1)*theta) after k Grover iterations. */
 export function groverSuccessClosedForm(N: number, t: number, k: number): number {
   return Math.sin((2 * k + 1) * groverTheta(N, t)) ** 2;
 }
 
+/** Exact success probability: k Grover iterations evolved on the state vector, marked probability mass summed. */
 export function groverSuccessExact(N: number, marked: readonly number[], k: number): number {
   for (const x of marked) {
     if (!Number.isInteger(x) || x < 0 || x >= N) {
@@ -40,6 +43,12 @@ export function groverSuccessExact(N: number, marked: readonly number[], k: numb
 
 /** k maximizing the closed-form success (searched over the natural range). */
 export function optimalK(N: number, t: number): number {
+  // t = 0 makes theta = 0, so the search bound ceil(pi / (4*theta)) is Infinity
+  // and the sweep below never terminates — reject the degenerate density up
+  // front instead of hanging (the t > N side is NaN through the same bound).
+  if (!Number.isInteger(t) || t < 1 || t > N) {
+    throw new Error(`optimalK: need 1 <= t <= N (got t=${t}, N=${N})`);
+  }
   const theta = groverTheta(N, t);
   const hi = Math.ceil(Math.PI / (4 * theta)) + 3;
   let best = 0;
@@ -64,8 +73,12 @@ export interface GroverRun {
   classicalSameQueries: number;
 }
 
+/** One full certificate run at the optimal iteration count: N, t, k*, both success computations, the classical q/N wall. */
 export function groverRun(N: number, marked: readonly number[]): GroverRun {
   const t = marked.length;
+  if (t === 0) {
+    throw new Error(`groverRun: need at least one marked item (empty marked set makes the k* sweep diverge)`);
+  }
   const k = optimalK(N, t);
   return {
     N,

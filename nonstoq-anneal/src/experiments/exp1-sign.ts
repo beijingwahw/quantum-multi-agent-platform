@@ -79,4 +79,4 @@ export function main(): void {
   writeReport("exp1-sign", payload, lines.join("\n"));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

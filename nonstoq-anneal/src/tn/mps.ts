@@ -11,6 +11,7 @@ export interface Mps {
   readonly chis: number[]; // 长度 n+1，边界 χ_0 = χ_n = 1
 }
 
+/** Seeded random MPS (normalized; χ bounded by 2^min(i, n−i) and chiMax). */
 export function randomMps(n: number, chiMax: number, seed: number): Mps {
   const rng = new Rng(seed);
   const chis: number[] = [];
@@ -58,6 +59,7 @@ function mpsNorm(mps: Mps): number {
   return Math.sqrt(env[0]!);
 }
 
+/** Normalize in place by scaling the first tensor (global gauge freedom). */
 export function normalizeMps(mps: Mps): void {
   const norm = mpsNorm(mps);
   if (norm > 0) {

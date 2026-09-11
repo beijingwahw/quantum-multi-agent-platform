@@ -23,6 +23,7 @@ export interface RevGate {
   readonly wires: readonly number[]; // NOT:[t] CNOT:[c,t] TOFFOLI:[c1,c2,t] FREDKIN:[c,s1,s2]
 }
 
+/** Apply one reversible gate to a computational-basis index x (a permutation). */
 export function applyGate(g: RevGate, x: number): number {
   switch (g.kind) {
     case "NOT":
@@ -94,8 +95,10 @@ export function classicalAfter(gates: readonly RevGate[], x: number, k: number):
 // table books it; the Bennett variant is priced, not built).
 // ---------------------------------------------------------------------------
 
+/** Wire count of the demonstrated multiplier circuit (13 = 8 cargo + 5 garbage). */
 export const MUL_WIRES = 13;
 
+/** The demonstrated 2x2-bit reversible multiplier netlist (depth 11). */
 export function multiplierCircuit(): RevGate[] {
   const a1 = 0;
   const a0 = 1;
@@ -179,6 +182,7 @@ export function fredkinConservesWeight(m: number, c: number, s1: number, s2: num
   return true;
 }
 
+/** Number of set bits of a nonnegative integer (Kernighan's clear-lowest loop). */
 export function popcount(x: number): number {
   let c = 0;
   while (x) {

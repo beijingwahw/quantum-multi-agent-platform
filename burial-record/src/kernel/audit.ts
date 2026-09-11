@@ -208,6 +208,7 @@ function headingLineOf(text: string, heading: string): string | null {
   return text.slice(idx, lineEnd < 0 ? text.length : lineEnd);
 }
 
+/** The registry's verdict: every violation of laws B0-B9 (empty = legal). */
 export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Violation[] {
   const violations: Violation[] = [];
 
@@ -374,6 +375,12 @@ export interface WitnessResult {
   readonly detail: string;
 }
 
+/** The single JSON-serialization boundary the census witnesses count through
+ * (a genuine round-trip, with the unavoidable cast in exactly one place). */
+function cloneRecordViaJson(): BurialBatch[] {
+  return JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
+}
+
 function countBy(batches: readonly BurialBatch[], key: (b: BurialBatch) => string, inner: (b: BurialBatch) => number): Map<string, number> {
   const m = new Map<string, number>();
   for (const b of batches) {
@@ -393,8 +400,7 @@ function witnessNumbering(): WitnessResult {
 function witnessRepoCensus(): WitnessResult {
   const direct = censusByRepo();
   // second path: JSON round-trip (a genuine serialization boundary), then count
-  const cloned = JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
-  const second = countBy(cloned, (b) => b.repo, (b) => b.errors.length);
+  const second = countBy(cloneRecordViaJson(), (b) => b.repo, (b) => b.errors.length);
   const same =
     direct.size === second.size && [...direct.entries()].every(([k, v]) => second.get(k) === v);
   const total = [...direct.values()].reduce((a, b) => a + b, 0);
@@ -407,9 +413,8 @@ function witnessRepoCensus(): WitnessResult {
 
 function witnessCategoryCensus(): WitnessResult {
   const direct = censusByCategory();
-  const cloned = JSON.parse(JSON.stringify(BURIAL_RECORD)) as BurialBatch[];
   const second = new Map<string, number>();
-  for (const b of cloned) for (const e of b.errors) second.set(e.category, (second.get(e.category) ?? 0) + 1);
+  for (const b of cloneRecordViaJson()) for (const e of b.errors) second.set(e.category, (second.get(e.category) ?? 0) + 1);
   const same = direct.size === second.size && [...direct.entries()].every(([k, v]) => second.get(k) === v);
   const sumCat = [...direct.values()].reduce((a, b) => a + b, 0);
   const sumRepo = BURIAL_RECORD.reduce((a, b) => a + b.errors.length, 0);
@@ -474,14 +479,17 @@ function witnessHeadingCounts(): WitnessResult {
   };
 }
 
+/** All six census witnesses (W-1..W-6), each an independent re-derivation. */
 export function runWitnesses(): WitnessResult[] {
   return [witnessNumbering(), witnessRepoCensus(), witnessCategoryCensus(), witnessDeclaredTotals(), witnessStatedCounts(), witnessHeadingCounts()];
 }
 
+/** Errors per repo, direct traversal of the registry. */
 export function censusByRepo(): Map<string, number> {
   return countBy(BURIAL_RECORD, (b) => b.repo, (b) => b.errors.length);
 }
 
+/** Errors per taxonomy category, direct traversal of the registry. */
 export function censusByCategory(): Map<string, number> {
   const m = new Map<string, number>();
   for (const b of BURIAL_RECORD) for (const e of b.errors) m.set(e.category, (m.get(e.category) ?? 0) + 1);

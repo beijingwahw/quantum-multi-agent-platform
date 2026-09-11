@@ -201,10 +201,12 @@ function makePathPolicy(
   };
 }
 
+/** swap-asap: merge adjacent same-owner segments the moment they both exist (see module header). */
 export function swapAsapPolicy(topo: Topology, requests: readonly RequestSpec[]): Policy {
   return makePathPolicy("swap-asap", topo, requests, "asap");
 }
 
+/** swap-late: hold segments until the whole shortest path is tiled, then cascade pairwise (see module header). */
 export function swapLatePolicy(topo: Topology, requests: readonly RequestSpec[]): Policy {
   return makePathPolicy("swap-late", topo, requests, "late");
 }

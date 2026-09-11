@@ -13,6 +13,7 @@ import type { Rng } from "../core/rng.js";
 import { reject } from "../core/errors.js";
 import { groverSuccessClosedForm } from "../ae/ampest.js";
 
+/** One search outcome: the chosen index (-1 = none found) and the oracle reads charged for it. */
 export interface SearchResult {
   readonly index: number;
   readonly reads: number;
@@ -66,7 +67,9 @@ export function groverFindBetter<T>(
   for (let attempt = 0; attempt < GROVER_ATTEMPTS; attempt++) {
     const k = rng.int(kMax + 1);
     const reads = sweepReads(k);
-    // Exact Grover outcome: we need the marked set to sample uniformly.
+    // Exact Grover outcome: we need the marked set to sample uniformly. The
+    // full-table enumeration below is the simulator's referee privilege (see
+    // groverFindMarked) — the reads ledger charges only the Grover iterations.
     const marked: number[] = [];
     for (let i = 0; i < n; i++) if (less(value(i), thresholdValue)) marked.push(i);
     const t = marked.length;

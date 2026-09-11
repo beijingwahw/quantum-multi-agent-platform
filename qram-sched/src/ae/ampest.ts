@@ -19,6 +19,7 @@
 import { Rng } from "../core/rng.js";
 import { reject } from "../core/errors.js";
 
+/** Complex state vector as separate real/imaginary parts. */
 export interface CxVec {
   readonly re: Float64Array;
   readonly im: Float64Array;

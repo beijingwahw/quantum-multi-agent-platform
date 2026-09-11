@@ -1,8 +1,21 @@
 /** Shared report helpers: every experiment writes a self-contained markdown report to out/reports/. */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export const reportDir = resolve(import.meta.dirname, "../../out/reports");
+
+/**
+ * The house entry guard (batch-33 retrofit; house form since batch 21): run
+ * the experiment only when this module is the process entry — imports never
+ * render. Formerly a token-identical 3-line block at the foot of all six
+ * experiment files; single-sourced with identical semantics.
+ */
+export function runIfMain(moduleUrl: string, argv1: string | undefined, run: () => void): void {
+  if (moduleUrl === pathToFileURL(argv1 ?? "").href) {
+    run();
+  }
+}
 
 export function writeReport(name: string, body: string): string {
   const file = resolve(reportDir, name);

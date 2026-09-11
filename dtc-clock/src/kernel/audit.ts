@@ -134,6 +134,7 @@ import {
   centralBinomialStepResidue,
   rationalResidue,
   shadowQ,
+  shareFloatIncremental,
   spectralArmor,
   repairedStationary,
   stationaryBreach,
@@ -156,7 +157,6 @@ import {
   kappaRoadCrossDeviation,
   zetaEM,
 } from "./assembly.js";
-import { shareFloatIncremental } from "./armor.js";
 
 export const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 const CITATION_KEYS = [
@@ -945,7 +945,8 @@ export function runWitnesses(): WitnessResult[] {
       series.spotChecks <= 1e-12 &&
       Math.abs(phi1) <= 6e-7 &&
       zetaFixOk &&
-      fEdge > 0.999;    out.push({
+      fEdge > 0.999;
+    out.push({
       witness: "W-Y",
       ok,
       detail: `the exact transfer sigma1 = G·u - sqrt(n) holds at the float floor (residuals ${t1.residual.toExponential(2)}/${t2.residual.toExponential(2)}) so kappa = sigma1/(2sqrt(2/pi)) = ${kappa.toFixed(10)} carries the ten digits; kappa's own D-grid road Richardson-confirms to ${Math.abs(kappaRoad - kappa).toExponential(2)}; the edge series: E_k·sqrt(pi)k^{3/2} -> ${nextLim.toFixed(8)} (= 3/8 exact), the second law -> ${secondAt(8192).toFixed(6)} (= -11/128 = ${EDGE_SECOND_COEFF} exact), sum(E) = ${series.sumE.toFixed(9)} (WITH THE v0.20.0 zetaEM SIGN FIX — the N=60/120/240 agreement ${zetaFixOk ? "witnessed at ~1e-10" : "FAILED"}, where the v0.19.0 road erred at N^-s) so zeta_m = ${series.zetaM.toFixed(9)} and Phi1 = kappa - zeta_m = ${phi1.toExponential(4)} — INSIDE TC47's certified bracket (the v0.19.0 '-4.547e-4 nonzero' claim RETIRED as the sign bug's artifact); the closure face c3 = -(n-2)c2/12·(1 - 3sigma1/sqrt(n)) tracks the exact c3 to ${closure[2]!.toExponential(2)} at n=16, declining; F(k=3,D=1e5) = ${fEdge.toFixed(6)} (f(0)=1)`,

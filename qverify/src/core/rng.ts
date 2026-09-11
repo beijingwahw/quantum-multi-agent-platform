@@ -17,7 +17,14 @@ export function makeRng(seed: number): Rng {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   const rng = next as Rng;
-  rng.int = (maxExclusive: number): number => Math.floor(next() * maxExclusive);
+  rng.int = (maxExclusive: number): number => {
+    // a maxExclusive < 1 has no legal value in [0, maxExclusive) — returning 0
+    // would smuggle an out-of-range index into every consumer
+    if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
+      throw new Error(`rng.int: maxExclusive must be an integer >= 1, got ${maxExclusive}`);
+    }
+    return Math.floor(next() * maxExclusive);
+  };
   let spare: number | null = null;
   rng.normal = (): number => {
     if (spare !== null) {
@@ -47,4 +54,18 @@ export function makeRng(seed: number): Rng {
 export function fmt(x: number, digits = 6): string {
   if (!Number.isFinite(x)) return String(x);
   return x.toFixed(digits);
+}
+
+/**
+ * Sample mean and standard error of the mean of i.i.d. draws, computed with
+ * the exact arithmetic every MC referee in this repo used inline (sum, then
+ * centered sum of squares over n−1, then √(s²/n)) — merging the bodies here
+ * cannot move a bit.
+ */
+export function meanStdErr(values: readonly number[]): { mean: number; stdErr: number } {
+  if (values.length === 0) throw new Error('meanStdErr: empty sample');
+  const n = values.length;
+  const mean = values.reduce((a, b) => a + b, 0) / n;
+  const varr = values.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, n - 1);
+  return { mean, stdErr: Math.sqrt(varr / n) };
 }

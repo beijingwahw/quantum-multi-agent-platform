@@ -10,11 +10,10 @@
  */
 import { Rng } from "../core/rng.js";
 import { fitSlope } from "../core/stats.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 import { hoeffdingCoverage, quantumEnergyExact, quantumEnergySampled, soundness } from "../witness/verify.js";
 import { stoqDichotomy } from "../witness/stoq.js";
 import { totalOf } from "../reductions/makespan.js";
-import { pathToFileURL } from "node:url";
 
 function run(): void {
   const rng = new Rng(2026090504);
@@ -110,7 +109,4 @@ function run(): void {
   console.log(`exp4 done -> ${file}`);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  run();
-}
+runIfMain(import.meta.url, process.argv[1], run);

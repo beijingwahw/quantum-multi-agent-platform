@@ -36,11 +36,13 @@ function checkUniverse(n: number, fn: string): void {
   }
 }
 
+/** The universe size: (4(n+1))^(2n) machines at n states. */
 export function machines(n: number): number {
   checkUniverse(n, "machines");
   return (4 * (n + 1)) ** (2 * n);
 }
 
+/** Machine #`code` of the n-state universe as an entry table (bijective onto 0..machines(n)-1). */
 export function decode(n: number, code: number): TMachine {
   checkUniverse(n, "decode");
   const total = machines(n);
@@ -122,8 +124,15 @@ export interface Census {
   readonly censusAt: readonly number[]; // halted count after each step, up to maxSteps+2
 }
 
-/** Enumerate the whole universe up to `bound`; record the step-by-step halting census. */
+/** Enumerate the whole universe up to `bound`; record the step-by-step halting census.
+ * The bound is validated BY NAME like simulate's — an undefined-length array
+ * build would otherwise escape as a raw RangeError (the same silent-crash
+ * class the v0.3.0 boundary pass convicted). */
 export function census(n: number, bound: number): Census {
+  checkUniverse(n, "census");
+  if (!Number.isInteger(bound) || bound < 0) {
+    throw new AuditError("EA:MACHINE", `census: step bound must be a non-negative integer, got ${bound}`);
+  }
   const total = machines(n);
   const halted = new Array<number>(bound + 1).fill(0);
   let count = 0;

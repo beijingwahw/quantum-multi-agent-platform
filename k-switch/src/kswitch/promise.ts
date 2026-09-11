@@ -17,16 +17,19 @@
  */
 import { cmatKron, cmatMul, cmatZero, type CMat } from "../core/cmat.js";
 import type { Rng } from "./rng.js";
+import { KSwitchError } from "./errors.js";
 
 export const I2: CMat = { dim: 2, re: [[1, 0], [0, 1]], im: [[0, 0], [0, 0]] };
 export const X2: CMat = { dim: 2, re: [[0, 1], [1, 0]], im: [[0, 0], [0, 0]] };
 export const Y2: CMat = { dim: 2, re: [[0, 0], [0, 0]], im: [[0, -1], [1, 0]] };
 export const Z2: CMat = { dim: 2, re: [[1, 0], [0, -1]], im: [[0, 0], [0, 0]] };
 
+/** The canonical pairwise-COMMUTING triple (X⊗X, Y⊗Y, Z⊗Z). */
 export function commutingTriple(): [CMat, CMat, CMat] {
   return [cmatKron(X2, X2), cmatKron(Y2, Y2), cmatKron(Z2, Z2)];
 }
 
+/** The canonical pairwise-ANTICOMMUTING triple (X⊗I, Z⊗I, Y⊗I). */
 export function anticommutingTriple(): [CMat, CMat, CMat] {
   return [cmatKron(X2, I2), cmatKron(Z2, I2), cmatKron(Y2, I2)];
 }
@@ -38,8 +41,8 @@ export function commutatorDev(a: CMat, b: CMat): number {
   let d = 0;
   for (let i = 0; i < a.dim; i++) {
     for (let j = 0; j < a.dim; j++) {
-      const dr = (ab.re[i]![j] as number) - (ba.re[i]![j] as number);
-      const di = (ab.im[i]![j] as number) - (ba.im[i]![j] as number);
+      const dr = ab.re[i]![j]! - ba.re[i]![j]!;
+      const di = ab.im[i]![j]! - ba.im[i]![j]!;
       d = Math.max(d, Math.hypot(dr, di));
     }
   }
@@ -48,6 +51,10 @@ export function commutatorDev(a: CMat, b: CMat): number {
 
 /** A state vector |psi> on dim d with random amplitudes (normalized). */
 export function randomState(rng: Rng, d: number): { re: number[]; im: number[] } {
+  // d < 1 would normalize by 0 and silently hand back a NaN vector
+  if (!Number.isInteger(d) || d < 1) {
+    throw new KSwitchError("RANDOM-STATE-BAD-DIM", `randomState needs integer dim >= 1, got ${String(d)}`);
+  }
   const re = Array.from({ length: d }, () => rng.next() - 0.5);
   const im = Array.from({ length: d }, () => rng.next() - 0.5);
   let n = 0;
@@ -75,8 +82,8 @@ export function applyUnitaryToState(u: CMat, psi: { re: number[]; im: number[] }
   const im = new Array<number>(d).fill(0);
   for (let i = 0; i < d; i++) {
     for (let j = 0; j < d; j++) {
-      const ur = u.re[i]![j] as number;
-      const ui = u.im[i]![j] as number;
+      const ur = u.re[i]![j]!;
+      const ui = u.im[i]![j]!;
       re[i] = re[i]! + ur * psi.re[j]! - ui * psi.im[j]!;
       im[i] = im[i]! + ur * psi.im[j]! + ui * psi.re[j]!;
     }

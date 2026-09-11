@@ -36,6 +36,7 @@ export function booksCost(row: Pick<LedgerRow, "costColumn">): boolean {
   return row.costColumn.trim().length > 0;
 }
 
+/** The ledger's verdict: every violation of L0-L5 (empty = the book balances). */
 export function checkLedger(rows: readonly LedgerRow[] = LEDGER, root: string = WORKSPACE_ROOT): Violation[] {
   const violations: Violation[] = [];
   const atlasPath = resolve(root, "bqp-map", "src", "atlas", "entries.ts");
@@ -220,6 +221,7 @@ function witnessH2(): WitnessResult {
   return { name: "W-E h2(0.025) ~ 0.168661", pass: ok, detail: `recomputed ${h.toFixed(9)}` };
 }
 
+/** All five arithmetic witnesses (W-A..W-E), each an independent re-derivation. */
 export function runWitnesses(): WitnessResult[] {
   return [witnessLedgerIdentity(), witnessThreshold(), witnessCensus(), witnessEStar(), witnessH2()];
 }

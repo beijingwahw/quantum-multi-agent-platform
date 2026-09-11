@@ -22,6 +22,11 @@ export class Rng {
 
   /** Uniform integer in [0, n). */
   int(n: number): number {
+    // n < 1 (or non-integer) has no legal value in [0, n) — returning 0
+    // would smuggle an out-of-range index into every consumer
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(`Rng.int: n must be an integer >= 1, got ${String(n)}`);
+    }
     return Math.floor(this.next() * n);
   }
 }

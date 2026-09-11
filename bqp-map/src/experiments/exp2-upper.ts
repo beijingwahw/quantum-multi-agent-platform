@@ -13,8 +13,7 @@ import { fitSlope, median } from "../core/stats.js";
 import { groverRun } from "../upper/grover.js";
 import { arrayValuation, dhMin, type Valuation } from "../upper/dhmin.js";
 import { minMakespanP2, totalOf } from "../reductions/makespan.js";
-import { table, writeReport } from "./report.js";
-import { pathToFileURL } from "node:url";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function schedulingValuation(nums: readonly number[]): Valuation {
   const n = nums.length;
@@ -123,7 +122,4 @@ function run(): void {
   console.log(`exp2 done -> ${file}`);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  run();
-}
+runIfMain(import.meta.url, process.argv[1], run);

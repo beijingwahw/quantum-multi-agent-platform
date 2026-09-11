@@ -42,6 +42,13 @@ const PSI_Y1 = { n: 2, re: Float64Array.of(Math.SQRT1_2, 0), im: Float64Array.of
  * local literal). */
 const I2: CMat = maximallyMixed(2);
 
+/** |Φ+⟩⟨Φ+| — the demonstration state; fromVec is deterministic pure math,
+ * so one shared construction is bit-identical to the three former inline
+ * copies (steering, per-bit attack, concealment). */
+function phiPlusRho(): CMat {
+  return fromVec(vNormalize(vAdd(basisVec(4, 0), basisVec(4, 3))));
+}
+
 function projectorOnSys1(v: CVec): CMat {
   const V = fromVec(v);
   const ident = mat(2, 2);
@@ -81,7 +88,7 @@ export interface SteeringReport {
 /** The HJW steering table: same |Φ+>, three measurement choices, three
  * different ensemble decompositions of the same I/2 on V. */
 export function steeringDemonstration(): SteeringReport {
-  const phiPlus = fromVec(vNormalize(vAdd(basisVec(4, 0), basisVec(4, 3))));
+  const phiPlus = phiPlusRho();
   const vMarginal = partialTrace(phiPlus, [2, 2], [1]);
   const rows: SteeringRow[] = [];
   const families: Array<{ basis: 'Z' | 'X' | 'Y'; pair: [CVec, CVec] }> = [
@@ -128,9 +135,9 @@ export interface NaiveCommitAttack {
 
 /** Textbook attack on "commit by sending |ψ_b> ∈ {|0>, |+>}". */
 export function naiveCommitAttack(): NaiveCommitAttack {
+  const phiPlus = phiPlusRho();
   const run = (b: 0 | 1): { p: number; f: number } => {
     const psiB = b === 0 ? PSI_Z0 : PSI_X0;
-    const phiPlus = fromVec(vNormalize(vAdd(basisVec(4, 0), basisVec(4, 3))));
     const P = projectorOnSys1(psiB);
     const proj = mMul(mMul(P, phiPlus), mDagger(P));
     const p = proj.re[0]! + proj.re[5]! + proj.re[10]! + proj.re[15]!;
@@ -140,7 +147,6 @@ export function naiveCommitAttack(): NaiveCommitAttack {
   };
   const r0 = run(0);
   const r1 = run(1);
-  const phiPlus = fromVec(vNormalize(vAdd(basisVec(4, 0), basisVec(4, 3))));
   const vMarginal = partialTrace(phiPlus, [2, 2], [1]);
   const overlap = Math.abs(PSI_Z0.re[0]! * PSI_X0.re[0]! + PSI_Z0.re[1]! * PSI_X0.re[1]!);
   return {

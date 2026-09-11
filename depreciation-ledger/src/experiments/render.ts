@@ -36,7 +36,7 @@ function main(): void {
   lines.push("\n## Verdict census\n");
   for (const [v, c] of [...counts.entries()].sort()) lines.push(`- ${v}: ${c}`);
   const numbered = LEDGER.filter((r) => quotesNumbers(r)).length;
-  lines.push(`\n${numbered}/17 rows quote numbers; every one of them books its cost on the same line. ${LEDGER.length - numbered} rows are OPEN and quote nothing — by law, not by accident.\n`);
+  lines.push(`\n${numbered}/${LEDGER.length} rows quote numbers; every one of them books its cost on the same line. ${LEDGER.length - numbered} rows are OPEN and quote nothing — by law, not by accident.\n`);
 
   lines.push("## Arithmetic witnesses (independent re-derivations, L6)\n");
   for (const w of witnesses) lines.push(`- ${w.pass ? "PASS" : "FAIL"} — ${w.name} (${w.detail})`);

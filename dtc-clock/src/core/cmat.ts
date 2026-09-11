@@ -23,20 +23,29 @@ export interface CMat {
   readonly im: Float64Array;
 }
 
+/** A real-and-imaginary complex vector of dimension `n` (filled with `fill`). */
 export function vec(n: number, fill = 0): CVec {
   return { n, re: new Float64Array(n).fill(fill), im: new Float64Array(n) };
 }
 
+/** A rows x cols complex matrix of zeros. */
 export function mat(rows: number, cols: number): CMat {
   return { rows, cols, re: new Float64Array(rows * cols), im: new Float64Array(rows * cols) };
 }
 
+/** The i-th computational basis vector e_i of dimension n (real unit at i). */
 export function basisVec(n: number, i: number): CVec {
+  // an out-of-range index is a silent no-op write into the Float64Array (a
+  // zero vector out) — refuse it at the boundary instead
+  if (!Number.isInteger(i) || i < 0 || i >= n) {
+    throw new DtcError("E/DOMAIN", `basisVec: index ${i} out of range for dimension ${n}`);
+  }
   const v = vec(n);
   v.re[i] = 1;
   return v;
 }
 
+/** The d x d identity matrix. */
 export function identity(d: number): CMat {
   const m = mat(d, d);
   for (let i = 0; i < d; i++) m.re[i * d + i] = 1;
@@ -72,7 +81,12 @@ export function vNormalize(a: CVec): CVec {
   return nrm === 0 ? a : vScale(a, 1 / nrm);
 }
 
+/** Elementwise sum a + b (same shape required — a mismatch is refused by
+ * name instead of silently reading out of bounds into NaN). */
 export function mAdd(a: CMat, b: CMat): CMat {
+  if (a.rows !== b.rows || a.cols !== b.cols) {
+    throw new DtcError("E/SHAPE", `mAdd: shape mismatch ${a.rows}x${a.cols} + ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
     m.re[k] = a.re[k]! + b.re[k]!;

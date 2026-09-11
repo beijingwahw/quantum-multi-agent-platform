@@ -13,6 +13,7 @@
 
 export type BellVec = Float64Array;
 
+/** Bell vector from its four label probabilities. */
 export function bellVec(p0: number, p1: number, p2: number, p3: number): BellVec {
   const v = new Float64Array(4);
   v[0] = p0;
@@ -43,6 +44,7 @@ export function fidelity(l: BellVec): number {
   return l[0]!;
 }
 
+/** Deep copy (Float64Array is otherwise shared by reference). */
 export function cloneVec(l: BellVec): BellVec {
   const v = new Float64Array(4);
   v.set(l);

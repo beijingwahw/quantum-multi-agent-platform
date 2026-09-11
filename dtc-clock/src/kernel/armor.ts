@@ -41,7 +41,7 @@
  *        {popcount = n/2} is the decoder's own dead zone — the honest
  *        boundary, censused.
  */
-import { type CMat, basisVec, kron, vKron } from "../core/cmat.js";
+import { type CMat, basisVec, kron, mat, vKron } from "../core/cmat.js";
 import { vecToRho } from "../core/states.js";
 import { DtcError } from "../core/errors.js";
 import { vonNeumannEntropy } from "../core/measures.js";
@@ -54,6 +54,7 @@ import {
   tokenProb,
   type CompositeDims,
 } from "./clock.js";
+import { jacobiEigen, realSymmetricPack } from "./tombstone.js";
 
 // ---------------------------------------------------------------------------
 // The radius law — fixed before the censuses (the number is law, the census
@@ -278,6 +279,10 @@ export interface ShadowResult {
   readonly meanTieBits: number;
 }
 
+/** Pascal's triangle rows 0..n as Float64Arrays (row k has k+1 entries) —
+ * the single binomial-row source for every chain builder in this file (the
+ * v0.21.1 consolidation: four expression-identical local copies folded in,
+ * bit-identical by the shared recurrence). */
 function binomials(n: number): Float64Array[] {
   const rows: Float64Array[] = [];
   for (let k = 0; k <= n; k++) {
@@ -379,9 +384,15 @@ export function popcountShadow(
       }
       dist = repairedDist;
       pure = repairedPure;
-      // survival under repair = 1 - the dead-zone occupancy
+      // survival under repair = 1 - the dead-zone (tie) occupancy. The tie
+      // row n/2 exists only at even n; at odd n the decode can never tie and
+      // every mass lands strictly below n/2, so nothing dies (the old code
+      // read the fractional row index (n/2)*width at odd n — undefined,
+      // NaN survival; regression-pinned)
       let alive = 1;
-      for (let dd = 0; dd < width; dd++) alive -= dist[(n / 2) * width + dd]!;
+      if (n % 2 === 0) {
+        for (let dd = 0; dd < width; dd++) alive -= dist[(n / 2) * width + dd]!;
+      }
       survival.push(Math.max(alive, 0));
     } else {
       // strict armor: absorb the crossed mass, report the never-crossed
@@ -709,7 +720,7 @@ export function shadowQ(p: number, t: number): number {
 
 /** The binomial pmf Bin(n, q) over k = 0..n. */
 export function binomialPmfClosed(n: number, q: number): Float64Array {
-  const crow = binomRowLocal(n)[n]!;
+  const crow = binomials(n)[n]!;
   const out = new Float64Array(n + 1);
   for (let k = 0; k <= n; k++) out[k] = crow[k]! * Math.pow(q, k) * Math.pow(1 - q, n - k);
   return out;
@@ -717,7 +728,7 @@ export function binomialPmfClosed(n: number, q: number): Float64Array {
 
 /** The machine road: the passive w-marginal after t periods (no repair). */
 export function maskPopcountMarginal(n: number, p: number, t: number): Float64Array {
-  const binom = binomRowLocal(n);
+  const binom = binomials(n);
   let m = new Float64Array(n + 1);
   m[0] = 1;
   for (let s = 0; s < t; s++) {
@@ -738,25 +749,14 @@ export function maskPopcountMarginal(n: number, p: number, t: number): Float64Ar
 
 /** The stationary breach face 1/2 + C(n,n/2)/2^{n+1} (even n). */
 export function stationaryBreach(n: number): number {
-  const c = binomRowLocal(n)[n]![n / 2]!;
+  const c = binomials(n)[n]![n / 2]!;
   return 1 / 2 + c / Math.pow(2, n + 1);
 }
 
 /** The stationary tie face C(n,n/2)/2^n (even n). */
 export function stationaryTie(n: number): number {
-  const c = binomRowLocal(n)[n]![n / 2]!;
+  const c = binomials(n)[n]![n / 2]!;
   return c / Math.pow(2, n);
-}
-
-function binomRowLocal(n: number): Float64Array[] {
-  const rows: Float64Array[] = [];
-  for (let k = 0; k <= n; k++) {
-    const row = new Float64Array(k + 1);
-    row[0] = 1;
-    for (let j = 1; j <= k; j++) row[j] = (row[j - 1]! * (k - j + 1)) / j;
-    rows.push(row);
-  }
-  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -779,25 +779,9 @@ function binomRowLocal(n: number): Float64Array[] {
 // (the DP mean lags below through the transient — stated, not hidden).
 // ---------------------------------------------------------------------------
 
-import { jacobiEigen, realSymmetricPack } from "./tombstone.js";
-import { mat } from "../core/cmat.js";
-
-function fullBinomRow(n: number): Float64Array {
-  const row = new Float64Array(n + 1);
-  row[0] = 1;
-  for (let j = 1; j <= n; j++) row[j] = (row[j - 1]! * (n - j + 1)) / j;
-  return row;
-}
-
 /** The substochastic Q on {0..n/2-1} (n even) or {0..(n-1)/2} (n odd). */
 function buildAbsorbingQ(n: number, p: number): { q: number[][]; m: Float64Array } {
-  const binom: Float64Array[] = [];
-  for (let k = 0; k <= n; k++) {
-    const row = new Float64Array(k + 1);
-    row[0] = 1;
-    for (let j = 1; j <= k; j++) row[j] = (row[j - 1]! * (k - j + 1)) / j;
-    binom.push(row);
-  }
+  const binom = binomials(n);
   const dim = Math.ceil(n / 2);
   const q: number[][] = Array.from({ length: dim }, () => new Array<number>(dim).fill(0));
   for (let w = 0; w < dim; w++) {
@@ -809,8 +793,9 @@ function buildAbsorbingQ(n: number, p: number): { q: number[][]; m: Float64Array
       }
     }
   }
+  const central = binom[n]!;
   const m = new Float64Array(dim);
-  for (let w = 0; w < dim; w++) m[w] = fullBinomRow(n)[w]!;
+  for (let w = 0; w < dim; w++) m[w] = central[w]!;
   return { q, m };
 }
 
@@ -866,13 +851,9 @@ export interface RepairedStationary {
 
 /** The repaired chain's stationary meter faces (n even; iterate the small chain). */
 export function repairedStationary(n: number, p: number, iterations = 2000): RepairedStationary {
-  const binom: Float64Array[] = [];
-  for (let k = 0; k <= n; k++) {
-    const row = new Float64Array(k + 1);
-    row[0] = 1;
-    for (let j = 1; j <= k; j++) row[j] = (row[j - 1]! * (k - j + 1)) / j;
-    binom.push(row);
-  }
+  const binom = binomials(n);
+  // log2 C(n, n/2), 0 at odd n — hoisted: the same constant every iteration
+  const tariff = n % 2 === 0 ? Math.log2(binom[n]![n / 2]!) : 0;
   let pi = new Float64Array(n + 1);
   pi[0] = 1;
   let faces = { pTie: 0, syndromeMeter: 0, tieMeter: 0 };
@@ -894,7 +875,6 @@ export function repairedStationary(n: number, p: number, iterations = 2000): Rep
       let wrongOdd = 0;
       for (let w = n / 2; w <= n; w++) wrongEven += next[w]!;
       for (let w = n / 2 + 1; w <= n; w++) wrongOdd += next[w]!;
-      const tariff = Math.log2(fullBinomRow(n)[n / 2]!);
       faces = {
         pTie,
         syndromeMeter: (h2(wrongEven) + h2(wrongOdd)) / 2,
@@ -909,7 +889,7 @@ export function repairedStationary(n: number, p: number, iterations = 2000): Rep
     for (let w = 0; w <= n; w++) rep[w === n / 2 ? 0 : Math.min(w, n - w)]! += next[w]!;
     pi = rep;
   }
-  return { ...faces, tariffConstant: n % 2 === 0 ? Math.log2(fullBinomRow(n)[n / 2]!) : 0 };
+  return { ...faces, tariffConstant: tariff };
 }
 
 // ---------------------------------------------------------------------------
@@ -932,8 +912,6 @@ export function repairedStationary(n: number, p: number, iterations = 2000): Rep
 // periods regardless of register size — the n-dependence in the TC31 grid
 // (0.656 -> 0.691 at p = 0.2) is entirely the O(p^2) face.
 // ---------------------------------------------------------------------------
-
-import { jacobiEigen as jacobiEigenTomb, realSymmetricPack as packTomb } from "./tombstone.js";
 
 /** The amputated birth-death matrix B on {0..n/2-1} (n even), rows as arrays. */
 function amputatedBirthDeath(n: number): number[][] {
@@ -969,7 +947,7 @@ export function decayRateConstant(n: number): number {
   for (let i = 0; i < dim; i++) {
     for (let j = 0; j < dim; j++) s.re[i * dim + j] = b[i]![j]! * Math.sqrt(bin[i]! / bin[j]!);
   }
-  const eig = jacobiEigenTomb(packTomb(s), dim);
+  const eig = jacobiEigen(realSymmetricPack(s), dim);
   return n - Math.max(...Array.from(eig.values));
 }
 
@@ -1434,7 +1412,8 @@ export function shareChainPieces(n: number): { S: number; A: number; P: number; 
   }
   const A = Math.exp(lb(n - 2, m) - (n - 2) * Math.LN2);
   const P = (9 * n * (n - 1)) / (2 * (n - 2));
-  return { S: Math.exp(lnS), A, P, chainShare: (P * A * Math.exp(lnS)) / 4 };
+  const S = Math.exp(lnS);
+  return { S, A, P, chainShare: (P * A * S) / 4 };
 }
 
 /** sigma1(n) = (share/(9/8) - 1)·sqrt(n) — the 1/sqrt(n) face of the

@@ -29,8 +29,7 @@ import {
   searchDsicViolation,
   welfare,
 } from '../mech/vcg.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from "node:url";
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function randomInstance(n: number, levels: number, rng: Rng): ValueMatrix {
   return Array.from({ length: n }, () => Array.from({ length: n }, () => rng.int(levels)));
@@ -167,7 +166,5 @@ function main(): void {
   writeReport({ name: 'exp5-vcg', title: 'exp5 — approximate solvers inside VCG break DSIC (T5)' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

@@ -1,6 +1,6 @@
 /** Exp3 — T3 CHSH rigidity: Horodecki vs direct optimization, Tsirelson, pure-state law, Werner-window census. */
 
-import { writeReport, mdTable, fmt, sci } from './report.js';
+import { writeReport, runIfMain, mdTable, fmt, sci } from './report.js';
 import {
   horodeckiSMax,
   optimizeChsh,
@@ -12,7 +12,6 @@ import {
 import { bellState, schmidtState, wernerFidelity, randomTwoQubitMixed, fromVec } from '../core/states.js';
 import { makeRng } from '../core/rng.js';
 import type { CMat } from '../core/cmat.js';
-import { pathToFileURL } from "node:url";
 import {
   BETA_STAR,
   V_STAR,
@@ -209,7 +208,5 @@ Bancal et al. PRA 91, 022115 (2015) put the numerical plain-fidelity threshold a
   );
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

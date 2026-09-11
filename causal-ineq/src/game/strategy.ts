@@ -203,7 +203,8 @@ export function strategyBranchTables(w: CMat, builder: InstrumentBuilder): Branc
   return { pAlice, pBob };
 }
 
-/** TP conformance deviation: || sum_x Tr_out[M_x] - 1 ||_max (the family-F_q ticket is 0). */export function instrumentTP(pair: InstrumentPair): number {
+/** TP conformance deviation: || sum_x Tr_out[M_x] - 1 ||_max (the family-F_q ticket is 0). */
+export function instrumentTP(pair: InstrumentPair): number {
   for (const m of pair) {
     if (m.dim !== 4) throw new NamedError("strategy/cj-element-not-qubit", `instrumentTP: CJ element dim ${m.dim} != 4 (family F_q lives on qubit input ⊗ output)`);
   }

@@ -16,6 +16,7 @@
  */
 import { cmatDagger, cmatMul, cmatZero, type CMat } from "../core/cmat.js";
 import { X2, Z2 } from "./promise.js";
+import { KSwitchError } from "./errors.js";
 
 /** The |+><+| scheduling input: sensitive to both X and Z writes. */
 export function plusPlus(): CMat {
@@ -27,14 +28,18 @@ export function plusPlus(): CMat {
   return rho;
 }
 
-/** Apply a 1-qubit unitary to a density matrix. */
-function unitaryOnRho(u: CMat, rho: CMat): CMat {
+/** Apply a 1-qubit unitary to a density matrix (shared with sched4.ts). */
+export function unitaryOnRho(u: CMat, rho: CMat): CMat {
   // u rho u^dagger
   return cmatMul(cmatMul(u, rho), cmatDagger(u));
 }
 
 /** Erasure channel with probability γ: rho -> (1-γ)ρ + γ |0><0|. */
 export function erase(gamma: number, rho: CMat): CMat {
+  // a γ outside [0,1] would silently build a non-probabilistic (unphysical) map
+  if (!Number.isFinite(gamma) || gamma < 0 || gamma > 1) {
+    throw new KSwitchError("ERASE-PROBABILITY-OUT-OF-RANGE", `erase gamma must lie in [0,1], got ${String(gamma)}`);
+  }
   const out = cmatZero(2);
   for (let i = 0; i < 2; i++) {
     for (let j = 0; j < 2; j++) {

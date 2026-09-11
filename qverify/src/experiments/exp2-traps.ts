@@ -1,6 +1,6 @@
 /** Exp2 — T2 trap detection calculus: formula vs referees, tightness, blind spot. */
 
-import { writeReport, mdTable, fmt, sci } from './report.js';
+import { writeReport, runIfMain, mdTable, fmt, sci } from './report.js';
 import {
   trapAcceptanceFormula,
   trapAcceptanceDirect,
@@ -14,7 +14,6 @@ import {
 import { makeRng } from '../core/rng.js';
 import { identity } from '../core/cmat.js';
 import { PAULI_X, PAULI_Y, PAULI_Z } from '../core/states.js';
-import { pathToFileURL } from "node:url";
 
 export function main(): void {
   const rng = makeRng(0x7a99);
@@ -120,7 +119,5 @@ adds output checks for this reason (cited result, not re-proved here).
   );
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

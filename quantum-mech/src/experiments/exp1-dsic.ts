@@ -15,10 +15,9 @@
 
 import { makeRng } from '../core/rng.js';
 import { randomPureState, fromVec } from '../core/states.js';
-import { classicalBestGain, affineResidual, quantumBestGain } from '../mech/dsic.js';
+import { classicalBestGain, affineResidual, quantumBestGain, codeword } from '../mech/dsic.js';
 import { coherentSecondPriceUtility } from '../protocol/auction.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from "node:url";
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 interface Instance {
   trueValue: number;
@@ -74,11 +73,12 @@ function main(): void {
   const coherentRows: string[][] = [];
   for (const inst of instances) {
     let best = -Infinity;
-    const truthSigma = fromVec({ n: inst.k, re: Float64Array.from({ length: inst.k }, (_, i) => (i === inst.trueValue ? 1 : 0)), im: new Float64Array(inst.k) });
+    // codeword(k, r) builds exactly the inline |r⟩ density matrices it replaced
+    const truthSigma = codeword(inst.k, inst.trueValue);
     const uTruth = coherentSecondPriceUtility(inst.trueValue, truthSigma, inst.others, inst.slot, inst.k);
     // all codewords
     for (let r = 0; r < inst.k; r++) {
-      const sigma = fromVec({ n: inst.k, re: Float64Array.from({ length: inst.k }, (_, i) => (i === r ? 1 : 0)), im: new Float64Array(inst.k) });
+      const sigma = codeword(inst.k, r);
       best = Math.max(best, coherentSecondPriceUtility(inst.trueValue, sigma, inst.others, inst.slot, inst.k) - uTruth);
     }
     // random pure states
@@ -125,7 +125,5 @@ function main(): void {
   writeReport({ name: 'exp1-dsic', title: 'exp1 — DSIC survives quantizing the communication channel (T1)' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

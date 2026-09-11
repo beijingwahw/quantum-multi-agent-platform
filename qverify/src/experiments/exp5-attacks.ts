@@ -1,6 +1,6 @@
 /** Exp5 — T5 optimal attacks: Helstrom, BB84 games, ½ wall, optimal-copy price tag, noisy-device census. */
 
-import { writeReport, mdTable, fmt, sci } from './report.js';
+import { writeReport, runIfMain, mdTable, fmt, sci } from './report.js';
 import {
   equatorialPairHelstrom,
   equatorialPairHelstromClosed,
@@ -12,7 +12,6 @@ import {
   helstromTwo,
 } from '../protocol/attacks.js';
 import { fromVec, equatorial } from '../core/states.js';
-import { pathToFileURL } from "node:url";
 import {
   shrinkAcceptanceCurve,
   shrinkIsometryError,
@@ -159,7 +158,5 @@ ${mdTable(
   );
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

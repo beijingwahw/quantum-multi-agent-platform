@@ -10,6 +10,7 @@
  * near-linear).
  */
 
+/** Johnson's order as a job-index permutation: front half ascending p1 (p1 < p2), back half descending p2. */
 export function johnsonOrder(p1: readonly number[], p2: readonly number[]): number[] {
   const n = p1.length;
   const front: number[] = []; // p1 < p2: schedule first, ascending p1
@@ -23,6 +24,7 @@ export function johnsonOrder(p1: readonly number[], p2: readonly number[]): numb
   return [...front, ...back];
 }
 
+/** Makespan of F2||Cmax when jobs run in `order` (both machines single-pass, no buffers). */
 export function flow2Makespan(p1: readonly number[], p2: readonly number[], order: readonly number[]): number {
   let t1 = 0;
   let t2 = 0;
@@ -57,6 +59,7 @@ export function bruteForceFlow2(p1: readonly number[], p2: readonly number[]): n
   return best;
 }
 
+/** Referee predicate: Johnson's makespan equals the all-permutation brute-force optimum. */
 export function johnsonOptimal(p1: readonly number[], p2: readonly number[]): boolean {
   return flow2Makespan(p1, p2, johnsonOrder(p1, p2)) === bruteForceFlow2(p1, p2);
 }

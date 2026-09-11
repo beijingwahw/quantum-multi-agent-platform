@@ -166,6 +166,20 @@ export const REGISTERED_DIVERGENCES: readonly DivergenceRegistration[] = [
   { repo: "switch-sched", file: "states.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused states exports (maximallyMixed/eye; the gypi z0/z1 callers moved to KET0/KET1 in the same wave); the canon's surviving faces are untouched; re-convergence is the appeal court's call" },
   { repo: "switch-sched", file: "channels.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused channels exports (depolarize and filterBasisDigit); the canon's algorithmic faces are untouched between the deletions; re-convergence is the appeal court's call" },
   { repo: "switch-sched", file: "rng.ts", reason: "the v0.3.0 absorption sweep deleted this member's unused rng export (fmt; the Box-Muller callers moved to the canon's complexGaussian in the same wave); the bit stream is untouched; re-convergence is the appeal court's call" },
+  // -- the 2026-09-11 quality wave appends (the boundary-hardening faces of
+  // qverify and quantum-mech) -----------------------------------------------
+  // The wave's degenerate-input sweep hardened the shared rng.int boundary in
+  // the two members whose rng.ts still stood byte-identical to the canon:
+  // maxExclusive < 1 or non-integer drew a silent 0 before, now a named
+  // refusal — the exact mirror of rng.pick's existing guard. The guard sits
+  // BEFORE any draw, so the seeded bit stream is byte-identical for every
+  // legal input. The wave's other family-file touches (dtc-clock's
+  // cmat/rng/states, k-switch's cmat, qverify's and quantum-mech's states,
+  // bqp-map's rng) all landed inside already-registered lineages and need no
+  // row here. Registered as debt, not adjudicated: whether the canon adopts
+  // the guard (or the members re-converge) is the appeal court's call.
+  { repo: "qverify", file: "rng.ts", reason: "the 2026-09-11 quality wave hardened this member's own copy at the degenerate boundary (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0 — the mirror of rng.pick's existing guard); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call" },
+  { repo: "quantum-mech", file: "rng.ts", reason: "the 2026-09-11 quality wave hardened this member's own copy at the same degenerate boundary as qverify's in the same sweep (rng.int refusing maxExclusive < 1 / non-integer by name where it silently returned 0); the guard sits before any draw so the seeded bit stream is byte-identical for legal inputs; the canon's faces are untouched above the guard; re-convergence is the appeal court's call" },
 ];
 
 export type FamilyStatus =

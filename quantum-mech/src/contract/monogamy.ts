@@ -116,6 +116,10 @@ export function searchDoublePledge(rng: Rng, samples = 20000): DoublePledgeSearc
  * gives symmetric C_BE1 = C_BE2; the maximum of the minimum sits at the
  * CKW ceiling C = 1/√2 — random search alone converges slowly toward it. */
 export function doublePledgeFamilyScan(steps = 400): { x: number; minC: number; cBoth: [number, number] } {
+  // steps < 2 would enumerate nothing and silently report a zero optimum
+  if (!Number.isInteger(steps) || steps < 2) {
+    throw new Error(`MONO03-bad-steps: doublePledgeFamilyScan needs integer steps >= 2, got ${steps}`);
+  }
   let best = { x: 0, minC: 0, cBoth: [0, 0] as [number, number] };
   for (let i = 1; i < steps; i++) {
     const x = i / steps;
@@ -134,6 +138,9 @@ export function doublePledgeFamilyScan(steps = 400): { x: number; minC: number; 
 /** Bell fidelity ⟨Φ+|ρ|Φ+⟩ of a 2-qubit state — the quantity an escrow's
  * verification test estimates with sacrificial pairs. */
 export function bellFidelity(rho2q: CMat): number {
+  if (rho2q.rows !== 4 || rho2q.cols !== 4) {
+    throw new Error(`MONO02-bad-shape: bellFidelity needs a 4x4 two-qubit density matrix, got ${rho2q.rows}x${rho2q.cols}`);
+  }
   const phi = { n: 4, re: Float64Array.of(Math.SQRT1_2, 0, 0, Math.SQRT1_2), im: new Float64Array(4) };
   const rho = fromVec(phi);
   let f = 0;

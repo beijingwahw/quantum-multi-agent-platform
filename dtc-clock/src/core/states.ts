@@ -11,6 +11,7 @@ import { type CMat, type CVec, mat, vNormalize } from './cmat.js';
 import type { Rng } from './rng.js';
 import { DtcError } from './errors.js';
 
+/** |+⟩ = (|0⟩ + |1⟩)/√2. */
 export const PLUS: CVec = vNormalize({ n: 2, re: Float64Array.from([1, 1]), im: new Float64Array(2) });
 
 /** Uniform vector orthogonal to |v_d⟩ (first two amplitudes ±1/√2, rest 0). */
@@ -22,6 +23,7 @@ export function uniformOrthVec(d: number): CVec {
   return v;
 }
 
+/** Pure-state density matrix |v⟩⟨v|. */
 export function vecToRho(v: CVec): CMat {
   const m = mat(v.n, v.n);
   for (let i = 0; i < v.n; i++) {

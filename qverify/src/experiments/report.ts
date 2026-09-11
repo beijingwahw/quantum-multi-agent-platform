@@ -2,6 +2,18 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+/**
+ * Entry-guard law (house form since batch 21), single-sourced for the five
+ * experiment modules: a module renders ONLY when run directly
+ * (`npm run exp:*`), never when imported — run-all.ts invokes the exported
+ * mains instead. The caller MUST pass its own `import.meta.url` (the guard
+ * compares it against process.argv[1]; this module's URL would never match).
+ */
+export function runIfMain(moduleUrl: string, main: () => void): void {
+  if (moduleUrl === pathToFileURL(process.argv[1] ?? '').href) main();
+}
 
 export interface ReportContext {
   name: string;

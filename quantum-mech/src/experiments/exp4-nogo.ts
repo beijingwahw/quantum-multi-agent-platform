@@ -16,8 +16,7 @@
  */
 
 import { steeringDemonstration, naiveCommitAttack } from '../contract/hjw.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from "node:url";
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function main(): void {
   const st = steeringDemonstration();
@@ -63,7 +62,5 @@ function main(): void {
   writeReport({ name: 'exp4-nogo', title: 'exp4 — the commitment no-go wall, made executable' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

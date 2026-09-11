@@ -35,7 +35,7 @@ export function maxDevFrom(a: { re: number[][]; im: number[][] }, b: { re: numbe
   let d = 0;
   for (let i = 0; i < a.re.length; i++) {
     for (let j = 0; j < a.re.length; j++) {
-      d = Math.max(d, Math.hypot((a.re[i]![j] as number) - (b.re[i]![j] as number), (a.im[i]![j] as number) - (b.im[i]![j] as number)));
+      d = Math.max(d, Math.hypot(a.re[i]![j]! - b.re[i]![j]!, a.im[i]![j]! - b.im[i]![j]!));
     }
   }
   return d;

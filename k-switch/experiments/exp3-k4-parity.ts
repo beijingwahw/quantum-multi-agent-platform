@@ -24,7 +24,7 @@ import {
   verificationState4,
 } from "../src/kswitch/k4.js";
 import { commutatorDev } from "../src/kswitch/promise.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 import { mul, dag, maxDevFrom } from "./kernels.js";
 
 function run(): void {
@@ -173,4 +173,4 @@ function run(): void {
   console.log(`exp3 done -> ${file} — fC=${fC.toFixed(12)}, fA=${fA.toFixed(12)}, <u|u_sgn>=${innerAbs.toExponential(2)}, census 0/${census.anticommuting.length}/${census.mixed}`);
 }
 
-run();
+runIfMain(import.meta.url, run);

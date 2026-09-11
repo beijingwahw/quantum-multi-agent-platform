@@ -144,6 +144,7 @@ export function noPadLeakage(n: number): { maxTraceDistance: number; chiBits: nu
   return { maxTraceDistance: worst, chiBits: holevo(items) };
 }
 
+/** Trace distance between a server view and I/2ⁿ (the blindness gap). */
 export function mixedCompare(rho: CMat, n: number): number {
   return traceDistance(rho, maximallyMixed(1 << n));
 }

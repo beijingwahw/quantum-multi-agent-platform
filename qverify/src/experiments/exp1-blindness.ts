@@ -1,16 +1,15 @@
 /** Exp1 — T1 blindness: server-view zero-leakage identity + negative controls. */
 
-import { writeReport, mdTable, fmt, sci } from './report.js';
+import { writeReport, runIfMain, mdTable, fmt, sci } from './report.js';
 import {
   serverViewMixed,
   worstCaseBlindnessGap,
   angleOtpMutualInfo,
   noPadLeakage,
   mixedCompare,
+  EIGHT_ANGLES,
 } from '../protocol/ubqc.js';
 import { makeRng } from '../core/rng.js';
-import { EIGHT_ANGLES } from '../protocol/ubqc.js';
-import { pathToFileURL } from "node:url";
 
 export function main(): void {
   const rng = makeRng(0x51ac);
@@ -75,7 +74,5 @@ one-time-pad structure is exactly what zeros the Holevo information.
   );
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

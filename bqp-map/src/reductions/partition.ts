@@ -16,6 +16,7 @@
  */
 import { minMakespanP2, totalOf } from "./makespan.js";
 
+/** Subset-sum DP decision: does some subset hit total/2? (odd totals are trivially NO.) */
 export function partitionYes(nums: readonly number[]): boolean {
   const total = totalOf(nums);
   if (total % 2 !== 0) return false;

@@ -24,6 +24,7 @@ import { Rng } from "../core/rng.js";
 import { hoeffdingShots } from "../core/stats.js";
 import { totalOf } from "../reductions/makespan.js";
 
+/** NP-witness check: one exact evaluation of makespan(z) against the target B. */
 export function classicalWitnessCheck(nums: readonly number[], z: readonly number[], B: number): boolean {
   let load0 = 0;
   for (let i = 0; i < nums.length; i++) {
@@ -42,6 +43,7 @@ function makespanOfCode(nums: readonly number[], code: number): number {
   return Math.max(load0, total - load0);
 }
 
+/** A quantum witness: amplitudes over the assignment basis (2^n entries). */
 export interface QuantumWitness {
   amps: readonly number[];
 }

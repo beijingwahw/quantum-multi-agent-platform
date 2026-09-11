@@ -17,6 +17,7 @@
  */
 import type { Rng } from "../core/rng.js";
 
+/** One dhMin run: the winning index/value, the exact query count, and optimality vs the exhaustive referee. */
 export interface DhResult {
   index: number;
   value: number;
@@ -24,6 +25,7 @@ export interface DhResult {
   optimal: boolean;
 }
 
+/** An implicit or explicit valuation over indices [0, N) — the comparison oracle dhMin consumes. */
 export interface Valuation {
   readonly N: number;
   /** The comparison oracle: value of index x. One call = one query. */
@@ -32,6 +34,7 @@ export interface Valuation {
   toArray(): readonly number[];
 }
 
+/** Wrap a plain array as an explicit Valuation. */
 export function arrayValuation(vals: readonly number[]): Valuation {
   return {
     N: vals.length,
@@ -68,8 +71,10 @@ function groverAmps(val: Valuation, thresholdValue: number, j: number): number[]
   return amps;
 }
 
+/** One DH run with per-query accounting; `optimal` compares against the exhaustive minimum of toArray(). */
 export function dhMin(val: Valuation, rng: Rng): DhResult {
   const N = val.N;
+  if (N <= 0) throw new Error(`dhMin: valuation must be non-empty (got N=${N})`);
   const cap = Math.ceil(Math.sqrt(N)); // BBHT ladder ceiling
   let queries = 0;
 

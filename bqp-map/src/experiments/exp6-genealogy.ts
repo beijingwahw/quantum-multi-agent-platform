@@ -16,8 +16,7 @@ import { postselectCount, postselectSearch } from "../genealogy/postselect.js";
 import { nosignalTrial, singletAnchors } from "../genealogy/nosignal.js";
 import { GENEALOGY_CLAIMS, orphanGenealogyRows, unresolvedRows } from "../genealogy/register.js";
 import { ATLAS } from "../atlas/entries.js";
-import { fmt, table, writeReport } from "./report.js";
-import { pathToFileURL } from "node:url";
+import { fmt, runIfMain, table, writeReport } from "./report.js";
 
 const TOL = 1e-12;
 
@@ -207,7 +206,4 @@ function run(): void {
   console.log(`exp6 done -> ${file}`);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  run();
-}
+runIfMain(import.meta.url, process.argv[1], run);

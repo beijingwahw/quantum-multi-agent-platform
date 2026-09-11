@@ -32,6 +32,7 @@ import { equatorial, equatorialRho, PAULI_X, PAULI_Y, PAULI_Z, fromVec, randomPu
 import type { Rng } from '../core/rng.js';
 import { applyLocalRho, expPauli, mulVec } from '../core/gates.js';
 
+/** The trap secret-angle grid Θ = {kπ/4 : k = 0..7} — single source (UBQC's EIGHT_ANGLES aliases it). */
 export const TRAP_ANGLES: readonly number[] = Array.from({ length: 8 }, (_, k) => (k * Math.PI) / 4);
 
 export interface PauliCoeffs {
@@ -101,6 +102,7 @@ export function trapAcceptanceExpansion(kraus: readonly CMat[]): number {
   return acc;
 }
 
+/** Σ_j |c_{j,I}|² — the identity mass of a CPTP map (the invisible tier). */
 export function idMass(kraus: readonly CMat[]): number {
   let m = 0;
   for (const e of kraus) {

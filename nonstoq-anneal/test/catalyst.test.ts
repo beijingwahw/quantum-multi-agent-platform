@@ -8,7 +8,7 @@ import { antiferroRing } from "../src/anneal/instances.js";
 import { applyHamiltonian, hadamardInPlace, lowestSpectrum } from "../src/anneal/lanczos.js";
 import { jacobiEigenvalues } from "../src/core/jacobi.js";
 import { annealCatalystPath, magTable, pspinEnergies, xEnergiesAt, xxScaled } from "../src/anneal/catalyst.js";
-import { StateVector as StateVector2 } from "../src/core/statevector.js";
+import { StateVector } from "../src/core/statevector.js";
 
 function driverOf(model: ReturnType<typeof randomIsing>, kappa: number): DriverSpec {
   return { gamma: 1, couplings: model.couplings.map((c) => ({ j: c.j, k: c.k, w: kappa })) };
@@ -149,7 +149,7 @@ test("catalyst: lambda0=1 reduces exactly to the plain stoquastic anneal", () =>
   const slices = 200;
   const time = 8;
   const dt = time / slices;
-  const manual = StateVector2.plusState(n);
+  const manual = StateVector.plusState(n);
   for (let m = 1; m <= slices; m++) {
     const u = m / slices;
     const s = Math.min(1, u / 0.5); // 与路径引擎同一分段调度（λ0=1 → λ≡1）

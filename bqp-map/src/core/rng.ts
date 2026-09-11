@@ -25,12 +25,14 @@ export class Rng {
     return Math.floor(this.next() * n);
   }
 
+  /** True with probability p. */
   bernoulli(p: number): boolean {
     return this.next() < p;
   }
 
-  /** Uniform pick from a non-empty array. */
+  /** Uniform pick from a non-empty array (throws on empty — the documented precondition, enforced). */
   pick<T>(items: readonly T[]): T {
+    if (items.length === 0) throw new Error("Rng.pick: items must be non-empty");
     return items[this.int(items.length)] as T;
   }
 

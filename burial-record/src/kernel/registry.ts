@@ -1,17 +1,21 @@
 /**
  * The registry — the burial record as data.
  *
- * Twenty-two batches of error logs, transcribed from the daily memory files
- * (memory/2026-09-05.md, memory/2026-09-06.md) where they were buried as
- * prose — the twenty-second being this repo's own delivery log. Every error carries two columns — the wrong assertion and the
+ * The batches transcribed from the daily memory files (from
+ * memory/2026-09-05.md onward) where they were buried as prose — batch 22
+ * being this repo's own delivery log (the registry buries itself). The live
+ * batch/error counts live in DECLARED_TOTAL_BATCHES / DECLARED_TOTAL_ERRORS
+ * and NOWHERE in prose — a count restated here is a copy the data will drift
+ * away from (this repo's own founding law). Every error carries two columns — the wrong assertion and the
  * correction — because that is the ledger's own discipline applied to
  * ourselves: a number never travels without its cost, and an error never
  * travels without its fix.
  *
  * Anchors are dual: the repo the batch happened in (must exist on disk, B1)
  * and the memory file + heading that records it (must resolve, B4). The date
- * must be the anchor file's own date (B6) — a batch cannot predate or outlive
- * its own evidence.
+ * must be the anchor file's own date (B5 — the B6 tag is absent by founding,
+ * folded into B5 at the record's first draft) — a batch cannot predate or
+ * outlive its own evidence.
  */
 
 export const CATEGORIES = [

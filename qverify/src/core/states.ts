@@ -3,7 +3,7 @@
  * Every formula here has a closed-form value a test can assert against.
  */
 
-import { type CMat, type CVec, basisVec, mat, vec, vNormalize } from './cmat.js';
+import { type CMat, type CVec, basisVec, mat, vec, vKron, vNormalize } from './cmat.js';
 import type { Rng } from './rng.js';
 
 export const KET0: CVec = basisVec(2, 0);
@@ -171,14 +171,7 @@ export const HADAMARD: CMat = (() => {
 /** Tensor a list of CVec into a joint state vector. */
 export function vKronAll(vs: readonly CVec[]): CVec {
   if (vs.length === 0) throw new Error('vKronAll needs >=1 vector');
-  return vs.reduce((acc, v) => {
-    const out = vec(acc.n * v.n);
-    for (let i = 0; i < acc.n; i++) {
-      for (let j = 0; j < v.n; j++) {
-        out.re[i * v.n + j] = acc.re[i]! * v.re[j]! - acc.im[i]! * v.im[j]!;
-        out.im[i * v.n + j] = acc.re[i]! * v.im[j]! + acc.im[i]! * v.re[j]!;
-      }
-    }
-    return out;
-  });
+  // vKron IS the pairwise tensor body the inline reduce duplicated
+  // (bit-identical — anchored in test/regression-boundaries.test.ts)
+  return vs.reduce((acc, v) => vKron(acc, v));
 }

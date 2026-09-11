@@ -8,7 +8,9 @@ export type KSwitchErrorCode =
   | "SUPERSEQUENCE-LIMIT-BELOW-QUARTET"
   | "CENSUS-NON-PAULI-PAIR"
   | "MATCHED-PAIR-GENERATOR-NOT-PAULI"
-  | "SUPERSEQUENCE-SEARCH-FAILED";
+  | "SUPERSEQUENCE-SEARCH-FAILED"
+  | "ERASE-PROBABILITY-OUT-OF-RANGE"
+  | "RANDOM-STATE-BAD-DIM";
 
 export class KSwitchError extends Error {
   constructor(readonly code: KSwitchErrorCode, message: string) {

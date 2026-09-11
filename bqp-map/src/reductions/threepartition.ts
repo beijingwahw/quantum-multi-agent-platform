@@ -33,6 +33,12 @@ export function genYesInstance(rng: Rng, m: number, B: number): ThreePartInstanc
   const a: number[] = [];
   const lo = Math.floor(B / 4) + 1;
   const hi = Math.ceil(B / 2) - 1;
+  // three values in [lo, hi] can sum to B only when 3*lo <= B <= 3*hi (the
+  // achievable sums are the full integer interval) — otherwise the rejection
+  // loop below can never accept and would spin forever (e.g. B = 4, 5, 8).
+  if (3 * lo > B || 3 * hi < B) {
+    throw new Error(`genYesInstance: no triple in [${lo}, ${hi}] sums to B=${B} (need ${3 * lo} <= B <= ${3 * hi})`);
+  }
   for (let t = 0; t < m; t++) {
     // sample x, y with lo <= x,y <= hi and B-x-y in [lo, hi]
     for (;;) {

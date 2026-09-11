@@ -24,8 +24,7 @@ import { ckwAnchors, searchDoublePledge, doublePledgeFamilyScan, ckw, bellFideli
 import { wiesnerExperiment } from '../contract/wiesner.js';
 import { fromVec, ghz } from '../core/states.js';
 import { partialTrace } from '../core/channels.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from "node:url";
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function main(): void {
   const rng = makeRng(7);
@@ -112,7 +111,5 @@ function main(): void {
   writeReport({ name: 'exp3-escrow', title: 'exp3 — entanglement as collateral: monogamy exclusivity + Wiesner deposits' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

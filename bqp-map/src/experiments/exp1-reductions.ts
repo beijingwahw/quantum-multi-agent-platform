@@ -24,8 +24,7 @@ import {
 import { fptasRatio } from "../reductions/fptas.js";
 import { johnsonOptimal } from "../reductions/johnson.js";
 import { isingGroundStateParity, isingIdentityHolds } from "../reductions/ising.js";
-import { table, writeReport } from "./report.js";
-import { pathToFileURL } from "node:url";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const rng = new Rng(2026090501);
@@ -152,7 +151,4 @@ function run(): void {
   console.log(`exp1 done -> ${file}`);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  run();
-}
+runIfMain(import.meta.url, process.argv[1], run);

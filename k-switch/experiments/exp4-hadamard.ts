@@ -17,7 +17,7 @@ import {
   type Vec,
 } from "../src/kswitch/hadamard4.js";
 import { S4 } from "../src/kswitch/k4.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -122,4 +122,4 @@ function run(): void {
   console.log(`exp4 done -> ${file} — census 136 [${byColumn.join(",")}], sup=${sup.minLength} (${sup.count} witnesses), game matrix ${nonzero}/144 nonzero`);
 }
 
-run();
+runIfMain(import.meta.url, run);

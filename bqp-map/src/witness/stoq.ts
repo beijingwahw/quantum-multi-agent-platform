@@ -26,6 +26,7 @@
  * +kappa, exactly, for all random J/h signs.
  */
 
+/** Dense complex matrix as row-major Float64Array rows (real part only — these Hamiltonians are real). */
 export type DenseMatrix = readonly Float64Array[];
 
 export function maxOffDiagonal(H: DenseMatrix): number {

@@ -428,6 +428,14 @@ export function runSim(cfg: SimConfig): SimReport {
       // allocation entries each bind one slot; cap by pre-attempt free slots
       const owners = (allocations.get(l.id) ?? []).slice(0, attemptView.freeSlots(l.id));
       for (const owner of owners) {
+        // a pair whose owner is not a request id can never complete or deliver;
+        // it would sit in memory silently poisoning every slot it holds (the
+        // same silent-corruption class validateSimConfig exists to close)
+        if (!byId.has(owner))
+          throw new SchedError(
+            "ENGINE_UNKNOWN_OWNER",
+            `policy '${policy.name}' allocated attempt slot on link '${l.id}' to owner '${owner}', which is not a request id — the pair could never complete and would silently occupy memory`
+          );
         counters.attempts++;
         counters.lastAttemptRound = round;
         if (rng.bernoulli(l.p)) {

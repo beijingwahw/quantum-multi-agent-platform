@@ -14,9 +14,9 @@
  */
 
 import { type CMat, type CVec, mat, mDagger, identity, kron } from '../core/cmat.js';
-import { applyLocalRho } from '../core/gates.js';
+import { applyLocalRho, applyLocalVec } from '../core/gates.js';
 import { HADAMARD } from '../core/states.js';
-import type { Rng } from '../core/rng.js';
+import { meanStdErr, type Rng } from '../core/rng.js';
 import { traceDistance } from '../core/measures.js';
 
 export type PauliBasis = 'X' | 'Y' | 'Z';
@@ -34,26 +34,6 @@ export function shadowBasisRotation(basis: PauliBasis): CMat {
   m.im[2] = s;
   m.im[3] = -s;
   return m;
-}
-
-function applyRotVec(v: CVec, n: number, q: number, u: CMat): CVec {
-  const out: CVec = { n: v.n, re: v.re.slice(), im: v.im.slice() };
-  const stride = 1 << (n - 1 - q);
-  for (let base = 0; base < v.n; base += 2 * stride) {
-    for (let off = 0; off < stride; off++) {
-      const i0 = base + off;
-      const i1 = i0 + stride;
-      const aRe = v.re[i0]!;
-      const aIm = v.im[i0]!;
-      const bRe = v.re[i1]!;
-      const bIm = v.im[i1]!;
-      out.re[i0] = u.re[0]! * aRe - u.im[0]! * aIm + u.re[1]! * bRe - u.im[1]! * bIm;
-      out.im[i0] = u.re[0]! * aIm + u.im[0]! * aRe + u.re[1]! * bIm + u.im[1]! * bRe;
-      out.re[i1] = u.re[2]! * aRe - u.im[2]! * aIm + u.re[3]! * bRe - u.im[3]! * bIm;
-      out.im[i1] = u.re[2]! * aIm + u.im[2]! * aRe + u.re[3]! * bIm + u.im[3]! * bRe;
-    }
-  }
-  return out;
 }
 
 function rotateRhoAll(rho: CMat, n: number, assignment: readonly PauliBasis[], dagger: boolean): CMat {
@@ -112,7 +92,9 @@ export function expectedShadow(rho: CMat, n: number): CMat {
 export function fidelityShotValue(target: CVec, n: number, assignment: readonly PauliBasis[], outcome: number): number {
   const d = 1 << n;
   let psiTilde = target;
-  for (let v = 0; v < n; v++) psiTilde = applyRotVec(psiTilde, n, v, mDagger(shadowBasisRotation(assignment[v]!)));
+  // applyLocalVec IS the per-qubit rotation the inline body duplicated
+  // (bit-identical stride arithmetic — anchored in test/regression-boundaries.test.ts)
+  for (let v = 0; v < n; v++) psiTilde = applyLocalVec(psiTilde, n, v, mDagger(shadowBasisRotation(assignment[v]!)));
   let est = 0;
   for (let idx = 0; idx < d; idx++) {
     let factor = 1;
@@ -192,8 +174,6 @@ export function fidelityShadowMC(
     // per-shot value ⟨ψ̃| D_pattern |ψ̃⟩ — shared with the exact enumeration
     estimates.push(fidelityShotValue(target, n, assignment, outcome));
   }
-  const mean = estimates.reduce((a, b) => a + b, 0) / shots;
-  const varr = estimates.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, shots - 1);
-  return { mean, stdErr: Math.sqrt(varr / shots) };
+  return meanStdErr(estimates);
 }
 

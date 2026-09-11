@@ -40,7 +40,9 @@ import { horodeckiSMax, pptMinEigenvalue } from './chsh.js';
 export const BETA_STAR: number = (16 + 14 * Math.SQRT2) / 17;
 /** Visibility v* = β* over 2√2 = (7+4√2)/17 ≈ 0.7445 — the census rigidity threshold. */
 export const V_STAR: number = (7 + 4 * Math.SQRT2) / 17;
+/** The local (classical) CHSH bound β = 2. */
 export const BETA_LOCAL = 2;
+/** The Tsirelson bound β = 2√2. */
 export const BETA_QUANTUM = 2 * Math.SQRT2;
 /** Largest Schmidt coefficient of |Φ+⟩: the always-achievable (trivial) fidelity 1/√2. */
 export const LAMBDA_MAX_SINGLET = 1 / Math.SQRT2;
@@ -130,6 +132,11 @@ export function windowSweep(steps: number): {
   worstLowerAboveUpper: number;
   worstUpperAboveOne: number;
 } {
+  // steps < 1 makes v = i/steps hit 0/0 = NaN and the sweep would report
+  // NaN gaps as if they were numbers
+  if (!Number.isInteger(steps) || steps < 1) {
+    throw new Error(`QV_STEPS: windowSweep needs an integer step count >= 1, got ${steps}`);
+  }
   const out = {
     worstBetaGap: 0,
     worstFidelityGap: 0,

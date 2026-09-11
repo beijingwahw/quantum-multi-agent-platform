@@ -56,7 +56,8 @@ export const S3: ReadonlyArray<{ readonly seq: readonly [number, number, number]
 /** Product for order pi: boxes applied seq[0] first. */
 export function orderedProduct(boxes: readonly [CMat, CMat, CMat], seq: readonly [number, number, number]): CMat {
   // first applied acts first on the state: |psi> -> U_seq2 U_seq1 U_seq0 |psi>
-  return cmatMul(cmatMul(boxes[seq[2]] as CMat, boxes[seq[1]] as CMat), boxes[seq[0]] as CMat);
+  const [s0, s1, s2] = seq;
+  return cmatMul(cmatMul(boxes[s2]!, boxes[s1]!), boxes[s0]!);
 }
 
 /** The 3-switch isometry on control (6) ⊗ system (d): M = sum_pi |pi><pi| ⊗ P_pi. */
@@ -83,10 +84,12 @@ export function uniformControl(): { re: number[]; im: number[] } {
   return { re: S3.map(() => 1 / Math.sqrt(6)), im: S3.map(() => 0) };
 }
 
+/** The parity control state |u_par⟩ = (1/√6) Σ_π (−1)^{inv(π)} |π⟩. */
 export function parityControl(): { re: number[]; im: number[] } {
   return { re: S3.map((p) => (p.even ? 1 / Math.sqrt(6) : -1 / Math.sqrt(6))), im: S3.map(() => 0) };
 }
 
+/** Conjugate-linear inner product ⟨a|b⟩ of two 6-dim control vectors. */
 export function controlInner(a: { re: number[]; im: number[] }, b: { re: number[]; im: number[] }): { re: number; im: number } {
   let re = 0;
   let im = 0;

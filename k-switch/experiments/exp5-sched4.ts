@@ -6,7 +6,7 @@
  */
 import { chainDistinguishability4 } from "../src/kswitch/sched4.js";
 import { plusPlus } from "../src/kswitch/sched3.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   // input: |+> — sensitive to both X and Z writes (and Y flips it to |->); the
@@ -62,4 +62,4 @@ function run(): void {
   console.log(`exp5 done -> ${file} — 24 fixed orders D=${Math.SQRT1_2.toFixed(6)}, switch D=${r.switchD.toFixed(9)} (= sqrt(10)/6), dilution ${dilution.toFixed(6)}`);
 }
 
-run();
+runIfMain(import.meta.url, run);

@@ -8,7 +8,9 @@ function mean(xs: readonly number[]): number {
   return s / xs.length;
 }
 
+/** Median (average of the two middle values on even length). Empty input throws. */
 export function median(xs: readonly number[]): number {
+  if (xs.length === 0) throw new Error("median: empty input");
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 === 1 ? (s[mid] as number) : ((s[mid - 1] as number) + (s[mid] as number)) / 2;
@@ -25,6 +27,8 @@ export function median(xs: readonly number[]): number {
  * number is unchanged; repro byte-comparison confirmed it.
  */
 export function fitSlope(xs: readonly number[], ys: readonly number[]): number {
+  if (xs.length === 0) throw new Error("fitSlope: empty input");
+  if (xs.length !== ys.length) throw new Error(`fitSlope: length mismatch (${xs.length} vs ${ys.length})`);
   const mx = mean(xs);
   const my = mean(ys);
   let num = 0;
@@ -38,6 +42,8 @@ export function fitSlope(xs: readonly number[], ys: readonly number[]): number {
 
 /** Hoeffding sample count: shots m such that P(|est-mean| > eps) <= delta for a range of width R. */
 export function hoeffdingShots(eps: number, delta: number, range: number): number {
+  if (eps <= 0) throw new Error(`hoeffdingShots: eps must be positive (got ${eps})`);
+  if (delta <= 0 || delta >= 1) throw new Error(`hoeffdingShots: delta must be in (0, 1) (got ${delta})`);
   return Math.ceil((range * range * Math.log(2 / delta)) / (2 * eps * eps));
 }
 

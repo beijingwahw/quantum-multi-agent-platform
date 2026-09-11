@@ -19,8 +19,7 @@
  */
 
 import { certificateFromRow, lockingRow, verifyLockingCertificate, type LockingCertificate } from '../protocol/datalock.js';
-import { mdTable, writeReport, fmt } from './report.js';
-import { pathToFileURL } from 'node:url';
+import { runIfMain, mdTable, writeReport, fmt } from './report.js';
 
 function main(): void {
   const seed = 20260908;
@@ -98,7 +97,5 @@ function main(): void {
   writeReport({ name: 'exp6-datalock', title: 'exp6 — data locking at bounded exact scale: the accessible-information gap, measured' }, data, markdown);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

@@ -7,8 +7,7 @@ import { resolve } from "node:path";
 import { checkAtlas, runMachineCertificates, verdictGroups } from "../atlas/check.js";
 import { ATLAS } from "../atlas/entries.js";
 import { VERDOC_ORDER, type AtlasEntry, type Verdict } from "../atlas/types.js";
-import { reportDir, table, writeReport } from "./report.js";
-import { pathToFileURL } from "node:url";
+import { reportDir, runIfMain, table, writeReport } from "./report.js";
 
 const VERDICT_BLURB: Readonly<Record<Verdict, string>> = {
   "P-EXACT": "Already exactly polynomial — there is nothing left to accelerate.",
@@ -70,7 +69,4 @@ function run(): void {
   console.log(`exp5 done -> ${md}, ${jsonFile}`);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  run();
-}
+runIfMain(import.meta.url, process.argv[1], run);

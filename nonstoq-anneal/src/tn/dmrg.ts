@@ -128,6 +128,7 @@ function absorbRight(R: Env, t: Float64Array, chiR: number, cl: number, entries:
   return { chi: cl, data: next };
 }
 
+/** Two-site DMRG ground state: sweeps of local Lanczos + SVD truncation to chiMax. */
 export function dmrgGroundState(h: ChainHamiltonian, options: DmrgOptions = {}): DmrgResult {
   const chiMax = options.chiMax ?? 64;
   const maxSweeps = options.sweeps ?? 8;

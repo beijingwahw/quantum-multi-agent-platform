@@ -79,7 +79,11 @@ export function main(): void {
     "| n | lambda=1 (stoq) | lambda=0.3 | lambda=0.1 |",
     "|---|---|---|---|",
     ...SIZES.map((n) => {
-      const row = (l: number) => gapRows.find((g) => g.n === n && g.lambda === l)!;
+      const row = (l: number): { gap: number; sStar: number } => {
+        const found = gapRows.find((g) => g.n === n && g.lambda === l);
+        if (found === undefined) throw new Error(`exp4: gap row missing for n=${n}, lambda=${l}`);
+        return found;
+      };
       const f = (l: number) => {
         const r = row(l);
         return `${fmt(r.gap, 4)} (s*=${fmt(r.sStar, 3)})`;
@@ -95,8 +99,11 @@ export function main(): void {
     "| n | T | lambda0=1 | 0.3 | 0.1 |",
     "|---|---|---|---|---|",
     ...SIZES.map((n) => {
-      const fT = (t: number, l: number) =>
-        fmt(successRows.find((r) => r.n === n && r.time === t && r.lambda0 === l)!.success, 4);
+      const fT = (t: number, l: number): string => {
+        const found = successRows.find((r) => r.n === n && r.time === t && r.lambda0 === l);
+        if (found === undefined) throw new Error(`exp4: success row missing for n=${n}, T=${t}, lambda0=${l}`);
+        return fmt(found.success, 4);
+      };
       return `| ${n} | 4/8/16 λ=1 | ${fT(4, 1)}/${fT(8, 1)}/${fT(16, 1)} | ${fT(4, 0.3)}/${fT(8, 0.3)}/${fT(16, 0.3)} | ${fT(4, 0.1)}/${fT(8, 0.1)}/${fT(16, 0.1)} |`;
     }),
     "",
@@ -123,4 +130,4 @@ export function main(): void {
   writeReport("exp4-catalyst", payload, lines.join("\n"));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

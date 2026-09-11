@@ -1,6 +1,6 @@
 /** Exp4 — T4 sampling certification: shadows, mirror echo, XEB + spoof + wall + sample-complexity census. */
 
-import { writeReport, mdTable, fmt, sci } from './report.js';
+import { writeReport, runIfMain, mdTable, fmt, sci } from './report.js';
 import { shadowBias, fidelityShadowMC, shadowFidelityExact } from '../protocol/shadows.js';
 import { runMirrorExperiment, localNoiseMirrorCurve } from '../protocol/mirror.js';
 import {
@@ -19,7 +19,6 @@ import { randomCircuit, circuitProbs } from '../core/gates.js';
 import { fromVec, randomPureState } from '../core/states.js';
 import { depolarize } from '../core/channels.js';
 import { makeRng } from '../core/rng.js';
-import { pathToFileURL } from "node:url";
 
 export function main(): void {
   const rng = makeRng(0x5ade);
@@ -265,7 +264,5 @@ function fitSlope(curve: Array<{ layers: number; fReturn: number }>): number {
   return (n * sxy - sx * sy) / (n * sxx - sx * sx);
 }
 
-// batch-33 retrofit: entry-guard law (house form since batch 21) — imports never render
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main();
-}
+// batch-33 entry-guard law (house form since batch 21), single-sourced in report.js
+runIfMain(import.meta.url, main);

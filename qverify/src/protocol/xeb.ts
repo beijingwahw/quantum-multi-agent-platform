@@ -18,7 +18,7 @@
  */
 
 import { randomCircuit, circuitProbs, sampleIndex, type RandomCircuit } from '../core/gates.js';
-import { makeRng, type Rng } from '../core/rng.js';
+import { makeRng, meanStdErr, type Rng } from '../core/rng.js';
 
 export interface XebResult {
   name: string;
@@ -56,9 +56,14 @@ export function depolarizedDist(p: Float64Array, lambda: number): Float64Array {
   return q;
 }
 
-/** Marginals over the first (A) and second (B) half of the qubits; bit order: q0 most significant. */
+/**
+ * Split a 2ⁿ-entry distribution into the marginals over the first (A) and
+ * second (B) block of qubits; bit order: q0 most significant.
+ */
 export function marginals(p: Float64Array, nA: number): { pa: Float64Array; pb: Float64Array } {
-  const nB = Math.log2(p.length) - nA;
+  // a non-power-of-two length (or an nA outside [0, log₂len]) makes the shift
+  // below truncate a fractional qubit count and silently reshape the output
+  const nB = splitQubitCounts(p.length, nA);
   const pa = new Float64Array(1 << nA);
   const pb = new Float64Array(1 << nB);
   for (let x = 0; x < p.length; x++) {
@@ -74,11 +79,23 @@ export function marginals(p: Float64Array, nA: number): { pa: Float64Array; pb: 
 export function cutSpoofDist(p: Float64Array, nA: number): Float64Array {
   const { pa, pb } = marginals(p, nA);
   const q = new Float64Array(p.length);
-  const nB = Math.log2(p.length) - nA;
+  const nB = splitQubitCounts(p.length, nA);
   for (let x = 0; x < p.length; x++) {
     q[x] = pa[Math.floor(x / (1 << nB))]! * pb[x % (1 << nB)]!;
   }
   return q;
+}
+
+/** Shared shape check of the A/B split: returns nB, throwing on nonsense. */
+function splitQubitCounts(len: number, nA: number): number {
+  const n = Math.log2(len);
+  if (!Number.isInteger(n) || len < 2) {
+    throw new Error(`QV_SHAPE: distribution length must be a power of two >= 2, got ${len}`);
+  }
+  if (!Number.isInteger(nA) || nA < 0 || nA > n) {
+    throw new Error(`QV_SPLIT: nA must be an integer in [0, log2(len)] = [0, ${n}], got ${nA}`);
+  }
+  return n - nA;
 }
 
 /** Total variation distance between two distributions. */
@@ -96,9 +113,7 @@ export function xebMC(q: Float64Array, p: Float64Array, shots: number, rng: Rng)
     const x = sampleIndex(q, rng);
     vals.push(dim * p[x]! - 1);
   }
-  const mean = vals.reduce((a, b) => a + b, 0) / shots;
-  const varr = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, shots - 1);
-  return { mean, stdErr: Math.sqrt(varr / shots) };
+  return meanStdErr(vals);
 }
 
 /** Sample wall: exact ideal-probability computation cost across sizes (ms per full distribution). */

@@ -84,7 +84,11 @@ export function purify2to1(l: BellVec, m: BellVec): { p: number; out: BellVec } 
   const w1 = wernerWeight(f1);
   const w2 = wernerWeight(f2);
   const p = (f1 + w1) * (f2 + w2) + 4 * w1 * w2;
-  if (p <= 0) throw new SchedError("PURIFY_ZERO_PROBABILITY", `p=${p} (inputs f₁=${f1}, f₂=${f2} are not Bell vectors of a physical state)`);
+  // a physical Bell vector always gives 0 < p <= 1; p > 1 is the mirror of the
+  // p <= 0 face (unphysical inputs) — without the guard, bernoulli clamps
+  // silently and a garbage Werner state ships as a "success"
+  if (p <= 0 || p > 1 + 1e-12)
+    throw new SchedError("PURIFY_ZERO_PROBABILITY", `p=${p} (inputs f₁=${f1}, f₂=${f2} are not Bell vectors of a physical state)`);
   return { p, out: werner((f1 * f2 + w1 * w2) / p) };
 }
 
