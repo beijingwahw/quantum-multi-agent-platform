@@ -258,15 +258,25 @@ export interface WorkspaceScanRow {
 }
 
 /** An UNGUARDED ENTRY: a source file that renders a report but neither carries
- * the entry guard nor is the shared writeReport library itself. */
+ * the entry guard nor is the shared writeReport library itself. The walk
+ * covers the WHOLE repo — src, experiments, scripts, wherever a renderer
+ * lives — not just src/: the 2026-09-11 widening, after this detector's own
+ * law ("zero unguarded entries ANYWHERE") was convicted of walking past 13
+ * shipped unguarded entries that happened to live outside src/ (dsic-noether
+ * and vacuum-compiler experiments, the census's own artifact scripts). Tests
+ * and render output are out of scope by design: a test runs under the
+ * suite's own entry point, and out/ is the render target, not a source. */
 export function unguardedEntryFiles(repo: string): string[] {
-  const srcDir = resolve(WORKSPACE_ROOT, repo, "src");
-  if (!existsSync(srcDir)) return [];
+  const root = resolve(WORKSPACE_ROOT, repo);
+  if (!existsSync(root)) return [];
+  const SKIP_DIRS = new Set(["node_modules", "out", "dist", "docs", "test", "tests"]);
   const out: string[] = [];
   const walk = (dir: string): void => {
     for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name.startsWith(".")) continue;
       const full = resolve(dir, ent.name);
       if (ent.isDirectory()) {
+        if (SKIP_DIRS.has(ent.name)) continue;
         walk(full);
         continue;
       }
@@ -278,7 +288,7 @@ export function unguardedEntryFiles(repo: string): string[] {
       if (renders && !guarded && !isLibrary) out.push(ent.name);
     }
   };
-  walk(srcDir);
+  walk(root);
   return out;
 }
 

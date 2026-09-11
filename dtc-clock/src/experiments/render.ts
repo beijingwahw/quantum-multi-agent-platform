@@ -537,6 +537,6 @@ function main(): void {
   console.log(`rendered ${path}`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

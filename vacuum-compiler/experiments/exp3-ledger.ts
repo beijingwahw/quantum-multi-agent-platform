@@ -19,7 +19,7 @@ import { assemble } from "../src/compile/hamiltonian.js";
 import { conditionalData, spectralEvolve, stateNorm } from "../src/compile/history.js";
 import { geometricAttempts, expectedErasureBits, staticExpectedErasureBits, uniformEntropyBits } from "../src/compile/ledger.js";
 import { Rng } from "../src/compile/rng.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function normalizedConditional(psi: CVec, clockStates: number, t: number): { state: CVec; prob: number } {
   const { state, prob } = conditionalData(psi, clockStates, t);
@@ -210,4 +210,4 @@ function run(): void {
   }
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

@@ -117,7 +117,12 @@ export class BucketBrigadeQram {
 
   /** Stream update: write value into cell a; ledger charges one routing pass (depth n). */
   write(address: number, value: number): void {
-    if (address < 0 || address >= this.numCells) reject("QRAM_ADDRESS_RANGE", "address out of range");
+    // a fractional address passes the plain range check and then writes
+    // NOTHING (Float64Array non-index assignment is a silent no-op) while the
+    // routing ledger still charges the pass — a lost update that reads as done
+    if (!Number.isInteger(address) || address < 0 || address >= this.numCells) {
+      reject("QRAM_ADDRESS_RANGE", `integer address in [0, ${this.numCells}) required, got ${address}`);
+    }
     if (value < 0 || value > 1) reject("QRAM_CELL_RANGE", "cell values live in [0,1]");
     this.cells[address] = value;
     this.totalActivations += activeNodes("bucket-brigade", this.addressBits);

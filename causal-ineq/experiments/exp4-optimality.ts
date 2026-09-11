@@ -17,7 +17,7 @@ import { checkValidity } from "../src/process/validity.js";
 import { wStar } from "../src/process/construct.js";
 import { wBiased } from "../src/process/ocb12.js";
 import { COS2_PI_8 } from "../src/game/quantum.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -154,4 +154,4 @@ function run(): void {
   console.log(`exp4 done -> ${file} — sup within F_q = cos²(π/8) (bound tight, sweep best ${(COS2_PI_8 - bestSweep).toExponential(2)} below)`);
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

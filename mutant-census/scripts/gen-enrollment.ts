@@ -285,4 +285,8 @@ ${lines.join("\n")}
   console.log(`emitted src/kernel/enrollment.ts — ${total} rows: MUTANT-KILLED ${tally["MUTANT-KILLED"]}, GATE-ENFORCED ${tally["GATE-ENFORCED"]}, BOOKED ${tally["BOOKED-UNENFORCEABLE"]}`);
 }
 
-void main();
+// entry-guarded: the generator runs as an explicit maintainer command;
+// importing it (tests, tooling) must never rewrite enrollment.ts
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  void main();
+}

@@ -87,8 +87,11 @@ export function etcRun(
   mode: "live" | "replay" = "live",
 ): BanditRun {
   checkBanditBank(means, horizon);
-  if (!Number.isInteger(samplesPerArm) || samplesPerArm < 0) {
-    reject("BANDIT_ARG_RANGE", "samplesPerArm must be an integer >= 0");
+  // a zero-exploration ETC with a live horizon has no empirical best to commit
+  // to: commit stayed -1 and the run shipped NaN regret with decisions 255
+  // (Uint8Array cast of -1) — refuse it by name
+  if (!Number.isInteger(samplesPerArm) || samplesPerArm < 1) {
+    reject("BANDIT_ARG_RANGE", "samplesPerArm must be an integer >= 1 (zero exploration leaves no empirical best to commit to)");
   }
   const k = means.length;
   const rng = new Rng(seed);

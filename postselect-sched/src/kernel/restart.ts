@@ -227,11 +227,21 @@ export function payExpected(costs: readonly number[], probs: readonly number[], 
 
 /** The cheapest single round type c_i/p_i — the always-pay optimum, LSZ's L-function. */
 export function payStarMenu(costs: readonly number[], probs: readonly number[]): StarResult {
+  // payExpected refuses the same inputs by name; an unvalidated menu used to
+  // ship {value: Infinity} as a plausible optimum when no round had a valid
+  // probability, accept p > 1, and silently ignore rounds past a short probs
+  // table (the twin-drift class — one menu, two disciplines)
+  if (costs.length !== probs.length) {
+    throw new KernelError("BAD-ROUND-PROBABILITY", `payStarMenu: costs and probs must be paired per round (got ${costs.length} costs vs ${probs.length} probs)`);
+  }
+  for (let i = 0; i < probs.length; i++) {
+    const p = probs[i] as number;
+    if (!(p > 0) || p > 1) throw new KernelError("BAD-ROUND-PROBABILITY", `payStarMenu: probs in (0,1] (got ${p} at round ${i})`);
+  }
   let best = Number.POSITIVE_INFINITY;
   let idx = 0;
   for (let i = 0; i < costs.length; i++) {
     const p = probs[i] as number;
-    if (!(p > 0)) continue;
     const e = (costs[i] as number) / p;
     if (e < best) {
       best = e;
@@ -299,6 +309,13 @@ export interface EStarResult {
 
 /** E*(N,t) = min_k (k+1)/p_k with its argmin, against the pure-sorter ledger N/t. */
 export function eStarGrover(N: number, t: number): EStarResult {
+  // theta = asin(sqrt(t/N)): t = 0 makes the k-scan bound ceil(pi/(4*0)) =
+  // Infinity — a SYNCHRONOUS infinite loop no timeout can interrupt (the
+  // bqp-map grover twin); t > N makes theta NaN and silently ships
+  // {queries: Infinity} as a plausible object — refuse both by name
+  if (!Number.isInteger(t) || t < 1 || t > N) {
+    throw new KernelError("BAD-MARKED-COUNT", `eStarGrover: t must be an integer in 1..N (got ${t}, N=${N}) — t=0 hangs the k-scan at theta=0 and t>N quotes a sub-unit ledger`);
+  }
   const theta = groverTheta(N, t);
   const hi = Math.ceil(Math.PI / (4 * theta)) + 3;
   let best = Number.POSITIVE_INFINITY;
@@ -319,6 +336,11 @@ export function eStarGrover(N: number, t: number): EStarResult {
 /** Is the pure sorter (k=0) restart-optimal for this (N,t)? True iff
  *  p_k <= (k+1) p_0 for every k — checked numerically over the full k range. */
 export function zeroOptimal(N: number, t: number): boolean {
+  // same theta = 0 hang as eStarGrover: hi = ceil(pi/(4*0)) = Infinity and the
+  // scan below never exits — refuse the degenerate marked count by name
+  if (!Number.isInteger(t) || t < 1 || t > N) {
+    throw new KernelError("BAD-MARKED-COUNT", `zeroOptimal: t must be an integer in 1..N (got ${t}, N=${N})`);
+  }
   const theta = groverTheta(N, t);
   const hi = Math.ceil(Math.PI / (4 * theta)) + 3;
   const p0 = groverPClosed(N, t, 0);

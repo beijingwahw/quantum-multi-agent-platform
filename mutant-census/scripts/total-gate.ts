@@ -14,6 +14,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 // SINGLE-SOURCED since v0.10.0 (the b37#7 repair): the repo list lives in the
 // census kernel and ONLY there — this script imports it, and the census test
 // tree convicts any second literal copy by reading this file's source.
@@ -178,4 +179,8 @@ async function main(): Promise<void> {
   if (failed.length > 0) process.exitCode = 1;
 }
 
-void main();
+// entry-guarded: the gate runs via npm run total; importing it (tests,
+// tooling) must never spawn the workspace
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  void main();
+}

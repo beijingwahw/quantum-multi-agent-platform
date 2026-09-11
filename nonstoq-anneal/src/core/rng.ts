@@ -1,3 +1,5 @@
+import { NonstoqError } from "./errors.js";
+
 /**
  * Deterministic seeded RNG (mulberry32).
  *
@@ -26,11 +28,21 @@ export class Rng {
 
   /** Uniform in [min, max). */
   range(min: number, max: number): number {
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
+      throw new NonstoqError("RngRangeDomain", `range(min, max) needs finite bounds with min <= max, got [${min}, ${max}]`);
+    }
     return min + (max - min) * this.next();
   }
 
   /** Uniform integer in [0, maxExclusive). */
   int(maxExclusive: number): number {
+    // refuse BEFORE any draw so legal seeded streams stay bit-identical —
+    // a non-integer bound has no uniform value (int(2.5) draws 0/1/2 at
+    // 40/40/20) and 0/negative/Infinity return impossible indices; the same
+    // guard the qverify/quantum-mech/k-switch/qram-sched cores carry
+    if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
+      throw new NonstoqError("RngIntDomain", `int(maxExclusive) draws uniformly from [0, maxExclusive): integer >= 1 required, got ${maxExclusive}`);
+    }
     return Math.floor(this.next() * maxExclusive);
   }
 }

@@ -15,7 +15,7 @@
 import { Rng } from "../src/core/rng.js";
 import { pAdd, pConst, pDeriv, pIsZero, pMul, pScale, pSub, pSubstRat, pVar, rMul, rStr, rSub, rat, type Poly, type Rat } from "../src/continuum/poly.js";
 import * as gl from "../src/continuum/green-laffont.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -344,4 +344,4 @@ function usesVar(p: Poly, idx: number): boolean {
   return false;
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

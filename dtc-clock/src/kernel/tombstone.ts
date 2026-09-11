@@ -215,7 +215,10 @@ export function tombstoneCensus(n: number, j: number, h: number, tMax: number): 
         const rr = rhoTildeRe[j * dim + k]!;
         const ri = rhoTildeIm[j * dim + k]!;
         if (rr === 0 && ri === 0) continue;
-        const w = (eig.values[j]! - eig.values[k]!) * t;
+        // the evolution phase is e^{-i(l_j - l_k)t} (evolveRho's own sign);
+        // the +i form agrees on every real rho~ (cos is even, the odd sin
+        // parts cancel in the jk sum) and silently misrotates a complex one
+        const w = -(eig.values[j]! - eig.values[k]!) * t;
         const c = Math.cos(w);
         const s = Math.sin(w);
         // (rr + i ri)(c + i s) * O~[k,j] — observable real, both parts scale

@@ -23,7 +23,11 @@ export type NonstoqErrorCode =
   /** 判定器内部：NO 证书未通过独立重推（不变量破坏，不是用户输入错）。 */
   | "InternalNoGoReverifyFailed"
   /** 实验/报告层：YES 证书未通过复核（不变量破坏，不是用户输入错）。 */
-  | "CertificateVerificationFailed";
+  | "CertificateVerificationFailed"
+  /** Rng.int：maxExclusive 必须是 ≥ 1 的整数（非整数/越界值静默产生有偏或不可能的索引）。 */
+  | "RngIntDomain"
+  /** Rng.range：区间端点必须有限且 min <= max（倒序/非有限区间静默产生倒序垃圾或 NaN）。 */
+  | "RngRangeDomain";
 
 export class NonstoqError extends Error {
   readonly code: NonstoqErrorCode;

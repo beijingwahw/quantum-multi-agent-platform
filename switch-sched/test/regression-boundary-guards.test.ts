@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { identity, isHermitian } from '../src/core/cmat.js';
+import { identity, isHermitian, mAdd, mScale } from '../src/core/cmat.js';
 import { KET0, vecToRho } from '../src/core/states.js';
+import { traceDistance } from '../src/core/measures.js';
 import { krausToStinespring } from '../src/switch/isometry.js';
 import { replacerKraus } from '../src/switch/chanlib.js';
 import { firstPartyProcess } from '../src/process/cj.js';
@@ -37,4 +38,20 @@ test('firstPartyProcess rejects a non-qubit channel (was: silently misindexed 16
   const w = firstPartyProcess('A', rho, replacerKraus(2));
   assert.equal(w.rows, 16);
   assert.ok(isHermitian(w));
+});
+
+test('mAdd rejects mismatched shapes; traceDistance inherits the refusal (was: plausible sums from the first cells)', () => {
+  // before the guard, mAdd(2x2, 16x16) read past the shorter operand and
+  // built a plausible number from its first cells — the exact class mMul
+  // refuses by name and nosignal-tariff convicted at its own copy; the public
+  // traceDistance flows through mAdd, so a mismatched pair used to ship a
+  // confident distance instead of an error
+  const two = vecToRho(KET0);
+  const four = identity(16);
+  assert.throws(() => mAdd(two, four), /shape mismatch 2x2 \+ 16x16/);
+  assert.throws(() => traceDistance(two, four), /shape mismatch 2x2 \+ 16x16/);
+  // the honest same-shape path stays the exact referee: rho + 0 = rho and
+  // T(rho, rho) = 0
+  assert.deepEqual(Array.from(mAdd(two, mScale(two, 0)).re), Array.from(two.re));
+  assert.equal(traceDistance(two, two), 0);
 });

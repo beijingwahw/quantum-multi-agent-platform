@@ -14,7 +14,7 @@ import { dataBasisState, demoProgram, program, randomCircuit, runCircuit } from 
 import { assemble, buildPropagation } from "../src/compile/hamiltonian.js";
 import { clockRho, historyState, staticReadoutFidelity } from "../src/compile/history.js";
 import { Rng, randomDataState } from "../src/compile/rng.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function groundCount(values: Float64Array, tol: number): number {
   let c = 0;
@@ -182,4 +182,4 @@ function run(): void {
   }
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

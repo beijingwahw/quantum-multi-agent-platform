@@ -1,3 +1,5 @@
+import { requireThat } from "./errors.js";
+
 /**
  * Deterministic seeded RNG (mulberry32).
  *
@@ -26,11 +28,25 @@ export class Rng {
 
   /** Uniform in [min, max). */
   range(min: number, max: number): number {
+    requireThat(
+      Number.isFinite(min) && Number.isFinite(max) && min <= max,
+      "RNG_RANGE",
+      `range(min, max) needs finite bounds with min <= max (a reversed or non-finite interval silently draws descending garbage or NaN), got min=${min}, max=${max}`,
+    );
     return min + (max - min) * this.next();
   }
 
   /** Uniform integer in [0, maxExclusive). */
   int(maxExclusive: number): number {
+    // refuse BEFORE any draw so legal seeded streams stay bit-identical —
+    // a non-integer bound has no uniform value (int(2.5) draws 0/1/2 at
+    // 40/40/20) and 0/negative/Infinity return impossible indices; the same
+    // guard the qverify/quantum-mech/k-switch/qram-sched cores carry
+    requireThat(
+      Number.isInteger(maxExclusive) && maxExclusive >= 1,
+      "RNG_INT_RANGE",
+      `int(maxExclusive) draws uniformly from [0, maxExclusive): integer >= 1 required, got ${maxExclusive}`,
+    );
     return Math.floor(this.next() * maxExclusive);
   }
 }

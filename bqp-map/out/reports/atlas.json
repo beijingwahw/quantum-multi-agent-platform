@@ -470,7 +470,7 @@
         {
           "kind": "cross-prototype",
           "ref": "ds_extracted/ds",
-          "note": "platform benchmarks: NP-hard track 5/5 vs 0/5"
+          "note": "platform benchmarks: NP-hard track 5/5 vs best classical 3/5 (v1.11 unified-accounting erratum — the earlier 0/5 was a half-ledger artifact; npm run bench reproduces)"
         }
       ]
     },
@@ -870,7 +870,7 @@
         {
           "kind": "cross-prototype",
           "ref": "ds_extracted/ds",
-          "note": "the platform repo: 292/292 tests, Hungarian parity, NP-hard 5/5 vs 0/5 benchmarks"
+          "note": "the platform repo: Hungarian parity, NP-hard 5/5 vs best classical 3/5 benchmarks (unified accounting; suite counts are machine-audited THERE by npm test, never quoted here)"
         },
         {
           "kind": "cross-prototype",

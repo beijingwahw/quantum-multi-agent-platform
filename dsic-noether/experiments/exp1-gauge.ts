@@ -13,7 +13,7 @@
 import { Rng } from "../src/core/rng.js";
 import { buildWorld } from "../src/mech/world.js";
 import { clarkeH, deviationGain, payment, welfareGap } from "../src/mech/groves.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -80,4 +80,4 @@ function run(): void {
   }
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

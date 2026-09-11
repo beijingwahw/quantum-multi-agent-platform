@@ -2,7 +2,7 @@
  * PHASE-LAW — the census: hit-rate curves in λ, thresholds, scaling.
  * Every optimum by enumeration; every hit an honest count.
  */
-import { anneal, enumerateAll, greedy, localSearch, makeInstance, optimumOf, welfareOf, type CoupledInstance } from "./law.js";
+import { anneal, enumerateAll, greedy, localSearch, makeInstance, optimumOf, welfareOf, type Assignment, type CoupledInstance } from "./law.js";
 import { firstDownCross, firstUpCrossAfter, minIndex } from "./curves.js";
 
 export type SolverId = "greedy" | "local-search" | "anneal";
@@ -54,6 +54,29 @@ function solveWith(solver: SolverId, inst: CoupledInstance): number[] {
   }
 }
 
+/** The enumerated optimum at λ from ONE λ=0 leaf set: welfare is linear in λ
+ * (W = w0 + λ·I), so max over the same leaves in the same order — the leaf
+ * order and the strict-greater comparison are optimumOf's own, so the value
+ * is bit-identical to optimumOf(makeInstance(..., λ)).welfare while the
+ * enumeration itself is paid once per (size, seed), not once per (λ, solver,
+ * seed) — the densityCampaign precedent, single-sourced here. */
+function optWelfare(leaves: readonly Assignment[], lambda: number): number {
+  let best = -Infinity;
+  for (const a of leaves) {
+    const w = a.w0 + (a.usesBoth ? lambda : 0);
+    if (w > best) best = w;
+  }
+  return best;
+}
+
+/** The λ=0 leaves of every (size, seed) cell — one enumeration serves the
+ * whole λ grid (see optWelfare). */
+function leavesBySeed(m: number, n: number, seeds: number): Assignment[][] {
+  const out: Assignment[][] = [];
+  for (let k = 1; k <= seeds; k++) out.push(enumerateAll(makeInstance(m, n, 500 * k, 0)));
+  return out;
+}
+
 export function census(
   sizes: ReadonlyArray<readonly [number, number]> = SIZES,
   lambdas: readonly number[] = LAMBDA_GRID,
@@ -61,12 +84,13 @@ export function census(
 ): CensusPoint[] {
   const points: CensusPoint[] = [];
   for (const [m, n] of sizes) {
+    const leaves = leavesBySeed(m, n, seeds);
     for (const lambda of lambdas) {
       for (const solver of ["greedy", "local-search", "anneal"] as const) {
         let hits = 0;
         for (let k = 1; k <= seeds; k++) {
           const inst = makeInstance(m, n, 500 * k, lambda);
-          const opt = optimumOf(inst).welfare;
+          const opt = optWelfare(leaves[k - 1]!, lambda);
           const w = welfareOf(inst, solveWith(solver, inst));
           if (Math.abs(w - opt) < 1e-9) hits++;
         }
@@ -132,12 +156,13 @@ export function campaign(
 ): CampaignCell[] {
   const cells: CampaignCell[] = [];
   for (const [m, n] of sizes) {
+    const leaves = leavesBySeed(m, n, seeds);
     for (const solver of solvers) {
       const hitRates = lambdas.map((lambda) => {
         let hits = 0;
         for (let k = 1; k <= seeds; k++) {
           const inst = makeInstance(m, n, 500 * k, lambda);
-          const opt = optimumOf(inst).welfare;
+          const opt = optWelfare(leaves[k - 1]!, lambda);
           const w = welfareOf(inst, solveWith(solver, inst));
           if (Math.abs(w - opt) < 1e-9) hits++;
         }
@@ -179,11 +204,12 @@ export function islandCampaign(
 ): IslandCell[] {
   const cells: IslandCell[] = [];
   for (const [m, n] of sizes) {
+    const leaves = leavesBySeed(m, n, seeds);
     const hitRates = lambdas.map((lambda) => {
       let hits = 0;
       for (let k = 1; k <= seeds; k++) {
         const inst = makeInstance(m, n, 500 * k, lambda);
-        const opt = optimumOf(inst).welfare;
+        const opt = optWelfare(leaves[k - 1]!, lambda);
         const w = welfareOf(inst, solveWith(solver, inst));
         if (Math.abs(w - opt) < 1e-9) hits++;
       }

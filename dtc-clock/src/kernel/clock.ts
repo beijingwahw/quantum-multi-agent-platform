@@ -560,10 +560,17 @@ export function yFlipReadCensus(
   const dims = makeComposite(n, gates, m);
   const flipZ = (z: number): number => z ^ 1;
   const signZ = (z: number): number => (z & 1) === 1 ? -1 : 1;
-  // Y rho Y = X (Z rho Z) X, each an O((CD)^2) structured map on bit 0
+  // Y rho Y = X (Z rho Z) X, each an O((CD)^2) structured map on bit 0.
+  // The channel is (1-q) rho + q Y rho Y: only the q-branch is the composed
+  // conjugation (the flip-source entry carries the Z signs of the FLIPPED
+  // indices, and signZ(z^1) = -signZ(z) — the double negation lands back on
+  // s1*s2). The v0.4.0 form ran the Z pass over the WHOLE state before the X
+  // mixture, shipping (1-q) Z rho Z + q Y rho Y — a different channel that
+  // agreed with this one on every census row only because the orbit
+  // trajectory is basis-diagonal and Z rho Z = rho there; the twin below
+  // carried the same composition, so their comparison could not see it.
   const pauliY = (rho: CMat): CMat => {
-    // Z pass: scale (z1,z2) block by signZ(z1)*signZ(z2)
-    const afterZ: CMat = {
+    const out: CMat = {
       rows: rho.rows,
       cols: rho.cols,
       re: new Float64Array(rho.re.length),
@@ -572,34 +579,14 @@ export function yFlipReadCensus(
     const d = rho.cols;
     for (let z1 = 0; z1 < dims.clockDim; z1++) {
       const s1 = signZ(z1);
-      for (let z2 = 0; z2 < dims.clockDim; z2++) {
-        const s = s1 * signZ(z2);
-        for (let d1 = 0; d1 < dims.runnerDim; d1++) {
-          for (let d2 = 0; d2 < dims.runnerDim; d2++) {
-            const i = (z1 * dims.runnerDim + d1) * d + (z2 * dims.runnerDim + d2);
-            afterZ.re[i] = s * rho.re[i]!;
-            afterZ.im[i] = s * rho.im[i]!;
-          }
-        }
-      }
-    }
-    // X pass: mix (1-q) id + q flip-source
-    const out: CMat = {
-      rows: rho.rows,
-      cols: rho.cols,
-      re: new Float64Array(rho.re.length),
-      im: new Float64Array(rho.im.length),
-    };
-    for (let z1 = 0; z1 < dims.clockDim; z1++) {
-      const f1 = flipZ(z1);
       for (let d1 = 0; d1 < dims.runnerDim; d1++) {
         for (let z2 = 0; z2 < dims.clockDim; z2++) {
-          const f2 = flipZ(z2);
+          const s = s1 * signZ(z2);
           for (let d2 = 0; d2 < dims.runnerDim; d2++) {
             const dst = (z1 * dims.runnerDim + d1) * d + (z2 * dims.runnerDim + d2);
-            const src = (f1 * dims.runnerDim + d1) * d + (f2 * dims.runnerDim + d2);
-            out.re[dst] = (1 - q) * afterZ.re[dst]! + q * afterZ.re[src]!;
-            out.im[dst] = (1 - q) * afterZ.im[dst]! + q * afterZ.im[src]!;
+            const src = (flipZ(z1) * dims.runnerDim + d1) * d + (flipZ(z2) * dims.runnerDim + d2);
+            out.re[dst] = (1 - q) * rho.re[dst]! + q * s * rho.re[src]!;
+            out.im[dst] = (1 - q) * rho.im[dst]! + q * s * rho.im[src]!;
           }
         }
       }
@@ -619,15 +606,14 @@ export function yFlipReadCensus(
       im: new Float64Array(t.im.length),
     };
     for (let z1 = 0; z1 < dims.clockDim; z1++) {
-      const f1 = flipZ(z1);
       const s1 = signZ(z1);
       for (let z2 = 0; z2 < dims.clockDim; z2++) {
-        const f2 = flipZ(z2);
         const s2 = signZ(z2);
         const dst = z1 * t.cols + z2;
-        const src = f1 * t.cols + f2;
-        o.re[dst] = (1 - q) * (s1 * s2 * t.re[dst]!) + q * (s1 * s2 * t.re[src]!);
-        o.im[dst] = (1 - q) * (s1 * s2 * t.im[dst]!) + q * (s1 * s2 * t.im[src]!);
+        const src = flipZ(z1) * t.cols + flipZ(z2);
+        // same channel as pauliY: (1-q) identity, q the Y-conjugated source
+        o.re[dst] = (1 - q) * t.re[dst]! + q * (s1 * s2 * t.re[src]!);
+        o.im[dst] = (1 - q) * t.im[dst]! + q * (s1 * s2 * t.im[src]!);
       }
     }
     return o;

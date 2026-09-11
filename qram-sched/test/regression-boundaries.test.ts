@@ -1,8 +1,8 @@
 /**
- * Boundary pins from this upgrade's audit. No defect was fixable here — the
- * v0.3.0 hardening pass had already closed the illegal-input classes — so
- * these tests pin the two boundary analyses the audit had to perform, so
- * they never have to be re-derived from scratch:
+ * Boundary pins from this upgrade's audit. The v0.3.0 hardening pass had
+ * already closed most illegal-input classes, so the first tests pin the two
+ * boundary analyses the audit had to perform, so they never have to be
+ * re-derived from scratch:
  *
  *  1. adversarialRun's unnormalized Exp3 weights cannot reach the double-
  *     precision overflow line at sane horizons (the per-win exponent is
@@ -13,14 +13,34 @@
  *     byte-identical whenever the bounded-error search does not miss, and
  *     groverFindBetter's ledger floor is one sweep even when nothing is
  *     better (t = 0 exits after the first sweep's reads).
+ *
+ * The 2026-09-11 second-pass wave then found and fixed three real defects,
+ * each pinned below from its ILLEGAL side with the legal neighbor kept:
+ *  - Rng.int accepted non-integer bounds (a biased silent draw — the guard
+ *    the qverify/quantum-mech/k-switch cores already carried);
+ *  - etcRun shipped NaN regret with decisions 255 at samplesPerArm = 0
+ *    (no exploration leaves commit = -1);
+ *  - BucketBrigadeQram.write silently lost fractional-address updates
+ *    (Float64Array non-index assignment is a no-op).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { adversarialRun } from "../src/bandit/classical.js";
+import { adversarialRun, etcRun } from "../src/bandit/classical.js";
 import { groverFindBetter } from "../src/online/grover.js";
 import { rankingMatch, randomInstance } from "../src/online/matching.js";
 import { Rng } from "../src/core/rng.js";
+import { BucketBrigadeQram } from "../src/qram/bucket.js";
+import { QramError } from "../src/core/errors.js";
+
+/** The package's rejection referee: a QramError carrying exactly `code`. */
+function namedCode(code: string): (e: unknown) => boolean {
+  return (e: unknown): boolean => {
+    assert.ok(e instanceof QramError, `not a QramError: ${String(e)}`);
+    assert.equal(e.code, code, `wrong code (got ${e.code})`);
+    return true;
+  };
+}
 
 const argmax = <T,>(scores: readonly T[], less: (x: T, y: T) => boolean) => {
   let best = 0;
@@ -63,4 +83,54 @@ test("boundary pin: linear and grover RANKING agree exactly on a no-miss seed (d
     assert.equal(lin.size, quant.size, "no bounded-error misses: sizes must coincide");
   }
   assert.ok(lin.reads === 16 * inst.arrivals.length, `linear ledger is exactly n per arrival (${lin.reads})`);
+});
+
+// ---------------- the 2026-09-11 second-pass defect fixes ----------------
+
+test("regression: Rng.int refuses non-integer bounds (was: silently biased draws)", () => {
+  // int(2.5) drew 0/1/2 at 40/40/20 and int(Infinity) returned Infinity — the
+  // exact guard drift the qverify/quantum-mech/k-switch rng cores fixed
+  const rng = new Rng(9);
+  assert.throws(() => rng.int(2.5), namedCode("RNG_INT_RANGE"));
+  assert.throws(() => rng.int(Infinity), namedCode("RNG_INT_RANGE"));
+  assert.throws(() => rng.int(0.5), namedCode("RNG_INT_RANGE"));
+  // the guard sits BEFORE any draw: the seeded stream is untouched by the
+  // refusals above, and the legal bounds keep their exact endpoints
+  assert.equal(rng.int(1), 0);
+  for (let i = 0; i < 50; i++) {
+    const k = rng.int(8);
+    assert.ok(Number.isInteger(k) && k >= 0 && k < 8);
+  }
+});
+
+test("regression: etcRun refuses samplesPerArm < 1 (was: NaN regret, decisions 255)", () => {
+  const means = [0.6, 0.3];
+  assert.throws(() => etcRun(means, 10, 0, 7, "live"), namedCode("BANDIT_ARG_RANGE"));
+  assert.throws(() => etcRun(means, 10, 1.5, 7, "replay"), namedCode("BANDIT_ARG_RANGE"));
+  // the legal boundary: one sample per arm explores, commits, and reports a
+  // finite regret with every decision a real arm index
+  const run = etcRun(means, 10, 1, 7, "live");
+  assert.ok(Number.isFinite(run.regret), `regret ${run.regret}`);
+  assert.equal(run.plays, 10);
+  for (const d of run.decisions) assert.ok(d === 0 || d === 1, `decision ${d}`);
+});
+
+test("regression: BucketBrigadeQram.write refuses fractional addresses (was: silent no-op update)", () => {
+  const qram = new BucketBrigadeQram(2);
+  assert.throws(
+    () => {
+      qram.write(1.5, 0.9);
+    },
+    namedCode("QRAM_ADDRESS_RANGE"),
+  );
+  assert.throws(
+    () => {
+      qram.write(-0.5, 0.9);
+    },
+    namedCode("QRAM_ADDRESS_RANGE"),
+  );
+  // the legal neighbor lands the value and charges the routing pass
+  qram.write(1, 0.9);
+  assert.equal(qram.cells[1], 0.9);
+  assert.equal(qram.totalActivations, 2); // one write = n routing-node activations
 });

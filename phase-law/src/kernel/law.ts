@@ -160,12 +160,15 @@ export function localSearch(inst: CoupledInstance, start: readonly number[]): nu
     let bestGain = 0;
     let bestT = -1;
     let bestA = -1;
+    // the start's welfare is a loop invariant until a move is taken — hoisted
+    // (the density twin kPairLocalSearch already reads it this way)
+    const curW = welfareOf(inst, current);
     for (let t = 0; t < inst.m; t++) {
       for (let a = 0; a < inst.n; a++) {
         if (a === current[t] || current.includes(a)) continue;
         const cand = current.slice();
         cand[t] = a;
-        const gain = welfareOf(inst, cand) - welfareOf(inst, current);
+        const gain = welfareOf(inst, cand) - curW;
         if (gain > bestGain + 1e-12) {
           bestGain = gain;
           bestT = t;
@@ -358,6 +361,12 @@ export function hungarianMax(weights: readonly number[][]): number[] {
 /** The decomposition optimum for the coupled regime (λ > λ_opt*). */
 export function coupledRegimeOptimum(inst: CoupledInstance): number {
   const { m, n, weights, lambda } = inst;
+  // the decomposition enumerates ordered task PAIRS (i→a0, j→a1) — with a
+  // single task no pair exists and the loops below would return −Infinity as
+  // a confident number (the sibling entry point coupledRegimeDeviation can
+  // never reach it — λ* = Infinity at m = 1 refuses first — so this guard is
+  // for the direct caller)
+  if (m < 2) throw new Error("coupledRegimeOptimum requires m >= 2 — one task cannot occupy both entangled agents");
   let best = -Infinity;
   for (let i = 0; i < m; i++) {
     for (let j = 0; j < m; j++) {
@@ -516,34 +525,46 @@ export function kPairAllRegimeOptimum(inst: KPairInstance): number {
   // (densityCampaign and integerCj already refuse this at their boundaries)
   if (2 * k > n) throw new Error("all-k regime requires n >= 2k — wrong object");
   if (2 * k > m) throw new Error("all-k regime requires m >= 2k — wrong object");
-  // slot matrix: task t, slot s (agent index 0..2k-1) → weight w[t][s]
+  // an assignment needs one distinct agent per task — hungarianMax's own
+  // shape law, named HERE so the refusal names the instance, not the matrix
+  if (m > n) throw new Error("all-k regime requires m <= n — an assignment needs one agent per task");
+  if (m > 2 * k) {
+    // m > 2k: the two-stage road below cannot run — its slot matrix is m x 2k
+    // (more tasks than slots), and even transposed it would fix WHICH tasks
+    // fill the slots before the rest matching is priced, which is not the
+    // global optimum. The non-uniform twin's construction instead (PL19's
+    // nuAllKOptimum, the registered pattern): ONE coverage-forced Hungarian
+    // over the full m x n matrix, every pair-agent column augmented by
+    // M = m + 1 (> any welfare difference, weights < 1) so the max-weight
+    // matching fills all 2k pair agents; the value is scored from the
+    // ORIGINAL weights — M steers the argmax only, it never enters the sum.
+    const M = m + 1;
+    const augmented = weights.map((row) => row.map((w, a) => (a < 2 * k ? w + M : w)));
+    const assign = hungarianMax(augmented);
+    let total = 0;
+    let slotsUsed = 0;
+    for (let t = 0; t < m; t++) {
+      const a = assign[t]!;
+      if (a < 2 * k) slotsUsed++;
+      total += weights[t]![a]!;
+    }
+    if (slotsUsed !== 2 * k) {
+      throw new Error("all-k regime: coverage trick failed to fill the slots — wrong object");
+    }
+    return total + k * lambda;
+  }
+  // m = 2k (the pinned PL15 road): slot matrix: task t, slot s (agent index
+  // 0..2k-1) → weight w[t][s]
   const slotMatrix = Array.from({ length: m }, (_, t) =>
     Array.from({ length: 2 * k }, (_, s) => weights[t]![s]!),
   );
   const slotAssign = hungarianMax(slotMatrix);
-  const chosen: number[] = [];
   let slotW = 0;
   for (let t = 0; t < m; t++) {
     const s = slotAssign[t]!;
-    if (s >= 0) {
-      chosen.push(t);
-      slotW += weights[t]![s]!;
-    }
+    slotW += weights[t]![s]!;
   }
-  // the remaining tasks over the remaining agents
-  const restAgents: number[] = [];
-  for (let a = 2 * k; a < n; a++) restAgents.push(a);
-  const restTasks: number[] = [];
-  const chosenSet = new Set(chosen);
-  for (let t = 0; t < m; t++) if (!chosenSet.has(t)) restTasks.push(t);
-  const sub: number[][] = restTasks.map((t) => restAgents.map((a) => weights[t]![a]!));
-  const match = hungarianMax(sub);
-  let w = slotW + k * lambda;
-  restTasks.forEach((_t, idx) => {
-    const a = match[idx]!;
-    w += sub[idx]![a]!;
-  });
-  return w;
+  return slotW + k * lambda;
 }
 
 // ---------------------------------------------------------------------------

@@ -31,7 +31,13 @@ export class Rng {
 
   /** Uniform integer in [0, n). */
   int(n: number): number {
-    if (!(n >= 1)) reject("RNG_INT_RANGE", "int(n) draws from [0, n): n >= 1 required");
+    // a non-integer n has no uniform value in [0, n): floor(next()*n) would
+    // silently draw a biased index (int(2.5) gives 40/40/20, not 3-way) and
+    // n = Infinity an out-of-range one — the guard the qverify/quantum-mech/
+    // k-switch rng cores already carry, missed here at the 2026-09-11 wave
+    if (!Number.isInteger(n) || n < 1) {
+      reject("RNG_INT_RANGE", "int(n) draws uniformly from [0, n): integer n >= 1 required");
+    }
     return Math.floor(this.next() * n);
   }
 

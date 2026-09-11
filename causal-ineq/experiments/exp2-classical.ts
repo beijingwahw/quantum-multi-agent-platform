@@ -3,7 +3,7 @@
  * strategy in both orders, success capped at exactly 3/4.
  */
 import { sweepDeterministic } from "../src/game/classical.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const r = sweepDeterministic();
@@ -27,4 +27,4 @@ function run(): void {
   console.log(`exp2 done -> ${file} — max = ${r.maxSuccess}`);
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

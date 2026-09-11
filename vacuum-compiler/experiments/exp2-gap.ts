@@ -14,7 +14,7 @@ import { GATES, embedSingle } from "../src/compile/gates.js";
 import { demoProgram, program, randomCircuit } from "../src/compile/circuit.js";
 import { assemble, bareClockChain, buildDressing, buildPropagation, clockChainEigenvalue } from "../src/compile/hamiltonian.js";
 import { Rng } from "../src/compile/rng.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function identityCircuit(nQubits: number, depth: number) {
   const eye = GATES[0]!.m;
@@ -147,4 +147,4 @@ function run(): void {
   }
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

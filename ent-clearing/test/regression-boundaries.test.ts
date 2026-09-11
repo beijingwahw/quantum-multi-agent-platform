@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mat } from "../src/core/cmat.js";
+import { mat, mAdd } from "../src/core/cmat.js";
+import { applyKraus, filterBasisDigit } from "../src/core/channels.js";
+import { traceDistance } from "../src/core/measures.js";
 import { maximallyMixed } from "../src/core/states.js";
 import {
   concurrence,
@@ -76,5 +78,55 @@ describe("regression: named refusals on degenerate and out-of-domain input (no s
     assert.throws(() => hashingLineWerner(0), /EC_F_RANGE/);
     assert.throws(() => hashingLineWerner(1), /EC_F_RANGE/);
     assert.throws(() => hashingLineWerner(Number.NaN), /EC_F_RANGE/);
+  });
+
+  it("filterBasisDigit refuses a dims product that misses the matrix (was: silent misdecomposed digits)", () => {
+    // convicted: a 4x4 state against dims [2] decomposes digits that do not
+    // exist — the filter silently kept the even-indexed cells and returned a
+    // plausible-looking conditional instead of an error (the exact class the
+    // sibling guards partialTrace/partialTranspose/marginalProbs already carry)
+    const four = maximallyMixed(4);
+    assert.throws(() => filterBasisDigit(four, [2], 0, 0), /EC_DIMS_MISMATCH: filterBasisDigit/);
+    assert.throws(() => filterBasisDigit(four, [2, 4], 0, 0), /EC_DIMS_MISMATCH: filterBasisDigit/);
+    // legal neighbor pin: the matching dims still filter exactly — the kept
+    // block of I/4 (p = 1/2 over the digit-0 cell) conditionally becomes I/2
+    // on the {0,1} x {0,1} corner of the 4x4 conditional (flat 0 and 5)
+    const { p, conditional } = filterBasisDigit(four, [2, 2], 0, 0);
+    assert.ok(Math.abs(p - 0.5) <= 1e-15);
+    assert.ok(Math.abs(conditional.re[0]! + conditional.re[5]! - 1) <= 1e-15);
+    assert.strictEqual(conditional.re[2]!, 0);
+  });
+
+  it("mAdd refuses mismatched shapes by name; traceDistance inherits the refusal", () => {
+    // convicted: traceDistance(2x2, 4x4) built a plausible distance from the
+    // first four cells of the larger state — mMul refuses the same by name
+    const two = maximallyMixed(2);
+    const four = maximallyMixed(4);
+    assert.throws(() => mAdd(two, four), /EC_SHAPE: mAdd cannot add 2x2 to 4x4/);
+    assert.throws(() => traceDistance(two, four), /EC_SHAPE: mAdd/);
+    // legal neighbor pin: equal shapes still add exactly, and the distance of
+    // a state from itself stays the exact 0
+    const sum = mAdd(two, two);
+    assert.strictEqual(sum.re[0]!, 1);
+    assert.strictEqual(traceDistance(two, two), 0);
+  });
+
+  it("applyKraus refuses a Kraus operator whose output dimension misses the state", () => {
+    // convicted: a 1x2 Kraus on a 2x2 state passed the inner mMul shape check,
+    // then read past its own cells while accumulating — a NaN state that
+    // looked built
+    const two = maximallyMixed(2);
+    const K = mat(1, 2);
+    K.re[0] = 1;
+    assert.throws(() => applyKraus(two, [K]), /EC_SHAPE: applyKraus needs every Kraus operator 2x2, got 1x2/);
+    // legal neighbor pin: the identity Kraus still returns the state exactly
+    const I2 = mat(2, 2);
+    I2.re[0] = 1;
+    I2.re[3] = 1;
+    const out = applyKraus(two, [I2]);
+    for (let k = 0; k < out.re.length; k++) {
+      assert.strictEqual(out.re[k]!, two.re[k]!);
+      assert.strictEqual(out.im[k]!, 0);
+    }
   });
 });

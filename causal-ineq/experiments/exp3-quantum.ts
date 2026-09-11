@@ -6,7 +6,7 @@
  */
 import { runProtocol, bobAngleBranch, COS2_PI_8 } from "../src/game/quantum.js";
 import { wChannelAB, wChannelBA, wMixed, wNoisy, wStar } from "../src/process/construct.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -77,4 +77,4 @@ function run(): void {
   console.log(`exp3 done -> ${file} — W* p_success = ${COS2_PI_8.toFixed(12)}`);
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

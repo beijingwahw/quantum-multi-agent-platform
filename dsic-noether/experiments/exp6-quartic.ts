@@ -34,7 +34,7 @@ import {
 } from "../src/continuum/poly.js";
 import * as gl from "../src/continuum/green-laffont.js";
 import * as q from "../src/continuum/quartic.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -244,4 +244,4 @@ function run(): void {
   }
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

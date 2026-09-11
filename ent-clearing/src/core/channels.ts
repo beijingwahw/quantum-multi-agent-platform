@@ -16,6 +16,14 @@ function checkDims(fn: string, dims: readonly number[]): void {
 
 /** Apply a CPTP map given its Kraus operators: Σ K ρ K†. */
 export function applyKraus(rho: CMat, kraus: readonly CMat[]): CMat {
+  // a Kraus operator with an output dimension other than ρ's passes mMul (only
+  // the inner shape is checked) and then reads past its own cells while
+  // accumulating — a NaN state that looks built; refuse it at the boundary
+  for (const k of kraus) {
+    if (k.rows !== rho.rows || k.cols !== rho.cols) {
+      throw new Error(`EC_SHAPE: applyKraus needs every Kraus operator ${rho.rows}x${rho.cols}, got ${k.rows}x${k.cols}`);
+    }
+  }
   const out = mat(rho.rows, rho.cols);
   for (const k of kraus) {
     const kr = mMul(mMul(k, rho), mDagger(k));
@@ -228,6 +236,11 @@ export function filterBasisDigit(
   // return a zero conditional instead of an error
   if (!Number.isInteger(digit) || digit < 0 || digit >= dsys) {
     throw new Error(`EC_INDEX: filterBasisDigit: digit ${digit} out of range for subsystem dimension ${dsys}`);
+  }
+  // a dims product that misses the matrix decomposes digits that do not exist
+  // — corruption invisible on the diagonals (the sibling guards' class)
+  if (rho.rows !== dims.reduce((a, b) => a * b, 1)) {
+    throw new Error(`EC_DIMS_MISMATCH: filterBasisDigit dims product ${dims.reduce((a, b) => a * b, 1)} does not match rho ${rho.rows}x${rho.cols}`);
   }
   const strides: number[] = new Array<number>(m);
   strides[m - 1] = 1;

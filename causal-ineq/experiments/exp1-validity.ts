@@ -5,7 +5,7 @@
  */
 import { checkValidity } from "../src/process/validity.js";
 import { wChannelAB, wChannelBA, wForbiddenF1, wForbiddenF3, wMixed, wNotPSD, wStar } from "../src/process/construct.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const rows: string[][] = [];
@@ -57,4 +57,4 @@ function run(): void {
   console.log(`exp1 done -> ${file}`);
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

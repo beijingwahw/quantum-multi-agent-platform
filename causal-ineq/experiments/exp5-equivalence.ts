@@ -17,7 +17,7 @@ import { runProtocol } from "../src/game/quantum.js";
 import { ocbStrategy, strategyBranchTables, strategyPayoff } from "../src/game/strategy.js";
 import { branchTableDeviation, equivalenceReport, equivalenceVerdict, ocb12ClosedFormTables, wLC25, wOCB12, wOCB12TamperedCoeff, wOCB12TamperedPauli } from "../src/process/ocb12.js";
 import { COS2_PI_8 } from "../src/game/quantum.js";
-import { table, writeReport } from "./report.js";
+import { runIfMain, table, writeReport } from "./report.js";
 
 function run(): void {
   const failures: string[] = [];
@@ -106,4 +106,4 @@ function run(): void {
   console.log(`exp5 done -> ${file} — W* ≡ OCB12 eq.(7) ≡ LC25 S_OCB,1 (dev ${rep.wVsOCB12.toExponential(1)}), tables dev ${rep.tablesVsClosedForm.toExponential(1)}`);
 }
 
-run();
+runIfMain(import.meta.url, process.argv[1], run);

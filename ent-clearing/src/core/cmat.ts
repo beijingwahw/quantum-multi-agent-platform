@@ -92,6 +92,11 @@ export function outer(a: CVec, b: CVec): CMat {
 }
 
 export function mAdd(a: CMat, b: CMat): CMat {
+  // mismatched shapes read past the shorter operand and build a plausible
+  // number from its first cells — mMul refuses the same by name (EC_SHAPE)
+  if (a.rows !== b.rows || a.cols !== b.cols) {
+    throw new Error(`EC_SHAPE: mAdd cannot add ${a.rows}x${a.cols} to ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
     m.re[k] = a.re[k]! + b.re[k]!;
