@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>量子多Agent开发调度平台 · README</title>
+<style>
+  :root {
+    --text: #1f2328;
+    --muted: #59636e;
+    --border: #d8dee4;
+    --bg-subtle: #f6f8fa;
+    --accent: #0969da;
+    --ok: #1a7f37;
+    --sans: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI Emoji", sans-serif;
+    --mono: "Cascadia Code", "Consolas", "Menlo", "Courier New", monospace;
+  }
+
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--sans), sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.72;
+    color: var(--text);
+    background: #ffffff;
+    text-rendering: optimizeLegibility;
+    line-break: strict;
+  }
+
+  /* ── Browser preview chrome (print output unaffected) ── */
+  @media screen {
+    html { background: #e8ecf0; }
+    body { background: #e8ecf0; padding: 28px 12px; }
+    .doc {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 15mm 15mm 18mm;
+      box-shadow: 0 2px 28px rgba(31, 35, 40, 0.16);
+      border-radius: 2px;
+    }
+  }
+
+  .doc { overflow-wrap: break-word; }
+
+  p { margin: 8px 0; orphans: 3; widows: 3; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 700; }
+
+  /* ── Document header ── */
+  .doc-header { margin-bottom: 10px; }
+  .doc-title {
+    margin: 0 0 4px;
+    font-size: 21pt;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  .doc-subtitle {
+    margin: 0 0 10px;
+    font-size: 12.5pt;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .lang-note {
+    margin: 0 0 12px;
+    padding: 6px 14px;
+    border-left: 4px solid #d0d7de;
+    color: var(--muted);
+    font-size: 9.5pt;
+  }
+
+  /* ── Badges (shields.io equivalents, vector) ── */
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+  .badge {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: 8.8pt;
+    font-weight: 600;
+    line-height: 1;
+    color: #ffffff;
+  }
+  .badge .b-l { background: #555555; padding: 4.5px 7px; }
+  .badge .b-v { padding: 4.5px 7px; }
+
+  /* ── Headings ── */
+  h2 {
+    font-size: 15.5pt;
+    font-weight: 700;
+    line-height: 1.4;
+    margin: 26px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--border);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 12.5pt;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 20px 0 8px;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .pb { break-before: page; page-break-before: always; }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9.3pt;
+    line-height: 1.55;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  table.long { break-inside: auto; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 5px 9px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  th { background: var(--bg-subtle); font-weight: 700; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  td.c, th.c { text-align: center; white-space: nowrap; }
+  td.win { color: var(--ok); font-weight: 700; }
+
+  /* ── Figures ── */
+  figure {
+    margin: 14px 0;
+    text-align: center;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    border: 1px solid #e4e9ee;
+    border-radius: 4px;
+  }
+  figure.diagram svg { width: 100%; height: auto; }
+
+  /* ── Code ── */
+  code {
+    font-family: var(--mono), monospace;
+    font-size: 0.90em;
+    background: rgba(175, 184, 193, 0.22);
+    border-radius: 4px;
+    padding: 0.5px 5px;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 13px;
+    margin: 12px 0;
+    font-family: var(--mono), monospace;
+    font-size: 8.8pt;
+    line-height: 1.62;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
+  pre .c { color: var(--muted); }
+  pre .s { color: #0a3069; }
+  pre .k { color: #cf222e; }
+
+  /* ── Blockquotes & lists ── */
+  blockquote {
+    margin: 12px 0;
+    padding: 4px 14px;
+    border-left: 4px solid #d0d7de;
+    color: var(--muted);
+  }
+  blockquote p { margin: 6px 0; }
+  ul, ol { margin: 8px 0; padding-left: 26px; }
+  li { margin: 3.5px 0; }
+  .footnote { font-size: 9pt; color: var(--muted); }
+  .note { font-size: 9.3pt; color: var(--muted); }
+
+  hr {
+    border: 0;
+    border-top: 1.5px solid var(--border);
+    margin: 22px 0;
+  }
+
+  /* ── Sequence diagram ── */
+  .seqdiagram { display: block; margin: 0 auto; max-width: 680px; }
+  .seqdiagram text { font-family: var(--sans), sans-serif; }
+  .seqdiagram .actor-box { fill: var(--bg-subtle); stroke: #b6bec7; stroke-width: 1.2; }
+  .seqdiagram .actor-name { fill: var(--text); font-size: 14px; font-weight: 700; }
+  .seqdiagram .lifeline { stroke: #c7cdd4; stroke-width: 1; }
+  .seqdiagram .msg-label { fill: var(--text); font-size: 13px; }
+  .seqdiagram .arrow { stroke: #57606a; stroke-width: 1.6; fill: none; }
+  .seqdiagram .arrow-dashed { stroke-dasharray: 7 5; }
+  .seqdiagram .note-box { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1; }
+  .seqdiagram .note-text { fill: #4d2d00; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ══════════════ Header ══════════════ -->
+  <header class="doc-header">
+    <h1 class="doc-title">⚛️ 量子多Agent开发调度平台</h1>
+    <p class="doc-subtitle">Quantum Multi-Agent Development &amp; Scheduling Platform</p>
+    <p class="lang-note">🇬🇧 <strong>English version</strong>: <code>README.en.md</code>（图内文字为中文，图注附英文关键词）</p>
+    <div class="badges">
+      <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.12.0</span></span>
+      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">520</span></span>
+      <span class="badge"><span class="b-l">TypeScript</span><span class="b-v" style="background:#007ec6">5.9 strict</span></span>
+      <span class="badge"><span class="b-l">node</span><span class="b-v" style="background:#97ca00">&gt;=22</span></span>
+      <span class="badge"><span class="b-l">license</span><span class="b-v" style="background:#9f9f9f">MIT</span></span>
+    </div>
+  </header>
+
+  <p>一个把<strong>真实量子算法</strong>（QAOA / 绝热量子退火 / Born 测量坍缩）作为调度决策引擎的多Agent平台：任务分配被编码为哈密顿量，在约束子空间上<strong>精确演化</strong>——联合调度规模达<strong>等效 80 量子比特</strong>（全空间模拟需 10¹⁵ TB 内存，宇宙尺度不可行），且在 NP-hard 耦合赛道上 <strong>5/5 精确命中最优</strong>（最强经典对手 3/5；<code>npm run bench</code> 一键复现，v1.11 统一记账勘误见<a href="#benchmarks">基准节</a>）。</p>
+
+  <figure><img src="docs/diagrams/01-architecture.png" alt="架构总览"></figure>
+
+  <p>本 README 的全部原理图由仓内脚本 <code>docs/diagrams/generate.py</code> 从<strong>真实工件</strong>（<code>out/bench/bench-report.json</code> 机器可读基准报告 + 公开实测数字）渲染，<code>python docs/diagrams/generate.py</code> 一键重建。</p>
+
+  <hr>
+
+  <!-- ══════════════ TOC ══════════════ -->
+  <h2 id="toc">📑 目录</h2>
+  <table>
+    <thead><tr><th class="c"></th><th>章节</th><th>看点</th></tr></thead>
+    <tbody>
+      <tr><td class="c">✨</td><td><a href="#core-features">核心能力</a></td><td>八项能力一览</td></tr>
+      <tr><td class="c">🏗️</td><td><a href="#architecture">架构总览</a></td><td>四层架构</td></tr>
+      <tr><td class="c">⚛️</td><td><a href="#quantum-core">量子调度核心</a></td><td>管线 · 哈密顿量 · 子空间 · 纤维 · QAOA · 退火 · Born</td></tr>
+      <tr><td class="c">🔌</td><td><a href="#qpu-routing">真 QPU 与执行分级</a></td><td>D-Wave · Qiskit · FTQC 三态路由</td></tr>
+      <tr><td class="c">🧠</td><td><a href="#market-research">市场机制研究线</a></td><td>增广 WDP · DSIC · 学习曲线</td></tr>
+      <tr><td class="c">📊</td><td><a href="#benchmarks">基准与性能</a></td><td>量子 5/5 · 匈牙利互证 · 23.5× 并行</td></tr>
+      <tr><td class="c">🚀</td><td><a href="#quick-start">快速开始</a></td><td>十条命令 + 代码示例</td></tr>
+      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>520 用例 · 六门禁 · 覆盖率棘轮</td></tr>
+      <tr><td class="c">📁</td><td><a href="#directory-structure">目录结构</a></td><td>含图集生成器</td></tr>
+      <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.12</td></tr>
+      <tr><td class="c">⚠️</td><td><a href="#honest-limits">诚实的边界</a></td><td>等效≠真机 · 组合爆炸 · 热路径</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ══════════════ 核心能力 ══════════════ -->
+  <h2 id="core-features">✨ 核心能力</h2>
+  <table>
+    <thead><tr><th class="c"></th><th>能力</th></tr></thead>
+    <tbody>
+      <tr><td class="c">⚛️</td><td><strong>真实量子物理引擎</strong>：复振幅态矢量、幺正演化（范数恒为 1.000000000000）、QAOA 变分电路、绝热退火、Born 规则测量坍缩</td></tr>
+      <tr><td class="c">🌌</td><td><strong>约束子空间突破</strong>：在合法分配集合（维度 P(n,m)）上精确演化，零罚项、纤维混合器闭式解，等效 80 量子比特</td></tr>
+      <tr><td class="c">🔗</td><td><strong>纠缠 = 物理耦合</strong>：agent 纠缠对进入哈密顿量耦合项，实测可翻转联合最优解</td></tr>
+      <tr><td class="c">🏆</td><td><strong>认证经典基线</strong>：线性赛道与匈牙利算法 O(n³) 逐点一致（独立算法互证）；NP-hard 耦合赛道 5/5 全胜</td></tr>
+      <tr><td class="c">🔌</td><td><strong>真 QPU 后端层</strong>：D-Wave Leap REST 客户端（真量子退火硬件）+ IBM Qiskit 程序导出 + 本地精确引擎自动回退</td></tr>
+      <tr><td class="c">🧭</td><td><strong>执行层级路由（v1.11）</strong>：FTQC 资源估算器（qLDPC gross [[144,12,12]]/surface 码目录，显式假设）在提交前判定任务发 NISQ、转 FTQC 等待队列（<code>FtqcDeferredError</code> 携带资源画像）或回退经典精确引擎</td></tr>
+      <tr><td class="c">🧠</td><td><strong>市场机制研究线</strong>：CompoundBrain 增长复利大脑（DSIC 定理 + 在线学习曲线校准）、批量 VCG、相变定律</td></tr>
+      <tr><td class="c">🔌</td><td><strong>完整平台能力</strong>：WebSocket 总线（487,448 msgs/s）、DSH 工具/工作流集成、Web 控制台、主动智能规则插件</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ══════════════ 架构总览 ══════════════ -->
+  <h2 id="architecture">🏗️ 架构总览</h2>
+  <p>平台分四层：<strong>接口层</strong>（Web 控制台 / SDK / WebSocket 总线）→ <strong>平台层</strong>（事件编排与快照广播）→ <strong>调度核心</strong>（优先级分桶、能力索引、并发背压）→ <strong>量子引擎层</strong>（全空间态矢量与约束子空间两套精确引擎，经典基线作对照，真 QPU 后端可切换）。市场机制研究线与主动智能插件通过 <code>MarketBrain</code> 接口接入，是独立的机制研究核心。</p>
+
+  <figure><img src="docs/diagrams/02-pipeline.png" alt="调度管线"></figure>
+
+  <p>如上管线图所示，每一批任务都经历一次完整的「编码 → 演化 → 观测」量子过程——这是本平台与“用量子词汇装饰的经典调度器”的本质区别（对照表见<a href="#quantum-core">量子调度核心</a>节）。</p>
+
+  <hr>
+
+  <!-- ══════════════ 量子调度核心 ══════════════ -->
+  <h2 id="quantum-core">⚛️ 量子调度核心</h2>
+
+  <h3>从隐喻到物理</h3>
+  <table>
+    <thead><tr><th>概念</th><th>v1.0（隐喻）</th><th>v1.3+（物理实现）</th></tr></thead>
+    <tbody>
+      <tr><td><strong>叠加态</strong></td><td>随机 <code>amplitude</code> 装饰字段</td><td>全部合法分配共存于 P(n,m) 维希尔伯特空间，复振幅</td></tr>
+      <tr><td><strong>演化</strong></td><td>无（直接加权评分）</td><td>薛定谔方程数值积分：QAOA 变分 / 绝热退火</td></tr>
+      <tr><td><strong>坍缩</strong></td><td><code>probability</code> = 分数归一化</td><td><strong>Born 规则</strong>：P(x) = ‖ψ(x)‖²，决策概率是真实量子概率</td></tr>
+      <tr><td><strong>纠缠</strong></td><td>字符串数组（调度无视）</td><td><strong>哈密顿量耦合项</strong> J·x₁x₂，改变基态（最优解）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1. 调度问题 → 物理问题：哈密顿量编码</h3>
+  <p>调度器把「m 个任务分给 n 个 agent」编码为一个对角代价哈密顿量：亲和度矩阵 <code>w</code> 进入对角（单点价值），agent 间的纠缠对进入耦合项 <code>J</code>（协作增益/冲突惩罚）——耦合项会<strong>移动基态</strong>，即改变最优联合分配，这是被测试钉住的对照面。</p>
+
+  <figure><img src="docs/diagrams/03-hamiltonian.png" alt="哈密顿量编码"></figure>
+
+  <p>无耦合时问题退化为线性分配问题（匈牙利 O(n³) 可精确求解，成为互证面）；有耦合时为 QAP 型 NP-hard——这正是子空间精确演化的主场。</p>
+
+  <h3>2. 约束子空间：为什么「等效 80 量子比特」是可能的</h3>
+  <p>直接模拟 8任务×10agent 需要 2⁸⁰ ≈ 1.2×10²⁴ 维态矢量（约 10¹⁵ TB 内存）；但<strong>合法分配只有 P(n,m) = n!/(n−m)! = 1,814,400 个</strong>——「每任务恰占一个不同 agent」的约束直接长在基上，罚项为零：</p>
+
+  <figure><img src="docs/diagrams/04-subspace.png" alt="全空间 vs 子空间"></figure>
+
+  <table>
+    <thead><tr><th></th><th>全空间态矢量</th><th>约束子空间</th></tr></thead>
+    <tbody>
+      <tr><td>希尔伯特维度</td><td>2^(m·n)</td><td><strong>P(n,m) = n!/(n−m)!</strong></td></tr>
+      <tr><td>8任务×10agent</td><td>2⁸⁰ ≈ 1.2×10²⁴ 维（≈10¹⁵ TB，不可行）</td><td><strong>1,814,400 维（≈150 MB，42 秒精确解）</strong></td></tr>
+      <tr><td>约束处理</td><td>二次罚项（能量尺度压缩风险）</td><td><strong>内建于子空间（零罚项）</strong></td></tr>
+      <tr><td>混合算符</td><td>X 旋转（逐比特）</td><td><strong>纤维完全图旋转（闭式精确）</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>3. 纤维混合器：约束子空间上的闭式幺正</h3>
+  <p>子空间引擎的核心构造：把「移动单个任务的指派」看作图上的邻接算符——固定其余任务后，单任务的自由落点构成<strong>完全图 K_k = J − I</strong>，其矩阵指数有闭式解，于是混合层可以逐纤维<strong>精确</strong>施加、O(dim) 完成、零 Trotter 误差：</p>
+
+  <figure><img src="docs/diagrams/05-fiber.png" alt="纤维混合器"></figure>
+
+  <p>绝热初态取均匀叠加：由 Perron–Frobenius 定理，非负邻接阵的顶本征矢恰为 −ΣA 的基态——初态即初哈密顿量基态，无制备缺口。n = m 时自动切换换位（transposition）混合器。</p>
+
+  <h3>4. QAOA 变分电路与两种角度布局</h3>
+  <p>全空间引擎实现交替层 QAOA（代价层 <code>e^{−iγC}</code> × 混合层，p 层，坐标下降离线优化角度）；v1.10 引入 <strong>ma-QAOA</strong>（逐算子变分角）：</p>
+
+  <figure><img src="docs/diagrams/06-qaoa.png" alt="QAOA 电路与角度布局"></figure>
+
+  <p><strong>支配性是构造性定理，不是经验观察</strong>：multi 模式以 layer 最优角的展开态为种子（末态逐位相同），种子化坐标下降只接受严格改进 ⇒ 同一变分目标下 ⟨E⟩_multi ≤ ⟨E⟩_layer 恒成立。子空间变分 regime 实测增益显著（下图），全空间坍缩读数已饱和——如实不宣称收益，定理保证的支配依旧成立：</p>
+
+  <figure><img src="docs/diagrams/13-ma-qaoa.png" alt="ma-QAOA 构造性支配"></figure>
+
+  <p>另支持 <strong>CVaR 分位数目标</strong>（<code>cvarAlpha</code>，v1.9）：只优化“最好的那 α 概率质量”，按能量升序预排序的<strong>精确态矢量 CVaR</strong>（无 shot 采样噪声）；在坍缩已近饱和的读数上 CVaR 有害——不宣称（<code>tests/cvar-qaoa.test.ts</code> 钉住）。</p>
+
+  <h3>5. 绝热退火：慢过临界点，基态全程跟随</h3>
+  <p>子空间默认算法是绝热演化：H(s) = (1−s)·(−ΣA) + s·C 在离散 s 网格上数值积分（默认 τ=20、steps=150），代价相位走复乘递推、纤维旋转闭式施加——<strong>每一步都是精确幺正</strong>：</p>
+
+  <figure><img src="docs/diagrams/07-annealing.png" alt="绝热退火"></figure>
+
+  <h3>6. Born 坍缩：概率就是振幅的模方</h3>
+  <p>演化的终点是一次真实的量子观测：末态振幅按 Born 规则坍缩为决策概率，调度器的 <code>decision.probability</code> 是<strong>真实量子概率</strong>而非分数归一化；top-K 候选用线性选择（O(dim)）取代全量排序：</p>
+
+  <figure><img src="docs/diagrams/08-born.png" alt="Born 坍缩"></figure>
+
+  <h3>批量调度时序</h3>
+  <figure class="diagram">
+    <svg class="seqdiagram" viewBox="0 0 840 655" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="批量调度时序图">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#57606a"/>
+        </marker>
+      </defs>
+      <!-- actor boxes -->
+      <rect class="actor-box" x="20" y="8" width="150" height="44" rx="5"/>
+      <text class="actor-name" x="95" y="35" text-anchor="middle">用户 / 控制台</text>
+      <rect class="actor-box" x="245" y="8" width="150" height="44" rx="5"/>
+      <text class="actor-name" x="320" y="35" text-anchor="middle">QuantumScheduler</text>
+      <rect class="actor-box" x="470" y="8" width="150" height="44" rx="5"/>
+      <text class="actor-name" x="545" y="26" text-anchor="middle">子空间引擎</text>
+      <text class="actor-name" x="545" y="44" text-anchor="middle">SubspaceEngine</text>
+      <rect class="actor-box" x="700" y="8" width="120" height="44" rx="5"/>
+      <text class="actor-name" x="760" y="35" text-anchor="middle">Agents</text>
+      <!-- lifelines -->
+      <line class="lifeline" x1="95" y1="52" x2="95" y2="640"/>
+      <line class="lifeline" x1="320" y1="52" x2="320" y2="640"/>
+      <line class="lifeline" x1="545" y1="52" x2="545" y2="640"/>
+      <line class="lifeline" x1="760" y1="52" x2="760" y2="640"/>
+      <!-- r1: U -> S submitTask xN -->
+      <text class="msg-label" x="207" y="82" text-anchor="middle">submitTask() × N</text>
+      <text class="msg-label" x="207" y="99" text-anchor="middle">（autoSchedule: false）</text>
+      <line class="arrow" x1="95" y1="112" x2="316" y2="112" marker-end="url(#arr)"/>
+      <!-- r2: note over S -->
+      <rect class="note-box" x="247" y="132" width="146" height="32" rx="3"/>
+      <text class="note-text" x="320" y="153" text-anchor="middle">任务按优先级挂起</text>
+      <!-- r3: U -> S scheduleBatchQuantum -->
+      <text class="msg-label" x="207" y="194" text-anchor="middle">scheduleBatchQuantum()</text>
+      <line class="arrow" x1="95" y1="207" x2="316" y2="207" marker-end="url(#arr)"/>
+      <!-- r4: S -> Q buildBatchProblem -->
+      <text class="msg-label" x="432" y="234" text-anchor="middle">buildBatchProblem()</text>
+      <text class="msg-label" x="432" y="251" text-anchor="middle">w = 优先级×亲和度, J = 纠缠耦合</text>
+      <line class="arrow" x1="320" y1="264" x2="541" y2="264" marker-end="url(#arr)"/>
+      <!-- r5: Q self buildSubspaceModel -->
+      <path class="arrow" d="M 545 292 h 28 v 26 h -24" marker-end="url(#arr)"/>
+      <text class="msg-label" x="583" y="304">buildSubspaceModel()</text>
+      <text class="msg-label" x="583" y="321">枚举 P(n,m) ≤ 2²⁰ 个合法分配</text>
+      <!-- r6: Q self anneal -->
+      <path class="arrow" d="M 545 352 h 28 v 26 h -24" marker-end="url(#arr)"/>
+      <text class="msg-label" x="583" y="364">均匀叠加 → 绝热演化</text>
+      <text class="msg-label" x="583" y="381">(τ=20/150步) → 测量</text>
+      <!-- r7: Q --> S return -->
+      <text class="msg-label" x="432" y="408" text-anchor="middle">assignment[] + Born 概率</text>
+      <text class="msg-label" x="432" y="425" text-anchor="middle">+ optimalityRatio</text>
+      <line class="arrow arrow-dashed" x1="545" y1="438" x2="324" y2="438" marker-end="url(#arr)"/>
+      <!-- r8: S -> Ag applyAssignmentDecision -->
+      <text class="msg-label" x="540" y="471" text-anchor="middle">applyAssignmentDecision()</text>
+      <line class="arrow" x1="320" y1="484" x2="756" y2="484" marker-end="url(#arr)"/>
+      <!-- r9: Ag --> U events -->
+      <text class="msg-label" x="427" y="517" text-anchor="middle">task_scheduled 事件 × N</text>
+      <line class="arrow arrow-dashed" x1="760" y1="530" x2="99" y2="530" marker-end="url(#arr)"/>
+      <!-- r10: S --> U report -->
+      <text class="msg-label" x="207" y="562" text-anchor="middle">QuantumBatchReport{dimension,</text>
+      <text class="msg-label" x="207" y="579" text-anchor="middle">equivalentQubits, optimality,</text>
+      <text class="msg-label" x="207" y="596" text-anchor="middle">entanglementCouplings}</text>
+      <line class="arrow arrow-dashed" x1="320" y1="609" x2="99" y2="609" marker-end="url(#arr)"/>
+    </svg>
+  </figure>
+
+  <hr>
+
+  <!-- ══════════════ 真 QPU 后端 ══════════════ -->
+  <h2 id="qpu-routing">🔌 真 QPU 后端与执行分级路由</h2>
+  <p>量子核心是薛定谔方程的<strong>经典精确模拟</strong>；<code>toIsing()</code> 导出的 (h, J) 可直接提交真实量子退火机，届时同一问题无需改代码即可换执行位置。真机采样经<strong>三道闸门</strong>（合法性校验 · 噪声过滤 · 最优率对照）后才进调度器：</p>
+  <ul>
+    <li><strong>D-Wave Leap（REST）</strong>：<a href="https://cloud.dwavesys.com/leap">cloud.dwavesys.com/leap</a> 注册（免费额度）→ <code>set DWAVE_API_TOKEN=&lt;token&gt;</code> → <code>npm run example:qpu</code>；无凭据时自动回退本地精确引擎（功能不中断）。</li>
+    <li><strong>IBM Qiskit 导出</strong>：<code>toQiskitProgram()</code> 产出可运行的 Qiskit 程序（内嵌本仓训练好的 QAOA 角度）。</li>
+    <li><strong>FTQC 执行分级（v1.11）</strong>：提交前先过资源估算器——每个数字都带来源与假设注释，三态路由本身由 14 个测试钉住：</li>
+  </ul>
+
+  <figure><img src="docs/diagrams/15-execution-tier.png" alt="执行分级路由"></figure>
+
+  <hr>
+
+  <!-- ══════════════ 市场机制研究线 ══════════════ -->
+  <h2 id="market-research">🧠 市场机制研究线</h2>
+  <p>与量子核心并行的研究主线：把任务分配建模为<strong>智力资本市场</strong>——每个分配同时是消费决策（当期净价值）与投资决策（学习资本的增长影子价值 g）。结算流在线校准学习曲线 q̂(k)，增广 WDP 求解，Clarke pivot 支付保证 DSIC：</p>
+
+  <figure><img src="docs/diagrams/14-market.png" alt="市场机制闭环"></figure>
+
+  <p><strong>关键实测结论</strong>（真实 glm-4-flash，n=2112）：</p>
+  <table>
+    <thead><tr><th>发现</th><th>数据</th></tr></thead>
+    <tbody>
+      <tr><td>隐性技能随案例积累上升</td><td>q: 0.458 → 0.747（<strong>+0.289</strong>，α≈0.58，β≈0.09，z=2.77）</td></tr>
+      <tr><td>污染案例库是负资本</td><td>q 坍缩至 0.129（增益 −0.704）</td></tr>
+      <tr><td>培训 vs 雇佣存在封闭相变口袋</td><td>L1–L4 闭式定律 + Buckingham π 普适标度</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ══════════════ 基准与性能 ══════════════ -->
+  <h2 id="benchmarks" class="pb">📊 基准与性能</h2>
+  <blockquote>
+    <p>🧪 <strong>v1.11 起可复现</strong>：<code>npm run bench</code> 一条命令重跑全部对照（50 实例 × 7 求解器，<code>npm run bench:regenerate</code> 从公开种子重建实例族），机器可读报告输出到 <code>out/bench/bench-report.{json,md}</code>。下节图表即由该报告渲染；<strong>裁判永远是穷举枚举，双方计同一本账</strong>。</p>
+  </blockquote>
+
+  <h3>1️⃣ 子空间规模阶梯</h3>
+  <p>等效 30 → 80 量子比特，四档退火最优率全部 <strong>100.0%</strong>（穷举裁判）：</p>
+
+  <figure><img src="docs/diagrams/09-ladder.png" alt="规模阶梯"></figure>
+
+  <table>
+    <thead><tr><th>实例</th><th class="c">等效量子比特</th><th class="c">全空间维度</th><th class="c">子空间维度</th><th class="c">构建</th><th class="c">退火</th><th class="c">贪心差距</th><th class="c">退火最优率</th></tr></thead>
+    <tbody>
+      <tr><td>5×6</td><td class="c">30</td><td class="c">2³⁰</td><td class="c">720</td><td class="c">4 ms</td><td class="c">9 ms</td><td class="c">14.1%</td><td class="c"><strong>100.0%</strong></td></tr>
+      <tr><td>6×8</td><td class="c">48</td><td class="c">2⁴⁸</td><td class="c">20,160</td><td class="c">49 ms</td><td class="c">296 ms</td><td class="c">16.5%</td><td class="c"><strong>100.0%</strong></td></tr>
+      <tr><td>7×9</td><td class="c">63</td><td class="c">2⁶³</td><td class="c">181,440</td><td class="c">575 ms</td><td class="c">2.9 s</td><td class="c">5.2%</td><td class="c"><strong>100.0%</strong></td></tr>
+      <tr><td>8×10</td><td class="c">80</td><td class="c">2⁸⁰ ≈ 1.2×10²⁴</td><td class="c">1,814,400</td><td class="c">8.7 s</td><td class="c">32.6 s</td><td class="c">6.7%</td><td class="c"><strong>100.0%</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>2️⃣ 线性赛道：量子 × 匈牙利 逐点一致（独立算法互证）</h3>
+  <p>25 个无耦合实例（含 6×8）上，量子子空间引擎与匈牙利 O(n³) <strong>双双 25/25 逐点命中最优</strong>——两种完全独立的算法落在同一条对角线上：</p>
+
+  <figure><img src="docs/diagrams/10-bench-linear.png" alt="线性赛道"></figure>
+
+  <h3>3️⃣ 耦合赛道：NP-hard 上量子 5/5 全胜</h3>
+  <p>纠缠耦合使问题成为 QAP 型 NP-hard（6×8 × 5 公开种子，统一记账）：</p>
+
+  <figure><img src="docs/diagrams/11-bench-nphard.png" alt="耦合赛道"></figure>
+
+  <table>
+    <thead><tr><th>方法</th><th class="c">命中最优</th></tr></thead>
+    <tbody>
+      <tr><td>贪心 Greedy</td><td class="c">2/5</td></tr>
+      <tr><td>局部搜索 Local search</td><td class="c">2/5</td></tr>
+      <tr><td>模拟退火 Simulated annealing</td><td class="c">3/5</td></tr>
+      <tr><td><strong>量子子空间 Quantum subspace</strong></td><td class="c win">5/5 ✅</td></tr>
+    </tbody>
+  </table>
+
+  <blockquote>
+    <p>⚠️ <strong>勘误（v1.11，由 QuantumSched-Bench 定罪）</strong>：本表早期版本载“贪心 0/5、局部搜索 0/5”——那是示例脚本给经典侧只记<strong>不含耦合加成的半账</strong>、却对照含耦合的最优所致的记账 Artifact；统一记账下经典侧实为 2/5。量子侧 5/5 与线性侧逐点一致原样复现，胜负结论不变（5/5 vs 最强经典 3/5），差距数字如实修正。</p>
+  </blockquote>
+
+  <h3>4️⃣ 确定性并行演化（v1.6）</h3>
+  <p>量子管线全部三阶段（构建→演化→坍缩）重写并跨核并行：纤维尺寸查表消除逐纤维三角函数（8×10 实例曾需 29 亿次 <code>Math.cos/sin</code>）、退火代价相位复乘递推、构建期字典序单调键 + 二分查找、坍缩 top-K 线性选择（~500×）。大维度经 <code>worker_threads + SharedArrayBuffer + Atomics</code> 屏障多线程执行——<strong>并行 = 确定性</strong>，与串行路径共享同一份内核源码，结果逐位一致（测试逐位断言钉死）：</p>
+
+  <figure><img src="docs/diagrams/12-parallel.png" alt="确定性并行"></figure>
+
+  <p>同机同状态实测（8×10，1,814,400 维，i9-12900H，20 逻辑核）：</p>
+  <table>
+    <thead><tr><th>管线阶段</th><th class="c">v1.5</th><th class="c">v1.6</th><th class="c">提升</th></tr></thead>
+    <tbody>
+      <tr><td>演化（串行内核）</td><td class="c">285.8 s*</td><td class="c">56.2 s</td><td class="c"><strong>5.1×</strong></td></tr>
+      <tr><td>演化（16 线程）</td><td class="c">—</td><td class="c">12.2 s</td><td class="c"><strong>23.5×</strong></td></tr>
+      <tr><td>构建（DFS+能量+纤维组）</td><td class="c">14.5 s</td><td class="c">2.9 s</td><td class="c"><strong>5.0×</strong>（纤维组八组并行，逐位一致）</td></tr>
+      <tr><td>坍缩 top-K 候选</td><td class="c">~6.7 s</td><td class="c">~0.01 s</td><td class="c"><strong>~500×</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="footnote">* 同场对比基准（同一进程内逐字复刻优化前内核）；绝对时间随热状态浮动，<strong>相对倍数</strong>是稳定口径。并行失败自动回退串行；开关：<code>QUANTUM_WORKERS=&lt;n&gt;</code> / <code>QUANTUM_DISABLE_PARALLEL=1</code>。</p>
+
+  <h3>5️⃣ 平台热路径性能（经典 hybrid 模式）</h3>
+  <p><code>npm run performance</code> 一键复现（实测环境 Node.js v24 / Windows / 2026-08；绝对吞吐随机器与热状态浮动，相对优化倍数是稳定口径）：</p>
+
+  <figure><img src="docs/diagrams/17-hotpath.png" alt="热路径性能"></figure>
+
+  <table>
+    <thead><tr><th>指标</th><th class="c">吞吐</th><th class="c">优化倍数</th></tr></thead>
+    <tbody>
+      <tr><td>Agent 注册</td><td class="c">28,500 ops/s</td><td class="c">4.7×</td></tr>
+      <tr><td>调度吞吐（200 Agent 并发）</td><td class="c">2,702 ops/s</td><td class="c"><strong>83×</strong></td></tr>
+      <tr><td>通信总线</td><td class="c">487,448 msgs/s</td><td class="c">4.3×</td></tr>
+      <tr><td>DSH 集成</td><td class="c">4,791 ops/s</td><td class="c">3.2×</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ══════════════ 快速开始 ══════════════ -->
+  <h2 id="quick-start" class="pb">🚀 快速开始</h2>
+<pre><code>git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
+cd quantum-multi-agent-platform
+npm install
+
+npm test                <span class="c"># 520 用例 · 0 失败</span>
+npm run typecheck       <span class="c"># 全仓类型检查（strict + noUncheckedIndexedAccess）</span>
+npm run lint            <span class="c"># ESLint（typescript-eslint 推荐规则集）</span>
+npm run example:basic   <span class="c"># 基础用法全链路（平台启停/调度/控制台协议）</span>
+npm run example:advanced <span class="c"># 高级工作流（纠缠/依赖/批量调度）</span>
+npm run example:quantum <span class="c"># 量子突破基准（7 部分）</span>
+npm run example:qpu     <span class="c"># 真 QPU 入口（自动检测 DWAVE_API_TOKEN）</span>
+npm run bench           <span class="c"># QuantumSched-Bench 全量对照（50 实例 × 7 求解器）</span>
+npm run dev             <span class="c"># 启动平台（WS :8080）</span>
+</code></pre>
+
+  <blockquote>
+    <p>端口口径（06#6）：架构图与 <code>npm run dev</code> 的 :8080 是<strong>平台默认端口</strong>；示例刻意错开（basic=8081、advanced=8083），为的是示例可与运行中的 dev 平台并存不打架。两套端口都是配置项，不是硬编码约定。</p>
+  </blockquote>
+
+  <h3>批量联合量子调度</h3>
+<pre><code><span class="k">import</span> { QuantumScheduler } <span class="k">from</span> <span class="s">'./src/index.js'</span>;
+
+<span class="k">const</span> scheduler = <span class="k">new</span> QuantumScheduler({
+  scheduling: {
+    quantumAlgorithm: <span class="s">'quantum-annealing'</span>, <span class="c">// 或 'quantum-qaoa' | 'hybrid'（默认经典）</span>
+    autoSchedule: <span class="k">false</span>,                   <span class="c">// 攒任务做联合调度 | batch mode</span>
+    quantum: { subspaceCap: <span class="k">1</span> &lt;&lt; <span class="k">20</span>, anneal: { tau: <span class="k">20</span>, steps: <span class="k">150</span> } }
+  }
+});
+
+scheduler.registerAgent({ id: <span class="s">'a1'</span>, name: <span class="s">'Dev-1'</span>, type: <span class="s">'developer'</span>,
+  capabilities: [<span class="s">'typescript'</span>], state: <span class="s">'idle'</span>, load: <span class="k">0</span>,
+  position: { x: <span class="k">0</span>, y: <span class="k">0</span>, z: <span class="k">0</span> }, quantumEntanglement: [<span class="s">'a2'</span>], lastHeartbeat: <span class="k">new</span> Date() });
+<span class="c">// ... 注册更多 agent，提交多个任务 ...</span>
+
+<span class="k">const</span> report = scheduler.scheduleBatchQuantum();
+console.log(report.representation);        <span class="c">// 'subspace'</span>
+console.log(report.subspace);              <span class="c">// { dimension: P(n,m), equivalentQubits }</span>
+console.log(report.optimality);            <span class="c">// { achieved, optimal, ratio } 精确对照</span>
+console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${a.agentId} (p=${a.probability})`</span>));
+</code></pre>
+
+  <p>单任务模式（<code>autoSchedule: true</code>）下每次决策走“叠加 → 演化 → Born 坍缩”；默认 <code>hybrid</code> 路径与经典行为完全一致（零回归）。</p>
+
+  <hr>
+
+  <!-- ══════════════ 测试与质量 ══════════════ -->
+  <h2 id="testing-quality" class="pb">🧪 测试与质量</h2>
+  <p><strong>520 用例 · 0 失败 · 48 个测试文件 / 152 个套件</strong>（1 项性能灵敏度用例按测量环境守卫自跳过）；六道门禁全绿，覆盖率棘轮只升不降：</p>
+
+  <figure><img src="docs/diagrams/16-quality.png" alt="质量门禁体系"></figure>
+
+  <table class="long">
+    <thead><tr><th>套件</th><th class="c">用例</th><th>覆盖</th></tr></thead>
+    <tbody>
+      <tr><td><code>quantum-optimizer.test.ts</code></td><td class="c">20</td><td>解析振幅 · 幺正性 · Born 分布 · Ising 导出逐点一致</td></tr>
+      <tr><td><code>subspace-optimizer.test.ts</code></td><td class="c">10</td><td>维度 = P(n,m) · 纤维可逆性(机器精度) · 双引擎交叉验证</td></tr>
+      <tr><td><code>subspace-parallel.test.ts</code></td><td class="c">11</td><td><strong>并行=串行逐位一致</strong> · 跨运行确定性 · 大维度最优 · 禁用回退</td></tr>
+      <tr><td><code>classical-baselines.test.ts</code></td><td class="c">5</td><td><strong>量子×匈牙利逐点一致</strong> · 多轮调度 · 超维回退</td></tr>
+      <tr><td><code>qpu-backend.test.ts</code></td><td class="c">12</td><td>D-Wave 客户端<strong>真实 HTTP 往返</strong>(stub) · 双格式解析 · 轮询 · 调度器异步入口</td></tr>
+      <tr><td>qiskit-selfcheck · qpu-crossval-smoke</td><td class="c">5</td><td>Qiskit 导出自检 · QPU 跨验证冒烟</td></tr>
+      <tr><td>CVaR / ma-QAOA（v1.9/v1.10）</td><td class="c">22</td><td>CVaR 数学性质 · ma-QAOA 支配定理 · 位级等价</td></tr>
+      <tr><td>execution-tier（v1.11 FTQC）</td><td class="c">14</td><td>资源估算数值内核 · 三态路由 · 接缝行为</td></tr>
+      <tr><td>twin-convergence（v1.12 单源化）</td><td class="c">13</td><td>孪生收敛对拍 · 引擎级位同构回放 · 独立算法互证</td></tr>
+      <tr><td><code>security-hardening.test.ts</code></td><td class="c">23</td><td>命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归</td></tr>
+      <tr><td>调度/管理/通信/平台/控制台</td><td class="c">50</td><td>平台全链路回归 · 控制台协议端到端</td></tr>
+      <tr><td>DSH / 主动智能</td><td class="c">35</td><td>DSH 集成 · 插件全量 + 冒烟</td></tr>
+      <tr><td>市场机制（CompoundBrain/VCG/增长市场/相变）</td><td class="c">62</td><td>DSIC · 校准 · 定律验证</td></tr>
+      <tr><td>回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils）</td><td class="c">202</td><td>回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照</td></tr>
+      <tr><td>tests/ 子目录（bench·mutation·sched-bench）</td><td class="c">36</td><td>基准诚实性 · 变异杀死 · 基准错误面负对照</td></tr>
+      <tr><td><strong>全套</strong></td><td class="c"><strong>520</strong></td><td><strong>48 个测试文件 / 152 个套件 · 0 失败</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="note">（表内计数为文档对账时点一次绿色全量运行的快照；以 <code>npm test</code> 实时输出为准。）</p>
+
+<pre><code>npm run build     <span class="c"># TypeScript 严格模式 + noUncheckedIndexedAccess，0 错误</span>
+npm run typecheck <span class="c"># src+tests+examples 全仓类型检查</span>
+npm run lint      <span class="c"># ESLint 0 错误（类型感知 strict 集：no-floating-promises/</span>
+                  <span class="c">#   no-unnecessary-condition/prefer-nullish-coalescing/</span>
+                  <span class="c">#   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）</span>
+npm run coverage  <span class="c"># c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛</span>
+npm run knip      <span class="c"># 死代码/未用导出/未用依赖 0 发现</span>
+npm test          <span class="c"># 520 用例 · 0 失败 ✅</span>
+npm run format    <span class="c"># Prettier 统一格式</span>
+</code></pre>
+
+  <p><strong>质量纪律（v1.7 起，逐版本棘轮）</strong>：typescript-eslint recommendedTypeChecked 基座 + 精选严格规则（v1.7 修复 117 项源码违规）；v1.12 质量交付波完成错误面收敛（PlatformError 14 类层级）、单源化孪生收敛（四组、位同构对拍先行）、11 处静默垃圾路径守卫、21 处文档对账。运行时依赖收敛为 <code>ws</code> 一项（uuid 以原生 <code>crypto.randomUUID()</code> 取代，0 供应链告警）。</p>
+
+  <h3>🔐 安全基线</h3>
+  <p>工具面与控制台协议按不可信输入处理：</p>
+  <ul>
+    <li><strong>命令执行闸门</strong>：程序白名单默认仅 tsc/git/ls/echo；解释器与包管理器等价于任意代码执行，须 <code>configureCommandPolicy()</code> 显式授权；<code>-e</code>/<code>--eval</code> 内联代码恒拒绝；引号外 shell 元字符一律拒绝；无 shell 数组直呼（Windows 借道 cmd 时 <code>/s</code>+verbatim 引用协议）；超时强制整树终止；<code>workdir</code> 须在白名单根内。</li>
+    <li><strong>文件系统沙箱</strong>：所有路径在真实路径（解引用符号链接，含悬空）上强制解析到沙箱根内；绝对路径、<code>../</code> 逃逸与符号链接逃逸直接拒绝。</li>
+    <li><strong>总线鉴权与网络边界</strong>：配置 <code>communication.authToken</code> 后全部流量路径须先 <code>authenticate</code>（SHA-256 后 <code>timingSafeEqual</code> 常数时间比较），已认证连接不得冒用他人 <code>sourceAgentId</code>；未配置时总线默认绑定 127.0.0.1；另有 maxConnections（默认 256）、4MB 慢消费者背压、单帧 maxMessageSize（默认 1MB）三层资源防线。</li>
+    <li><strong>配置净化</strong>：<code>deepMerge</code> 拒绝 <code>__proto__</code>/<code>constructor</code>/<code>prototype</code> 键。</li>
+    <li><strong>QPU 凭据</strong>：D-Wave endpoint 强制 https（本机调试除外），令牌从不落日志。</li>
+  </ul>
+
+  <h3>🎨 原理图集与复现</h3>
+  <p>本 README 的 18 张原理图全部由 <code>docs/diagrams/generate.py</code> 渲染：</p>
+<pre><code>python docs/diagrams/generate.py   <span class="c"># 重建全部 18 张 PNG（需 matplotlib，中文用微软雅黑）</span>
+</code></pre>
+  <p>数据来源：<code>out/bench/bench-report.json</code>（<code>npm run bench</code> 产物）+ README/QUANTUM-SCHEDULING.md 公开实测数字；生成器自带三项机器自检（缺字警告零容忍、框内文本溢出零容忍、文本/框碰撞与越界零容忍），物理示意图（退火能级/Born/纤维）按公式解析绘制并在图题标注「示意」。</p>
+
+  <hr>
+
+  <!-- ══════════════ 目录结构 ══════════════ -->
+  <h2 id="directory-structure">📁 目录结构</h2>
+<pre><code>├── src/
+│   ├── core/
+│   │   ├── quantum-optimizer.ts      <span class="c"># ⚛️ v1.1 全空间量子引擎（QAOA/退火/Ising）</span>
+│   │   ├── subspace-optimizer.ts     <span class="c"># 🌌 v1.2 约束子空间引擎（纤维闭式混合器）</span>
+│   │   ├── fiber-kernel.ts           <span class="c"># ⚡ v1.6 纯内核（串行/并行同一份源码）</span>
+│   │   ├── subspace-parallel.ts      <span class="c"># ⚡ v1.6 确定性并行演化（Worker+Atomics）</span>
+│   │   ├── classical-baselines.ts    <span class="c"># 🏆 v1.3 匈牙利 + 局部搜索基线</span>
+│   │   ├── qpu/                      <span class="c"># 🔌 v1.4 真 QPU 后端 + v1.11 FTQC 执行分级</span>
+│   │   │   └── （dwave/qiskit/execution-tier/ft-estimate 等）
+│   │   ├── quantum-scheduler.ts      <span class="c"># 调度器（单任务坍缩 + 批量联合 + 多轮）</span>
+│   │   ├── agent-manager.ts          <span class="c"># Agent 生命周期 · 纠缠网络 · 健康检查</span>
+│   │   ├── compound-brain.ts         <span class="c"># 🧠 增长复利大脑（DSIC）</span>
+│   │   ├── batch-vcg-scheduler.ts    <span class="c"># 批量 VCG 三层机制</span>
+│   │   └── growth-market-scheduler.ts<span class="c"># 增长市场调度器</span>
+│   │       （core/ 另含 constants/solver-common/min-cost-flow/
+│   │         market-estimation/task-lifecycle）
+│   ├── communication/quantum-bus.ts  <span class="c"># WebSocket 通信总线</span>
+│   ├── dsh/dsh-integration.ts        <span class="c"># DeepSeek Harness 集成</span>
+│   ├── proactive-intelligence/       <span class="c"># 主动智能规则引擎（三层）</span>
+│   └── types/ · tools/ · utils/ · performance/ · bench/
+├── tests/                            <span class="c"># 测试套件（48 文件 / 520 用例）</span>
+├── docs/diagrams/                    <span class="c"># 🎨 README 原理图集 + generate.py 生成器</span>
+├── examples/
+│   ├── quantum-breakthrough-benchmark.ts  <span class="c"># 量子基准（7 部分）</span>
+│   └── *-benchmark.ts                      <span class="c"># 市场机制基准</span>
+├── experiments/                      <span class="c"># 真实 LLM 实验（学习曲线/相变标定）</span>
+├── web-console/index.html            <span class="c"># 单文件可视化控制台</span>
+├── QUANTUM-SCHEDULING.md             <span class="c"># 量子核心完整文档</span>
+└── PROJECT_SUMMARY.md                <span class="c"># 项目总结</span>
+</code></pre>
+
+  <hr>
+
+  <!-- ══════════════ 版本演进 ══════════════ -->
+  <h2 id="version-timeline">🗓️ 版本演进时间线</h2>
+
+  <figure><img src="docs/diagrams/18-timeline.png" alt="版本时间线"></figure>
+
+  <ul>
+    <li><strong>v1.0 平台基座</strong>——经典启发式调度 + 83× 性能优化</li>
+    <li><strong>v1.1 真实量子物理</strong>——复振幅态矢量 · QAOA · 绝热退火 · Born 坍缩 · 纠缠入哈密顿量</li>
+    <li><strong>v1.2 约束子空间</strong>——纤维闭式混合器 · 零罚项 · 等效 80 量子比特 · 100% 最优</li>
+    <li><strong>v1.3 认证基线</strong>——匈牙利逐点互证 · NP-hard 5/5</li>
+    <li><strong>v1.4 真 QPU 后端</strong>——D-Wave · Qiskit · 三道闸门</li>
+    <li><strong>v1.5–v1.7 全量质量跃迁</strong>——注入免疫内核 · noUncheckedIndexedAccess 清零 · 类型感知 lint · 覆盖率/死代码门禁</li>
+    <li><strong>v1.6 确定性并行</strong>——演化 23.5× · 逐位一致</li>
+    <li><strong>v1.9/v1.10 CVaR + ma-QAOA</strong>——分位数目标 · 构造性支配（定理级）</li>
+    <li><strong>v1.11 QuantumSched-Bench + FTQC 分级</strong>——可复现基准 · 执行层级路由</li>
+    <li><strong>v1.12 质量交付波</strong>——错误面收敛 · 单源化孪生收敛 · 静默垃圾守卫 · 文档对账 · 本图集</li>
+  </ul>
+
+  <hr>
+
+  <!-- ══════════════ 诚实的边界 ══════════════ -->
+  <h2 id="honest-limits">⚠️ 诚实的边界</h2>
+  <ol>
+    <li>量子核心是薛定谔方程的<strong>经典精确模拟</strong>，不是真 QPU；<code>toIsing()</code> 导出的 (h,J) 可直接提交真实量子退火机，届时同一问题无需改代码即可换执行位置。</li>
+    <li>子空间维度仍组合增长 P(n,m)，默认上限 2²⁰（≈150MB 内存）；8×10 规模为<strong>决策质量模式</strong>而非热路径——v1.6 内核使其演化提速 23.5×（同机同状态，16 线程并行，与串行逐位一致），绝对耗时随机器核数与热状态浮动。</li>
+    <li>高吞吐热路径（&gt;10³ tasks/s）仍走经典 <code>hybrid</code> 启发式。</li>
+    <li>所有最优率/概率均为末态真实观测量；耦合赛道的最优对照来自子空间枚举（≤2²¹ 维时精确），不做外推。</li>
+    <li>本 README 图集中的退火能级、Born 分布与纤维结构为<strong>按公式解析绘制的示意图</strong>（图题已标注）；一切实测数字以命令产物为准（<code>npm test</code> / <code>npm run bench</code> / <code>npm run performance</code>）。</li>
+  </ol>
+
+  <hr>
+
+  <!-- ══════════════ 许可 ══════════════ -->
+  <h2 id="license">📄 许可</h2>
+  <p>MIT © Quantum Agent Team</p>
+
+</div>
+</body>
+</html>
