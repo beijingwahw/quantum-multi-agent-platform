@@ -294,7 +294,7 @@ describe('Wave 3 收尾 · benchmark 指标诚实性', () => {
         () => bench.benchmarkTaskSubmission(-5),
         (error: unknown) =>
           error instanceof NumericDomainError &&
-          /benchmarkTaskSubmission\(\): count must be a non-negative integer/.test(error.message),
+          error.message.includes('benchmarkTaskSubmission(): count must be a non-negative integer'),
       );
       // 同步返回 Promise 的方法以 async 包装：sync throw 转为 rejection 后断言
       await assert.rejects(

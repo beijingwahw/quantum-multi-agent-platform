@@ -341,7 +341,8 @@ describe('A3#5 订阅频道运行时校验（F01）', () => {
       ws.send(JSON.stringify({ type: 'subscribe', channel: 42 })); // 数字
       ws.send(JSON.stringify({ type: 'subscribe', channel: '' })); // 空串
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'x'.repeat(200) })); // 超长
-      await sleep(150);
+      // 静默拒绝无事件可等（设计如此），只能按时间界定：等待吸收 CI 负载
+      await sleep(300);
       assert.equal(bus.getMetrics().security.invalidChannelRejections, 3, '三次非法频道各计一次');
 
       const subscribed = waitForEvent<{ channel: string }>(bus, 'agent_subscribed', () => true);
@@ -490,7 +491,7 @@ describe('A3#10 Date 字段 DTO 复活', () => {
     assert.ok(ok instanceof Date);
     assert.throws(
       () => reviveDateRequired('garbage', 'timestamp'),
-      (err: unknown) => err instanceof TypeError && /timestamp/.test(err.message),
+      (err: unknown) => err instanceof TypeError && err.message.includes('timestamp'),
     );
   });
 

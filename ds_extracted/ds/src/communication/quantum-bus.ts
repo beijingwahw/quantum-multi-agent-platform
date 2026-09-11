@@ -10,7 +10,7 @@ import type { RawData } from 'ws';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { logInfo, logWarn } from '../utils/logger.js';
-import { ConfigurationError, MessageValidationError } from '../utils/errors.js';
+import { ConfigurationError, MessageValidationError, StateError } from '../utils/errors.js';
 
 export interface WebSocketConnection {
   id: string;
@@ -209,6 +209,8 @@ export class QuantumBus extends EventEmitter {
   };
   // 并发start()复用同一次监听Promise，防止创建两个WebSocketServer
   private startPromise: Promise<void> | null = null;
+  // start()在途时的reject句柄：shutdown()与启动竞争的确定性收尾依据
+  private startReject: ((error: Error) => void) | null = null;
   // 总线自身启动时刻（uptime基准，非进程存活时间）
   private startedAt: number | null = null;
   /** 心跳定时器集中登记（F08）：shutdown 时确定性回收，不依赖连接
@@ -234,8 +236,13 @@ export class QuantumBus extends EventEmitter {
     this.startPromise = new Promise((resolve, reject) => {
       const server = new WebSocketServer({ port, host, path: '/quantum-bus', maxPayload });
       this.wsServer = server;
+      this.startReject = reject;
 
       server.on('error', (error: Error) => {
+        // 实例守卫：shutdown 竞争后重启的场景里，旧 server 的迟到 error
+        //（如 bind 失败与 shutdown 同拍）不得清掉新 server 的句柄/状态
+        if (this.wsServer !== server) return;
+        this.startReject = null;
         if (!this.started) {
           this.startPromise = null;
           this.wsServer = null;
@@ -251,6 +258,7 @@ export class QuantumBus extends EventEmitter {
       });
 
       server.on('listening', () => {
+        this.startReject = null;
         this.started = true;
         this.startedAt = Date.now();
         const address = server.address();
@@ -382,19 +390,19 @@ export class QuantumBus extends EventEmitter {
     const timeoutMs = this.config.communication?.heartbeatTimeoutMs ?? 30_000;
 
     const interval = setInterval(() => {
-      const connection = this.connections.get(connectionId);
-      if (connection?.ws.readyState === WebSocket.OPEN) {
+      const current = this.connections.get(connectionId);
+      if (current?.ws.readyState === WebSocket.OPEN) {
         const now = new Date();
-        const timeSinceLastPing = now.getTime() - connection.lastPing.getTime();
+        const timeSinceLastPing = now.getTime() - current.lastPing.getTime();
 
         if (timeSinceLastPing > timeoutMs) {
           logInfo('QuantumBus', `Closing stale connection ${connectionId}`);
-          connection.ws.terminate();
+          current.ws.terminate();
           this.connections.delete(connectionId);
           this.heartbeatTimers.delete(interval);
           clearInterval(interval);
         } else {
-          connection.ws.ping();
+          current.ws.ping();
         }
       } else {
         this.heartbeatTimers.delete(interval);
@@ -510,6 +518,7 @@ export class QuantumBus extends EventEmitter {
       // 鉴权开启时，控制台协议仅对已认证连接开放
       if (this.config.communication?.authToken !== undefined && !connection.agentId) {
         logWarn('QuantumBus', `Unauthenticated console_query from ${connectionId} rejected`);
+        this.securityCounters.unauthenticatedRejections++;
         return;
       }
       // 控制台快照查询：无论是否认证都直接回发到该连接
@@ -530,6 +539,7 @@ export class QuantumBus extends EventEmitter {
       // 仅对已认证连接开放——该通道可变更平台状态，必须先过鉴权
       if (this.config.communication?.authToken !== undefined && !connection.agentId) {
         logWarn('QuantumBus', `Unauthenticated console_command from ${connectionId} rejected`);
+        this.securityCounters.unauthenticatedRejections++;
         return;
       }
       this.emit('console_command', {
@@ -555,6 +565,7 @@ export class QuantumBus extends EventEmitter {
           `Connection ${connectionId} (agent '${sanitizeForLog(connection.agentId)}') spoofed ` +
             `sourceAgentId '${sanitizeForLog(message.sourceAgentId)}' — rejected`,
         );
+        this.securityCounters.identitySpoofRejections++;
         return;
       }
       this.processMessage(message);
@@ -875,6 +886,17 @@ export class QuantumBus extends EventEmitter {
     if (!this.wsServer && !this.startPromise) return;
 
     logInfo('QuantumBus', 'Shutting down...');
+
+    // start()/shutdown()竞争收尾：bind 被关闭打断后 'listening' 与 'error'
+    // 都不再到来，在途的 start() Promise 将永久悬挂（等待方无限 await）。
+    // 以确定性拒绝收尾，调用方能立即感知并清理，而非无声挂死。
+    const pendingStartReject = this.startReject;
+    this.startReject = null;
+    if (this.startPromise !== null && pendingStartReject !== null) {
+      pendingStartReject(
+        new StateError('QuantumBus.shutdown() called before start() finished listening'),
+      );
+    }
 
     // 心跳定时器集中回收（F08）：不依赖各连接 close 事件的到达顺序
     for (const interval of this.heartbeatTimers) {

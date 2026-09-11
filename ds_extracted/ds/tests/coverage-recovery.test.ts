@@ -364,7 +364,8 @@ describe('分支钉板 · 总线安全拒绝分类计数', () => {
       );
       // 超长频道（>128）
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'x'.repeat(200) }));
-      await new Promise((r) => setTimeout(r, 100));
+      // 静默拒绝无事件可等（设计如此），只能按时间界定：等待吸收 CI 负载
+      await new Promise((r) => setTimeout(r, 200));
 
       assert.equal(bus.getMetrics().security.invalidChannelRejections, 2, '两次非法频道各计一次');
       ws.close();

@@ -16,7 +16,7 @@ import {
   SubspaceState,
 } from '../src/core/subspace-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import type { Agent } from '../src/types/quantum-types.js';
+import { makeAgent } from './helpers/fixtures.js';
 
 const EPS = 1e-9;
 
@@ -216,20 +216,6 @@ describe('subspace-optimizer（约束子空间模型）', () => {
 });
 
 describe('QuantumScheduler 子空间集成', () => {
-  function makeAgent(id: string, capabilities: string[], entangledWith: string[] = []): Agent {
-    return {
-      id,
-      name: id,
-      type: 'developer',
-      capabilities,
-      state: 'idle',
-      load: 0,
-      position: { x: 0, y: 0, z: 0 },
-      quantumEntanglement: entangledWith,
-      lastHeartbeat: new Date(),
-    };
-  }
-
   it('批量调度自动走子空间引擎：5任务×7agent = 2520维，最优率100%', () => {
     const scheduler = new QuantumScheduler({
       scheduling: {
@@ -239,7 +225,9 @@ describe('QuantumScheduler 子空间集成', () => {
       },
     });
     for (let i = 0; i < 7; i++) {
-      scheduler.registerAgent(makeAgent(`a${i}`, ['js'], i === 0 ? ['a1'] : i === 1 ? ['a0'] : []));
+      scheduler.registerAgent(
+        makeAgent(`a${i}`, ['js'], { entanglement: i === 0 ? ['a1'] : i === 1 ? ['a0'] : [] }),
+      );
     }
     const priorities = ['critical', 'high', 'medium', 'low', 'low'] as const;
     for (let i = 0; i < 5; i++) {

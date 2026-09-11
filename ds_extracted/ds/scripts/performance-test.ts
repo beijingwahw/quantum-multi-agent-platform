@@ -13,7 +13,8 @@ async function main() {
         maxConcurrentTasks: 500,
       },
       communication: {
-        port: 8082,
+        // 0 = 系统分配临时端口：固定 8082 在并行/重跑时会端口冲突
+        port: 0,
       },
     };
 

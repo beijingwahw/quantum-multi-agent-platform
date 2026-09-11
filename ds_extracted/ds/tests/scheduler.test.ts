@@ -1,21 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import type { Agent } from '../src/types/quantum-types.js';
-
-function makeAgent(id: string, capabilities: string[], name = id): Agent {
-  return {
-    id,
-    name,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load: 0,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [],
-    lastHeartbeat: new Date(),
-  };
-}
+import { makeAgent } from './helpers/fixtures.js';
 
 function makeTask(name: string, capability: string, priority: any = 'medium') {
   return {
@@ -196,7 +182,7 @@ describe('QuantumScheduler', () => {
 
     // 10个同能力agent，提交12个任务：10个分配，2个挂起
     for (let i = 0; i < 10; i++) {
-      scheduler.registerAgent(makeAgent(`a${i}`, ['bench'], `Agent${i}`));
+      scheduler.registerAgent(makeAgent(`a${i}`, ['bench'], { name: `Agent${i}` }));
     }
     const tasks = [];
     for (let i = 0; i < 12; i++) {

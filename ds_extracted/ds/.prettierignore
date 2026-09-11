@@ -3,3 +3,5 @@ node_modules
 package-lock.json
 *.md
 out/
+# README 的打印渲染产物（由打印管线生成，格式化会扰动渲染排版）
+README-print.html

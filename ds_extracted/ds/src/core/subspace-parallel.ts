@@ -254,7 +254,6 @@ interface EvolutionContext {
   im: Float64Array;
   workers: Worker[];
   poisoned: boolean;
-  seq: number;
   terminateAll(): void;
 }
 
@@ -327,7 +326,6 @@ function prepareEvolution(
     im,
     workers,
     poisoned: false,
-    seq: 0,
     terminateAll: () => {
       for (const w of workers) w.terminate().catch(() => undefined);
     },
@@ -400,7 +398,6 @@ export function parallelAnnealEvolve(
   if (!ctx) return null;
   const { H, F, model: m, W } = ctx;
   let seq = 0;
-  const poisonedRef = { get: (): boolean => ctx.poisoned, set: (v: boolean) => (ctx.poisoned = v) };
 
   try {
     // 同步握手：等待全体 Worker 就绪并入栏（Worker 各自的事件循环独立运转）
@@ -411,10 +408,9 @@ export function parallelAnnealEvolve(
         parallelStructurallyBroken = true;
         throw new QuantumEngineError('worker handshake timeout');
       }
-      // poisoned 由 error/worker-fatal 回调闭包改写——流分析看不见闭包赋值，
-      // 此处的"恒假"是误报（阻塞等待期间事件无法送达恰恰依赖它兜底）
-
-      if (poisonedRef.get()) {
+      // poisoned 由 error/worker-fatal 回调闭包改写——阻塞等待期间事件
+      // 无法送达恰恰依赖它兜底（与异步驱动同读 ctx.poisoned 单点）
+      if (ctx.poisoned) {
         parallelStructurallyBroken = true;
         throw new QuantumEngineError('worker boot poisoned');
       }
@@ -435,12 +431,12 @@ export function parallelAnnealEvolve(
           // Worker 内核执行即崩（结构性：序列化产物坏）——负缓存，
           // 否则每次 dispatch 重付整个握手+首dispatch的超时税
           parallelStructurallyBroken = true;
-          poisonedRef.set(true);
+          ctx.poisoned = true;
         }
-        if (poisonedRef.get() || Date.now() > deadline) {
+        if (ctx.poisoned || Date.now() > deadline) {
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
             console.error(
-              `[parallel] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${poisonedRef.get()}`,
+              `[parallel] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${ctx.poisoned}`,
             );
           }
           return false;
@@ -800,7 +796,7 @@ export function parallelBuildFiberGroups(params: {
     return results;
   } catch (err) {
     if (process.env.QUANTUM_PARALLEL_DEBUG) {
-      console.error('[parallel-build] failed:', (err as Error).message);
+      console.error('[parallel-build] failed:', err instanceof Error ? err.message : String(err));
     }
     terminateAll();
     return null;

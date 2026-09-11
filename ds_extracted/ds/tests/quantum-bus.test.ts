@@ -111,7 +111,7 @@ describe('QuantumBus', () => {
       (error: unknown) =>
         error instanceof MessageValidationError &&
         error instanceof PlatformError &&
-        /sourceAgentId must be a non-empty string/.test(error.message),
+        error.message.includes('sourceAgentId must be a non-empty string'),
     );
     // 单播/组播目标并存：targetAgentIds 此后被静默忽略
     assert.throws(

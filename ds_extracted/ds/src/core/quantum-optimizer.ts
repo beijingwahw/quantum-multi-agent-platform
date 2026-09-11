@@ -52,6 +52,7 @@ import {
   sampleBestIndexByShots,
   sampleIndexByProbabilities,
   throwIfAborted,
+  topKByProbabilityDesc,
   validateAnnealOptions,
 } from './solver-common.js';
 import type { DescentOptions } from './solver-common.js';
@@ -561,6 +562,10 @@ export interface BruteForceResult {
   ranking: number[];
 }
 
+/**
+ * 分支定界穷举精确最优（含全部合法解的福利降序表，截断至 limit）：
+ * 量子解质量的诚实参照——问题规模超出枚举能力时由调用方跳过。
+ */
 export function bruteForceOptimum(problem: AssignmentProblem, limit = 10): BruteForceResult {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
@@ -895,23 +900,21 @@ function selectSolution(
     repaired = true;
   }
 
-  // top-K 候选（按 Born 概率降序）
-  const candidates: QuantumCandidate[] = validStates
-    .map((k) => ({
-      k,
-      p: probs[k]!,
-    }))
-    .sort((x, y) => y.p - x.p)
-    .slice(0, topK)
-    .map(({ k, p }) => {
-      const a = decodeAssignment(k, m, n);
-      return {
-        assignment: a,
-        welfare: welfareOf(problem, a),
-        energy: energiesInfo.energies[k]!,
-        probability: p,
-      };
-    });
+  // top-K 候选（按 Born 概率降序；线性选择与全量稳定排序逐项相同——
+  // 见 solver-common.topKByProbabilityDesc 的等价性说明）
+  const candidates: QuantumCandidate[] = topKByProbabilityDesc(
+    validStates.length,
+    (i) => probs[validStates[i]!]!,
+    topK,
+  ).map(({ index, probability }) => {
+    const a = decodeAssignment(index, m, n);
+    return {
+      assignment: a,
+      welfare: welfareOf(problem, a),
+      energy: energiesInfo.energies[index]!,
+      probability,
+    };
+  });
 
   return {
     assignment,
@@ -1010,6 +1013,10 @@ function assembleSolution(
   };
 }
 
+/**
+ * 全空间 QAOA 求解：layer 角度坐标下降（multi 模式再以最优角展开为种子
+ * 精修）→ 末态测量坍缩。@see QuantumSolverOptions 的逐项语义。
+ */
 export function qaoaSolve(
   problem: AssignmentProblem,
   options: QuantumSolverOptions = {},
@@ -1076,6 +1083,10 @@ export function qaoaSolve(
   });
 }
 
+/**
+ * 全空间绝热退火求解：|−⟩^{⊗nq} 初态的 Trotter 化薛定谔演化
+ * （H(s) = (1−s)ΣX + sC）→ 测量坍缩。
+ */
 export function annealSolve(
   problem: AssignmentProblem,
   options: QuantumSolverOptions = {},
@@ -1083,7 +1094,7 @@ export function annealSolve(
   const tau = options.anneal?.tau ?? FULLSPACE_ANNEAL_TAU;
   const steps = options.anneal?.steps ?? FULLSPACE_ANNEAL_STEPS;
   validateAnnealOptions(tau, steps);
-  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'argmax-valid');
+  const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'argmax-valid');
   const rng = mulberry32(seed);
 
   const energiesInfo = computeEnergies(problem);
@@ -1092,24 +1103,24 @@ export function annealSolve(
   const scale = 2 * energiesInfo.nqubits;
   const normalized = normalizedEnergies(energiesInfo, scale);
 
-  const finalState = runAnnealingCircuit(
-    tau,
-    steps,
-    energiesInfo.nqubits,
-    normalized,
-    resolveCommonSolverOptions(options, 'argmax-valid').signal,
-  );
+  const finalState = runAnnealingCircuit(tau, steps, energiesInfo.nqubits, normalized, signal);
   const probs = finalState.probabilities();
   const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);
 
-  let expectation = 0;
-  for (let k = 0; k < probs.length; k++) expectation += probs[k]! * normalized[k]!;
+  // expectationValueInto 与逐位手写循环（probs[k]·normalized[k] 累加）运算
+  // 次序逐位一致：|ψ|² 内联展开为 re²+im² 后同基态序乘加
+  const expectation = expectationOf(finalState, normalized);
   // normalized = ((E-min)/span)·scale：还原原始能量经 denormalizeExpectation
   // 单一实现（与 QAOA/子空间路径共享同一逆变换）
-  expectation = denormalizeExpectation(expectation, scale, energiesInfo.min, energiesInfo.max);
+  const rawExpectation = denormalizeExpectation(
+    expectation,
+    scale,
+    energiesInfo.min,
+    energiesInfo.max,
+  );
 
   return assembleSolution('annealing', problem, selection, {
-    expectation,
+    expectation: rawExpectation,
     layers: steps,
     angles: null,
     evaluations: 1,

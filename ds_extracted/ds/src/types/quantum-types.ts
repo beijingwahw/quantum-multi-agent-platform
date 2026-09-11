@@ -50,6 +50,7 @@ export function reviveDateRequired(value: DateLike, field: string): Date {
   return revived;
 }
 
+/** 量子态描述（任务/消息随行的叠加态元数据：幅度、相位、坍缩标记与位置） */
 export interface QuantumState {
   id: string;
   amplitude: number;
@@ -58,6 +59,7 @@ export interface QuantumState {
   position: Vector3D;
 }
 
+/** 三维位置向量（agent/量子态的空间坐标） */
 export interface Vector3D {
   x: number;
   y: number;
@@ -151,6 +153,7 @@ export type MessageType =
 
 export type MessagePriority = 'low' | 'medium' | 'high' | 'critical';
 
+/** 调度决策记录：主选 agent、概率/置信度与备选清单（决策可追溯性） */
 export interface SchedulingDecision {
   taskId: string;
   agentId: string;

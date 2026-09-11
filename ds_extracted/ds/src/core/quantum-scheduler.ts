@@ -228,6 +228,11 @@ export interface SchedulerSystemMetrics {
   schedulingHistoryLength: number;
 }
 
+/**
+ * 量子多Agent调度器：单任务波函数/量子算法决策 + 批量联合量子调度
+ * （全空间/约束子空间/QPU 三种演化载体）。任务生命周期由转移表守卫，
+ * 巡检定时器负责超时回收与保留清理（shutdown() 释放）。
+ */
 export class QuantumScheduler extends EventEmitter {
   private agents = new Map<string, Agent>();
   private tasks = new Map<string, Task>();
@@ -895,10 +900,10 @@ export class QuantumScheduler extends EventEmitter {
       score: this.affinityScore(SINGLE_TASK_WEIGHTS, this.affinityComponents(agent, task)),
     }));
 
-    scores.sort((a, b) => b.score - a.score);
     if (scores.length === 0) {
       throw new SchedulingError(`makeQuantumDecision: no eligible agent for task '${task.id}'`);
     }
+    scores.sort((a, b) => b.score - a.score);
 
     const bestScore = scores[0]!;
     const totalScoreSum = scores.reduce((sum, s) => sum + s.score, 0);
@@ -1735,10 +1740,8 @@ export class QuantumScheduler extends EventEmitter {
       idlePool.some((agent) => this.checkCapabilityMatch(agent, task)),
     );
     // 真 QPU 不受本地态矢量内存限制（Ising 变量数即规模），一轮吃满空闲池
-    const round = feasible.slice(
-      0,
-      Math.min(idlePool.length, slots === Infinity ? idlePool.length : slots),
-    );
+    //（slots 为 Infinity 时 Math.min 收敛到池大小）
+    const round = feasible.slice(0, Math.min(idlePool.length, slots));
 
     const built = this.buildBatchProblem(round, idlePool);
     const result = await solveAssignmentOnBackend(built.problem, engine, options);

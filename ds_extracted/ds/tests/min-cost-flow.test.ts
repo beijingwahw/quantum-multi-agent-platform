@@ -74,7 +74,7 @@ describe('MinCostFlow（自由处置最小费用流）', () => {
     const f = new MinCostFlow(2);
     assert.throws(
       () => f.addEdge(5, 1, 1, 1),
-      (err: unknown) => err instanceof MechanismError && /out of range/.test(err.message),
+      (err: unknown) => err instanceof MechanismError && err.message.includes('out of range'),
     );
   });
 });

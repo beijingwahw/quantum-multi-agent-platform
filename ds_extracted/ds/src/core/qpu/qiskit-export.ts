@@ -98,6 +98,14 @@ export function toQiskitProgram(
   const selfCheck: Array<[number, number[] | null]> = [];
   const bitsOf = (assignment: number[]): number =>
     assignment.reduce((acc, a, t) => acc | (1 << (t * n + a)), 0);
+  // 位打包的 int32 边界：bitsOf 用 1<<q 打包、decodeAssignment 真值同样
+  // 按 int32 掩码解码（q ≥ 32 时 1<<q 回绕混叠低位，负 bits 时符号位
+  // 污染高位读数），而生成物的 Python decode 是任意精度整数——两侧对
+  // 同一 bits 的读位在 NQ ≥ 32 时系统性分歧（例：m=3、n=15 时 [0,1]
+  // 向量 TS 解码 [0,1,2]，Python 解码 None）。NQ ≥ 32 时仅保留结论
+  // 完全由任务 0 行决定的通用安全位型（0 = 空任务、3 = 任务 0 one-hot
+  // 违约）——绝不嵌入会让导出程序启动自检即崩溃的错误锚点。
+  const maskSafe = nqubits <= 31;
   const pythonDecodeSemantics = (bits: number): number[] | null => {
     const decoded = decodeAssignment(bits, m, n);
     const used = new Set<number>();
@@ -114,11 +122,11 @@ export function toQiskitProgram(
     selfCheck.push([bits, pythonDecodeSemantics(bits)]);
   };
   if (m >= 2 && n >= 2) {
-    pushCase(bitsOf([0, 1])); // 合法：错开分配
-    pushCase(bitsOf([0, 0])); // agent 复用
+    if (maskSafe) pushCase(bitsOf([0, 1])); // 合法：错开分配
+    if (maskSafe) pushCase(bitsOf([0, 0])); // agent 复用
     pushCase(0); // 空任务
     pushCase((1 << 0) | (1 << 1)); // 任务 0 双置位（one-hot 违约）
-    if (n >= 3 && m >= 2) pushCase(bitsOf([2, 0])); // 合法：另一组错开
+    if (maskSafe && n >= 3 && m >= 2) pushCase(bitsOf([2, 0])); // 合法：另一组错开
   }
 
   return `# ============================================================

@@ -65,6 +65,7 @@ async function resolveWithinSandbox(path: string): Promise<string> {
 // 10GB 沙箱内文件会把整个进程拖进字符串内存
 const MAX_READ_BYTES = 10 * 1024 * 1024;
 
+/** 沙箱内读文件（真实路径校验 + 10MB 读取上限；逃逸/超限抛 ToolError） */
 export async function read_file(path: string): Promise<string> {
   const safePath = await resolveWithinSandbox(path);
   const info = await stat(safePath).catch(() => null);
@@ -80,6 +81,7 @@ export async function read_file(path: string): Promise<string> {
   }
 }
 
+/** 沙箱内写文件（真实路径校验防符号链接逃逸；失败抛 ToolError） */
 export async function write_file(path: string, content: string): Promise<boolean> {
   const safePath = await resolveWithinSandbox(path);
   try {

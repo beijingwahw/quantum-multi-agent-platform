@@ -134,6 +134,7 @@ export interface CompoundConfig {
   calibrateDetectDeviance?: number;
 }
 
+/** CompoundConfig 的全字段缺省（实验对照臂的公共基线；覆盖见各字段注释） */
 export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   growthHorizon: 60,
   growthDiscount: 1,
@@ -360,6 +361,22 @@ export class CompoundBrain extends EventEmitter {
   }
 
   /**
+   * 监听器异常隔离（与 08#1 'allocated' 的修法、AgentManager 08#41 同款）：
+   * settle/allocateBatch 走到 emit 时状态变更已全部落盘（台账出账、
+   * 资本/校准/EWMA 已更新），一个坏监听器上抛会让调用方拿到
+   * 「状态已提交、结果已丢失」——settle 无法重试（pending 已删，重调恒
+   * false）、allocateBatch 的 assignments/taskId 永远拿不到、simulateBatch
+   * 中断在半途。事件分发失败记日志，绝不动摇已提交的变更。
+   */
+  private guardedEmit(event: string, payload: unknown): void {
+    try {
+      this.emit(event, payload);
+    } catch (err) {
+      logError('CompoundBrain', `'${event}' listener failed (state change kept):`, err);
+    }
+  }
+
+  /**
    * 生命周期收尾（08#10）：EventEmitter 的监听器引用链（外部分析器、
    * 仪表盘、模拟驱动）会阻止整个 brain 被 GC——长期运行进程里反复
    * 创建/丢弃 brain 的场景会累积泄漏。dispose 后实例不可再用于分配。
@@ -370,6 +387,11 @@ export class CompoundBrain extends EventEmitter {
 
   // ---------- 注册与报价 ----------
 
+  /**
+   * 注册 agent（私有真相 + 可选凭证先验与报价）。重复 id 立即抛错：
+   * 静默覆盖会清空其学习资本而能力观测史仍残留（状态撕裂）。
+   * bid 缺省 = trueCost（如实报价）。
+   */
   registerAgent(spec: CompoundAgentSpec, bid?: number): this {
     // 重复id静默覆盖会清空该agent的资本/尝试计数，而 caps.observations
     // 仍保留其历史——状态撕裂。重复注册是调用方bug，应立即暴露
@@ -720,6 +742,9 @@ export class CompoundBrain extends EventEmitter {
    * 保守哲学：宁可错失增长，不可虚投。中等信号的漏检是真实的信息论
    * 极限（饱和后观测不携带形状信息）。
    */
+  // 注意：签名按能力名取态（测试经 internals.calibrate('X') 驱动缓存
+  // 命中/未命中路径，见 compound-brain.test.ts 08#3 用例）——不得改为
+  // 直接传 CapabilityState。
   private calibrate(c: string): void {
     const cs = this.caps.get(c)!;
     const obs = cs.observations;
@@ -815,6 +840,12 @@ export class CompoundBrain extends EventEmitter {
     return { W: -cost, edges };
   }
 
+  /**
+   * 批量分配 + Clarke pivot 定价（增长增广 WDP）。同一批内 agent 至多承接
+   * capacity 个任务；支付按 bundle 计价（p_i = b_i·k_i + W* − W*_{−i}），
+   * 报表口径的 per-task payment 为 bundle 支付均摊。弃标任务计入
+   * droppedTasks。产出的 taskId 必须经 settle() 结算以驱动学习资本。
+   */
   allocateBatch(tasks: CompoundTaskSpec[]): CompoundAllocation {
     if (tasks.length === 0) {
       return {
@@ -832,9 +863,8 @@ export class CompoundBrain extends EventEmitter {
     for (const c of new Set(tasks.map((t) => t.capability))) {
       const cs = this.caps.get(c);
       if (!cs) continue;
-      const mean =
-        tasks.filter((t) => t.capability === c).reduce((a, t) => a + t.value, 0) /
-        tasks.filter((t) => t.capability === c).length;
+      const values = tasks.filter((t) => t.capability === c).map((t) => t.value);
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
       // 价值 EWMA 系数配置化（08#6）：0.8/0.2 硬编码与 shareAlpha 的
       // 配置面不对称——两条 EWMA 同属「公开平滑量」语义
       const alphaV = this.config.valueAlpha ?? 0.2;
@@ -864,15 +894,15 @@ export class CompoundBrain extends EventEmitter {
     for (const c of new Set(tasks.map((t) => t.capability))) {
       const cs = this.caps.get(c);
       if (!cs) continue;
-      const cTasks = tasks.map((t, i) => ({ cap: t.capability, i })).filter((t) => t.cap === c);
-      const counts = new Map<string, number>();
-      for (const t of cTasks) {
-        const asg = assignmentByTask.get(t.i);
-        if (asg) counts.set(asg.agentId, (counts.get(asg.agentId) ?? 0) + 1);
+      const taskIdxOfCap = tasks.flatMap((t, i) => (t.capability === c ? [i] : []));
+      const winCounts = new Map<string, number>();
+      for (const i of taskIdxOfCap) {
+        const asg = assignmentByTask.get(i);
+        if (asg) winCounts.set(asg.agentId, (winCounts.get(asg.agentId) ?? 0) + 1);
       }
       for (const a of this.agents.values()) {
         if (!a.spec.capabilities.includes(c)) continue;
-        const frac = (counts.get(a.spec.id) ?? 0) / cTasks.length;
+        const frac = (winCounts.get(a.spec.id) ?? 0) / taskIdxOfCap.length;
         const prev = cs.shareEwma.get(a.spec.id) ?? 1 / this.capableCount(c, memo);
         cs.shareEwma.set(
           a.spec.id,
@@ -917,14 +947,9 @@ export class CompoundBrain extends EventEmitter {
 
     const totalPayment = Object.values(payments).reduce((x, y) => x + y, 0);
     this.warnBacklogIfNeeded();
-    // 监听器异常不得吞掉分配结果（08#1）：pending 台账已登记，调用方
-    // 必须拿到 assignments/taskId 才能驱动 settle——此前 emit 异常同步
-    // 上抛会让「state committed, result lost」，任务永不可结算。
-    try {
-      this.emit('allocated', { assignments, payments });
-    } catch (err) {
-      logError('CompoundBrain', 'allocated listener failed (allocation kept):', err);
-    }
+    // 监听器异常不得吞掉分配结果（08#1，见 guardedEmit）：pending 台账已
+    // 登记，调用方必须拿到 assignments/taskId 才能驱动 settle
+    this.guardedEmit('allocated', { assignments, payments });
     return {
       assignments,
       payments,
@@ -957,7 +982,7 @@ export class CompoundBrain extends EventEmitter {
           `oldest entry ${oldestAgeMs}ms old. Late/missing settle() calls stall ` +
           'learning capital and skew calibration observations.',
       );
-      this.emit('backlog_warning', { count, oldestAgeMs, threshold });
+      this.guardedEmit('backlog_warning', { count, oldestAgeMs, threshold });
     } else if (this.backlogWarned && count <= threshold / 2) {
       this.backlogWarned = false;
     }
@@ -976,6 +1001,12 @@ export class CompoundBrain extends EventEmitter {
 
   // ---------- 结算（驱动学习资本与校准） ----------
 
+  /**
+   * 结算 allocateBatch 产出的任务：按成败驱动学习资本、校准观测与
+   * 已实现福利。返回 false = 台账中无此任务（未知 id 的幂等语义，或
+   * 台账与组件状态不一致时发 'settle_skipped' 事件）。同一 taskId
+   * 二次结算恒 false（validate-then-mutate，校验失败零残留）。
+   */
   settle(taskId: string, success: boolean): boolean {
     const p = this.pending.get(taskId);
     if (!p) return false;
@@ -988,7 +1019,7 @@ export class CompoundBrain extends EventEmitter {
       // 台账与组件状态不一致（agent 注销/能力撤除）：显式移除滞留条目
       // （否则永久毒化 backlog 健康度指标），但绝不静默——发独立事件留痕
       this.pending.delete(taskId);
-      this.emit('settle_skipped', {
+      this.guardedEmit('settle_skipped', {
         taskId,
         agentId: p.agentId,
         capability: p.capability,
@@ -1028,7 +1059,7 @@ export class CompoundBrain extends EventEmitter {
     // 台账出账押后到全部变更成功之后：中途异常（如 calibrate 抛错）时
     // 条目仍在，结算可重试（validate-then-mutate 的回滚语义）
     this.pending.delete(taskId);
-    this.emit('settled', {
+    this.guardedEmit('settled', {
       taskId,
       agentId: p.agentId,
       capability: p.capability,
@@ -1089,6 +1120,7 @@ export class CompoundBrain extends EventEmitter {
 
   // ---------- 相变定律顾问 ----------
 
+  /** 各能力的在线校准快照：(α̂, β̂, 伪 R²) 与 learnable 综合判定 */
   calibrations(): CalibrationReport[] {
     return [...this.caps.entries()].map(([c, cs]) => ({
       capability: c,

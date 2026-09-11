@@ -612,6 +612,30 @@ export function sampleBestIndexByShots(
 }
 
 /**
+ * 概率数组的 top-K 索引（按概率降序）。线性扫描维护 K 槽，与
+ * 「全量 map + 稳定排序 + slice」逐项相同：并列概率保持扫描序（严格大于
+ * 才前移），K 边界外的并列元素按先到原则丢弃——与 V8 稳定排序语义一致。
+ * 两引擎坍缩路径共用（全空间此前 O(dim·log dim) 排序 + dim 个对象分配，
+ * 子空间已完成的线性化迁移收敛至此单源）。
+ */
+export function topKByProbabilityDesc(
+  count: number,
+  probabilityAt: (index: number) => number,
+  topK: number,
+): Array<{ index: number; probability: number }> {
+  const top: Array<{ index: number; probability: number }> = [];
+  for (let i = 0; i < count && topK > 0; i++) {
+    const p = probabilityAt(i);
+    if (top.length === topK && p <= top[top.length - 1]!.probability) continue;
+    let j = top.length;
+    while (j > 0 && top[j - 1]!.probability < p) j--;
+    if (top.length === topK) top.pop();
+    top.splice(j, 0, { index: i, probability: p });
+  }
+  return top;
+}
+
+/**
  * 概率数组的 argmax 基态索引（并列取最小索引——严格大于才替换）。
  * 子空间坍缩的 shots-best 全不合格回退与 argmax-valid 模式此前各持
  * 一份相同循环，收敛于此；bestProb 自 -1 起步保证零概率态也可被选中

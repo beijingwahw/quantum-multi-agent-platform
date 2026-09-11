@@ -112,7 +112,7 @@ describe('DSHIntegration', () => {
     await assert.rejects(
       () => dsh.executeTool('subagent', { description: '', prompt: 'p' }),
       (error: unknown) =>
-        error instanceof ToolError && /non-empty 'description'/.test(error.message),
+        error instanceof ToolError && error.message.includes("non-empty 'description'"),
     );
     await assert.rejects(
       () => dsh.executeTool('subagent', { description: 'd', prompt: '' }),
@@ -135,7 +135,7 @@ describe('DSHIntegration', () => {
     await assert.rejects(
       () => dsh.executeTool('web_search', { query: '' }),
       (error: unknown) =>
-        error instanceof ToolError && /non-empty query string/.test(error.message),
+        error instanceof ToolError && error.message.includes('non-empty query string'),
     );
     await assert.rejects(
       () => dsh.executeTool('web_search', { query: '   ' }),

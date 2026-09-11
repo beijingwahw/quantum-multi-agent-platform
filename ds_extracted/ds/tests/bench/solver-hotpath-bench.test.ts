@@ -56,7 +56,6 @@ describe('solver 热路径 A/B（bench-kit 应用：minMaxOf 索引化复检）'
     if (report.verdict === 'inconclusive') {
       t.skip(`测量环境敌对，本轮不判：${report.note}`);
       return;
-      return;
     }
     // 同实现判出差异 = 测量器伪影——硬失败
     assert.equal(report.verdict, 'no-difference', report.note);
@@ -71,7 +70,6 @@ describe('solver 热路径 A/B（bench-kit 应用：minMaxOf 索引化复检）'
     );
     if (report.verdict === 'inconclusive') {
       t.skip(`测量环境敌对，本轮不判：${report.note}`);
-      return;
       return;
     }
     assert.equal(report.verdict, 'b-faster', report.note);

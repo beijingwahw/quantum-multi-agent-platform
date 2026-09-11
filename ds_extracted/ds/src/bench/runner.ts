@@ -42,6 +42,12 @@ export interface BenchRun {
   readonly solverIds: readonly string[];
 }
 
+/**
+ * Run the matrix: every solver × every instance, one row per cell (skipped
+ * cells over the qubit cap stay visible). The brute-force optimum is computed
+ * once per instance and cached; welfare is always recomputed by
+ * {@link assignmentWelfare}, never read from a solver.
+ */
 export function runBenchmark(
   specs: readonly BenchInstanceSpec[] = defaultSpecs(),
   solvers: readonly BenchSolver[] = defaultSolvers(42),

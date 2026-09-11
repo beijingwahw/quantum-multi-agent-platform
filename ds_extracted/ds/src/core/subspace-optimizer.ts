@@ -84,6 +84,7 @@ import {
   resolveCommonSolverOptions,
   sampleBestIndexByShots,
   sampleIndexByProbabilities,
+  topKByProbabilityDesc,
   validateAnnealOptions,
 } from './solver-common.js';
 import type { DescentOptions } from './solver-common.js';
@@ -637,24 +638,17 @@ function collapseSubspace(
   const assignment: number[] = [];
   for (let t = 0; t < m; t++) assignment.push(model.assignmentAt[chosen * m + t]!);
 
-  // top-K 线性选择：此前全量 Array.from().map().sort().slice() 在 dim 百万级
-  // 时分配 dim 个对象再 O(dim·log dim) 排序（8×10 实例实测 ~7s），只为取
-  // K=3 个候选。线性扫描维护按 p 降序的 K 槽：相等概率保持原有次序（与
-  // V8 稳定排序语义一致），产出候选列表与旧实现逐项相同。
-  const top: Array<{ s: number; p: number }> = [];
-  for (let s = 0; s < probs.length && topK > 0; s++) {
-    const p = probs[s]!;
-    if (top.length === topK && p <= top[top.length - 1]!.p) continue;
-    let i = top.length;
-    while (i > 0 && top[i - 1]!.p < p) i--;
-    if (top.length === topK) top.pop();
-    top.splice(i, 0, { s, p });
-  }
-
-  const candidates: QuantumCandidate[] = top.map(({ s, p }) => {
+  // top-K 线性选择（与全量稳定排序逐项相同的共享单源实现）：
+  // solver-common.topKByProbabilityDesc——大维度下免 dim 个对象分配与
+  // O(dim·log dim) 排序（8×10 实例的旧全量排序实测 ~7s）
+  const candidates: QuantumCandidate[] = topKByProbabilityDesc(
+    probs.length,
+    (s) => probs[s]!,
+    topK,
+  ).map(({ index, probability }) => {
     const a: number[] = [];
-    for (let t = 0; t < m; t++) a.push(model.assignmentAt[s * m + t]!);
-    return { assignment: a, welfare: -energies[s]!, energy: energies[s]!, probability: p };
+    for (let t = 0; t < m; t++) a.push(model.assignmentAt[index * m + t]!);
+    return { assignment: a, welfare: -energies[index]!, energy: energies[index]!, probability };
   });
 
   return { assignment, probability: probs[chosen]!, candidates, validMass: mass };
@@ -665,6 +659,10 @@ function normalizedEnergies(model: SubspaceModel, scale: number): Float64Array {
   return normalizedEnergiesOf(model.energies, min, max, scale);
 }
 
+/**
+ * 子空间 QAOA 求解：纤维混合算符形态的变分循环 + 子空间内坍缩
+ * （全部基态合法，无罚项无修复）。@see QuantumSolverOptions 逐项语义。
+ */
 export function qaoaSolveSubspace(
   model: SubspaceModel,
   options: QuantumSolverOptions = {},
@@ -836,6 +834,24 @@ function applyEvolutionStep(k: SerialEvolutionKernel, s: number): void {
   advanceCostKernel(k.state.re, k.state.im, k.phRe, k.phIm, k.zRe, k.zIm, 0, k.dim);
 }
 
+/**
+ * 谱宽上界的保守估计（08#28，同步/异步退火共用单点）：Σ_t A_t 谱半径 ≈
+ * Σ_t (k_max−1)，按「最大纤维尺寸」放缩到 m·(n−m)（或 n≤m 时的 C(m,2)）。
+ * 保守方向安全——谱宽高估 ⇒ 归一化能量更小 ⇒ 有效退火更慢，只会多付
+ * 演化成本、不会发散；换实际 fiber 结构可收紧，但会平移全部退火数值
+ * 结果，须与黄金基准同步重校，列为 Wave 4 的破坏性变更。
+ */
+function subspaceSpectralWidth(model: SubspaceModel): number {
+  return model.n > model.m
+    ? model.m * Math.max(1, model.n - model.m)
+    : (model.m * (model.m - 1)) / 2;
+}
+
+/**
+ * 子空间绝热退火求解（同步）：大维度优先并行演化、失败回退串行，
+ * 数值与串行逐位一致——阻塞契约见 {@link parallelAnnealEvolve}；
+ * 长驻服务进程请用异步孪生 {@link annealSolveSubspaceAsync}。
+ */
 export function annealSolveSubspace(
   model: SubspaceModel,
   options: QuantumSolverOptions = {},
@@ -848,14 +864,8 @@ export function annealSolveSubspace(
   const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
-  // 代价尺度与混合算符谱宽同量级（08#28：上界估计，刻意保守）：
-  // Σ_t A_t 的谱半径 ≈ Σ_t (k_max−1)，按「最大纤维尺寸」放缩到
-  // m·(n−m)（或 n≤m 时的 C(m,2)）。保守方向是安全的——谱宽高估
-  // ⇒ 归一化能量更小 ⇒ 有效退火更慢，只会多付演化成本、不会发散；
-  // 换实际 fiber 结构（Σ_g(|vary_g|−1)）可收紧，但会平移全部退火
-  // 数值结果，须与黄金基准同步重校，列为 Wave 4 的破坏性变更。
-  const spectralWidth =
-    model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
+  // 代价尺度与混合算符谱宽同量级（08#28 上界估计，说明见 subspaceSpectralWidth）
+  const spectralWidth = subspaceSpectralWidth(model);
   const energies = normalizedEnergies(model, 2 * spectralWidth);
 
   // 相位边界的协作中止点（08#19）：并行演化内核在 Worker 内部不可打断
@@ -892,17 +902,21 @@ export async function annealSolveSubspaceAsync(
   const tau = options.anneal?.tau ?? SUBSPACE_ANNEAL_TAU;
   const steps = options.anneal?.steps ?? SUBSPACE_ANNEAL_STEPS;
   validateAnnealOptions(tau, steps);
-  const { shots, select, seed, topK } = resolveCommonSolverOptions(options, 'shots-best');
+  const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
   // 谱宽上界口径与同步路径逐字相同（08#28 说明见同步路径注释）
-  const spectralWidth =
-    model.n > model.m ? model.m * Math.max(1, model.n - model.m) : (model.m * (model.m - 1)) / 2;
+  const spectralWidth = subspaceSpectralWidth(model);
   const energies = normalizedEnergies(model, 2 * spectralWidth);
 
+  // 协作中止点与同步孪生对齐（08#19）：中止请求在演化分发之前/之后被
+  // 观察——此前本异步入口整个丢弃 signal，已中止的请求静默跑完整次
+  // 求解（契约违约，由回归测试锚定）
+  throwIfAborted(signal);
   const evolved =
     (await parallelAnnealEvolveAsync(model, energies, tau, steps)) ??
     (await serialAnnealEvolveAsync(model, energies, tau, steps));
+  throwIfAborted(signal);
   return finishAnnealSolution(model, energies, spectralWidth, evolved, {
     tau,
     steps,

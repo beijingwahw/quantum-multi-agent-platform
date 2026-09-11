@@ -164,6 +164,12 @@ export interface PlatformSystemMetrics {
   health: ReturnType<AgentManager['checkSystemHealth']>;
 }
 
+/**
+ * 量子多agent调度平台：装配 QuantumScheduler / AgentManager / QuantumBus /
+ * DSHIntegration 四组件并编排跨组件事件（任务生命周期广播、控制台协议、
+ * 指标上报）。start() 逆序回滚保证失败路径零残留；stop() 保留监听以支持
+ * 重启，dispose() 彻底解除监听。
+ */
 export class QuantumMultiAgentPlatform extends EventEmitter {
   public readonly scheduler: QuantumScheduler;
   public readonly agentManager: AgentManager;

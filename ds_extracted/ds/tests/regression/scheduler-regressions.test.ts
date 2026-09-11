@@ -22,21 +22,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../../src/core/quantum-scheduler.js';
 import { SchedulingError } from '../../src/utils/errors.js';
-import type { Agent } from '../../src/types/quantum-types.js';
-
-function makeAgent(id: string, capabilities: string[], load = 0): Agent {
-  return {
-    id,
-    name: id,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [],
-    lastHeartbeat: new Date(),
-  };
-}
+import { makeAgent, sleep } from '../helpers/fixtures.js';
 
 function makeTask(name: string) {
   return {
@@ -49,10 +35,6 @@ function makeTask(name: string) {
     actualDuration: 0,
     status: 'pending' as const,
   };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe('调度器域审计回归（A1）', () => {
@@ -86,7 +68,7 @@ describe('调度器域审计回归（A1）', () => {
   it('A1#2 overloaded 不是吸收态：负载释放后重判 idle 并重新进入候选池', () => {
     const scheduler = new QuantumScheduler({});
     // 外部预置基线 = 阈值 80：调度器计入 +1 即过载（调度器只回减自己计入的增量）
-    const agent = makeAgent('a1', ['js'], 80);
+    const agent = makeAgent('a1', ['js'], { load: 80 });
     scheduler.registerAgent(agent);
 
     const t1 = scheduler.submitTask(makeTask('T1'));
@@ -114,7 +96,8 @@ describe('调度器域审计回归（A1）', () => {
     const task = scheduler.submitTask(makeTask('unsatisfiable'));
     assert.equal(task.status, 'pending');
 
-    await sleep(160); // 超过 TTL(60ms) + 若干巡检周期(20ms)
+    // 超过 TTL(60ms) + 若干巡检周期(20ms)：等待吸收 CI 负载下的巡检延迟
+    await sleep(250);
 
     assert.equal(task.status, 'failed', '超时未调度的 pending 任务必须出清');
     assert.equal(
@@ -144,7 +127,7 @@ describe('调度器域审计回归（A1）', () => {
     b.dependencies.push(a.id);
     assert.throws(
       () => scheduler.submitTask({ ...makeTask('D'), dependencies: [a.id] }),
-      (err: unknown) => err instanceof SchedulingError && /dependency cycle/.test(err.message),
+      (err: unknown) => err instanceof SchedulingError && err.message.includes('dependency cycle'),
       '环依赖必须在提交期被调度域错误拒绝，而不是让任务永久 pending',
     );
     scheduler.shutdown();
@@ -171,7 +154,8 @@ describe('调度器域审计回归（A1）', () => {
 
     // cancelled 与 completed/failed 同为终态：超过保留期必须被 GC 出内存
     assert.equal(scheduler.getTasks().length, 1);
-    await sleep(130); // 保留期 50ms + 若干巡检周期
+    // 保留期 50ms + 巡检 20ms：等待吸收 CI 负载下的巡检延迟与粗粒度时钟
+    await sleep(200);
     assert.equal(scheduler.getTasks().length, 0, '取消任务不得绕过保留清理永久驻留');
     const after = scheduler.getSystemMetrics();
     assert.equal(after.cancelledTasks, 1, '内存清除后历史计数保留');

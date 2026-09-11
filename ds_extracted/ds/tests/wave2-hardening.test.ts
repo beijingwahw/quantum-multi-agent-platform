@@ -20,21 +20,7 @@ import {
   cvarOrder,
 } from '../src/core/solver-common.js';
 import { QuantumEngineError, SchedulingError } from '../src/utils/errors.js';
-import type { Agent } from '../src/types/quantum-types.js';
-
-function makeAgent(id: string, capabilities: string[]): Agent {
-  return {
-    id,
-    name: id,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load: 0,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [],
-    lastHeartbeat: new Date(),
-  };
-}
+import { makeAgent } from './helpers/fixtures.js';
 
 function makeTask(name: string, capability: string) {
   return {
@@ -55,7 +41,8 @@ describe('Wave 2 收尾 · 重复注册拒绝（01#14）', () => {
     scheduler.registerAgent(makeAgent('a1', ['js']));
     assert.throws(
       () => scheduler.registerAgent(makeAgent('a1', ['python'])),
-      (err: unknown) => err instanceof SchedulingError && /already registered/.test(err.message),
+      (err: unknown) =>
+        err instanceof SchedulingError && err.message.includes('already registered'),
     );
   });
 });
@@ -125,14 +112,14 @@ describe('Wave 2 收尾 · 求解器退化参数拒绝（01#9）', () => {
   it('restarts=0 在入口拒绝（不再产出空角度 + Infinity 最优）', () => {
     assert.throws(
       () => resolveCommonSolverOptions({ restarts: 0 }, 'argmax-valid'),
-      (err: unknown) => err instanceof QuantumEngineError && /restarts/.test(err.message),
+      (err: unknown) => err instanceof QuantumEngineError && err.message.includes('restarts'),
     );
   });
 
   it('topK=0 在入口拒绝（不再产出空结果集）', () => {
     assert.throws(
       () => resolveCommonSolverOptions({ topK: 0 }, 'argmax-valid'),
-      (err: unknown) => err instanceof QuantumEngineError && /topK/.test(err.message),
+      (err: unknown) => err instanceof QuantumEngineError && err.message.includes('topK'),
     );
   });
 

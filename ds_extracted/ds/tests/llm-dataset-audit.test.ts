@@ -14,7 +14,6 @@ import {
   labelAudit,
   mentionedAspects,
   ASPECT_KEYWORDS,
-  type Ticket,
 } from '../experiments/llm-learning-curve/dataset.js';
 
 describe('llm-learning-curve · 标注审计快照', () => {
@@ -44,7 +43,7 @@ describe('llm-learning-curve · 标注审计快照', () => {
 
   it('词法静默工单恰为 #42（"退货"是 urgent 词，不构成方面提及）', () => {
     assert.deepEqual(audit.lexiconSilent, [42]);
-    const t42 = TICKETS.find((t) => t.id === 42) as Ticket;
+    const t42 = TICKETS.find((t) => t.id === 42)!;
     assert.equal(mentionedAspects(t42.text).size, 0);
   });
 
@@ -68,8 +67,8 @@ describe('llm-learning-curve · 标注审计快照', () => {
   it('同含争议词但不受影响的工单：#14（坏了已命中质量）、#16（闪退已命中功能）', () => {
     // 词表包含争议词，但这两张的推导主方面在两种读法下不变——
     // 证明 disputedImpact 收敛性不是词表的巧合
-    const t14 = TICKETS.find((t) => t.id === 14) as Ticket;
-    const t16 = TICKETS.find((t) => t.id === 16) as Ticket;
+    const t14 = TICKETS.find((t) => t.id === 14)!;
+    const t16 = TICKETS.find((t) => t.id === 16)!;
     const strict14 = [...mentionedAspects(t14.text)].sort();
     const inclusive14 = [...mentionedAspects(t14.text, { includeDisputed: true })].sort();
     const strict16 = [...mentionedAspects(t16.text)].sort();

@@ -10,15 +10,6 @@ import { GrowthSchedulerBrain } from '../src/proactive-intelligence/brain.js';
 import { allPresetRules, getRulesByScenario } from '../src/proactive-intelligence/rules.js';
 import { ConfigurationError, PlatformError } from '../src/utils/errors.js';
 
-/** 仅等待事件循环排空（不涉及插件决策队列的同步路径等待） */
-function tick(times = 2): Promise<void> {
-  return new Promise((resolve) => {
-    let n = 0;
-    const step = () => (++n >= times ? resolve() : setImmediate(step));
-    setImmediate(step);
-  });
-}
-
 function notificationRule(id: string, conditions: Rule['conditions']): Rule {
   return {
     id,
@@ -157,18 +148,25 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     const plugin = new ProactiveIntelligencePlugin();
     const executor = plugin.getExecutor();
 
-    // 手动造一个在途执行：用自定义 handler 挂起（短超时，避免悬挂）
+    // 手动造一个在途执行：handler 挂起由测试控制的 gate 释放。
+    // 确定性修正：旧写法 `new Promise(() => {})` + timeout: 20 在 CI 高负载下
+    // 进程可被 OS 去调度 >20ms，超时先于 setImmediate 触发并把执行移出
+    // running 表，running 断言 0!==1 闪断（与已修复的 5ms 单调钟闪断同类）。
+    // timeout 只是防悬挂兜底，不是被测对象；gate 释放才是确定性的收尾路径。
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
     const execPromise = executor
       .executeAction('r', {
         type: 'custom',
         name: 'hang',
-        parameters: { handler: () => new Promise(() => {}) },
-        timeout: 20,
+        parameters: { handler: () => gate },
+        timeout: 5_000,
       })
       .catch(() => undefined);
-    // 等待进入 running
-    await tick(1);
 
+    // executeAction 同步段从预检到 runningExecutions.set 之间无 await
+    // （executor.ts 中有显式不变量注释），调用返回即已在 running 表——
+    // 断言前无需等待任何宏任务（与 quality-regressions 的取消竞态测试同款）。
     const running = executor.getRunningExecutions();
     assert.equal(running.length, 1);
     executor.cancelExecution(running[0]!.id);
@@ -177,7 +175,9 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     assert.ok(
       history.some((e) => e.status === 'failed' && e.error?.message === 'Execution cancelled'),
     );
-    // 幂等：超时后同 ID 不重复入列
+    // 释放 gate：在飞结果走取消竞态分支（终态不被覆盖、不再发 completed）
+    release();
+    // 幂等：在飞结果回流后同 ID 不重复入列
     await execPromise;
     assert.equal(history.filter((e) => e.id === running[0]!.id).length, 1);
   });
@@ -201,7 +201,7 @@ describe('proactive-intelligence · 入口负对照（静默垃圾路径拒绝�
       (error: unknown) =>
         error instanceof ConfigurationError &&
         error instanceof PlatformError &&
-        /Invalid event severity 'catastrophic'/.test(error.message),
+        error.message.includes('catastrophic'),
     );
     // 空 type 的事件无法被任何 'type.field' 规则匹配却照常计数
     assert.throws(() => observe('info', ''), /Event type must be a non-empty string/);
@@ -231,7 +231,7 @@ describe('proactive-intelligence · 入口负对照（静默垃圾路径拒绝�
       () => engine.addRule({ ...notificationRule('bad-cooldown', []), cooldown: NaN }),
       (error: unknown) =>
         error instanceof ConfigurationError &&
-        /cooldown must be a finite non-negative/.test(error.message),
+        error.message.includes('cooldown must be a finite non-negative'),
     );
     assert.throws(
       () => engine.addRule({ ...notificationRule('neg-cooldown', []), cooldown: -1 }),
@@ -270,7 +270,7 @@ describe('proactive-intelligence · 入口负对照（静默垃圾路径拒绝�
       () => getRulesByScenario('secruity'),
       (error: unknown) =>
         error instanceof ConfigurationError &&
-        /Unknown rules scenario 'secruity'/.test(error.message),
+        error.message.includes("Unknown rules scenario 'secruity'"),
     );
 
     // 边界：全部合法场景名（含 'all'）返回不变

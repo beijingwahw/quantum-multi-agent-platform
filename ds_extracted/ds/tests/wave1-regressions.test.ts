@@ -10,22 +10,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 import { ProactiveIntelligencePlugin } from '../src/proactive-intelligence/index.js';
-import type { Agent } from '../src/types/quantum-types.js';
+import { makeAgent } from './helpers/fixtures.js';
 import type { Rule } from '../src/proactive-intelligence/index.js';
-
-function makeAgent(id: string, capabilities: string[], load = 0): Agent {
-  return {
-    id,
-    name: id,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [],
-    lastHeartbeat: new Date(),
-  };
-}
 
 function makeTask(name: string, capability: string) {
   return {
@@ -87,7 +73,7 @@ describe('Wave 1 验收 · scheduleTask 状态守卫（P1，已验证）', () =>
 describe('Wave 1 验收 · overloaded 吸收态修复（P1，已验证）', () => {
   it('overloaded agent 负载归零后回到 idle 并重新进入候选池', () => {
     const scheduler = new QuantumScheduler({});
-    const agent = makeAgent('a1', ['javascript'], 80); // 80 = 阈值，下一次分配即过载
+    const agent = makeAgent('a1', ['javascript'], { load: 80 }); // 80 = 阈值，下一次分配即过载
     scheduler.registerAgent(agent);
 
     const task = scheduler.submitTask(makeTask('T1', 'javascript'));
@@ -108,7 +94,7 @@ describe('Wave 1 验收 · overloaded 吸收态修复（P1，已验证）', () =
 
   it('全员过载时 systemLoad 不再显示零负载（overloaded 计入在役）', () => {
     const scheduler = new QuantumScheduler({});
-    const agent = makeAgent('a1', ['javascript'], 80);
+    const agent = makeAgent('a1', ['javascript'], { load: 80 });
     scheduler.registerAgent(agent);
 
     scheduler.submitTask(makeTask('T1', 'javascript'));

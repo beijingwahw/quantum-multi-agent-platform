@@ -139,7 +139,7 @@ describe('utils/numeric（舍入约定）', () => {
           (error: unknown) =>
             error instanceof NumericDomainError &&
             error instanceof PlatformError &&
-            /must be a finite number/.test(error.message),
+            error.message.includes('must be a finite number'),
           `${fn.name}(${bad}) 应抛 NumericDomainError`,
         );
       }
@@ -151,7 +151,7 @@ describe('utils/numeric（舍入约定）', () => {
       () => round9(1e300),
       (error: unknown) =>
         error instanceof NumericDomainError &&
-        /overflows to a non-finite value/.test(error.message),
+        error.message.includes('overflows to a non-finite value'),
     );
     // round2 的放大系数只有 100，同量级输入不溢出——合法结果不变
     assert.equal(round2(1e300), 1e300);
@@ -170,7 +170,8 @@ describe('utils/rng（种子域负对照）', () => {
     assert.throws(
       () => new Mulberry32(NaN),
       (error: unknown) =>
-        error instanceof NumericDomainError && /seed must be a finite number/.test(error.message),
+        error instanceof NumericDomainError &&
+        error.message.includes('seed must be a finite number'),
     );
     assert.throws(() => mulberry32(Infinity), NumericDomainError);
     assert.throws(() => {

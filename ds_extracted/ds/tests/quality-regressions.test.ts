@@ -22,25 +22,12 @@ import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
 import { estimateQuality, type MarketAgentRecord } from '../src/core/market-estimation.js';
 import { QuantumBus } from '../src/communication/quantum-bus.js';
+import { makeAgent } from './helpers/fixtures.js';
 import WebSocket from 'ws';
 
 // ----------------------------------------------------------------------------
 // 构造辅助
 // ----------------------------------------------------------------------------
-
-function makeAgent(id: string, capabilities: string[]) {
-  return {
-    id,
-    name: id,
-    type: 'developer' as const,
-    capabilities,
-    state: 'idle' as const,
-    load: 0,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [] as string[],
-    lastHeartbeat: new Date(),
-  };
-}
 
 function makeTask(name: string, capability: string) {
   return {

@@ -27,21 +27,8 @@ import {
 import { couplingKey, type AssignmentProblem } from '../../src/core/quantum-optimizer.js';
 import { mulberry32 } from '../../src/utils/rng.js';
 import type { QuantumBatchReport } from '../../src/core/quantum-scheduler.js';
-import type { Agent, TaskPriority } from '../../src/types/quantum-types.js';
-
-function makeAgent(id: string, capabilities: string[], entanglement: string[] = []): Agent {
-  return {
-    id,
-    name: id,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load: 0,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: entanglement,
-    lastHeartbeat: new Date(),
-  };
-}
+import { makeAgent } from '../helpers/fixtures.js';
+import type { TaskPriority } from '../../src/types/quantum-types.js';
 
 function makeTask(name: string, priority: TaskPriority = 'medium') {
   return {
@@ -81,7 +68,9 @@ function buildTwinSchedulers(scenario: TwinScenario): [QuantumScheduler, Quantum
       const id = `a${i + 1}`;
       // 纠缠环 a1→a2→…→an→a1：保证耦合项进入哈密顿量（等价性覆盖耦合路径）
       const next = `a${((i + 1) % scenario.agentCount) + 1}`;
-      scheduler.registerAgent(makeAgent(id, ['js'], i + 1 < scenario.agentCount ? [next] : []));
+      scheduler.registerAgent(
+        makeAgent(id, ['js'], { entanglement: i + 1 < scenario.agentCount ? [next] : [] }),
+      );
     }
     for (let t = 0; t < scenario.taskCount; t++) {
       scheduler.submitTask(makeTask(`T${t + 1}`));
@@ -302,6 +291,8 @@ describe('串行回退活性（08#34 补完：无 Worker 环境的异步契约�
           quantum: { seed: 20260906, entanglementBonus: 0.2, anneal: { tau: 20, steps: 20 } },
         },
       });
+      // 注意：以下 agent builder 是子进程脚本本体（-e 字符串不经过 tsx 转译，
+      // 必须是纯 JS、零类型标注、自包含——不得引用测试文件的任何导入）
       const agent = (id, ent) => ({
         id, name: id, type: 'developer', capabilities: ['js'], state: 'idle', load: 0,
         position: { x: 0, y: 0, z: 0 }, quantumEntanglement: ent, lastHeartbeat: new Date(),

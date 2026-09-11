@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import { BenchReportError } from '../utils/errors.js';
 import { checkRun, type BenchRun, type BenchRow } from './runner.js';
 
+/** The run serialized verbatim — the machine-readable half of the two-format, one-truth contract. */
 export function renderJson(run: BenchRun): string {
   return JSON.stringify(run, null, 2);
 }
@@ -23,6 +24,7 @@ export interface SummaryCell {
   readonly meanGap: number;
 }
 
+/** Aggregate per-(track, solver): played cells, hits, and mean gap (skipped cells excluded). */
 export function summarize(run: BenchRun): SummaryCell[] {
   const map = new Map<string, BenchRow[]>();
   for (const r of run.rows) {
@@ -50,6 +52,10 @@ export function summarize(run: BenchRun): SummaryCell[] {
   return out;
 }
 
+/**
+ * Render the Markdown battle record. Refuses (BenchReportError) an illegal
+ * run — a report layer that prints a forged run is worse than no report.
+ */
 export function renderMarkdown(run: BenchRun): string {
   const problems = checkRun(run);
   if (problems.length > 0) {

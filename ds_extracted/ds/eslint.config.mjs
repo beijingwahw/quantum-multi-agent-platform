@@ -83,6 +83,20 @@ export default tseslint.config(
       '@typescript-eslint/array-type': ['error', { default: 'array-simple' }],
       '@typescript-eslint/consistent-generic-constructors': ['error', 'constructor'],
       '@typescript-eslint/no-inferrable-types': 'error',
+
+      // 2026-09 质量波收紧:以下规则经 strict-trial 全仓试验零违规后启用
+      // (prefer-includes 的 23 处 tests 违规已就地修复为 includes())。另有
+      // 两条候选因存量违规暂缓:non-nullable-type-assertion-style(experiments/
+      // 20 处,待其属主清理)、switch-exhaustiveness-check(src/proactive-
+      // intelligence/decision-engine.ts 操作符 switch 未覆盖全部枚举)。
+      '@typescript-eslint/prefer-includes': 'error',
+      '@typescript-eslint/prefer-string-starts-ends-with': 'error',
+      '@typescript-eslint/no-dynamic-delete': 'error',
+      '@typescript-eslint/default-param-last': 'error',
+      'prefer-rest-params': 'error',
+      'prefer-spread': 'error',
+      'object-shorthand': 'error',
+      'no-else-return': 'error',
     },
   },
 

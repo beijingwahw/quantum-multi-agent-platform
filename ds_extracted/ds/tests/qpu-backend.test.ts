@@ -254,7 +254,8 @@ describe('QPU 后端层', () => {
     });
     await assert.rejects(
       () => solveAssignmentOnBackend(p, backend, { numReads: 3 }),
-      (err: unknown) => err instanceof BackendError && /all failed validation/.test(err.message),
+      (err: unknown) =>
+        err instanceof BackendError && err.message.includes('all failed validation'),
     );
   });
 

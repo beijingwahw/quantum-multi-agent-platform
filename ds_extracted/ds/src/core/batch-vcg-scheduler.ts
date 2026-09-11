@@ -67,7 +67,6 @@ import { round2, round3, round9 } from '../utils/numeric.js';
 import { MechanismError } from '../utils/errors.js';
 import {
   bidOf,
-  dominantOf,
   socialValueOf,
   switchCostOf,
   effectiveQuality,
@@ -106,6 +105,7 @@ export interface BatchVCGConfig {
   seed: number;
 }
 
+/** 批量 VCG 的缺省配置（exploreCoefficient=0/switchCostRate=0 为纯成本-报价基线） */
 export const DEFAULT_BATCH_CONFIG: BatchVCGConfig = {
   successValue: 10,
   priorQuality: 0.5,
@@ -208,10 +208,6 @@ export class BatchVCGScheduler {
 
   private bidOf(rt: AgentRuntime): number {
     return bidOf(rt);
-  }
-
-  private dominantOf(rt: AgentRuntime): string | null {
-    return dominantOf(rt);
   }
 
   /** 全局口径的按能力尝试总数（公开履历，不随排除集变化——保证 VCG 支付一致性）。
@@ -603,6 +599,12 @@ export class BatchVCGScheduler {
 
     // 全部校验通过：统一变更（此时不可能中途失败）
     const allocation = this.lastAllocation;
+    // 每 agent 的胜场数（均摊支付的分母）：一次预统计替代逐任务的
+    // 全表过滤（O(assignments²) → O(assignments)），计数逐值相同
+    const winsByAgent = new Map<string, number>();
+    for (const x of allocation.assignments) {
+      winsByAgent.set(x.agentId, (winsByAgent.get(x.agentId) ?? 0) + 1);
+    }
     for (const r of results) {
       const a = byTask.get(r.taskId)!;
       const rt = this.agents.get(a.agentId)!;
@@ -611,8 +613,7 @@ export class BatchVCGScheduler {
       rt.totalAttempts++;
       rt.reputation = updateReputation(rt.reputation, r.success, this.config.reputationAlpha);
       const pay = allocation.payments[a.agentId] ?? 0;
-      const k = allocation.assignments.filter((x) => x.agentId === a.agentId).length;
-      rt.profit += pay / k - rt.spec.trueCost;
+      rt.profit += pay / winsByAgent.get(a.agentId)! - rt.spec.trueCost;
     }
     this.lastAllocation = null;
   }
@@ -629,6 +630,11 @@ export class BatchVCGScheduler {
     const settlements: BatchSettlement[] = [];
     let welfare = 0;
     const results: Array<{ taskId: string; success: boolean }> = [];
+    // 每 agent 胜场数（均摊口径与 settleBatch 一致，一次预统计）
+    const winsByAgent = new Map<string, number>();
+    for (const x of allocation.assignments) {
+      winsByAgent.set(x.agentId, (winsByAgent.get(x.agentId) ?? 0) + 1);
+    }
 
     for (const a of allocation.assignments) {
       const rt = this.agents.get(a.agentId);
@@ -641,8 +647,7 @@ export class BatchVCGScheduler {
       const success = this.rng() < qEff;
       const penalty = switchCostOf(rt, cap, this.config);
       const actualCost = rt.spec.trueCost * (1 + penalty);
-      const k = allocation.assignments.filter((x) => x.agentId === a.agentId).length;
-      const pay = (allocation.payments[a.agentId] ?? 0) / k;
+      const pay = (allocation.payments[a.agentId] ?? 0) / winsByAgent.get(a.agentId)!;
       settlements.push({ taskId: a.taskId, agentId: a.agentId, success, payment: pay, actualCost });
       welfare += (success ? this.config.successValue : 0) - actualCost;
       results.push({ taskId: a.taskId, success });

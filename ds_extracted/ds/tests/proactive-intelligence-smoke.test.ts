@@ -7,6 +7,7 @@
 import { it } from 'node:test';
 import type { Rule } from '../src/proactive-intelligence/index.js';
 import { ProactiveIntelligencePlugin } from '../src/proactive-intelligence/index.js';
+import { sleep } from './helpers/fixtures.js';
 // ============================================================================
 
 // 测试1: 创建插件实例
@@ -369,8 +370,3 @@ it('执行器配置', async () => {
     throw new Error('安全模式配置不正确');
   }
 });
-
-// 辅助函数
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

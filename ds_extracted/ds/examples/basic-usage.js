@@ -9,7 +9,7 @@ async function basicExample() {
       maxConcurrentTasks: 50,
     },
     communication: {
-      port: 8081,
+      port: 0, // 系统分配临时端口：固定端口在并行/重跑时会冲突
     },
   });
 

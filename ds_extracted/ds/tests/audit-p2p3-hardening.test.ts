@@ -22,6 +22,7 @@
  */
 
 import { describe, it } from 'node:test';
+import { performance } from 'node:perf_hooks';
 import assert from 'node:assert/strict';
 import { CompoundBrain } from '../src/core/compound-brain.js';
 import { lawKMin } from '../src/core/compound-brain.js';
@@ -372,7 +373,8 @@ describe('P2/P3 收尾 · 调度器', () => {
             actualDuration: 0,
             status: 'pending',
           }),
-        (err: unknown) => err instanceof SchedulingError && /does not enforce/.test(err.message),
+        (err: unknown) =>
+          err instanceof SchedulingError && err.message.includes('does not enforce'),
         `${type} 需求应被拒绝`,
       );
     }
@@ -425,9 +427,11 @@ describe('P2/P3 收尾 · 超时取消链路（02#18）', () => {
         name: 'sleep-long',
         parameters: { command: 'node', args: [spinScript] },
       };
-      const started = Date.now();
+      const started = performance.now();
       await assert.rejects(exec.executeAction('rule-1', action), /timeout|Timeout/i);
-      const elapsed = Date.now() - started;
+      // 高分辨率钟：Date.now() 在 Windows 粒度约 15.6ms，跨 tick 采样会虚增
+      // 读数（阈值区分的是 400ms 中止 vs 60s 等满，仪器精度不应参与博弈）
+      const elapsed = performance.now() - started;
       assert.ok(elapsed < 5000, `超时应触发中止而非等满命令时长（${elapsed}ms）`);
     } finally {
       resetCommandPolicy();

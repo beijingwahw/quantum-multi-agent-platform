@@ -496,6 +496,10 @@ class QuantumBenchmark {
 // 导出benchmark运行器与类（类供测试注入故障/单方法运行）
 export { QuantumBenchmark };
 
+/**
+ * 便捷入口：构造基准器 → 初始化 → 全套基准 → 清理（失败路径同样清理）。
+ * 返回各基准的 BenchmarkResult（数值为测量值，不承诺环境间可比）。
+ */
 export async function runBenchmark(
   config?: DeepPartial<PlatformConfig>,
 ): Promise<BenchmarkResult[]> {

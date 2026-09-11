@@ -41,6 +41,11 @@ interface DSHIntegrationMetrics {
   isInitialized: boolean;
 }
 
+/**
+ * DSH（DeepSeek Harness）集成层：工具注册表 + 工作流引擎（依赖拓扑执行）
+ * + quantum→DSH agent 映射。工具实现委托 src/tools/*（沙箱文件系统、
+ * 加固命令管道、mock 搜索/子代理）；initialize 后方可执行工具。
+ */
 export class DSHIntegration extends EventEmitter {
   private tools = new Map<string, DSHTool>();
   private workflows = new Map<string, DSHWorkflow>();

@@ -1,21 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import type { Agent } from '../src/types/quantum-types.js';
-
-function makeAgent(id: string, capabilities: string[]): Agent {
-  return {
-    id,
-    name: id,
-    type: 'developer',
-    capabilities,
-    state: 'idle',
-    load: 0,
-    position: { x: 0, y: 0, z: 0 },
-    quantumEntanglement: [],
-    lastHeartbeat: new Date(),
-  };
-}
+import { makeAgent, sleep } from './helpers/fixtures.js';
 
 function baseTask(name: string, priority: any = 'medium'): any {
   return {
@@ -28,10 +14,6 @@ function baseTask(name: string, priority: any = 'medium'): any {
     actualDuration: 0,
     status: 'pending',
   };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe('调度器高级特性', () => {
@@ -104,7 +86,9 @@ describe('调度器高级特性', () => {
     const task = scheduler.submitTask(baseTask('slow'));
     assert.equal(task.status, 'assigned');
 
-    await sleep(150);
+    // 巡检回收是黑盒定时器路径：等待必须吸收 CI 负载下的调度延迟与
+    // 粗粒度时钟（最坏 60ms 超时 + 2 个巡检周期 + 时钟粒度 ≈ 100ms）
+    await sleep(250);
 
     assert.equal(task.status, 'failed');
     assert.equal(agent.state, 'idle');
@@ -148,7 +132,8 @@ describe('调度器高级特性', () => {
 
     assert.equal(scheduler.getTasks().length, 1);
 
-    await sleep(120); // 超过保留期+巡检周期
+    // 保留期 50ms + 巡检 20ms：等待吸收 CI 负载下的巡检延迟与粗粒度时钟
+    await sleep(200); // 超过保留期+巡检周期
 
     const metrics = scheduler.getSystemMetrics();
     assert.equal(scheduler.getTasks().length, 0); // 内存清除
@@ -168,7 +153,8 @@ describe('调度器高级特性', () => {
     scheduler.shutdown(); // 幂等
 
     // 巡检定时器确已停止：超时窗口过后任务不被 sweep 标记失败
-    await sleep(120);
+    // （等待越长断言越强——存活证明更充分）
+    await sleep(200);
     assert.equal(scheduler.getTasks()[0]!.status, 'assigned');
   });
 

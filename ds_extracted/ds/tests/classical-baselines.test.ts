@@ -10,7 +10,7 @@ import {
 import { hungarianAssignment, localSearchAssignment } from '../src/core/classical-baselines.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
-import type { Agent } from '../src/types/quantum-types.js';
+import { makeAgent } from './helpers/fixtures.js';
 
 const EPS = 1e-9;
 
@@ -123,20 +123,6 @@ describe('classical-baselines（经典最强基线）', () => {
 });
 
 describe('QuantumScheduler 多轮子空间调度（任务多于agent）', () => {
-  function makeAgent(id: string, capabilities: string[]): Agent {
-    return {
-      id,
-      name: id,
-      type: 'developer',
-      capabilities,
-      state: 'idle',
-      load: 0,
-      position: { x: 0, y: 0, z: 0 },
-      quantumEntanglement: [],
-      lastHeartbeat: new Date(),
-    };
-  }
-
   it('6任务×3agent：首轮联合分配3个，完成后次轮再分配3个（逐轮最优）', () => {
     const scheduler = new QuantumScheduler({
       scheduling: {

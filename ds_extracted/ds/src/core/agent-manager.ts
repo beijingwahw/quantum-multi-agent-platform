@@ -38,6 +38,12 @@ export interface SystemHealthReport {
   systemHealth: number;
 }
 
+/**
+ * Agent 注册表与生命周期管理：状态机（含过载不变量）、心跳存活跟踪
+ * （墙钟 + 单调旁账双轨）、量子纠缠图的邻接索引维护。事件经 guardedEmit
+ * 分发——监听器异常不回滚已提交的状态变更。shutdown() 停止全部心跳
+ * 定时器（平台关闭路径）。
+ */
 export class AgentManager extends EventEmitter {
   private agents = new Map<string, Agent>();
   private entanglements = new Map<string, QuantumEntanglement>();

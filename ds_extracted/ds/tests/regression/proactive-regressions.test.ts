@@ -19,6 +19,8 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
+import { sleep } from '../helpers/fixtures.js';
 import type { EventEmitter } from 'node:events';
 import {
   ProactiveIntelligencePlugin,
@@ -75,10 +77,6 @@ function tick(times = 2): Promise<void> {
     const step = () => (++n >= times ? resolve() : setImmediate(step));
     setImmediate(step);
   });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function totalListeners(ee: EventEmitter): number {
@@ -344,10 +342,13 @@ describe('审计3 [P1] · 确定性失败不重试、瞬态错误重试', () => 
       parameters: {},
       retryPolicy: retry,
     };
-    const startedAt = Date.now();
+    // 高分辨率钟测量：Date.now() 在 Windows 上粒度约 15.6ms，两次采样
+    // 跨 tick 会让 ~0ms 的纯微任务路径读出 15ms+，<10ms 断言结构性闪断
+    // （与已修复的 5ms 单调钟闪断同类）。阈值不变，只换测量仪器。
+    const startedAt = performance.now();
     await assert.rejects(executor.executeAction('r', bad), /requires/);
     // 确定性失败不重试的强证据：耗时远小于 3 次退避（5/10/15ms）叠加
-    assert.ok(Date.now() - startedAt < 10, '参数校验失败不应消耗任何退避周期');
+    assert.ok(performance.now() - startedAt < 10, '参数校验失败不应消耗任何退避周期');
   });
 
   it('瞬态错误（基础设施类）按 backoff 重试并在成功后停止', async () => {
@@ -503,7 +504,7 @@ describe('审计5 [P1] · Brain 判别（不靠单一 submitTask 键鸭子类型
     };
     assert.throws(
       () => new ProactiveIntelligencePlugin({ brain: partialBrain }),
-      (err: unknown) => err instanceof StateError && /partial MarketBrain/.test(err.message),
+      (err: unknown) => err instanceof StateError && err.message.includes('partial MarketBrain'),
     );
   });
 

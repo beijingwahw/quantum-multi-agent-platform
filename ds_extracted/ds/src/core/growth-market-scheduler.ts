@@ -78,6 +78,7 @@ export interface GrowthSchedulerConfig {
   seed: number;
 }
 
+/** 增长市场调度器的缺省配置（探索/切换成本按 2026-09 实测校准，见文件头） */
 export const DEFAULT_GROWTH_CONFIG: GrowthSchedulerConfig = {
   successValue: 10,
   priorQuality: 0.5,

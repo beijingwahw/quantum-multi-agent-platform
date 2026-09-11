@@ -397,6 +397,11 @@ export async function execute_command_argv(
   }
 }
 
+/**
+ * 字符串命令的加固执行入口：shell 风格分词（引号内元字符同样拒绝）后
+ * 走 {@link execute_command_argv} 的同一四道闸门。参数含引号内空白时
+ * 语义有损，结构化调用方应优先 execute_command_argv。
+ */
 export async function execute_command(
   command: string,
   workdir?: string,

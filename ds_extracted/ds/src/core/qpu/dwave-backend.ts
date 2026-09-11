@@ -143,6 +143,9 @@ export class DWaveBackend implements QuantumBackend {
             `DWave problem entered unknown status '${problem.status}' (id=${problem.id ?? 'none'})`,
           );
         }
+        if (!problem.id) {
+          throw new BackendError('DWave submit response is missing the problem id; cannot poll');
+        }
         const remaining = deadline - Date.now();
         if (remaining <= 0) {
           throw new BackendError(
@@ -150,12 +153,10 @@ export class DWaveBackend implements QuantumBackend {
           );
         }
         await sleep(Math.min(500, remaining));
-        if (!problem.id) {
-          throw new BackendError('DWave submit response is missing the problem id; cannot poll');
-        }
-        // 每次请求只消耗剩余预算，总墙钟时间不超过 timeoutMs。
+        // 每次请求只消耗「退避之后」的剩余预算，总墙钟时间不超过
+        // timeoutMs——继承 sleep 前的旧预算会让总时长超限一个退避间隔。
         // 瞬态轮询失败（网络抖动/5xx）重试一次而不是抛弃已提交的问题。
-        problem = await this.pollWithRetry(problem.id, remaining);
+        problem = await this.pollWithRetry(problem.id, deadline - Date.now());
       }
     } catch (error) {
       if (problem.id) await this.cancelQuietly(problem.id);
@@ -349,7 +350,16 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
   // 位值 0 → 自旋 +1，1 → 自旋 −1；每个解占 nqubits 位
   const data = answer.data as Record<string, unknown> | undefined;
   if (answer.format === 'qp' && Array.isArray(data?.vector)) {
-    const words = data.vector as number[];
+    const words = data.vector;
+    // 与经典格式同口径「不盲信外部 JSON」：非数值/NaN 字会被 (w>>b)&1
+    // 静默解成全 +1 自旋（幻影样本歪曲频率统计）——显式拒绝
+    if (!words.every(isFiniteNumber)) {
+      throw new BackendError(
+        `DWave qp answer contains non-numeric vector words: ${JSON.stringify(
+          words.filter((w) => !isFiniteNumber(w)).slice(0, 3),
+        ).slice(0, 120)}`,
+      );
+    }
     const bits: number[] = [];
     for (const word of words) {
       for (let b = 0; b < 16; b++) {
@@ -386,11 +396,17 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return isFiniteNumber(value) ? value : undefined;
 }
 
+/** 数组形式的外部数值字段：全元素有限数值才算数（NaN 能穿透 typeof 检查，
+ * 再以 NaN 污染 invalidSamples/频率统计——静默垃圾显式拒绝） */
 function asNumberArray(value: unknown): number[] | undefined {
-  return Array.isArray(value) && value.every((v) => typeof v === 'number') ? value : undefined;
+  return Array.isArray(value) && value.every(isFiniteNumber) ? value : undefined;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function sleep(ms: number): Promise<void> {

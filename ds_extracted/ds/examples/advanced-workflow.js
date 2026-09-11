@@ -9,7 +9,7 @@ async function advancedWorkflowExample() {
       maxConcurrentTasks: 100,
     },
     communication: {
-      port: 8083,
+      port: 0, // 系统分配临时端口：固定端口在并行/重跑时会冲突
     },
     dsh: {
       toolIntegration: true,
