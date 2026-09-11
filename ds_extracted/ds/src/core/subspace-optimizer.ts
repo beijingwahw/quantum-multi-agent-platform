@@ -66,7 +66,7 @@ import type {
   CollapseMode,
   SolverSolution,
 } from './quantum-optimizer.js';
-import { welfareOf, decodeCouplingKey } from './quantum-optimizer.js';
+import { welfareOf, decodeCouplingKey, validateAssignmentProblem } from './quantum-optimizer.js';
 import { mulberry32 } from '../utils/rng.js';
 import {
   ComplexAmplitudes,
@@ -213,6 +213,9 @@ export function buildSubspaceModel(
   const n = problem.agentIds.length;
   const cap = options.dimensionCap ?? SUBSPACE_DIMENSION_CAP;
   if (m === 0 || n === 0 || m > n) return null;
+  // 形状校验与全空间能量入口同一单源：短行 weights 在此同样读 undefined
+  // 进 NaN 能量表（静默垃圾），良构问题的构建路径位级不变
+  validateAssignmentProblem(problem);
 
   // 元组键：Σ a_t · n^(m−1−t)（a_0 为最高位）。关键性质：DFS 按字典序枚举
   // ⇒ 键严格升序 ⇒ keys 数组天然有序，任意元组 → 规范索引用二分查找即可，

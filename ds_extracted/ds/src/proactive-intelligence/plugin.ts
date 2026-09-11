@@ -172,6 +172,10 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     // 监控器发出事件时，合并同 tick 事件后统一触发一次决策
     // （修复：此前每个事件立即全量决策，事件风暴下重复决策且 O(n·m) 评估）
     this.monitor.on('event', (event: MonitorEvent) => {
+      // 事件面冒泡（README/QUICKSTART 文档化的 plugin.on('event')）：
+      // 与 engine/executor 事件同口径转发到插件层——此前只在内部合并
+      // 消费，文档承诺的监听面永不触发
+      this.emit('event', event);
       if (!this.running) return;
 
       this.pendingEvents.push(event);
@@ -279,6 +283,10 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
               const entry = pickNext();
               if (!entry) return;
               this.actionBacklog = Math.max(0, this.actionBacklog - 1);
+              // stop() 是紧急制动：已出队未启动的动作不再执行（在飞的由
+              // stop() 的 cancelExecution 终止）。制动必须覆盖整个动作池——
+              // 此前只在批处理调度口拦截，池内排队的动作在 stop 后继续开火
+              if (!this.running) return;
               try {
                 await this.executor.executeAction(entry.ruleId, entry.action);
               } catch (error) {
@@ -364,6 +372,9 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     if (!this.running) return Promise.resolve();
 
     this.running = false;
+    // 池内未启动的排队动作被紧急制动放弃（worker 见 !running 即返回）：
+    // 背压计数同步清零——这些条目不再有人拾取，留着只会永久虚高
+    this.actionBacklog = 0;
 
     // 等待所有运行中的动作完成或超时
     const running = this.executor.getRunningExecutions();

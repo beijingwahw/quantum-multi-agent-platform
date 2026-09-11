@@ -45,6 +45,13 @@ export function surfaceCode(d: number, threshold = 0.006): FtCodeSpec {
   if (!Number.isInteger(d) || d < 2) {
     throw new QuantumEstimateError(`surface distance must be an integer >= 2, got ${d}`);
   }
+  if (!(threshold > 0) || !Number.isFinite(threshold)) {
+    // threshold ≤ 0 使 logicalErrorPerRound 的 pPhys/threshold 变 ±Infinity/NaN，
+    // 幂律结果静默穿流成「负错误率在预算内」类读数
+    throw new QuantumEstimateError(
+      `surface code threshold must be a positive finite number, got ${threshold}`,
+    );
+  }
   return {
     id: `surface-d${d}`,
     family: 'surface',
@@ -63,6 +70,11 @@ export function surfaceCode(d: number, threshold = 0.006): FtCodeSpec {
  * 288 物理比特/块，weight-6 稳定子，BP+OSD 电路级伪阈值 0.6–0.8%。
  */
 export function grossCode(threshold = 0.007): FtCodeSpec {
+  if (!(threshold > 0) || !Number.isFinite(threshold)) {
+    throw new QuantumEstimateError(
+      `gross code threshold must be a positive finite number, got ${threshold}`,
+    );
+  }
   return {
     id: 'gross-bb-144-12-12',
     family: 'gross',
@@ -176,6 +188,46 @@ export function estimateFtCircuit(
   if (logicalQubits < 1 || couplings < 0 || depth < 1) {
     throw new QuantumEstimateError(
       `invalid circuit profile: qubits=${logicalQubits}, couplings=${couplings}, depth=${depth}`,
+    );
+  }
+  // 假设退化值的命名拒绝（第二遍质量遍历）：此前 pPhys=-1e-3 使幂律输出
+  // **负**错误率且 meetsBudget=true；cycleTimeUs=0 使 wallTimeMs=0 而
+  // 工厂数/占地为 Infinity——两者都以「可信画像」的形态静默外流。
+  // 估算器的其余假设（roundsPerOpDistanceFactor）已有 Math.max(1,·) 夹取。
+  if (!(a.pPhys > 0) || !Number.isFinite(a.pPhys)) {
+    throw new QuantumEstimateError(`pPhys must be a positive finite number, got ${a.pPhys}`);
+  }
+  if (!(a.cycleTimeUs > 0) || !Number.isFinite(a.cycleTimeUs)) {
+    throw new QuantumEstimateError(
+      `cycleTimeUs must be a positive finite number, got ${a.cycleTimeUs} (0 zeroes wall time and drives factory count to Infinity)`,
+    );
+  }
+  if (!(a.synthesisEpsilon > 0 && a.synthesisEpsilon < 1) || !Number.isFinite(a.synthesisEpsilon)) {
+    throw new QuantumEstimateError(`synthesisEpsilon must be in (0, 1), got ${a.synthesisEpsilon}`);
+  }
+  if (!(a.targetCircuitError > 0) || !Number.isFinite(a.targetCircuitError)) {
+    throw new QuantumEstimateError(
+      `targetCircuitError must be a positive finite number, got ${a.targetCircuitError}`,
+    );
+  }
+  if (!Number.isFinite(a.roundsPerOpDistanceFactor) || a.roundsPerOpDistanceFactor < 0) {
+    throw new QuantumEstimateError(
+      `roundsPerOpDistanceFactor must be a non-negative finite number, got ${a.roundsPerOpDistanceFactor}`,
+    );
+  }
+  if (!(a.tFactory.nsPerT > 0) || !Number.isFinite(a.tFactory.nsPerT)) {
+    throw new QuantumEstimateError(
+      `tFactory.nsPerT must be a positive finite number, got ${a.tFactory.nsPerT}`,
+    );
+  }
+  if (!Number.isFinite(a.tFactory.epsilonPerT) || a.tFactory.epsilonPerT < 0) {
+    throw new QuantumEstimateError(
+      `tFactory.epsilonPerT must be a non-negative finite number, got ${a.tFactory.epsilonPerT}`,
+    );
+  }
+  if (!(a.tFactory.physicalQubits > 0) || !Number.isFinite(a.tFactory.physicalQubits)) {
+    throw new QuantumEstimateError(
+      `tFactory.physicalQubits must be a positive finite number, got ${a.tFactory.physicalQubits}`,
     );
   }
 

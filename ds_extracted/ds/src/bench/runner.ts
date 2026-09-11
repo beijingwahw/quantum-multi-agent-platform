@@ -4,6 +4,7 @@
  * the row count is instances × solvers, exactly, and the report layer
  * refuses to print anything else.
  */
+import { performance } from 'node:perf_hooks';
 import {
   makeBenchInstance,
   recordFamily,
@@ -64,7 +65,7 @@ export function runBenchmark(
         entry = { instance, optimal: opt };
         cache.set(specId(spec), entry);
       }
-      const t0 = Date.now();
+      const t0 = performance.now();
       const overCap = solver.maxQubits !== undefined && entry.instance.nqubits > solver.maxQubits;
       if (overCap) {
         rows.push({
@@ -85,7 +86,7 @@ export function runBenchmark(
         continue;
       }
       const solution = solver.solve(entry.instance.problem);
-      const ms = Date.now() - t0;
+      const ms = performance.now() - t0;
       const welfare = assignmentWelfare(entry.instance.problem, solution.assignment);
       rows.push({
         track: spec.track,
@@ -130,7 +131,11 @@ function specId(spec: BenchInstanceSpec): string {
 /**
  * The anti-selection law: a legal run carries EXACTLY expectedCells rows
  * (minted by runBenchmark from instances × solvers), one per cell — a
- * dropped loss is a forged report.
+ * dropped loss is a forged report. Beyond count and uniqueness, each row
+ * must be internally coherent: its solver must be one of the run's own
+ * declared solverIds, and its instanceId must agree with its own
+ * (track, m, n, seed) — otherwise a loss can be hidden by doctoring an
+ * identity string while keeping the cell count intact.
  */
 export function checkRun(run: BenchRun): string[] {
   const problems: string[] = [];
@@ -139,11 +144,30 @@ export function checkRun(run: BenchRun): string[] {
       `row count ${run.rows.length} !== expected cells ${run.expectedCells} — selection suspected`,
     );
   }
+  const declared = new Set(Array.isArray(run.solverIds) ? run.solverIds : []);
   const seen = new Set<string>();
+  const seenSolvers = new Set<string>();
   for (const r of run.rows) {
     const key = `${r.instanceId}::${r.solver}`;
     if (seen.has(key)) problems.push(`duplicate cell ${key}`);
     seen.add(key);
+    if (!declared.has(r.solver)) {
+      problems.push(
+        `row for instance ${r.instanceId} names solver '${r.solver}' — not among the run's declared solverIds, forged row suspected`,
+      );
+    }
+    seenSolvers.add(r.solver);
+    const coherentId = `${r.track}-m${r.m}n${r.n}-s${r.seed}`;
+    if (r.instanceId !== coherentId) {
+      problems.push(
+        `row instanceId '${r.instanceId}' disagrees with its own spec (${coherentId}) — doctored identity suspected`,
+      );
+    }
+  }
+  if (seenSolvers.size !== declared.size) {
+    problems.push(
+      `rows cover ${seenSolvers.size} distinct solvers but the run declares ${declared.size} — matrix incomplete, selection suspected`,
+    );
   }
   return problems;
 }

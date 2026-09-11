@@ -227,6 +227,13 @@ export class DSHIntegration extends EventEmitter {
     parameters: DSHToolParams,
     quantumAgentId?: string,
   ): Promise<unknown> {
+    // 文档契约「initialize 后方可执行工具」在此真实执行：默认工具/
+    // 工作流由 initialize 注册，此前未初始化的调用只会撞上空注册表的
+    // 「Tool not found」——先 init 后用是调用方义务，指名违规比误报
+    // 工具缺失更诚实（registerTool 动态注册也不能绕过该契约）
+    if (!this.isInitialized) {
+      throw new ToolError('DSHIntegration is not initialized (call initialize() first)');
+    }
     const tool = this.tools.get(toolName);
     if (!tool) {
       throw new ToolError(`Tool '${toolName}' not found`);
@@ -352,6 +359,10 @@ export class DSHIntegration extends EventEmitter {
     workflowId: string,
     quantumAgentId?: string,
   ): Promise<Array<[string, unknown]>> {
+    // 与 executeTool 同口径的初始化门（工作流模板同样由 initialize 注册）
+    if (!this.isInitialized) {
+      throw new ToolError('DSHIntegration is not initialized (call initialize() first)');
+    }
     const workflow = this.workflows.get(workflowId);
     if (!workflow) {
       throw new ToolError(`Workflow '${workflowId}' not found`);

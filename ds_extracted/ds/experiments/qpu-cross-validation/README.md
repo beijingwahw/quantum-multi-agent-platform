@@ -6,9 +6,14 @@ experiment, per the Wukong-180 machine-time application's own specification:
 verification sampling.** The canonical, fully gated implementation lives in
 the workspace repo `wukong-crossval` (12/12 tests, smuggling trials, rendered
 package report); this copy is the platform entry the GENESIS task book
-requires. Regenerate by copying `wukong-crossval/src/kernel/crossval.ts`
-over `kernel.ts` — the smoke test below pins the interface so a drifted copy
-fails loudly.
+requires. Regenerate by copying `wukong-crossval/src/kernel/crossval.ts` over
+`kernel.ts` and `wukong-crossval/src/kernel/error.ts` over `error.ts` (this
+copy keeps the platform's prettier/single-quote idiom and the subset of error
+codes its kernel consumes) — the smoke test below pins the interface AND the
+named-refusal surface (guard codes + the frozen applyRX sign convention) so a
+drifted copy fails loudly. History: this copy once lagged the canonical's
+hardening (the 2026-09 quality waves) and the old two-pin smoke gate could
+not name the drift — the guard-code pins exist precisely so that cannot recur.
 
 Contents (all seeded, all deterministic):
 

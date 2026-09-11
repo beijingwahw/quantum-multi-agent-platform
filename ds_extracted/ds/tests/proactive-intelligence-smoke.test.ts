@@ -5,17 +5,20 @@
  */
 
 import { it } from 'node:test';
+import assert from 'node:assert/strict';
 import type { Rule } from '../src/proactive-intelligence/index.js';
 import { ProactiveIntelligencePlugin } from '../src/proactive-intelligence/index.js';
-import { sleep } from './helpers/fixtures.js';
 // ============================================================================
 
-// 测试1: 创建插件实例
+// 测试1: 创建插件实例（可失败的断言：构造即验证初始状态面）
 it('创建插件实例', async () => {
   const plugin = new ProactiveIntelligencePlugin();
-  if (!plugin) {
-    throw new Error('插件创建失败');
-  }
+  // 旧写法 `if (!plugin) throw` 永不可能失败（构造失败会直接 throw），
+  // 断言改为可失败的初始状态检查
+  const stats = plugin.getStatistics();
+  assert.equal(stats.running, false, '新实例不应处于运行态');
+  assert.equal(stats.executor.running, 0);
+  assert.equal(plugin.getBrain(), null);
 });
 
 // 测试2: 启动和停止插件
@@ -237,7 +240,9 @@ it('规则触发（安全模式）', async () => {
     data: { value: 'trigger' },
   });
 
-  await sleep(200);
+  // 确定性冲刷原语替代固定 sleep(200)：等待的是决策/执行真实完成，
+  // 而非经验估计的轮次（慢机上少睡一轮即闪断）
+  await plugin.flush();
 
   if (!ruleTriggered) {
     throw new Error('规则未触发');

@@ -21,6 +21,13 @@ export class ActionExecutor extends EventEmitter {
   private historyIds = new Set<string>();
   /** 已取消的执行ID：在飞的executeAction返回时据此放弃覆盖终态 */
   private cancelledIds = new Set<string>();
+  /**
+   * 各执行当前尝试的 AbortController（executionId → 在飞尝试的中止句柄）：
+   * cancelExecution 经此把「取消」翻译成底层操作的真实中止（command 动作
+   * 整树击杀子进程），而不是只改账面后等动作超时兜底。每次尝试独立控制器
+   * （超时语义按尝试计），尝试结束即注销。
+   */
+  private activeAttemptAborts = new Map<string, AbortController>();
   private config: PolicyConfig;
 
   constructor(config: Partial<PolicyConfig> = {}) {
@@ -141,13 +148,19 @@ export class ActionExecutor extends EventEmitter {
   }
 
   /** 带超时与重试的动作执行 */
-  private async performAction(action: Action, _execution: ActionExecution): Promise<unknown> {
+  private async performAction(action: Action, execution: ActionExecution): Promise<unknown> {
     const timeout = action.timeout ?? this.config.actionTimeoutMs;
     const retryPolicy = action.retryPolicy ?? { maxRetries: 0, backoffMs: 1000 };
 
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= retryPolicy.maxRetries; attempt++) {
+      // 取消即停止重试：cancelExecution 标记后不再发起新尝试（含退避
+      // 睡眠醒来之后）。重试有副作用——command 重跑即重复执行子进程，
+      // 「已取消」的执行不得在后台继续开火
+      if (this.cancelledIds.has(execution.id)) {
+        throw new ToolError('Execution cancelled');
+      }
       try {
         // 超时即真取消（02#18）：此前 Promise.race 只丢弃慢结果，底层
         // 操作（子进程/句柄）继续在飞——一个超时的 command 动作会在
@@ -155,6 +168,7 @@ export class ActionExecutor extends EventEmitter {
         // 「放弃等待」翻译成「请求中止」，execute_command_argv 收到
         // abort 后整树击杀子进程。
         const abort = new AbortController();
+        this.activeAttemptAborts.set(execution.id, abort);
         let timeoutHandle: NodeJS.Timeout | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => {
@@ -172,6 +186,7 @@ export class ActionExecutor extends EventEmitter {
           return result;
         } finally {
           clearTimeout(timeoutHandle);
+          this.activeAttemptAborts.delete(execution.id);
         }
       } catch (error) {
         lastError = error as Error;
@@ -390,6 +405,9 @@ export class ActionExecutor extends EventEmitter {
     if (!execution) return false;
 
     this.cancelledIds.add(executionId);
+    // 真中止在飞尝试：只改账面会让底层操作（command 的子进程整树）
+    // 继续跑到动作超时才被兜底击杀——取消必须即时传导到底层句柄
+    this.activeAttemptAborts.get(executionId)?.abort(new ToolError('Execution cancelled'));
     execution.status = 'failed';
     execution.error = new ToolError('Execution cancelled');
     execution.endTime = new Date();

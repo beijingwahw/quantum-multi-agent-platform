@@ -20,8 +20,10 @@
  *    （q1 === q2）在四条能量路径语义分裂——bruteForceOptimum 的 extra
  *    循环只查 t2 < t 永不命中、computeEnergies 的 q1 < q2 过滤直接排除、
  *    welfareOf 计入一次、toIsing 并入线性项。故构造点（couplingKey）
- *    拒绝对角键（抛域错误）是正确收口；本测试把分裂钉成证据锚——
- *    若四路径未来被统一，须同步重审该禁令。
+ *    拒绝对角键（抛域错误）是正确收口；第二遍质量遍历把禁令延伸到全部
+ *    消费入口（validateAssignmentProblem 同名拒绝 raw 注入），本测试随之
+ *    更新为「四入口一致拒绝 + 合法耦合四路径同口径」的正面锚。
+ *    若未来解除消费入口禁令，须同步重审该分裂证据。
  * ⑤ A3#5 订阅频道运行时校验（P1，已修于 HEAD F01）：非字符串/空串/超长
  *    （>128）一律忽略并计入 invalidChannelRejections。
  * ⑥ A3#6 离线队列桶基数上界（P1，已修于 HEAD F02）：MAX_QUEUED_AGENTS
@@ -280,8 +282,8 @@ describe('A3#3 computeEnergies 记忆表（08#14）', () => {
 // A3#4 对角耦合：四路径语义分裂（疑点验证的证据锚）
 // ----------------------------------------------------------------------------
 
-describe('A3#4 对角耦合疑点验证（结论：不一致 → 构造点禁止）', () => {
-  it('raw 对角键被 bruteForce/computeEnergies 忽略、被 welfareOf/toIsing 计入——语义分裂即禁令依据', () => {
+describe('A3#4 对角耦合疑点验证（结论：不一致 → 构造点禁止；第二遍把禁令延伸到消费入口）', () => {
+  it('raw 对角键被四个消费入口一致拒绝——曾经的语义分裂不再可静默触达', () => {
     const nq = 6; // 2 任务 × 3 agent
     const J = 7;
     const diagQubit = 1; // (t0, a1)，键 = 1*6+1 = 7（q1 === q2 的对角键）
@@ -297,34 +299,43 @@ describe('A3#4 对角耦合疑点验证（结论：不一致 → 构造点禁止
     ];
     withDiag.couplings.set(diagQubit * nq + diagQubit, J); // 绕过 couplingKey 的 raw 注入
 
-    // 路径 1：bruteForceOptimum 忽略对角键（extra 循环只查 t2 < t）
-    assert.equal(
-      bruteForceOptimum(withDiag).welfare,
-      bruteForceOptimum(baseline).welfare,
-      'bruteForce 不得计入对角键',
-    );
-
-    // 路径 2：computeEnergies 忽略对角键（q1 < q2 过滤）
-    const e0 = computeEnergies(baseline).energies;
-    const e1 = computeEnergies(withDiag).energies;
-    assert.deepEqual([...e1], [...e0], '态矢量能量不得计入对角键');
-
-    // 路径 3：welfareOf 计入对角键一次（占据该格子的分配福利 +J）
-    const occupies = [1, 0]; // t0→a1（qubit1 置位）
-    const avoids = [0, 1];
-    assert.equal(welfareOf(withDiag, occupies), welfareOf(baseline, occupies) + J);
-    assert.equal(welfareOf(withDiag, avoids), welfareOf(baseline, avoids), '未占据格子不计');
-
-    // 路径 4：toIsing 并入线性项（占据位形的能量 -J）
-    const bitsOfOccupies = [0, 1, 0, 1, 0, 0];
-    assert.equal(
-      isingEnergyOf(toIsing(withDiag), bitsOfOccupies),
-      isingEnergyOf(toIsing(baseline), bitsOfOccupies) - J,
-      'toIsing 把对角耦合折叠进线性场',
-    );
-
-    // 四路径两两分歧 → 「精确最优对照」可信度被腐蚀 → 构造点禁令成立
+    // 第一遍的证据锚：bruteForce/computeEnergies 忽略、welfareOf/toIsing
+    // 计入——四路径分裂本身即「精确最优对照」被腐蚀的证据，故构造点禁令
+    // （couplingKey 拒绝对角）成立。第二遍收口（validateAssignmentProblem）：
+    // 禁令延伸到全部消费入口，raw 注入不再静默分裂而是同名拒绝。
+    assert.throws(() => bruteForceOptimum(withDiag), /must decode to 0 <= q1 < q2/);
+    assert.throws(() => computeEnergies(withDiag), /must decode to 0 <= q1 < q2/);
+    assert.throws(() => welfareOf(withDiag, [1, 0]), /must decode to 0 <= q1 < q2/);
+    assert.throws(() => toIsing(withDiag), /must decode to 0 <= q1 < q2/);
     assert.throws(() => couplingKey(diagQubit, diagQubit, nq), /Diagonal coupling/);
+    // 干净的对照实例照常可解（守卫不误伤良构问题）
+    assert.ok(Number.isFinite(bruteForceOptimum(baseline).welfare));
+
+    // 良构邻域不受新守卫影响：合法**非对角**耦合（经 couplingKey 构造）在
+    // 四条路径上完全一致——对照可信度以正面锚钉住。
+    const qA = 1; // (t0, a1)
+    const qB = 1 * 3 + 2; // (t1, a2)
+    const legal = makeProblem(2, 3);
+    legal.weights = [
+      [5, 4, 1],
+      [3, 6, 2],
+    ];
+    legal.couplings.set(couplingKey(qA, qB, nq), 3);
+    const occupies = [1, 2]; // 同时占据 (t0,a1) 与 (t1,a2) → 耦合生效
+    // 四路径一致：bruteForce 可解且最优合法 = 态矢量能量表口径 = welfareOf = Ising
+    const brute = bruteForceOptimum(legal);
+    assert.ok(isValidAssignment(legal, brute.assignment), '穷举最优仍是合法分配');
+    const energies = computeEnergies(legal).energies;
+    const bitsOfOccupies = [0, 1, 0, 0, 0, 1];
+    const state = bitsOfOccupies.reduce((acc, b, q) => acc | (b << q), 0);
+    assert.ok(
+      Math.abs(energies[state]! + welfareOf(legal, occupies)) < 1e-12,
+      'computeEnergies 与 welfareOf 在合法耦合上同口径',
+    );
+    assert.ok(
+      Math.abs(isingEnergyOf(toIsing(legal), bitsOfOccupies) - energies[state]!) < 1e-9,
+      'toIsing 与态矢量能量在合法耦合上同口径',
+    );
   });
 });
 

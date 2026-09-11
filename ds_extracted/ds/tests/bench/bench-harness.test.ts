@@ -214,4 +214,59 @@ describe('bench-kit 测量器自验证', () => {
     assert.equal(report.lowResolution, true);
     assert.match(report.note, /分辨率/);
   });
+
+  it('⑧ 单层退化守卫：围栏整层剔除一个执行层 → 如实 inconclusive（旧路径带 NaN 区间判 no-difference）', () => {
+    // 2026-09-11 定罪的场景：MAD 围栏把某一执行层（A 先行或 B 先行）整层
+    // 剔除、另一层剩余 ≥8 轮时，分层 bootstrap 的一层为空 →
+    // medianOf([])=NaN → 2000 个 NaN 重采样 → ciLow/ciHigh 均为 NaN。
+    // NaN<1 与 NaN>1 均为 false，判决落进 no-difference，note 谎称
+    // 「95% CI 含 1」——一个不可判的场景被包装成了统计结论。
+    // 构造：注入时钟按 comparePaired 的固定调用序回放（漂移检查 6 值/次 ×
+    // 4 次、每测量轮 3 值），B 先行轮 tB=100000（比率 1000，尖峰级）、
+    // A 先行轮 tA≈tB≈100 且带抖动（避免 MAD=0）。17 轮 = 9 A 先行 + 8 B
+    // 先行：8 个尖峰被围栏整层剔除，剩 9 轮全在 A 先行层（≥8，过轮数
+    // 守卫）——恰好触发单层退化。全序列确定性，与机器无关。
+    const rounds = 17;
+    const seed = 20260911;
+    const order = randomizedOrderSequence(rounds, seed);
+    const refEvery = Math.max(1, Math.floor(rounds / 2));
+    const values: number[] = [];
+    let v = 0;
+    const pushRound = (d1: number, d2: number): void => {
+      v += 1000;
+      values.push(v, v + d1, v + d1 + d2);
+      v += 1e6;
+    };
+    const pushRef = (): void => {
+      // takeReference：3 组 {t0, t1}，各消耗 100 → 6 个时钟值
+      for (let s = 0; s < 3; s++) {
+        v += 1000;
+        values.push(v, v + 100);
+        v += 1e6;
+      }
+    };
+    pushRef();
+    for (let r = 0; r < rounds; r++) {
+      if (order[r])
+        pushRound(100 + ((r % 5) - 2) * 0.05, 100); // A 先行：比率 ≈1±0.001
+      else pushRound(100000, 100); // B 先行：tB 巨大 → 比率 1000
+      if (r > 0 && (r + 1) % refEvery === 0 && r + 1 < rounds) pushRef();
+    }
+    pushRef();
+    let idx = 0;
+    const clock = (): number => values[idx++] ?? 0;
+    const report = comparePaired(
+      { name: 'a', run: () => {} },
+      { name: 'b', run: () => {} },
+      { rounds, warmupRounds: 4, seed, clock, reference: () => {} },
+    );
+    // 场景自证：围栏整层剔除 8 轮尖峰，剩 9 轮同层
+    assert.equal(report.excludedOutliers, 8, `应剔除 8 个尖峰（实际 ${report.excludedOutliers}）`);
+    assert.equal(report.roundsKept, 9);
+    assert.ok(Number.isNaN(report.positionEffect), '单层退化下位置效应对消不可用（NaN 如实披露）');
+    // 守卫拦截：不判决，区间为 NaN，note 说明整层剔除
+    assert.equal(report.verdict, 'inconclusive', report.note);
+    assert.ok(Number.isNaN(report.ciLow) && Number.isNaN(report.ciHigh));
+    assert.match(report.note, /整层剔除/);
+  });
 });

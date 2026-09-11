@@ -335,6 +335,15 @@ export class BatchVCGScheduler {
    */
   allocateBatch(capabilities: string[], opts: { budget?: number } = {}): BatchAllocation {
     const budget = opts.budget ?? Infinity;
+    // 退化边界具名拒绝：NaN 与任何数的比较恒 false，二分搜索会全程判
+    // 「超预算」而静默退化成空分配——一批看起来像「无可负担组合」的
+    // 全弃标，而不是调用方的笔误。负预算同理：Σp ≥ 0 恒成立，不存在
+    // 可满足它的机制输出。Infinity 是文档化缺省，保持合法。
+    if (typeof budget !== 'number' || Number.isNaN(budget) || budget < 0) {
+      throw new MechanismError(
+        `budget must be a non-negative finite number or Infinity, got ${String(opts.budget)}`,
+      );
+    }
     const exact = this.solveWithPayments(capabilities, 0);
     const maxWelfare = this.welfareOf(capabilities, exact.pairs, 0);
 
@@ -440,7 +449,22 @@ export class BatchVCGScheduler {
     opts: { lambda?: number; mu?: number } = {},
   ): BatchAllocation {
     const lambda = opts.lambda ?? 0;
-    const mu = Math.max(1, opts.mu ?? 1);
+    // λ 的文档域是 λ ≥ 0（影子价格对估值折价）；非有限 λ 会让所有边费用
+    // 变 NaN——MCF 的 dist 比较恒 false、边全部悬空，最终在 round9 处以
+    // 不指名输入的 NumericDomainError 崩溃（还泄漏已递增的 taskSeq）。
+    if (typeof lambda !== 'number' || !Number.isFinite(lambda) || lambda < 0) {
+      throw new MechanismError(
+        `affine lambda must be a finite number ≥ 0, got ${String(opts.lambda)}`,
+      );
+    }
+    // μ 的文档域是 μ ≥ 1（markup 族，μ=1 退化为经典 VCG）。此前
+    // Math.max(1, μ) 把 μ<1 静默改写成 1——DSIC 实验结论会拿着
+    // 「以为在测 μ=0.5、实际跑在 μ=1」的机制得出；NaN 则经 score 污染
+    // 全部边费用。域外输入一律具名拒绝。
+    const mu = opts.mu ?? 1;
+    if (typeof mu !== 'number' || !Number.isFinite(mu) || mu < 1) {
+      throw new MechanismError(`affine mu must be a finite number ≥ 1, got ${String(opts.mu)}`);
+    }
     const pairs = this.solveWDP(capabilities, lambda, undefined, mu);
 
     const phiOf = (ps: Array<{ taskIdx: number; agentId: string }>): number => {
@@ -691,15 +715,16 @@ export class BatchVCGScheduler {
       return (alloc.payments[agentId] ?? 0) - rt.spec.trueCost * k;
     };
 
-    const truthful = utilityOf(run());
-    const details: Array<{ markup: number; utility: number }> = [
-      { markup: savedMarkup ?? 0, utility: truthful },
-    ];
-    let maxGain = 0;
-    let bestMarkup = savedMarkup ?? 0;
     // 中途任何异常都必须还原调用方的 spec 与平台状态：泄漏的战略 markup
-    // 会静默腐蚀后续所有分配与 DSIC 实验结论
+    // 会静默腐蚀后续所有分配与 DSIC 实验结论。首轮（truthful）求值同样
+    // 在 try 内——它此前位于 finally 保护之外，入口拒绝类异常会绕过还原
     try {
+      const truthful = utilityOf(run());
+      const details: Array<{ markup: number; utility: number }> = [
+        { markup: savedMarkup ?? 0, utility: truthful },
+      ];
+      let maxGain = 0;
+      let bestMarkup = savedMarkup ?? 0;
       for (const m of markups) {
         rt.spec.bidMarkup = m;
         const u = utilityOf(run());
@@ -709,6 +734,7 @@ export class BatchVCGScheduler {
           bestMarkup = m;
         }
       }
+      return { maxGain: round9(maxGain), bestMarkup, details };
     } finally {
       // exactOptionalPropertyTypes：恢复原状时未设置过 markup 的 spec
       // 必须回到"属性缺省"而非"显式 undefined"
@@ -717,7 +743,6 @@ export class BatchVCGScheduler {
       this.lastAllocation = savedLast;
       this.taskSeq = savedTaskSeq;
     }
-    return { maxGain: round9(maxGain), bestMarkup, details };
   }
 
   // ---------- 指标 ----------
@@ -772,7 +797,23 @@ export class BudgetPacer {
     private readonly budget: number,
     private readonly kappa = 0.5,
     private readonly maxMu = 100,
-  ) {}
+  ) {
+    // NaN 预算会击穿 update() 的 `budget <= 0` 惰性守卫（NaN 比较恒
+    // false）→ ratio=NaN → μ 永久 NaN（NaN·anything 不再恢复），下游
+    // allocateAffineBatch 只能看到一个不指名来源的 mu 拒绝。κ/maxMu
+    // 同理：NaN 步长一次就把 pacemaker 状态打成不可逆垃圾。
+    if (!Number.isFinite(budget)) {
+      throw new MechanismError(`BudgetPacer budget must be finite, got ${String(budget)}`);
+    }
+    if (!Number.isFinite(kappa) || kappa <= 0) {
+      throw new MechanismError(
+        `BudgetPacer kappa must be a positive finite number, got ${String(kappa)}`,
+      );
+    }
+    if (!Number.isFinite(maxMu) || maxMu < 1) {
+      throw new MechanismError(`BudgetPacer maxMu must be ≥ 1 and finite, got ${String(maxMu)}`);
+    }
+  }
 
   /** 当前公开乘子（对当批所有 agent 同时可见、先于报价确定） */
   getMu(): number {

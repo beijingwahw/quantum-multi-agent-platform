@@ -436,6 +436,20 @@ export class QuantumBus extends EventEmitter {
     if (!connection) return;
 
     if (message.type === 'authenticate') {
+      // 身份形状校验（F05 同口径）：agentId 是对端可控的任意 JSON 值——
+      // 非字符串（数字/对象）此前可直接绑定为连接身份，混进
+      // getAgentsOnline 的 string[] 与订阅/投递的按值比较；空串恰好撞上
+      // 「未认证」哨兵（''===未认证），绑定后事件已发、权限却仍被拒。
+      // 身份绑定边界必须逐字段断言形状，与 token 校验同判定（拒绝+断开）
+      if (typeof message.agentId !== 'string' || message.agentId.length === 0) {
+        logWarn(
+          'QuantumBus',
+          `Authentication with invalid agentId shape from ${connectionId} rejected`,
+        );
+        this.emit('authentication_failed', { connectionId, agentId: message.agentId });
+        connection.ws.close(4001, 'invalid agentId');
+        return;
+      }
       // 身份重绑防护（F04）：已认证连接再 authenticate 即可冒领任意
       // agentId（共享 token 不构成连接级身份）——同连接改绑不同身份
       // 一律拒绝并断开；同 id 重复认证保持幂等

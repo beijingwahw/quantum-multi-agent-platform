@@ -325,6 +325,77 @@ function nQubitsOf(problem: AssignmentProblem): number {
   return problem.taskIds.length * problem.agentIds.length;
 }
 
+/**
+ * 问题形状校验（第二遍质量遍历收口）：weights/ineligible 的缺行/短行、
+ * 非有限权重、非有限罚项、越界/对角/未归一化的裸耦合键——此前全部静默
+ * 穿流（短行读 undefined → NaN 能量表 → min/max 比较恒假 → 谱 [-Inf,Inf]；
+ * 掩码缺格被当合格；键 q1 ≥ nqubits 被 `k & (1<<q1)` 的回绕静默混叠到低
+ * 位比特）。求解器在经典硬件上会给出**看起来合理**的答案（NaN 概率经
+ * argmax 兜底读出低基态），这正是本仓逐波消灭的「静默垃圾」类。
+ * 所有能量/福利/Ising/穷举入口统一调用；良构问题的求解路径位级不变。
+ */
+export function validateAssignmentProblem(problem: AssignmentProblem): void {
+  const m = problem.taskIds.length;
+  const n = problem.agentIds.length;
+  if (problem.weights.length !== m || problem.ineligible.length !== m) {
+    throw new QuantumEngineError(
+      `AssignmentProblem rows must match taskIds: weights=${problem.weights.length}, ` +
+        `ineligible=${problem.ineligible.length}, taskIds=${m}`,
+    );
+  }
+  for (let t = 0; t < m; t++) {
+    const wRow = problem.weights[t]!;
+    const iRow = problem.ineligible[t]!;
+    if (wRow.length !== n || iRow.length !== n) {
+      throw new QuantumEngineError(
+        `AssignmentProblem row ${t} must have exactly n=${n} cells ` +
+          `(weights=${wRow.length}, ineligible=${iRow.length}); ragged rows read undefined cells silently`,
+      );
+    }
+    for (let a = 0; a < n; a++) {
+      const w = wRow[a]!;
+      if (typeof w !== 'number' || !Number.isFinite(w)) {
+        throw new QuantumEngineError(
+          `AssignmentProblem.weights[${t}][${a}] must be a finite number, got ${w} ` +
+            '(ineligible cells still need finite weights — the contract of this encoding)',
+        );
+      }
+      if (iRow[a] === undefined) {
+        throw new QuantumEngineError(
+          `AssignmentProblem.ineligible[${t}][${a}] is undefined (sparse row) — ` +
+            'missing mask cells are silently treated as eligible',
+        );
+      }
+    }
+  }
+  if (typeof problem.penaltyOneHot !== 'number' || !Number.isFinite(problem.penaltyOneHot)) {
+    throw new QuantumEngineError(
+      `AssignmentProblem.penaltyOneHot must be a finite number, got ${problem.penaltyOneHot}`,
+    );
+  }
+  if (typeof problem.penaltyCapacity !== 'number' || !Number.isFinite(problem.penaltyCapacity)) {
+    throw new QuantumEngineError(
+      `AssignmentProblem.penaltyCapacity must be a finite number, got ${problem.penaltyCapacity}`,
+    );
+  }
+  const nqubits = nQubitsOf(problem);
+  for (const [key, j] of problem.couplings) {
+    if (typeof j !== 'number' || !Number.isFinite(j)) {
+      throw new QuantumEngineError(
+        `AssignmentProblem.couplings value at key ${key} must be a finite number, got ${j}`,
+      );
+    }
+    const { q1, q2 } = decodeCouplingKey(key, nqubits);
+    if (q1 < 0 || q2 <= q1 || q2 >= nqubits) {
+      throw new QuantumEngineError(
+        `AssignmentProblem.couplings key ${key} must decode to 0 <= q1 < q2 < ${nqubits} ` +
+          `(got q1=${q1}, q2=${q2}); construct keys via couplingKey() — raw reversed keys are ` +
+          'silently dropped by computeEnergies and out-of-range keys alias low qubits via int32 wrap',
+      );
+    }
+  }
+}
+
 /** 罚系数默认值：福利量级的 2 倍，保证违约方案能量必然劣于任何合法方案 */
 export function defaultPenalties(problem: AssignmentProblem): { oneHot: number; capacity: number } {
   let magnitude = 1;
@@ -343,9 +414,9 @@ export function defaultPenalties(problem: AssignmentProblem): { oneHot: number; 
  *
  * 冻结契约的**指纹强制**（创新升级）：此前契约只是文档承诺（命中时
  * 仅校验两个罚项标量，weights/couplings 的后续变更不会被察觉）。
- * 现在命中时校验完整轻量指纹——罚项 + weights 不变量和 + ineligible
- * 计数 + couplings 键值滚动哈希。指纹计算 O(m·n + c)，相对被跳过的
- * O(2^nq) 重算可忽略；任何构建后变更都会使缓存失效并重算，
+ * 现在命中时校验完整轻量指纹——罚项 + weights 逐格位置敏感哈希 +
+ * ineligible 逐格掩码哈希 + couplings 键值滚动哈希。指纹计算 O(m·n + c)，
+ * 相对被跳过的 O(2^nq) 重算可忽略；任何构建后变更都会使缓存失效并重算，
  * 「先算能量后补罚项」的调用序依旧安全（罚项在指纹内）。
  */
 const energiesMemo = new WeakMap<
@@ -353,32 +424,48 @@ const energiesMemo = new WeakMap<
   { fingerprint: string; info: ProblemEnergies }
 >();
 
-/** 问题实例的轻量指纹：命中校验用，捕捉构建后的一切内容变更 */
+/**
+ * 问题实例的轻量指纹：命中校验用，捕捉构建后的一切内容变更。
+ * 位置敏感 + 位级精确（08#14 二次收口）：早期版本只对 weights 求**和**、
+ * 对 ineligible 求**计数**——行内交换两个权重或把资格掩码挪一格都会
+ * 撞同一指纹，命中记忆化的旧能量表（静默旧语义求解）。现按 (t,a) 位置
+ * 逐格滚动哈希，浮点值经 IEEE 位模式精确混合（-0 与 0 也区分），
+ * 消除一切内容等价但位置不同的碰撞。
+ */
+const fingerprintF64 = new Float64Array(1);
+const fingerprintU32 = new Uint32Array(fingerprintF64.buffer);
+
+function mixF64(hash: number, v: number): number {
+  fingerprintF64[0] = v;
+  return (Math.imul(hash, 31) + (fingerprintU32[0]! ^ fingerprintU32[1]!)) | 0;
+}
+
 function problemFingerprint(problem: AssignmentProblem): string {
-  let weightsSum = 0;
-  let ineligibleCount = 0;
+  let weightsHash = 0;
+  let ineligibleHash = 0;
   for (let t = 0; t < problem.weights.length; t++) {
     const row = problem.weights[t]!;
+    const iRow = problem.ineligible[t]!;
     for (let a = 0; a < row.length; a++) {
-      weightsSum += row[a]!;
-      if (problem.ineligible[t]![a]) ineligibleCount++;
+      weightsHash = mixF64(weightsHash, row[a]!);
+      ineligibleHash = (Math.imul(ineligibleHash, 33) + (iRow[a] ? 1 : 0)) | 0;
     }
   }
   let couplingsHash = 0;
   for (const [key, value] of problem.couplings) {
-    // 32 位滚动哈希：足够区分内容变更，无需密码学强度
-    couplingsHash =
-      (Math.imul(couplingsHash, 31) + Math.imul(key ^ Math.floor(value * 1e9), 7)) | 0;
+    couplingsHash = Math.imul(couplingsHash, 31) + Math.imul(key, 7);
+    couplingsHash = mixF64(couplingsHash, value);
   }
   return (
     `${problem.weights.length}:${problem.weights[0]?.length ?? 0}:` +
-    `${weightsSum}:${ineligibleCount}:${couplingsHash}:` +
+    `${weightsHash}:${ineligibleHash}:${couplingsHash}:` +
     `${problem.penaltyOneHot}:${problem.penaltyCapacity}`
   );
 }
 
 /** 预计算全部基态能量（一次性 O(dim·任务数·agent数)，供对角演化复用） */
 export function computeEnergies(problem: AssignmentProblem): ProblemEnergies {
+  validateAssignmentProblem(problem);
   const fingerprint = problemFingerprint(problem);
   const cached = energiesMemo.get(problem);
   if (cached?.fingerprint === fingerprint) {
@@ -530,6 +617,7 @@ export function isValidAssignment(problem: AssignmentProblem, assignment: number
 
 /** 分配的福利（含耦合加成，不含罚项） */
 export function welfareOf(problem: AssignmentProblem, assignment: number[]): number {
+  validateAssignmentProblem(problem);
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const nqubits = nQubitsOf(problem);
@@ -567,6 +655,7 @@ export interface BruteForceResult {
  * 量子解质量的诚实参照——问题规模超出枚举能力时由调用方跳过。
  */
 export function bruteForceOptimum(problem: AssignmentProblem, limit = 10): BruteForceResult {
+  validateAssignmentProblem(problem);
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const assignment = new Array<number>(m).fill(-1);
@@ -901,17 +990,22 @@ function selectSolution(
   }
 
   // top-K 候选（按 Born 概率降序；线性选择与全量稳定排序逐项相同——
-  // 见 solver-common.topKByProbabilityDesc 的等价性说明）
+  // 见 solver-common.topKByProbabilityDesc 的等价性说明）。
+  // index 是 validStates 的**位置**而非基态（probabilityAt 经 validStates
+  // 间接寻址）：概率与解码/能量必须读同一个基态对象——R1 单源化时此处
+  // 曾直接 decode(index)，把合法基态的概率安到了无关低位基态的分配上
+  //（候选表出现 [-1,-1] 等非法分配，能量也不再等于 -welfare）。
   const candidates: QuantumCandidate[] = topKByProbabilityDesc(
     validStates.length,
     (i) => probs[validStates[i]!]!,
     topK,
   ).map(({ index, probability }) => {
-    const a = decodeAssignment(index, m, n);
+    const k = validStates[index]!;
+    const a = decodeAssignment(k, m, n);
     return {
       assignment: a,
       welfare: welfareOf(problem, a),
-      energy: energiesInfo.energies[index]!,
+      energy: energiesInfo.energies[k]!,
       probability,
     };
   });
@@ -1147,6 +1241,7 @@ export interface IsingModel {
  * 同一个调度问题可在真 QPU 上运行，模拟器仅是执行位置的差异。
  */
 export function toIsing(problem: AssignmentProblem): IsingModel {
+  validateAssignmentProblem(problem);
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
   const nqubits = nQubitsOf(problem);

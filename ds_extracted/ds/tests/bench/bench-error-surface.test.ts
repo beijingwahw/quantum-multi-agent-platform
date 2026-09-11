@@ -19,7 +19,7 @@ import {
   subspaceExactSolver,
 } from '../../src/bench/opponents.js';
 import { recordFamily } from '../../src/bench/generator.js';
-import { runBenchmark, type BenchRun } from '../../src/bench/runner.js';
+import { checkRun, runBenchmark, type BenchRun } from '../../src/bench/runner.js';
 import { renderMarkdown, writeReports } from '../../src/bench/report.js';
 import { BenchReportError, PlatformError, QuantumEngineError } from '../../src/utils/errors.js';
 
@@ -98,6 +98,75 @@ describe('bench 错误面（PlatformError 层级收敛）', () => {
       assert.ok(caught instanceof PlatformError, 'BenchReportError 应是 PlatformError 子类');
       assert.match(caught.message, /refusing to render an illegal run/);
       assert.match(caught.message, /selection suspected/);
+    });
+
+    it('身份篡改（行数与唯一性都完好）：instanceId 与自身 (track,m,n,seed) 不符 → checkRun 定罪，renderMarkdown 拒绝', () => {
+      // 反挑选法律的隐藏面：删行会被行数定罪、复制行会被重复格定罪，
+      // 但把败局所在实例的 instanceId 改写成另一个（未在 run 中的）名字，
+      // 行数与唯一性检查都照常通过——旧 checkRun 放行，报告会把败局伪装成
+      // 另一个实例的行。行内一致性检查（id ↔ track/m/n/seed）必须抓住它。
+      const run = mintLegalRun();
+      const victim = run.rows[0]!;
+      const doctoredId = `${victim.track}-m${victim.m}n${victim.n}-s${victim.seed + 999}`;
+      const forged: BenchRun = {
+        ...run,
+        rows: run.rows.map((r) => (r === victim ? { ...r, instanceId: doctoredId } : r)),
+      };
+      // 行数不变、无重复格——旧检查面（count + duplicate）对此失明
+      assert.equal(forged.rows.length, run.expectedCells);
+      const problems = checkRun(forged);
+      assert.ok(
+        problems.some((p) => p.includes('disagrees with its own spec') && p.includes(doctoredId)),
+        `应定罪身份篡改（实际 problems: ${problems.join(' | ')}）`,
+      );
+      let caught: unknown;
+      try {
+        renderMarkdown(forged);
+      } catch (err) {
+        caught = err;
+      }
+      assert.ok(caught instanceof BenchReportError);
+      assert.match(caught.message, /doctored identity suspected/);
+    });
+
+    it('幽灵求解器（行数与唯一性都完好）：行内 solver 不在 run 声明的 solverIds → checkRun 定罪', () => {
+      const run = mintLegalRun();
+      const victim = run.rows[0]!;
+      const ghost = `${victim.solver}-v2`;
+      const forged: BenchRun = {
+        ...run,
+        rows: run.rows.map((r) => (r === victim ? { ...r, solver: ghost } : r)),
+      };
+      assert.equal(forged.rows.length, run.expectedCells);
+      const problems = checkRun(forged);
+      assert.ok(
+        problems.some((p) => p.includes('not among the run') && p.includes(ghost)),
+        `应定罪幽灵求解器（实际 problems: ${problems.join(' | ')}）`,
+      );
+      assert.ok(problems.some((p) => p.includes('matrix incomplete')));
+    });
+  });
+
+  describe('渲染纪律（renderer discipline）', () => {
+    it('无法计算的 gap（played 行 optimal≤0）渲染为 —，绝不伪装成 0.0000', () => {
+      // 旧行为把 NaN gap 渲染成 0.0000——读起来像零差距，与 hit=no 自相矛盾；
+      // 表格自身对 NaN 汇总列的约定就是 —。committed 工件无 NaN gap 行
+      //（全部 optimal>0），此改动对冻结字节零影响。
+      const run = mintLegalRun();
+      const victim = run.rows[0]!;
+      const withNanGap: BenchRun = {
+        ...run,
+        rows: run.rows.map((r) => (r === victim ? { ...r, gap: Number.NaN, hit: false } : r)),
+      };
+      // 形状仍合法（checkRun 不审计数值，只审计结构与身份）——必须可渲染
+      assert.deepEqual(checkRun(withNanGap), []);
+      const md = renderMarkdown(withNanGap);
+      const line = md
+        .split('\n')
+        .find((l) => l.includes(`| ${victim.instanceId} | ${victim.solver} |`));
+      assert.ok(line, 'per-instance 行必须存在');
+      const cells = line.split('|').map((c) => c.trim());
+      assert.equal(cells[5], '—', `gap 单元格应为 —（实际行: ${line}）`);
     });
   });
 

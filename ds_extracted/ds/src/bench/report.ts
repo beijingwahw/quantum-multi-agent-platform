@@ -105,12 +105,9 @@ export function renderMarkdown(run: BenchRun): string {
       continue;
     }
     lines.push(
-      `| ${r.instanceId} | ${r.solver} | ${r.welfare.toFixed(4)} | ${r.optimal.toFixed(4)} | ${(Number.isNaN(
-        r.gap,
-      )
-        ? 0
-        : r.gap
-      ).toFixed(4)} | ${r.hit ? 'YES' : 'no'} |`,
+      `| ${r.instanceId} | ${r.solver} | ${r.welfare.toFixed(4)} | ${r.optimal.toFixed(4)} | ${
+        Number.isNaN(r.gap) ? '—' : r.gap.toFixed(4)
+      } | ${r.hit ? 'YES' : 'no'} |`,
     );
   }
   lines.push('');

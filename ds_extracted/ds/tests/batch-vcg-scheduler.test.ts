@@ -5,6 +5,7 @@ import {
   BudgetPacer,
   type BatchAgentSpec,
 } from '../src/core/batch-vcg-scheduler.js';
+import { MechanismError } from '../src/utils/errors.js';
 
 /**
  * 理论预测实例（全部手工推导，见各 test 注释）。
@@ -186,7 +187,8 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
     const rng = mulberry32(99);
     for (let inst = 0; inst < 20; inst++) {
       const s = new BatchVCGScheduler(BASE);
-      randomSpecs(rng).forEach((a) => s.register(a));
+      const specs = randomSpecs(rng);
+      specs.forEach((a) => s.register(a));
       const tasks = Array.from(
         { length: 5 + Math.floor(rng() * 6) },
         () => CAPS[Math.floor(rng() * 3)]!,
@@ -196,10 +198,14 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
       assert.ok(tight.totalPayment <= slack.totalPayment * 0.5 + 1e-6);
       for (const [agentId, pay] of Object.entries(tight.payments)) {
         const k = tight.assignments.filter((x) => x.agentId === agentId).length;
-        void s.getSnapshot().find((x) => x.id === agentId)!;
-        // 报价 = 成本（markup 0）→ IR: p ≥ b·k
-        void [...s.getSnapshot()].find((x) => x.id === agentId);
-        assert.ok(pay >= 0 && k >= 1);
+        const spec = specs.find((a) => a.id === agentId)!;
+        // 报价 = 成本（randomSpecs 不设 markup）→ IR: p ≥ b·k = trueCost·k。
+        // 旧断言只查 pay ≥ 0（两个 find 结果被 void 丢弃）——注释声称的
+        // IR 从未被真正断言，IR 破裂也能通过
+        assert.ok(
+          pay >= spec.trueCost * k - 1e-6,
+          `实例${inst} agent=${agentId} IR 破裂：p=${pay} < b·k=${spec.trueCost * k}`,
+        );
       }
     }
   });
@@ -465,6 +471,119 @@ describe('BatchVCGScheduler · 公开乘子随机实例 DSIC 实证证书', () =
         assert.ok(p <= vcg + 1e-6, `实例${inst} μ=${mu} Σp=${p} 应 ≤ VCG Σp=${vcg}`);
       }
     }
+  });
+});
+
+describe('BatchVCGScheduler · 退化边界具名拒绝（静默空批反例）', () => {
+  function duopoly(): BatchVCGScheduler {
+    const s = new BatchVCGScheduler(BASE);
+    s.register(
+      make({ id: 'a1', trueCost: 1, capacity: 1, capabilities: ['A'], trueQuality: { A: 0.5 } }),
+    );
+    s.register(
+      make({ id: 'a2', trueCost: 1, capacity: 1, capabilities: ['B'], trueQuality: { B: 0.5 } }),
+    );
+    return s;
+  }
+  const AB = ['A', 'B'] as const;
+
+  /**
+   * NaN 预算的反例（修复前实测）：`NaN ≤ x` 恒 false → 二分全程判超预算
+   * → 静默返回全弃标空批（droppedTasks=2、Σp=0、welfare=0），与
+   * 「预算内确实无可负担组合」不可区分——调用方的笔误被吞掉。
+   * 负预算同理（Σp ≥ 0 恒成立，不存在可满足它的输出）。
+   */
+  it('budget=NaN / 负预算 / 非数值：MechanismError 而非静默空批', () => {
+    for (const bad of [Number.NaN, -1, '8' as unknown as number]) {
+      assert.throws(
+        () => duopoly().allocateBatch([...AB], { budget: bad }),
+        (err: unknown) => err instanceof MechanismError && err.message.includes('budget must be'),
+        `budget=${String(bad)} 应被具名拒绝`,
+      );
+    }
+  });
+
+  it('budget=Infinity（文档化缺省）保持合法且与缺省路径逐位一致', () => {
+    const explicit = duopoly().allocateBatch([...AB], { budget: Infinity });
+    const implicit = duopoly().allocateBatch([...AB]);
+    assert.equal(explicit.exactDSIC, true);
+    assert.equal(explicit.totalPayment, implicit.totalPayment);
+    assert.equal(explicit.payments['a1'], implicit.payments['a1']);
+  });
+
+  /**
+   * μ/λ 的反例（修复前实测）：mu=NaN 经 Math.max(1,NaN)=NaN 污染全部
+   * 边费用，最终在 round9(NaN) 以不指名输入的 NumericDomainError 崩溃
+   * （且 taskSeq 已泄漏递增）；mu=0.5 被 Math.max 静默改写成 1——实验
+   * 者以为在测 μ=0.5、机制实际跑在 μ=1。lambda=NaN 同样崩在 round9。
+   */
+  it('affine mu=NaN / mu<1 / lambda=NaN / lambda<0：具名拒绝且不留 taskSeq 残留', () => {
+    for (const badMu of [Number.NaN, 0.5, 0, Number.POSITIVE_INFINITY]) {
+      const s = duopoly();
+      assert.throws(
+        () => s.allocateAffineBatch([...AB], { mu: badMu }),
+        (err: unknown) => err instanceof MechanismError && err.message.includes('mu must be'),
+        `mu=${String(badMu)} 应被具名拒绝`,
+      );
+      // 拒绝发生在任何分配建账之前：生产任务 ID 序列不得被实验性调用位移
+      const after = s.allocateBatch([...AB]);
+      assert.deepEqual(
+        after.assignments.map((x) => x.taskId),
+        ['t1', 't2'],
+      );
+    }
+    for (const badLambda of [Number.NaN, -0.1, Number.POSITIVE_INFINITY]) {
+      assert.throws(
+        () => duopoly().allocateAffineBatch([...AB], { lambda: badLambda }),
+        (err: unknown) => err instanceof MechanismError && err.message.includes('lambda must be'),
+        `lambda=${String(badLambda)} 应被具名拒绝`,
+      );
+    }
+  });
+
+  it('BudgetPacer：NaN/非正步长/非法上限在构造期拒绝（μ 状态不可逆污染）', () => {
+    assert.throws(
+      () => new BudgetPacer(Number.NaN),
+      (err: unknown) => err instanceof MechanismError && err.message.includes('budget must be'),
+    );
+    assert.throws(
+      () => new BudgetPacer(10, 0),
+      (err: unknown) => err instanceof MechanismError && err.message.includes('kappa'),
+    );
+    assert.throws(
+      () => new BudgetPacer(10, 0.5, 0.5),
+      (err: unknown) => err instanceof MechanismError && err.message.includes('maxMu'),
+    );
+    // 合法邻域不受影响：μ 从 1 出发可正常对偶上升
+    const pacer = new BudgetPacer(10, 0.5, 100);
+    assert.equal(pacer.getMu(), 1);
+    pacer.update(20);
+    assert.ok(pacer.getMu() > 1);
+  });
+
+  /**
+   * measureMisreportGain 的还原契约（01#25 族）：首轮（truthful）求值
+   * 抛出时也必须零残留——它此前位于 finally 保护之外。实验性调用不得
+   * 位移生产任务 ID 序列、不得覆盖待结算批次、不得泄漏战略 markup。
+   */
+  it('measureMisreportGain：首轮求值即抛也零残留（taskSeq/lastAllocation/markup）', () => {
+    const s = new BatchVCGScheduler(BASE);
+    const spec = make({ id: 'solo', trueCost: 1, capacity: 1, bidMarkup: 0.2 });
+    s.register(spec);
+    const first = s.allocateBatch(['X']);
+    assert.equal(first.assignments[0]!.taskId, 't1');
+
+    assert.throws(
+      () => s.measureMisreportGain(['X'], 'solo', [0.5, 1.0], { affine: { lambda: Number.NaN } }),
+      (err: unknown) => err instanceof MechanismError,
+    );
+    // markup 还原（spec 为调用方持有对象）
+    assert.equal(spec.bidMarkup, 0.2);
+    // lastAllocation 还原：第一批仍是待结算批次
+    s.settleBatch([{ taskId: 't1', success: true }]);
+    // taskSeq 还原：下一批任务 ID 从 t2 继续，不因实验位移
+    const second = s.allocateBatch(['X']);
+    assert.equal(second.assignments[0]!.taskId, 't2');
   });
 });
 

@@ -205,11 +205,14 @@ class QuantumBenchmark {
 
     await Promise.all(promises);
 
+    // units 契约是「测量窗口内完成的单位数」：此前直接取 count 原值，
+    // 同步提交失败的单位从未完成却被计为完成——吞吐/均值响应时间随
+    // 之虚高（错误率评分的分母也同步失真）。以真实走完收尾路径的计数为准。
     return Promise.resolve(
       this.buildResult(
         'Task Submission',
         started,
-        count,
+        completedTasks.length,
         {
           agentsRegistered: this.platform.getAgents().length,
           tasksSubmitted: this.platform.getTasks().length,
@@ -376,7 +379,9 @@ class QuantumBenchmark {
       this.buildResult(
         'Scheduler Throughput',
         started,
-        taskCount,
+        // units 同上述「完成的单位数」契约：提交抛错的单位计入 errors、
+        // 不计入 units（无错时 submitted.length === taskCount，行为不变）
+        submitted.length,
         {
           agentsRegistered: metrics.scheduler.totalAgents,
           tasksSubmitted: taskCount,

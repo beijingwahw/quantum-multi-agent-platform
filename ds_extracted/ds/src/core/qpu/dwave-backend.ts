@@ -376,7 +376,19 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     const occurrencesLen = (asNumberArray(answer.num_occurrences) ?? []).length;
     const fallbackCount =
       energiesLen > 0 ? energiesLen : occurrencesLen > 0 ? occurrencesLen : maxSolutions;
-    const numSolutions = Math.min(asNumber(answer.num_solutions) ?? fallbackCount, maxSolutions);
+    // num_solutions 是解数：非负整数。小数计数（1.5）此前作为循环上界
+    // `s < numSolutions` 静默解出 ceil 个解——多出一个幻影样本，歪曲频率
+    // 统计。与 vector 字校验同款「不盲信外部 JSON」。
+    const rawNumSolutions = asNumber(answer.num_solutions);
+    if (
+      rawNumSolutions !== undefined &&
+      (!Number.isInteger(rawNumSolutions) || rawNumSolutions < 0)
+    ) {
+      throw new BackendError(
+        `DWave qp answer has a malformed num_solutions: ${rawNumSolutions} (expected a non-negative integer)`,
+      );
+    }
+    const numSolutions = Math.min(rawNumSolutions ?? fallbackCount, maxSolutions);
     const solutions: number[][] = [];
     for (let s = 0; s < numSolutions; s++) {
       const sol: number[] = [];

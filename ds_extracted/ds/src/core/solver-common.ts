@@ -282,6 +282,19 @@ export function resolveCommonSolverOptions(
     );
   }
   const angleMode = rawAngleMode ?? 'layer';
+  // select 同入口运行时守卫（与 angleMode 同款）：JS 调用方传任意字符串时
+  // 此前静默落入 argmax 分支——坍缩语义被悄悄改写而无任何信号
+  const rawSelect: unknown = options.select;
+  if (
+    rawSelect !== undefined &&
+    rawSelect !== 'argmax-valid' &&
+    rawSelect !== 'shots-best' &&
+    rawSelect !== 'born'
+  ) {
+    throw new QuantumEngineError(
+      `select must be 'argmax-valid' | 'shots-best' | 'born', got ${typeof rawSelect}`,
+    );
+  }
   // restarts/topK 同入口校验（01#9）：restarts=0 产出空角度数组 +
   // Infinity「最优」、topK=0 产出空结果集——两者都是静默劣化解而非
   // 合法配置，与 layers/shots 同一入口拒绝
@@ -307,7 +320,7 @@ export function resolveCommonSolverOptions(
     layers,
     shots,
     restarts,
-    select: options.select ?? defaultSelect,
+    select: rawSelect ?? defaultSelect,
     seed: options.seed ?? DEFAULT_SEED,
     topK,
     cvarAlpha,

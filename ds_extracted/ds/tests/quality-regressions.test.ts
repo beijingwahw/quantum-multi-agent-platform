@@ -8,12 +8,14 @@
 
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 import { AgentManager } from '../src/core/agent-manager.js';
 import {
   DecisionEngine,
   ActionExecutor,
   StateMonitor,
+  ProactiveIntelligencePlugin,
   type Rule,
   type MonitorEvent,
 } from '../src/proactive-intelligence/index.js';
@@ -22,6 +24,9 @@ import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
 import { estimateQuality, type MarketAgentRecord } from '../src/core/market-estimation.js';
 import { QuantumBus } from '../src/communication/quantum-bus.js';
+import { DSHIntegration } from '../src/dsh/dsh-integration.js';
+import { configureCommandPolicy, resetCommandPolicy } from '../src/tools/system-tools.js';
+import type { Action } from '../src/proactive-intelligence/types.js';
 import { makeAgent } from './helpers/fixtures.js';
 import WebSocket from 'ws';
 
@@ -497,5 +502,262 @@ describe('QuantumBus · 鉴权门覆盖全部流量路径', () => {
     assert.equal(await closed, 1013, '超限连接以 1013 拒绝');
     assert.equal(bus.getConnectionCount(), 1);
     first.close();
+  });
+});
+
+// ----------------------------------------------------------------------------
+// 总线身份边界（second-pass）：authenticate 的 agentId 形状校验
+// ----------------------------------------------------------------------------
+
+describe('QuantumBus · authenticate 身份形状校验', () => {
+  const buses: QuantumBus[] = [];
+
+  function openSocket(port: number): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/quantum-bus`);
+      ws.once('open', () => resolve(ws));
+      ws.once('error', reject);
+    });
+  }
+
+  function waitClose(ws: WebSocket, timeoutMs = 3_000): Promise<number | undefined> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('close timeout')), timeoutMs);
+      ws.once('close', (code: number) => {
+        clearTimeout(timer);
+        resolve(code);
+      });
+    });
+  }
+
+  function waitBusEvent<T>(
+    bus: QuantumBus,
+    name: string,
+    predicate: (e: T) => boolean,
+    timeoutMs = 3_000,
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const listener = (e: T) => {
+        if (!predicate(e)) return;
+        clearTimeout(timer);
+        bus.off(name, listener);
+        resolve(e);
+      };
+      const timer = setTimeout(() => {
+        bus.off(name, listener);
+        reject(new Error(`timeout waiting for bus event '${name}'`));
+      }, timeoutMs);
+      bus.on(name, listener);
+    });
+  }
+
+  after(() => {
+    for (const bus of buses) bus.shutdown();
+  });
+
+  it('非字符串 agentId（数字）被拒绝：不绑定身份、4001 断开、agentsOnline 不受污染', async () => {
+    // 无鉴权本地模式同样校验形状：42 此前直接绑定为连接身份，
+    // getAgentsOnline() 的 string[] 混入数字、订阅/投递按值比较语义被破坏
+    const bus = new QuantumBus({ communication: { port: 0 } });
+    buses.push(bus);
+    await bus.start();
+
+    const ws = await openSocket(bus.getPort()!);
+    ws.send(JSON.stringify({ type: 'authenticate', agentId: 42 }));
+    const failed = await waitBusEvent<{ connectionId: string }>(
+      bus,
+      'authentication_failed',
+      (e) => typeof e.connectionId === 'string',
+    );
+    assert.ok(failed, '形状非法的 authenticate 必须发 authentication_failed');
+    assert.equal(await waitClose(ws), 4001, '与 token 校验失败同判定：4001 断开');
+    assert.deepEqual(bus.getAgentsOnline(), [], '数字身份不得混入 agentsOnline');
+  });
+
+  it('空串 agentId 被拒绝（即使 token 正确）——不再撞「未认证」哨兵', async () => {
+    const bus = new QuantumBus({ communication: { port: 0, authToken: 'secret' } });
+    buses.push(bus);
+    await bus.start();
+
+    const ws = await openSocket(bus.getPort()!);
+    ws.send(JSON.stringify({ type: 'authenticate', agentId: '', token: 'secret' }));
+    await waitBusEvent<{ connectionId: string }>(
+      bus,
+      'authentication_failed',
+      (e) => typeof e.connectionId === 'string',
+    );
+    assert.equal(await waitClose(ws), 4001);
+    assert.deepEqual(bus.getAgentsOnline(), [], '空串不得绑定为身份（曾永久卡在未认证态）');
+  });
+
+  it('边界：合法非空字符串 agentId 的认证不受影响（同 id 重复认证幂等）', async () => {
+    const bus = new QuantumBus({ communication: { port: 0 } });
+    buses.push(bus);
+    await bus.start();
+
+    const ws = await openSocket(bus.getPort()!);
+    ws.send(JSON.stringify({ type: 'authenticate', agentId: 'agent-1' }));
+    await waitBusEvent<{ agentId: unknown }>(
+      bus,
+      'agent_authenticated',
+      (e) => e.agentId === 'agent-1',
+    );
+    // 同 id 重复认证保持幂等（F04 契约）
+    ws.send(JSON.stringify({ type: 'authenticate', agentId: 'agent-1' }));
+    await new Promise((r) => setTimeout(r, 100));
+    assert.deepEqual(bus.getAgentsOnline(), ['agent-1']);
+    assert.equal(bus.getConnectionCount(), 1, '幂等重认证不得断开连接');
+    ws.close();
+  });
+});
+
+// ----------------------------------------------------------------------------
+// 执行器取消链路（second-pass）：取消停止重试 + 真中止在飞尝试
+// ----------------------------------------------------------------------------
+
+// 取消链路探针脚本：长眠子进程（取消必须立即击杀而非等动作超时兜底）
+const cancelSpinScript = 'pireg-cancel-spin.test.tmp.js';
+const { writeFile: writeCancelSpin, unlink: unlinkCancelSpin } = await import('node:fs/promises');
+await writeCancelSpin(cancelSpinScript, 'setTimeout(() => {}, 60000);\n');
+
+describe('执行器 · 取消是真实制动（second-pass）', () => {
+  it('取消后重试循环停止：被取消的执行不再发起后续尝试（副作用不放大）', async () => {
+    const executor = new ActionExecutor({ actionTimeoutMs: 5_000 });
+    let handlerCalls = 0;
+    const started = executor.executeAction('rule-1', {
+      type: 'custom',
+      name: 'retry-after-cancel',
+      parameters: {
+        handler: () =>
+          new Promise((_resolve, reject) => {
+            handlerCalls++;
+            setTimeout(() => reject(new Error('transient boom')), 10);
+          }),
+      },
+      retryPolicy: { maxRetries: 3, backoffMs: 15 },
+    });
+
+    // 首个尝试在飞时取消（executeAction 同步段保证此刻已入 running 表）
+    const running = executor.getRunningExecutions();
+    assert.equal(running.length, 1);
+    executor.cancelExecution(running[0]!.id);
+    await assert.rejects(started, /cancel/i);
+
+    // 取消后的第一次尝试拒绝即收尾：handler 只被调用 1 次（旧实现 4 次
+    // ——重试完全无视取消，command 动作即重复执行 3 次子进程）
+    assert.equal(handlerCalls, 1, '取消后不得再发起任何重试尝试');
+    const history = executor.getExecutionHistory();
+    assert.equal(history.length, 1, '同一执行恰好入史一次');
+    assert.equal(history[0]!.status, 'failed');
+  });
+
+  it('取消即中止在飞子进程：command 动作不等动作超时兜底', async () => {
+    configureCommandPolicy({ allowedPrograms: ['node'], timeoutMs: 60_000 });
+    try {
+      const executor = new ActionExecutor({ actionTimeoutMs: 30_000 });
+      const action: Action = {
+        type: 'command',
+        name: 'spin-until-cancel',
+        parameters: { command: 'node', args: [cancelSpinScript] },
+      };
+      const startedAt = performance.now();
+      const promise = executor.executeAction('rule-1', action);
+
+      // 同步段保证已入 running 表；取消应经 AbortSignal 整树击杀子进程
+      const running = executor.getRunningExecutions();
+      assert.equal(running.length, 1);
+      executor.cancelExecution(running[0]!.id);
+      await assert.rejects(promise, /cancel/i);
+      const elapsed = performance.now() - startedAt;
+      assert.ok(
+        elapsed < 5_000,
+        `取消应立即中止子进程而非等 30s 动作超时（${elapsed.toFixed(0)}ms）`,
+      );
+    } finally {
+      resetCommandPolicy();
+      await unlinkCancelSpin(cancelSpinScript).catch(() => {});
+    }
+  });
+});
+
+// ----------------------------------------------------------------------------
+// 插件层（second-pass）：stop() 刹住动作池 + 文档化事件面
+// ----------------------------------------------------------------------------
+
+describe('ProactiveIntelligencePlugin · stop() 覆盖动作池与事件面', () => {
+  it('stop() 后池内排队动作不再启动（紧急制动不只在批处理调度口生效）', async () => {
+    const plugin = new ProactiveIntelligencePlugin({
+      executor: { maxConcurrentActions: 1, actionTimeoutMs: 5_000 },
+    });
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    plugin.addRule({
+      id: 'brake',
+      name: 'brake',
+      description: '',
+      enabled: true,
+      priority: 50,
+      cooldown: 0,
+      conditions: [{ type: 'event', operator: 'equals', field: 'go.x', value: 1 }],
+      actions: [
+        { type: 'custom', name: 'hold', parameters: { handler: () => gate } },
+        { type: 'notification', name: 'after-hold', parameters: { title: 't', message: 'm' } },
+      ],
+    });
+    await plugin.start();
+    plugin.observe({ type: 'go', source: 's', data: { x: 1 }, severity: 'info' });
+
+    // 等第一个动作进入 running（gate 挂起），第二个动作在池内排队
+    let spins = 0;
+    while (plugin.getExecutor().getRunningExecutions().length < 1 && spins++ < 500) {
+      await new Promise((r) => setImmediate(r));
+    }
+    assert.equal(plugin.getExecutor().getRunningExecutions().length, 1);
+
+    await plugin.stop(); // 紧急制动：取消在飞 + 刹住排队
+    release();
+    await plugin.flush(3_000);
+
+    const hist = plugin.getExecutor().getExecutionHistory();
+    const names = hist.map((h) => `${h.action.name}:${h.status}`);
+    assert.deepEqual(
+      names,
+      ['hold:failed'],
+      `stop 后排队动作不得启动（hold 被 cancel 终态化，after-hold 不得出现），实际 ${names.join(',')}`,
+    );
+    assert.equal(plugin.getStatistics().executor.backlog, 0, '被放弃的排队条目背压清零');
+  });
+
+  it("plugin.on('event') 收到监控事件（README/QUICKSTART 文档化的事件面）", async () => {
+    const plugin = new ProactiveIntelligencePlugin();
+    const seen: string[] = [];
+    plugin.on('event', (event: MonitorEvent) => seen.push(event.type));
+
+    plugin.observe({ type: 'x', source: 's', data: {}, severity: 'info' });
+    plugin.observe({ type: 'y', source: 's', data: {}, severity: 'info' });
+
+    assert.deepEqual(seen, ['x', 'y'], '文档承诺的 plugin.on("event") 此前永不触发');
+    plugin.destroy();
+  });
+});
+
+// ----------------------------------------------------------------------------
+// DSH 集成（second-pass）：文档契约「initialize 后方可执行工具」
+// ----------------------------------------------------------------------------
+
+describe('DSHIntegration · 初始化门', () => {
+  it('未 initialize 时 executeTool/executeWorkflow 指名拒绝（而非误报工具缺失）', async () => {
+    const dsh = new DSHIntegration({});
+    await assert.rejects(
+      () => dsh.executeTool('read_file', { path: 'package.json' }),
+      /not initialized/,
+    );
+    await assert.rejects(() => dsh.executeWorkflow('code_analysis_workflow'), /not initialized/);
+
+    // initialize 后同一调用正常放行（门不是永久性的）
+    await dsh.initialize();
+    const content = (await dsh.executeTool('read_file', { path: 'package.json' })) as string;
+    assert.ok(content.includes('quantum-multi-agent-platform'));
+    dsh.shutdown();
   });
 });

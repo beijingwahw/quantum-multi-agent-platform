@@ -667,6 +667,7 @@ export {
   computeEnergies,
   decodeAssignment,
   isValidAssignment,
+  validateAssignmentProblem,
   welfareOf,
 } from './core/quantum-optimizer.js';
 export type {

@@ -206,8 +206,8 @@ interface Condition {
 
 ```typescript
 interface Action {
-  type: 'command' | 'notification' | 'workflow' | 'custom';
-  name: string;            // 动作名称
+  type: 'command' | 'notification' | 'workflow' | 'custom' | 'assignment';
+  name: string;            // 动作名
   parameters: any;         // 参数
   timeout?: number;        // 超时时间
   retryPolicy?: {
@@ -223,6 +223,7 @@ interface Action {
 - **notification**: 发送通知
 - **workflow**: 执行工作流
 - **custom**: 自定义处理器
+- **assignment**: 市场分配（由增长调度器 Brain 的 VCG 定价自动产出，`parameters.assignment` 携带 taskId/winnerId/payment）
 
 ## 🎯 预设规则库
 
@@ -291,13 +292,16 @@ const plugin = new ProactiveIntelligencePlugin({
 
 ### 2. 权限控制
 
-通过配置限制允许和阻止的动作：
+通过配置限制允许和阻止的动作。列表项为**精确匹配**的 `类型` 或 `类型:动作名`（`'*'` 表示全部）：
 
 ```typescript
 const plugin = new ProactiveIntelligencePlugin({
   executor: {
     allowedActions: ['notification', 'workflow'],
-    blockedActions: ['command:*']
+    // 精确到动作名（command:analyze_disk）；'command:*' 这类通配符
+    // 写法不被支持——它会静默匹配不到任何动作。要封禁全部命令用 '*'
+    // 或 'command'
+    blockedActions: ['command:analyze_disk']
   }
 });
 ```

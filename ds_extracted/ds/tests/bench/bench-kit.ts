@@ -323,12 +323,24 @@ export function comparePaired(
       note: `MAD 围栏后有效轮数 ${kept.length} < 8——离群过多，样本不可信`,
     };
   }
+  const stratum1 = keptRatios.filter((_, i) => keptFlags[i]);
+  const stratum0 = keptRatios.filter((_, i) => !keptFlags[i]);
+  if (stratum1.length === 0 || stratum0.length === 0) {
+    // 单层退化：围栏整层剔除某一执行层后，位置效应无法对消，分层
+    // bootstrap 的两层中位几何平均退化为 NaN——旧路径会带着 NaN 区间
+    // 落进 no-difference，note 谎称「95% CI 含 1」。如实按不可判处理。
+    return {
+      ...base,
+      ciLow: Number.NaN,
+      ciHigh: Number.NaN,
+      verdict: 'inconclusive',
+      note: `MAD 围栏整层剔除了一个执行层（剩余 A 先行 ${stratum1.length} 轮 / B 先行 ${stratum0.length} 轮）——位置效应无法对消，不判决`,
+    };
+  }
 
   // 分层 bootstrap：层内重采样（保持层规模），每次重采样算分层臂效应，
   // 分位取区间——与点估计同一估计量，CI 与中位口径一致
   const rng = mulberry32(seed ^ 0xb005);
-  const stratum1 = keptRatios.filter((_, i) => keptFlags[i]);
-  const stratum0 = keptRatios.filter((_, i) => !keptFlags[i]);
   const bootstrapEffects: number[] = [];
   for (let b = 0; b < BOOTSTRAP_RESAMPLES; b++) {
     const s1 = stratum1.map(() => stratum1[Math.floor(rng() * stratum1.length)]!);
