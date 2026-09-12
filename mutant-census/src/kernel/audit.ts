@@ -212,8 +212,12 @@ export function witnessWorkspace(): { result: WitnessResult; rows: readonly Work
     }
   }
   const strays = liveRootStrayFiles();
+  // registered list phrasing: EMPTY since the R11 deliberate pass (probe.ts
+  // retired) — "(registered: )" would be a lie of shape, not just of content
+  const registeredFace =
+    REGISTERED_ROOT_FILES.length > 0 ? `registered: ${REGISTERED_ROOT_FILES.join(", ")}` : "registered: none — zero exceptions";
   for (const s of strays) {
-    problems.push(`workspace root stray: ${s} — the root is not a scratch home (registered: ${REGISTERED_ROOT_FILES.join(", ")})`);
+    problems.push(`workspace root stray: ${s} — the root is not a scratch home (${registeredFace})`);
   }
   const epochRows = rows.filter((r) => !r.isPlatform);
   const platformRows = rows.filter((r) => r.isPlatform);
@@ -225,7 +229,7 @@ export function witnessWorkspace(): { result: WitnessResult; rows: readonly Work
       detail:
         problems.length > 0
           ? problems.join("; ")
-          : `${epochRows.length}/${epochRows.length} epoch repos: test+typecheck+repro and strict TS, ${unguardedTotal} unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ${platformRows.map((r) => r.repo).join(", ")} (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: ${rows.filter((r) => r.reportCount > 0).length}/${rows.length}; workspace root: ${strays.length} strays (registered: ${REGISTERED_ROOT_FILES.join(", ")}) — the root-stray gate, v0.9.0`,
+          : `${epochRows.length}/${epochRows.length} epoch repos: test+typecheck+repro and strict TS, ${unguardedTotal} unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ${platformRows.map((r) => r.repo).join(", ")} (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: ${rows.filter((r) => r.reportCount > 0).length}/${rows.length}; workspace root: ${strays.length} strays (${registeredFace}) — the root-stray gate, v0.9.0`,
     },
     rows,
   };

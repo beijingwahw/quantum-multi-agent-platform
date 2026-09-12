@@ -357,7 +357,7 @@ The registry is imported LIVE on every run: 726 errors across 93 batches, each w
 | `depreciation-ledger/test/ledger.test.ts :: L5 error face: a malformed appeal package.json is BOOKED as a violation, never a crash` | 1 | wrong-object |
 | `switch-sched/src/experiments/exp3-sched-contact.ts :: ${positiveJoint}/${N}` | 1 | statistics |
 | `ds_extracted/ds/package.json :: lint` | 1 | toolchain |
-| `letter-audit/src/kernel/frontier.ts :: tests-687` | 1 | citation-drift |
+| `letter-audit/src/kernel/frontier.ts :: platformTestsNeedle` | 1 | citation-drift |
 
 **Booked unenforceable — the visible boundary, every row:**
 
@@ -384,7 +384,7 @@ The registry is imported LIVE on every run: 726 errors across 93 batches, each w
 - b23#3 [process] — contract-reading on reuse (same idiom, different signature); dual-face since v0.10.0: the FAMILY-file face of the batch-23 class is gate-held (W-D byte-identity censuses it live), the non-family idiom face (report.ts) is review; booked: the non-family face only
 - b25#1 [process] — third-draft discipline; drafts that never reach the machine cannot be gated — the rule is process
 - b25#6 [toolchain] — heredoc truncation (render.ts) — the banned class; dual-face since v0.10.0: the act is ungated, a truncated file cannot compile — typecheck dies on the spot; booked: the act face only
-- b26#1 [toolchain] — heredoc truncation (probe.ts) — the banned class; dual-face since v0.10.0: the act is ungated, the truncated file is a syntax death in the gated tree; booked: the act face only
+- b26#1 [toolchain] — heredoc truncation (probe.ts) — the banned class; dual-face since v0.10.0: the act is ungated, the truncated file was a syntax death in the gated tree; booked: the act face only. The file itself was RETIRED by the R11 deliberate pass (REGISTERED_ROOT_FILES emptied, the root-stray gate now holds with zero exceptions): the evidence of the truncation lives in this row's prose, the root no longer carries the corpse
 - b27#0 [process] — design-before-code (the TM encoding collapsed twice mid-write); process
 - b28#3 [process] — count-after-construction (21 built, 20 shipped); the instance census is author discipline
 - b29#4 [bogus-comparison] — displayed fractions must point at their true denominator; print-layer honesty — no gate formats the register
@@ -789,7 +789,7 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **RESOLVED** — `mutant-census/package.json :: typecheck` — tsconfig.typecheck.json on disk — the project the gate compiles
 - **RESOLVED** — `ds_extracted/ds/package.json :: format:check` — prettier in devDependencies — the formatter the gate invokes is installed
 - **RESOLVED** — `ds_extracted/ds/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired (registered the moment b89#7 first sat on it)
-- **RESOLVED** — `letter-audit/src/kernel/frontier.ts :: tests-687` — the needle is on disk in the citing tree and the frontier checker fires it against the sibling's README on every letter-audit suite run (registered the moment b89#10 first sat on it)
+- **RESOLVED** — `letter-audit/src/kernel/frontier.ts :: platformTestsNeedle` — the #03 citation is DERIVED from the sibling's live README badge at module load (platformTestsNeedle, the on-disk composer this anchor's needle names) and the citing file carries no hand-copied count literal — the checker fires the derived needle against the sibling's README on every letter-audit suite run (b89#10 fired three times as a hand copy; the copy is abolished)
 - **RESOLVED** — `ds_extracted/ds/package.json :: test` — the tests/ tree exists and carries test files
 - **RESOLVED** — `ds_extracted/ds/package.json :: typecheck` — tsconfig.typecheck.json on disk
 - **RESOLVED** — `ds_extracted/ds/tsconfig.json :: exactOptionalPropertyTypes` — the flag itself is the machinery (content already E3-verified); compile-level firing would re-run tsc per census run — the cost is booked here, the check stays content-level
@@ -1291,7 +1291,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-B property battery (10 properties green on the canonical family; worst deviations P1=0.0e+0 P2=4.4e-16 P3=6.7e-16 P4=6.7e-16 P5=4.4e-16 P6=6.7e-16 P7=1.6e-13 P8=5.4e-1 P9=1.5e+0 P10=5.6e-16)
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
-- PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: probe.ts) — the root-stray gate, v0.9.0)
+- PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 22/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
 - PASS — W-F enrollment census (726 errors enrolled LIVE against a registry of 93 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 265, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
 - PASS — W-H genealogy census (16 families over 726 errors (15 recurring, all resolved); catch census gate 125 / author 553 / numbers 47 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)

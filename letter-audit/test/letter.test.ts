@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { checkLetter, checkFrontier, runWitnesses, type UntrustedFrontierRow } from "../src/kernel/audit.js";
 import { LETTER, QUOTED_BB1, QUOTED_BB2, QUOTED_CENSUS_NOW, QUOTED_CENSUS_PRIOR, QUOTED_HALTED2, QUOTED_UNIVERSE2, QUOTED_WALKER_STEPS, type AuditRow } from "../src/kernel/ledger.js";
-import { FRONTIER, censusString, isGraduated, type FrontierRow } from "../src/kernel/frontier.js";
+import { FRONTIER, censusString, isGraduated, platformTestsNeedle, type FrontierRow } from "../src/kernel/frontier.js";
 import { AuditError } from "../src/kernel/errors.js";
 import { census, machines, simulate, rightWalker, decode, tetrate, compareTowers, lit, tet, type TMachine, type TowerExpr } from "../src/kernel/beaver.js";
 
@@ -143,6 +143,22 @@ describe("T5 the frontier re-audit — the registry caught up with the workspace
     assert.equal(censusString(FRONTIER, "verdict"), QUOTED_CENSUS_NOW);
     assert.equal(censusString(FRONTIER, "priorVerdict"), QUOTED_CENSUS_PRIOR);
     assert.equal(FRONTIER.length, 17);
+  });
+
+  it("#03's needle is DERIVED from the sibling's badge, not hand-copied (the b89#10 family's structural close)", () => {
+    // the extractor is pure over the README text: a badge bump flows through
+    assert.equal(platformTestsNeedle("x ![tests](https://img.shields.io/badge/tests-4242-brightgreen) y"), "tests-4242");
+    // a reshaped or missing badge degrades to the named sentinel — A6 fires
+    // contraband, never a silent pass
+    assert.equal(platformTestsNeedle("the badge is gone"), "tests-BADGE-MISSING");
+    assert.equal(platformTestsNeedle("no digits: badge/tests--brightgreen"), "tests-BADGE-MISSING");
+    // the LIVE needle on disk tracks the real badge and carries no stale copy:
+    // the row's needle must both match the badge shape and exist in the README
+    const live = FRONTIER.find((r) => r.claimId === "#03")!.pointers[0]!.needle;
+    const readme = readFileSync(resolve(process.cwd(), "..", "ds_extracted/ds/README.md"), "utf8");
+    assert.match(live, /^tests-\d+$/, "the live needle must be a derived badge count, not the sentinel");
+    assert.ok(readme.includes(live), "the derived needle must resolve in the sibling README");
+    assert.ok(!readFileSync(new URL("../src/kernel/frontier.ts", import.meta.url), "utf8").match(/tests-\d{2,}/), "frontier.ts itself must carry NO hand-copied count literal — the copy is the crime the family committed three times");
   });
 
   it("exactly two graduations, each naming its settler, citing it by pointer, and carrying its surviving boundary", () => {

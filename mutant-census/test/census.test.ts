@@ -231,14 +231,17 @@ test("the renderer refuses to print an illegal census, and importing it renders 
   assert.equal(statBefore, statAfter, "importing render.ts re-rendered the report — the entry guard is broken");
 });
 
-test("the root-stray detector: forged strays are named, the registered probe passes, the allowlist is load-bearing", async () => {
+test("the root-stray detector: forged strays are named, the retired probe is contraband, the allowlist is empty (the R11 deliberate pass)", async () => {
   const { REGISTERED_ROOT_FILES, liveRootStrayFiles, rootStrayFiles } = await import("../src/kernel/census.js");
-  const seen = rootStrayFiles(["probe.ts", "AGENTS.md", "scratch-forged.ts", "notes.md"]);
-  assert.deepEqual(seen, ["scratch-forged.ts"], "the forged stray is named; the registered probe and non-code files pass");
-  assert.ok(!rootStrayFiles(["probe.ts"]).includes("probe.ts"));
-  // the live face: the workspace root is clean right now (probe.ts registered)
+  const seen = rootStrayFiles(["AGENTS.md", "scratch-forged.ts", "notes.md"]);
+  assert.deepEqual(seen, ["scratch-forged.ts"], "the forged stray is named; non-code files pass");
+  // the b26#1 corpse, should it ever reappear at the root, is now CONTRABAND:
+  // its registration was retired by the R11 deliberate pass — the gate holds
+  // with zero exceptions
+  assert.deepEqual(rootStrayFiles(["probe.ts"]), ["probe.ts"]);
+  // the live face: the workspace root is clean right now with ZERO registered exceptions
   assert.deepEqual(liveRootStrayFiles(), [], "the live root carries strays — the gate must land green on delivery");
-  assert.deepEqual(REGISTERED_ROOT_FILES, ["probe.ts"]);
+  assert.deepEqual(REGISTERED_ROOT_FILES, []);
 });
 
 test("b37#7 single-source: the total gate imports the census's EPOCH_REPOS — no second literal list", async () => {

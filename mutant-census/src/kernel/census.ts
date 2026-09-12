@@ -358,8 +358,14 @@ export function scanWorkspace(): readonly WorkspaceScanRow[] {
  * Everything else bearing a code extension at the root is a STRAY: the root
  * is not a scratch home (the b22#2/b33#0/b49#2/b54#0 placement class — this
  * detector holds the ROOT face, the one sighted at b54#0; the system-temp
- * face lives outside the workspace tree and stays booked on its own rows). */
-export const REGISTERED_ROOT_FILES: readonly string[] = ["probe.ts"];
+ * face lives outside the workspace tree and stays booked on its own rows).
+ *
+ * EMPTY since the R11 deliberate pass: the list's sole member probe.ts —
+ * the b26#1 heredoc-truncation corpse, registered so the gate could stay
+ * green while the evidence lived on disk — is retired; the evidence now
+ * lives in b26#1's own prose row, and the root-stray gate holds with ZERO
+ * exceptions. */
+export const REGISTERED_ROOT_FILES: readonly string[] = [];
 
 /** The root-stray detector, PURE over a name list — the forged-listing fire
  * demo injects here, so no witness ever mutates the filesystem. */

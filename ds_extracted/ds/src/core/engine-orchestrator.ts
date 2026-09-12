@@ -6,7 +6,10 @@
  * 载体（约束子空间精确 / 全空间态矢量分块 / QPU 后端）及各自的异步
  * 孪生、哈密顿量构建、坍缩解套用与量子引擎统计。迁移是纯委托——方法体
  * 逐字保留（调度器侧的亲和度/候选匹配/决策应用经 ctx 回调），事件名、
- * 错误消息、日志行、种子化随机数抽取序与全部可观测行为不变。
+ * 错误消息、日志行、种子化随机数抽取序不变；可观测行为除两处**同波次
+ * 修复**外不变：01#4 scheduleBatchQuantumQpu 在 await 后按实时并发余量
+ * 封顶套用（不再 maxAssign: Infinity 超订），Q6 getBackend 改经 qpu 桶
+ * 导入（默认后端注册面的变化，见导入处注释）。
  */
 
 import type { Agent, Task, SchedulingDecision, TaskPriority } from '../types/quantum-types.js';

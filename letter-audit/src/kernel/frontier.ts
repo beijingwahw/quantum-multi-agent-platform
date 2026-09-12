@@ -17,6 +17,46 @@
  * disk on 2026-09-08; the checker re-verifies on every run.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+/**
+ * The platform's live test count, single-sourced from its own README badge.
+ *
+ * This pointer's needle was a hand-copied number for three consecutive
+ * generations of the platform's badge (the b89#10 citation-drift family:
+ * every badge bump stranded the letter's pointer, and the re-anchor ritual
+ * touched needle + checker + census anchor + two rendered artifacts each
+ * time). The citation now DERIVES from the cited document itself, so a badge
+ * bump can no longer strand it — the letter re-audits "the workspace as it
+ * now stands" (its own charter), so a live quote is the honest form.
+ *
+ * The A6 check stays real: if the badge disappears or changes shape, the
+ * extractor returns a needle the README cannot contain and law A6 fires
+ * contraband BY NAME — the failure mode degrades from "stale citation" to
+ * "named missing badge", never to a silent pass.
+ *
+ * PURE over the README text so tests can inject a tampered badge.
+ */
+export function platformTestsNeedle(readmeText: string): string {
+  const m = /badge\/tests-(\d+)-/.exec(readmeText);
+  return m ? `tests-${m[1]}` : "tests-BADGE-MISSING";
+}
+
+/** The #03 pointer's needle, read live from the sibling README at module
+ * load. Root resolution mirrors audit.ts's WORKSPACE_ROOT idiom (both run
+ * from this repo via npm scripts). Unreadable file degrades to the named
+ * sentinel — A6 rejects it as contraband instead of an import crash. */
+function livePlatformTestsNeedle(): string {
+  try {
+    return platformTestsNeedle(
+      readFileSync(resolve(process.cwd(), "..", "ds_extracted/ds/README.md"), "utf8"),
+    );
+  } catch {
+    return "tests-BADGE-MISSING";
+  }
+}
+
 export type FrontierVerdict =
   | "MECHANISM-SETTLED"
   | "HEURISTIC"
@@ -102,7 +142,10 @@ export const FRONTIER: readonly FrontierRow[] = [
     priorVerdict: "HEURISTIC",
     note: "held — class unmoved; physical verification awaiting granted hours only",
     settler: null,
-    pointers: [{ repo: "ds_extracted/ds", file: "README.md", needle: "tests-687" }],
+    // #03's needle is DERIVED, not copied (the b89#10 family's structural
+    // close): the platform's badge is the single source, this row quotes it
+    // live — see platformTestsNeedle above.
+    pointers: [{ repo: "ds_extracted/ds", file: "README.md", needle: livePlatformTestsNeedle() }],
   },
   {
     claimId: "#04",

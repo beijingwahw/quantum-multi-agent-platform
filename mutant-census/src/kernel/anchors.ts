@@ -93,7 +93,7 @@ export const ANCHOR_REGISTRY: readonly AnchorRegistration[] = [
   { anchor: "mutant-census/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk — the project the gate compiles" },
   { anchor: "ds_extracted/ds/package.json :: format:check", kind: "RESOLVED", evidence: "prettier in devDependencies — the formatter the gate invokes is installed" },
   { anchor: "ds_extracted/ds/package.json :: lint", kind: "RESOLVED", evidence: "eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired (registered the moment b89#7 first sat on it)" },
-  { anchor: "letter-audit/src/kernel/frontier.ts :: tests-687", kind: "RESOLVED", evidence: "the needle is on disk in the citing tree and the frontier checker fires it against the sibling's README on every letter-audit suite run (registered the moment b89#10 first sat on it)" },
+  { anchor: "letter-audit/src/kernel/frontier.ts :: platformTestsNeedle", kind: "RESOLVED", evidence: "the #03 citation is DERIVED from the sibling's live README badge at module load (platformTestsNeedle, the on-disk composer this anchor's needle names) and the citing file carries no hand-copied count literal — the checker fires the derived needle against the sibling's README on every letter-audit suite run (b89#10 fired three times as a hand copy; the copy is abolished)" },
   { anchor: "ds_extracted/ds/package.json :: test", kind: "RESOLVED", evidence: "the tests/ tree exists and carries test files" },
   { anchor: "ds_extracted/ds/package.json :: typecheck", kind: "RESOLVED", evidence: "tsconfig.typecheck.json on disk" },
   { anchor: "ds_extracted/ds/tsconfig.json :: exactOptionalPropertyTypes", kind: "RESOLVED", evidence: "the flag itself is the machinery (content already E3-verified); compile-level firing would re-run tsc per census run — the cost is booked here, the check stays content-level" },
@@ -390,15 +390,22 @@ export function resolveAnchor(reg: AnchorRegistration): { ok: boolean; detail: s
       ? { ok: true, detail: "the job spec constructs typecheck jobs for every epoch repo" }
       : { ok: false, detail: "the T-board script no longer constructs typecheck jobs" };
   }
-  if (reg.anchor === "letter-audit/src/kernel/frontier.ts :: tests-687") {
-    // a cross-repo pin resolves only when BOTH sides agree (the b89#10
-    // lesson, the b80#7 family's prose-pin face): the citing needle is on
-    // disk AND the sibling's README still carries the text it pins
-    const cited = readFileSync(root, "utf8").includes('"tests-687"');
-    const target = readFileSync(resolve(WORKSPACE_ROOT, "ds_extracted/ds", "README.md"), "utf8").includes("tests-687");
-    return cited && target
-      ? { ok: true, detail: "both sides of the pin agree: the frontier needle and the platform README badge" }
-      : { ok: false, detail: "the cross-repo pin disagrees — the needle or the README badge it pins is missing" };
+  if (reg.anchor === "letter-audit/src/kernel/frontier.ts :: platformTestsNeedle") {
+    // b89#10's STRUCTURAL close (the pin fired three times as a hand copy —
+    // 520→639→687, each fire costing a five-file re-anchor ritual): the
+    // citation now derives from the cited document itself, so both sides of
+    // the old literal pin change face. The resolver checks the wiring, not a
+    // number: the citing file carries the composer, carries NO hand-copied
+    // count literal (the copy was the crime), and the cited README still
+    // wears the badge shape the composer reads.
+    const frontierSrc = readFileSync(root, "utf8");
+    const readme = readFileSync(resolve(WORKSPACE_ROOT, "ds_extracted/ds", "README.md"), "utf8");
+    const composed = frontierSrc.includes("platformTestsNeedle");
+    const noStaleCopy = !/tests-\d{2,}/.test(frontierSrc);
+    const badgeShape = /badge\/tests-\d+-/.test(readme);
+    return composed && noStaleCopy && badgeShape
+      ? { ok: true, detail: "the citation derives from the sibling's live badge and no hand-copied count survives anywhere in the citing file" }
+      : { ok: false, detail: `the dynamic badge-needle wiring is broken: composer=${composed}, stale-copy-ban=${noStaleCopy}, badge-shape=${badgeShape}` };
   }
   return { ok: false, detail: `no resolution rule for anchor "${reg.anchor}"` };
 }
@@ -468,9 +475,9 @@ export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; 
         : { ok: false, detail: `the detector saw ${JSON.stringify(named)} — it is blind to the fixture` };
     }
     case "mutant-census/src/kernel/census.ts :: rootStrayFiles": {
-      const strays = rootStrayFiles(["probe.ts", "AGENTS.md", "scratch-j59-forged.ts"]);
-      return strays.includes("scratch-j59-forged.ts") && !strays.includes("probe.ts")
-        ? { ok: true, detail: `the forged stray is named: ${strays.join(", ")} — the registered probe passes untouched` }
+      const strays = rootStrayFiles(["AGENTS.md", "scratch-j59-forged.ts"]);
+      return strays.includes("scratch-j59-forged.ts") && strays.length === 1
+        ? { ok: true, detail: `the forged stray is named: ${strays.join(", ")} — non-code files pass, the allowlist is EMPTY since the R11 deliberate pass` }
         : { ok: false, detail: `the detector saw ${JSON.stringify(strays)} — blind to the forged stray` };
     }
     default:

@@ -33,6 +33,6 @@ BB(1)=1 and BB(2)=6 are re-derived from scratch by full enumeration; BB(3)=21 (L
 
 ```bash
 npm ci
-npm test        # 36/36 — census, witnesses, machine-universe machinery with exact-value anchors, tower arithmetic, 20 smuggling trials (5 ledger + 4 frontier + 5 machine + 6 tower), entry guard
+npm test        # 37/37 — census, witnesses, machine-universe machinery with exact-value anchors, tower arithmetic, 21 smuggling/derivation trials (5 ledger + 4 frontier + 5 machine + 6 tower + 1 badge-needle derivation), entry guard
 npm run repro   # renders out/reports/the-letter-audit.md (seconds)
 ```
