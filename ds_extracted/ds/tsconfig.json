@@ -17,6 +17,7 @@
     "verbatimModuleSyntax": true,
     "noImplicitOverride": true,
     "noUncheckedSideEffectImports": true,
+    "erasableSyntaxOnly": true,
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",

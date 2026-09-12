@@ -66,3 +66,26 @@ jobs:
           npm run example:basic
           npm run example:advanced
         timeout-minutes: 5
+
+  # 04 P1-5：OSV-Scanner 供应链漏洞扫描（与上面 npm audit 互补：OSV 汇聚
+  # OSV.dev 多源 Advisory，含 GitHub Advisory/GitLab advisory-db；锁文件自动
+  # 检测从仓库根递归发现 ds_extracted/ds/package-lock.json）。
+  # 注意：官方仓库根 action.yml 是纯元数据桩（无 runs 段），字面
+  # google/osv-scanner-action@v2 会直接失败——用官方 reusable workflow 内部
+  # 所引用的同 tag 子路径 action。
+  # advisory-first：首次引入、误报（仅 dev 依赖/不可达路径）未经 triage 前
+  # continue-on-error 观察运行，不阻塞 CI；分诊清零后改为 false 转正门禁
+  osv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: OSV-Scanner（供应链漏洞，advisory 观察位）
+        uses: google/osv-scanner-action/osv-scanner-action@v2
+        with:
+          # 仓库根递归扫描：自动发现 ds_extracted/ds/package-lock.json
+          # （uses: 步骤不受本文件 defaults.run.working-directory 影响）
+          scan-args: |-
+            --recursive
+            ./

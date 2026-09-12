@@ -103,7 +103,7 @@ import {
   SUBSPACE_DIMENSION_CAP,
   SERIAL_YIELD_BUDGET_MS,
 } from './constants.js';
-import { logWarn } from '../utils/logger.js';
+import { logDebug, logWarn } from '../utils/logger.js';
 
 // ----------------------------------------------------------------------------
 // 子空间模型
@@ -162,6 +162,30 @@ function safeOptimalityRatio(welfare: number, optimalWelfare: number): number {
 export interface SubspaceBuildOptions {
   /** 子空间维度上限（默认 2^21 = SUBSPACE_DIMENSION_CAP）；枚举超过即放弃并返回 null */
   dimensionCap?: number;
+  /**
+   * 内存预算（字节，08#25）：按每基态字节数折算成等效维度上限，
+   * effectiveCap = min(dimensionCap, floor(budget / bytesPerState))。
+   * bytesPerState 从真实分配推导（见 bytesPerBasisState）：模型构建的
+   * 主要内存是 assignmentAt(Int32×m) + keys(Float64) + energies(Float64)
+   * + 每混合器组 order/runs(Int32×2)。预算不足一态（effectiveCap < 1）
+   * 时与维度超限同路：logWarn + 返回 null（调用方回退全空间引擎）。
+   */
+  memoryBudgetBytes?: number;
+}
+
+/**
+ * 每基态（合法分配）的估算字节数（08#25，构建前可知——只依赖 m/n）：
+ * - assignmentAt：Int32Array(capacity·m)，4·m B/态；
+ * - keys：Float64Array(capacity)，8 B/态；
+ * - energies：Float64Array(dimension ≤ capacity)，8 B/态；
+ * - 每混合器组 order+runs：2×Int32Array(dimension)，8·G B/态
+ *   （G = 移动混合器组数 m（n>m）或换位组数 C(m,2)（n==m））。
+ * 不计入： ineligibleFlat(m·n B)、耦合展平数组、Worker 侧态矢量副本——
+ * 与主构建分配相比是低阶项；串行/并行构建的 order/runs 底座尺寸相同。
+ */
+function bytesPerBasisState(m: number, n: number): number {
+  const groups = n > m ? m : (m * (m - 1)) / 2;
+  return m * 4 + 8 + 8 + groups * 8;
 }
 
 /** Int32 缓冲：优先 SharedArrayBuffer 底座（多线程演化零拷贝共享），不可用时退普通数组 */
@@ -211,8 +235,26 @@ export function buildSubspaceModel(
 ): SubspaceModel | null {
   const m = problem.taskIds.length;
   const n = problem.agentIds.length;
-  const cap = options.dimensionCap ?? SUBSPACE_DIMENSION_CAP;
   if (m === 0 || n === 0 || m > n) return null;
+  // 内存预算（08#25）：折算成等效维度上限与 dimensionCap 取小——预算路径
+  // 在任何大分配之前判退，不足一态时与维度超限同路返回 null。
+  // 非有限/负预算显式判退：NaN 与任何比较均为 false，静默绕过上限
+  // 恰是本项要堵的「预算被无声忽略」通道
+  let cap = options.dimensionCap ?? SUBSPACE_DIMENSION_CAP;
+  if (options.memoryBudgetBytes !== undefined) {
+    const budget = options.memoryBudgetBytes;
+    const perState = bytesPerBasisState(m, n);
+    const budgetCap = Number.isFinite(budget) && budget >= 0 ? Math.floor(budget / perState) : 0;
+    cap = Math.min(cap, budgetCap);
+    if (cap < 1) {
+      logWarn(
+        'SubspaceOptimizer',
+        `memory budget ${options.memoryBudgetBytes}B < ${perState}B per basis state ` +
+          `(m=${m}, n=${n}) — build abandoned like dimension-cap exceeded`,
+      );
+      return null;
+    }
+  }
   // 形状校验与全空间能量入口同一单源：短行 weights 在此同样读 undefined
   // 进 NaN 能量表（静默垃圾），良构问题的构建路径位级不变
   validateAssignmentProblem(problem);
@@ -289,8 +331,13 @@ export function buildSubspaceModel(
   const dimension = dimCount;
   if (dimension === 0) return null;
   const sortedKeys = keys.subarray(0, dimension); // 严格升序——二分查找底座
+  // 08#29：调试输出经分级日志器（QUANTUM_PARALLEL_DEBUG 门控保留；
+  // 另需 QUANTUM_LOG_LEVEL=debug，默认 info 压制 debug 级）
   if (process.env.QUANTUM_PARALLEL_DEBUG) {
-    console.error(`[build] dfs1+keys: ${Date.now() - dfsStart}ms (dim=${dimension})`);
+    logDebug(
+      'SubspaceOptimizer',
+      `[build] dfs1+keys: ${Date.now() - dfsStart}ms (dim=${dimension})`,
+    );
   }
 
   // ---- 2) 能量：E = −福利（含纠缠耦合，零罚项） ----
@@ -339,7 +386,7 @@ export function buildSubspaceModel(
     if (w > optimalWelfare) optimalWelfare = w;
   }
   if (process.env.QUANTUM_PARALLEL_DEBUG) {
-    console.error(`[build] energies(flattened): ${Date.now() - energiesStart}ms`);
+    logDebug('SubspaceOptimizer', `[build] energies(flattened): ${Date.now() - energiesStart}ms`);
   }
 
   // ---- 3) 纤维结构（内核构建；order/runs 落在共享底座上供并行演化复用） ----
@@ -400,7 +447,8 @@ export function buildSubspaceModel(
     mixers = varyLists.map((vary, g) => buildFiberGroup(vary, labels[g]!));
   }
   if (process.env.QUANTUM_PARALLEL_DEBUG) {
-    console.error(
+    logDebug(
+      'SubspaceOptimizer',
       `[build] mixers(${parallelBuilt ? `parallel` : 'serial'}): ${Date.now() - mixersStart}ms`,
     );
   }
@@ -838,16 +886,32 @@ function applyEvolutionStep(k: SerialEvolutionKernel, s: number): void {
 }
 
 /**
- * 谱宽上界的保守估计（08#28，同步/异步退火共用单点）：Σ_t A_t 谱半径 ≈
- * Σ_t (k_max−1)，按「最大纤维尺寸」放缩到 m·(n−m)（或 n≤m 时的 C(m,2)）。
- * 保守方向安全——谱宽高估 ⇒ 归一化能量更小 ⇒ 有效退火更慢，只会多付
- * 演化成本、不会发散；换实际 fiber 结构可收紧，但会平移全部退火数值
- * 结果，须与黄金基准同步重校，列为 Wave 4 的破坏性变更。
+ * 谱宽的诚实估计（08#28，同步/异步退火共用单点；原 Wave 4 遗留的
+ * m·(n−m) 粗上界已落地为实际 fiber 结构口径）：
+ *
+ * 混合算符 A_group 在其纤维组上分块对角，每纤维是完全图邻接 K_{k_f}
+ * （k_f = run 长度，runs 只记录 ≥2 元素的纤维）——ρ(K_k) = k−1，故
+ * ρ(A_group) = max_f (k_f − 1)；总混合 Σ_g A_g 的谱宽按三角不等式以
+ * Σ_g (maxRun_g − 1) 封顶，且该界在无掩码实例上精确成立（移动混合器
+ * 每纤维恰 n−m+1 元素 ⇒ 每组贡献 n−m，总和 = m·(n−m)，与旧公式逐值
+ * 相等；换位混合器每纤维恰 2 ⇒ C(m,2)·1）。掩码切断纤维时新口径更
+ * 紧（≤ 旧界），归一化谱宽更小 ⇒ 有效代价相位更小——方向安全：谱宽
+ * 低估只会让退火更偏混合主导，不产生数值发散（幺正性不受归一化影响）。
+ * 全部纤维退化（宽度 0）时能量归一化全零，末态概率恒均匀——与旧口径
+ * 下的行为一致（混合器为恒等时代价相位不改变 |ψ|²）。
  */
 function subspaceSpectralWidth(model: SubspaceModel): number {
-  return model.n > model.m
-    ? model.m * Math.max(1, model.n - model.m)
-    : (model.m * (model.m - 1)) / 2;
+  let width = 0;
+  for (const group of model.mixers) {
+    const runs = group.runs;
+    let maxRun = 1;
+    for (let i = 0; i + 1 < runs.length; i += 2) {
+      const k = runs[i + 1]! - runs[i]!;
+      if (k > maxRun) maxRun = k;
+    }
+    width += maxRun - 1;
+  }
+  return width;
 }
 
 /**
@@ -867,7 +931,7 @@ export function annealSolveSubspace(
   const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
-  // 代价尺度与混合算符谱宽同量级（08#28 上界估计，说明见 subspaceSpectralWidth）
+  // 代价尺度与混合算符谱宽同量级（08#28 实际 fiber 估计，说明见 subspaceSpectralWidth）
   const spectralWidth = subspaceSpectralWidth(model);
   const energies = normalizedEnergies(model, 2 * spectralWidth);
 
@@ -908,7 +972,7 @@ export async function annealSolveSubspaceAsync(
   const { shots, select, seed, topK, signal } = resolveCommonSolverOptions(options, 'shots-best');
   const rng = mulberry32(seed);
 
-  // 谱宽上界口径与同步路径逐字相同（08#28 说明见同步路径注释）
+  // 谱宽口径与同步路径逐字相同（08#28 实际 fiber 估计，见同步路径注释）
   const spectralWidth = subspaceSpectralWidth(model);
   const energies = normalizedEnergies(model, 2 * spectralWidth);
 

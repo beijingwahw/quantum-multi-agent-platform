@@ -42,6 +42,7 @@ import { Worker } from 'node:worker_threads';
 import { cpus } from 'node:os';
 import { applyFiberRunsKernel, advanceCostKernel, buildFiberGroupKernel } from './fiber-kernel.js';
 import { QuantumEngineError } from '../utils/errors.js';
+import { logDebug } from '../utils/logger.js';
 import type { SubspaceModel } from './subspace-optimizer.js';
 
 /** 并行启用的最小维度（低于此值每步 9 次屏障的延迟支配收益，串行更快） */
@@ -254,6 +255,14 @@ interface EvolutionContext {
   im: Float64Array;
   workers: Worker[];
   poisoned: boolean;
+  /**
+   * 故障收尾单点（08#35）：先同步发「关闭票」（OP=3 + SEQ++ + notify）
+   * 唤醒所有阻塞在 Atomics.wait 的 Worker 令其自行退出，再对全体
+   * terminate 强杀兜底——此前失败路径直接 fire-and-forget terminate，
+   * 等待中的 Worker 要等强杀或 1s 兜底定时器才消亡。成功路径的
+   * dispatch 序列不经此函数（位级不变）。
+   */
+  abortAll(): void;
   terminateAll(): void;
 }
 
@@ -316,6 +325,9 @@ function prepareEvolution(
   }
 
   const workers: Worker[] = [];
+  const terminateAll = (): void => {
+    for (const w of workers) w.terminate().catch(() => undefined);
+  };
   const ctx: EvolutionContext = {
     model,
     dim,
@@ -326,14 +338,23 @@ function prepareEvolution(
     im,
     workers,
     poisoned: false,
-    terminateAll: () => {
-      for (const w of workers) w.terminate().catch(() => undefined);
+    abortAll: () => {
+      // 08#35：关闭票先行——唤醒所有 Atomics.wait 的 Worker 自行退出
+      //（演化 Worker 见 op===3 break；构建 Worker 见 op!==4 跳过处理后
+      // 同样 process.exit(0)），随后强杀兜底（含仍在计算中、无法被唤醒的）
+      Atomics.store(H, OP, 3);
+      Atomics.store(H, SEQ, Atomics.load(H, SEQ) + 1);
+      Atomics.notify(H, SEQ, Infinity);
+      terminateAll();
     },
+    terminateAll,
   };
 
   const src = workerSource();
+  // 08#29：调试输出经分级日志器（QUANTUM_PARALLEL_DEBUG 门控保留；
+  // 另需 QUANTUM_LOG_LEVEL=debug，默认 info 压制 debug 级）
   if (process.env.QUANTUM_PARALLEL_DEBUG) {
-    console.error('[parallel] worker source bytes:', src.length);
+    logDebug('SubspaceParallel', '[parallel] worker source bytes:', src.length);
   }
   for (let rank = 0; rank < W; rank++) {
     const w = new Worker(src, { eval: true });
@@ -342,7 +363,8 @@ function prepareEvolution(
       ctx.poisoned = true;
       if (process.env.QUANTUM_PARALLEL_DEBUG) {
         // @types/node 26 types Worker 'error' payloads as unknown
-        console.error(
+        logDebug(
+          'SubspaceParallel',
           `[parallel] worker ${rank} error:`,
           err instanceof Error ? err.message : String(err),
         );
@@ -350,14 +372,14 @@ function prepareEvolution(
     });
     w.on('exit', (code) => {
       if (process.env.QUANTUM_PARALLEL_DEBUG) {
-        console.error(`[parallel] worker ${rank} exit code=${code}`);
+        logDebug('SubspaceParallel', `[parallel] worker ${rank} exit code=${code}`);
       }
     });
     w.on('message', (msg: { type?: string; rank?: number; message?: string }) => {
       if (msg.type === 'worker-fatal') {
         ctx.poisoned = true;
         if (process.env.QUANTUM_PARALLEL_DEBUG) {
-          console.error(`[parallel] worker ${msg.rank} fatal: ${msg.message}`);
+          logDebug('SubspaceParallel', `[parallel] worker ${msg.rank} fatal: ${msg.message}`);
         }
       }
     });
@@ -435,7 +457,8 @@ export function parallelAnnealEvolve(
         }
         if (ctx.poisoned || Date.now() > deadline) {
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
-            console.error(
+            logDebug(
+              'SubspaceParallel',
               `[parallel] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${ctx.poisoned}`,
             );
           }
@@ -469,10 +492,13 @@ export function parallelAnnealEvolve(
     Atomics.notify(H, SEQ, Infinity);
     return { re: ctx.re, im: ctx.im };
   } catch {
-    ctx.terminateAll();
+    // 08#35：失败路径先唤醒再强杀（同步驱动无法 await terminate——
+    // 关闭票让等待中的 Worker 即刻自退出，不等 1s 兜底定时器）
+    ctx.abortAll();
     return null;
   } finally {
     // Worker 已 unref：正常路径由 close() 自行退出，兜底强杀防止滞留
+    //（08#35：仅作最后手段——关闭票在 abortAll 里已即时发出）
     setTimeout(() => {
       ctx.terminateAll();
     }, 1_000).unref();
@@ -551,7 +577,8 @@ export async function parallelAnnealEvolveAsync(
         }
         if (ctx.poisoned || Date.now() > deadline) {
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
-            console.error(
+            logDebug(
+              'SubspaceParallel',
               `[parallel-async] dispatch fail op=${op} group=${group} seq=${seq} done=${Atomics.load(H, DONE)}/${W} poisoned=${ctx.poisoned}`,
             );
           }
@@ -584,7 +611,11 @@ export async function parallelAnnealEvolveAsync(
     Atomics.notify(H, SEQ, Infinity);
     return { re: ctx.re, im: ctx.im };
   } catch {
-    ctx.terminateAll();
+    // 08#35：异步驱动可以等——唤醒（关闭票）+ 强杀后，**等待全部终止
+    // 完成**（allSettled）再返回 null：串行回退开始时不再有存活 Worker
+    // 写共享缓冲；1s 兜底定时器仅作最后手段保留
+    ctx.abortAll();
+    await Promise.allSettled(ctx.workers.map((w) => w.terminate()));
     return null;
   } finally {
     setTimeout(() => {
@@ -706,6 +737,13 @@ export function parallelBuildFiberGroups(params: {
   const terminateAll = (): void => {
     for (const w of workers) w.terminate().catch(() => undefined);
   };
+  /** 08#35：同演化路径——关闭票唤醒等待中的构建 Worker（op!==4 跳过处理后自退出），再强杀 */
+  const abortAll = (): void => {
+    Atomics.store(H, OP, 3);
+    Atomics.store(H, SEQ, Atomics.load(H, SEQ) + 1);
+    Atomics.notify(H, SEQ, Infinity);
+    terminateAll();
+  };
 
   try {
     const src = buildWorkerSource();
@@ -719,7 +757,10 @@ export function parallelBuildFiberGroups(params: {
         if (msg.type === 'worker-fatal') {
           poisoned.value = true;
           if (process.env.QUANTUM_PARALLEL_DEBUG) {
-            console.error(`[parallel-build] worker ${msg.rank} fatal: ${msg.message}`);
+            logDebug(
+              'SubspaceParallel',
+              `[parallel-build] worker ${msg.rank} fatal: ${msg.message}`,
+            );
           }
         }
       });
@@ -796,9 +837,14 @@ export function parallelBuildFiberGroups(params: {
     return results;
   } catch (err) {
     if (process.env.QUANTUM_PARALLEL_DEBUG) {
-      console.error('[parallel-build] failed:', err instanceof Error ? err.message : String(err));
+      logDebug(
+        'SubspaceParallel',
+        '[parallel-build] failed:',
+        err instanceof Error ? err.message : String(err),
+      );
     }
-    terminateAll();
+    // 08#35：先唤醒再强杀（构建路径同款收尾，同步驱动无法 await）
+    abortAll();
     return null;
   } finally {
     setTimeout(() => {

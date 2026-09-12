@@ -7,8 +7,10 @@ import {
   getBackend,
   listBackends,
   registerBackend,
+  registerLocalDefaults,
+  unregisterBackend,
 } from '../src/core/qpu/quantum-backend.js';
-import { DWaveBackend } from '../src/core/qpu/dwave-backend.js';
+import { DWaveBackend, registerDWaveDefaults } from '../src/core/qpu/dwave-backend.js';
 import { solveAssignmentOnBackend } from '../src/core/qpu/solve.js';
 import { BackendError } from '../src/utils/errors.js';
 import { toQiskitProgram } from '../src/core/qpu/qiskit-export.js';
@@ -48,6 +50,36 @@ function spinsOf(assignment: number[], m: number, n: number): number[] {
   const spins = new Array<number>(m * n).fill(1);
   for (let t = 0; t < m; t++) spins[t * n + assignment[t]!] = -1;
   return spins;
+}
+
+/**
+ * 05#18 测试 oracle：解码 bqm 提交体的 (h, J)（linear [[q,h_q]] /
+ * quadratic [[q1,q2,J]]，见 dwave-backend.ts denseLinear/sparseQuadratic），
+ * 小规模穷举能量 argmin——返回的自旋向量是**对所提交问题**的最优解：
+ * 维度即提交维度，合法性由罚项编码保证（若编码有缺陷，argmin 会是
+ * 非法样本，被闸门显式拒绝而不是被 stub 掩盖）。
+ */
+function argminSpinsOf(
+  linear: Array<[number, number]>,
+  quadratic: Array<[number, number, number]>,
+): number[] {
+  const indices = [...linear.map(([q]) => q), ...quadratic.flatMap(([a, b]) => [a, b])];
+  assert.ok(indices.length > 0, '提交体应携带非空 linear/quadratic 以推断问题维度');
+  const nq = Math.max(...indices) + 1;
+  assert.ok(nq > 0 && nq <= 20, `oracle 仅穷举小规模问题（nq=${nq}）`);
+  let best: number[] | null = null;
+  let bestEnergy = Number.POSITIVE_INFINITY;
+  for (let mask = 0; mask < 1 << nq; mask++) {
+    const z = Array.from({ length: nq }, (_, q) => (((mask >> q) & 1) === 1 ? -1 : 1));
+    let energy = 0;
+    for (const [q, hq] of linear) energy += hq * z[q]!;
+    for (const [q1, q2, jq] of quadratic) energy += jq * z[q1]! * z[q2]!;
+    if (energy < bestEnergy) {
+      bestEnergy = energy;
+      best = z;
+    }
+  }
+  return best!;
 }
 
 // ----------------------------------------------------------------------------
@@ -91,6 +123,10 @@ describe('QPU 后端层', () => {
     // 测试环境确保无真凭据（避免环境串扰）
     delete process.env.DWAVE_API_TOKEN;
     delete process.env.D_WAVE_API_TOKEN;
+    // Q6：后端模块导入零副作用——测试显式注册默认后端（生产路径的
+    // 唯一注册点是 qpu/index.ts 桶）
+    registerLocalDefaults();
+    registerDWaveDefaults();
   });
 
   it('本地精确引擎后端：solveAssignment 命中最优', async () => {
@@ -356,10 +392,19 @@ describe('调度器 QPU 入口', () => {
         status: 'pending',
       });
 
-      // 用提交的 h/J 现场求解最优太复杂——直接返回全 +1 外加最优位翻转不可行；
-      // 此处返回测试内静态构造的最优（t0→a2），经注入的 mock 传输送达
-      const { fetchImpl } = mockTransport(() => {
-        const spins = [1, 1, -1]; // q2 (t0→a2) 置 −1
+      // 05#18：此前 stub 返回与所提交问题无关的硬编码自旋（欠账注释
+      // 「太复杂」）。现在从提交体解码 (h, J) 现场穷举 argmin——响应是
+      // 针对所提交问题的合法最优样本，维度与提交维度一致。
+      // 经对象属性捕获（闭包内赋值的 let 不参与直线流分析）。
+      const captured: { spins?: number[] } = {};
+      const { fetchImpl } = mockTransport((req) => {
+        assert.equal(req.method, 'POST', '同步 COMPLETED：唯一请求应为提交');
+        const data = req.body.data as {
+          linear: Array<[number, number]>;
+          quadratic: Array<[number, number, number]>;
+        };
+        const spins = argminSpinsOf(data.linear, data.quadratic);
+        captured.spins = spins;
         return {
           id: 's1',
           status: 'COMPLETED',
@@ -377,14 +422,23 @@ describe('调度器 QPU 入口', () => {
       assert.equal(report.representation, 'qpu');
       assert.equal(report.assigned, 1);
       const task = scheduler.getTasks()[0]!;
-      assert.equal(task.assignedAgentId, 'a2');
+      // 落地分配 = stub 对**所提交问题**算出的 argmin（维度一致 + 问题相关）
+      const oracle = captured.spins;
+      // oracle 缺失（-1）或非 one-hot（indexOf 未命中）都会在此红
+      const chosen = oracle?.indexOf(-1) ?? -1;
+      assert.ok(chosen >= 0, 'oracle 应给出 one-hot 解');
+      assert.equal(task.assignedAgentId, `a${chosen}`);
       assert.match(scheduler.getSchedulingHistory().at(-1)!.reasoning, /real QPU/);
     }
   });
 
-  it('registerBackend/getBackend 注册表契约', () => {
+  it('registerBackend/unregisterBackend 注册表契约（05#20：注册可撤销）', () => {
     const custom = new DWaveBackend({ token: 'x', endpoint: 'http://127.0.0.1:9' });
     registerBackend(custom);
     assert.equal(getBackend(custom.name).name, custom.name);
+    // 注册表此前只进不出：测试注册的临时后端只能靠同名覆盖「清理」
+    assert.equal(unregisterBackend(custom.name), true);
+    assert.equal(unregisterBackend(custom.name), false, '不存在项的注销应返回 false');
+    assert.throws(() => getBackend(custom.name), BackendError);
   });
 });

@@ -25,6 +25,12 @@ export interface AgentManagerConfig {
    * （staleThresholdMs 的下限），也不必退回操纵墙钟字段。
    */
   monotonicClock?: () => number;
+  /**
+   * 过载判定阈值（05#24，缺省 AGENT_OVERLOAD_THRESHOLD = 80）。
+   * 测试可注入小阈值直接驱动过载边界两侧——此前阈值硬编码，测试
+   * 只能循环 increaseLoad 81 次跨过边界。
+   */
+  overloadThreshold?: number;
 }
 
 // agent统计指标快照（getAgentMetrics返回结构）
@@ -72,11 +78,14 @@ export class AgentManager extends EventEmitter {
   private lastBeatMonotonic = new Map<string, number>();
   private config: AgentManagerConfig;
   private readonly monotonicClock: () => number;
+  /** 过载判定阈值（05#24：配置注入，缺省 AGENT_OVERLOAD_THRESHOLD） */
+  private readonly overloadThreshold: number;
 
   constructor(config: AgentManagerConfig = {}) {
     super();
     this.config = config;
     this.monotonicClock = config.monotonicClock ?? (() => performance.now());
+    this.overloadThreshold = config.overloadThreshold ?? AGENT_OVERLOAD_THRESHOLD;
   }
 
   /**
@@ -165,6 +174,16 @@ export class AgentManager extends EventEmitter {
     // 移除所有量子纠缠
     this.removeEntanglements(agentId);
 
+    // 01#14 收尾：全表清扫对端引用——removeEntanglements 只清理有纠缠
+    // 记录的对端（08#46），entanglementTargets 预填/updateAgent 直写等
+    // 无记录路径留下的悬挂 id 在此统一出清，注销后不再静默残留在
+    // 其他 agent 的 quantumEntanglement 数组里。
+    for (const other of this.agents.values()) {
+      if (other.id !== agentId && other.quantumEntanglement.includes(agentId)) {
+        other.quantumEntanglement = other.quantumEntanglement.filter((id) => id !== agentId);
+      }
+    }
+
     this.agents.delete(agentId);
     this.guardedEmit('agent_unregistered', agent);
     logInfo('AgentManager', `Agent unregistered: ${agent.name} (${agentId})`);
@@ -177,9 +196,23 @@ export class AgentManager extends EventEmitter {
     const agent = this.agents.get(agentId);
     if (!agent) return false;
 
+    // 05#24: NaN load 防御——Object.assign 会把 NaN 原样写进 load，
+    // 毒化 averageLoad/过载判定等全部下游口径。告警并忽略该字段，
+    // 保留旧值（其余字段照常合并）。
+    const previousLoad = agent.load;
+    if (updates.load !== undefined && Number.isNaN(updates.load)) {
+      logWarn(
+        'AgentManager',
+        `updateAgent: NaN load for '${agentId}' ignored — keeping load=${previousLoad}`,
+      );
+    }
+
     // 原地合并：其余变更路径（setAgentState/increaseLoad/…）都原地变更，
     // 若此处替换为新对象，外部持有的 Agent 引用将永久冻结（分裂脑）
     Object.assign(agent, updates);
+    if (updates.load !== undefined && Number.isNaN(updates.load)) {
+      agent.load = previousLoad;
+    }
 
     // 不变量收口（08#42）：Object.assign 此前可绕过 load/state 的全部
     // 约束——写 load=95 留 state='idle'、写 state='idle' 留 load=95 都
@@ -191,7 +224,7 @@ export class AgentManager extends EventEmitter {
       agent.load = Math.min(Math.max(agent.load, 0), 100);
     }
     if ((updates.load !== undefined || updates.state !== undefined) && agent.state !== 'offline') {
-      const shouldOverload = agent.load > AGENT_OVERLOAD_THRESHOLD;
+      const shouldOverload = agent.load > this.overloadThreshold;
       if (shouldOverload && agent.state !== 'overloaded') {
         agent.state = 'overloaded';
       } else if (!shouldOverload && agent.state === 'overloaded') {
@@ -210,11 +243,21 @@ export class AgentManager extends EventEmitter {
     if (!agent) return false;
 
     const previousState = agent.state;
-    agent.state = state;
+    // 08#42 收尾：setAgentState 此前直写任意状态，绕过 increaseLoad/
+    // decreaseLoad 维护的过载不变量（非 offline ⇒ overloaded ⟺
+    // load > 阈值）。此处收口为唯一咽喉，镜像 increaseLoad 的单向
+    // 规则：负载超阈时非 overloaded 目标一律落 overloaded（回落 idle
+    // 只经 decreaseLoad——显式 'overloaded' 低负载状态是合法的；
+    // 'offline' 是显式失联语义，不由负载推导）。
+    const finalState: AgentState =
+      state !== 'offline' && state !== 'overloaded' && agent.load > this.overloadThreshold
+        ? 'overloaded'
+        : state;
+    agent.state = finalState;
     this.touchHeartbeat(agent);
     this.agents.set(agentId, agent);
 
-    this.guardedEmit('agent_state_changed', { agentId, previousState, newState: state });
+    this.guardedEmit('agent_state_changed', { agentId, previousState, newState: finalState });
     return true;
   }
 
@@ -227,7 +270,7 @@ export class AgentManager extends EventEmitter {
     this.agents.set(agentId, agent);
 
     // 如果负载过高，可能需要调整状态
-    if (agent.load > AGENT_OVERLOAD_THRESHOLD) {
+    if (agent.load > this.overloadThreshold) {
       this.setAgentState(agentId, 'overloaded');
     }
 
@@ -244,7 +287,7 @@ export class AgentManager extends EventEmitter {
     this.agents.set(agentId, agent);
 
     // 如果负载降低，可以恢复正常状态
-    if (agent.load <= AGENT_OVERLOAD_THRESHOLD && agent.state === 'overloaded') {
+    if (agent.load <= this.overloadThreshold && agent.state === 'overloaded') {
       this.setAgentState(agentId, 'idle');
     }
 
@@ -281,7 +324,7 @@ export class AgentManager extends EventEmitter {
     if (agent.state === 'offline') {
       // 恢复存活但不得违反过载不变量：load > 阈值的 agent 是 overloaded
       // 而非 idle（否则 getAvailableAgents 会把过载 agent 当可用放行）
-      this.setAgentState(agentId, agent.load > AGENT_OVERLOAD_THRESHOLD ? 'overloaded' : 'idle');
+      this.setAgentState(agentId, agent.load > this.overloadThreshold ? 'overloaded' : 'idle');
     }
     return true;
   }
@@ -413,7 +456,7 @@ export class AgentManager extends EventEmitter {
 
   getAvailableAgents(): Agent[] {
     return Array.from(this.agents.values()).filter(
-      (agent) => agent.state === 'idle' && agent.load < AGENT_OVERLOAD_THRESHOLD,
+      (agent) => agent.state === 'idle' && agent.load < this.overloadThreshold,
     );
   }
 

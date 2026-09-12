@@ -25,6 +25,17 @@ import {
 } from './brain.js';
 import { StateError } from '../utils/errors.js';
 
+/**
+ * 决策上下文的事件窗口上界（02#23 remainder）：决策引擎只消费事件流
+ * 尾部（extractEventValue 对各事件类型从尾部取最新一条、决策历史只留
+ * 尾部快照），而每批决策都全量拷贝监控缓冲（getCurrentState 路径的
+ * events: getEvents()）使快照成本随缓冲规模线性增长。此处把拷贝限定
+ * 为最近 STATE_EVENT_WINDOW 条：规则可见「窗口内某类型的最新事件」；
+ * 被 >200 条异质事件洪峰挤到窗口外的旧类型事件对事件条件不再可见——
+ * 这是 bounded-copy 的显式取舍（状态类条件与 brain.* 字段不受影响）。
+ */
+const STATE_EVENT_WINDOW = 200;
+
 /** 插件配置：各组件配置透传；brain 为市场大脑（实例或调度器配置） */
 export interface ProactiveIntelligencePluginConfig {
   monitor?: StateMonitorConfig;
@@ -204,7 +215,8 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
         const rules = this.engine.getAllRules();
         const rulePriorityById = new Map(rules.map((r) => [r.id, r.priority]));
         const context: DecisionContext = {
-          events: this.monitor.getEvents(),
+          // 02#23 remainder：有界尾部窗口，不再全量拷贝活跃缓冲
+          events: this.monitor.getRecentEvents(STATE_EVENT_WINDOW),
           currentState: this.getCurrentState(),
           history: this.engine.getDecisionHistory(10),
           rules,

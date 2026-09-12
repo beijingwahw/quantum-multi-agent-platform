@@ -1,62 +1,39 @@
+/**
+ * quantum-scheduler —— 量子多agent调度器（01#24 拆分后的门面 + 注册表）。
+ *
+ * 本类此前是 ~2000 行的 god class，职责已按 01#24 拆分为三个协作对象：
+ * - TaskLifecycleManager（task-lifecycle-manager.ts）：任务表、挂起桶、
+ *   依赖反向索引、状态计数器、终态/转移应用、巡检簿记与不变量校验；
+ * - QuantumEngineOrchestrator（engine-orchestrator.ts）：单任务真量子决策
+ *   与批量联合量子调度（子空间精确/全空间态矢量/QPU 后端 + 异步孪生）；
+ * - 本类：agent/纠缠注册表、能力匹配与亲和度评分、巡检定时器接线、
+ *   公共门面（纯委托——公共 API、事件名、错误消息、日志行、种子化
+ *   随机数抽取序与全部可观测行为保持不变）。
+ */
+
 import type {
   Agent,
   Task,
   SchedulingDecision,
   QuantumState,
-  TaskPriority,
   TaskStatus,
 } from '../types/quantum-types.js';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'node:crypto';
-import { logDebug, logInfo, logWarn } from '../utils/logger.js';
+import { logDebug, logInfo } from '../utils/logger.js';
 import { SchedulingError } from '../utils/errors.js';
 import { Mulberry32, DEFAULT_SEED } from '../utils/rng.js';
-import {
-  BRUTE_FORCE_QUBIT_LIMIT,
-  FULLSPACE_QUBIT_LIMIT,
-  SCHEDULER_QUBIT_CAP,
-  SCHEDULER_SUBSPACE_CAP,
-  SUBSPACE_QAOA_DIMENSION_LIMIT,
-} from './constants.js';
-import { AGENT_OVERLOAD_THRESHOLD } from './agent-manager.js';
-import {
-  assertLegalTaskTransition,
-  isLegalTaskTransition,
-  isTerminalTaskStatus,
-  checkTaskInvariants,
-  taskInvariantAssertionsEnabled,
-  type InvariantViolation,
-} from './task-lifecycle.js';
-import type { AssignmentProblem, QuantumSolverOptions, CollapseMode } from './quantum-optimizer.js';
-import {
-  qaoaSolve,
-  annealSolve,
-  bruteForceOptimum,
-  defaultPenalties,
-  couplingKey,
-  isValidAssignment,
-} from './quantum-optimizer.js';
-import {
-  buildSubspaceModel,
-  qaoaSolveSubspace,
-  annealSolveSubspace,
-  annealSolveSubspaceAsync,
-} from './subspace-optimizer.js';
-import type { SubspaceModel, SubspaceSolution } from './subspace-optimizer.js';
+import type { CollapseMode } from './quantum-optimizer.js';
+import { taskInvariantAssertionsEnabled, type InvariantViolation } from './task-lifecycle.js';
+// 01#24：生命周期与引擎编排拆入协作模块；本类保留注册表/亲和度/门面
+import { TaskLifecycleManager, PRIORITY_ORDER } from './task-lifecycle-manager.js';
+import { QuantumEngineOrchestrator, ALTERNATIVES_COUNT } from './engine-orchestrator.js';
 import type { QuantumBackend } from './qpu/quantum-backend.js';
-import { getBackend } from './qpu/quantum-backend.js';
 import type { ExecutionTierRouting } from './qpu/execution-tier.js';
-import { solveAssignmentOnBackend } from './qpu/solve.js';
 
-const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
-  critical: 4,
-  high: 3,
-  medium: 2,
-  low: 1,
-};
-
-// 分桶遍历顺序即调度优先顺序
-const PRIORITY_ORDER: TaskPriority[] = ['critical', 'high', 'medium', 'low'];
+// 01#24：挂起 TTL 缺省随 sweep 簿记迁入 task-lifecycle-manager.ts；
+// 此处原位 re-export 维持 quantum-scheduler.js 的既有导入路径不变。
+export { DEFAULT_PENDING_TIMEOUT_MS } from './task-lifecycle-manager.js';
 
 const DEFAULT_MAX_HISTORY = 10000;
 
@@ -81,8 +58,6 @@ const BATCH_SCORE_WEIGHTS = {
 const LOAD_EPSILON = 0.1;
 /** 决策置信度 = min(2×最优分, 1)：最优分过半即满置信 */
 const CONFIDENCE_GAIN = 2;
-/** 决策附带的次优候选数 */
-const ALTERNATIVES_COUNT = 2;
 
 /**
  * 量子距离得分：越近越高（归一化到 (0,1]）。
@@ -142,7 +117,8 @@ export interface QuantumEngineConfig {
   subspaceCap?: number;
 }
 
-interface AgentScheduleStats {
+/** agent 调度统计（O(1) 量子相关性计数；01#24 起由生命周期管理器共构写入） */
+export interface AgentScheduleStats {
   total: number;
   byType: Map<string, number>;
 }
@@ -155,10 +131,11 @@ export interface QuantumSchedulerConfig {
     sweepInterval?: number;
     taskTimeout?: number;
     /**
-     * 挂起任务 TTL（毫秒，默认关闭）。超时未获得调度的 pending 任务
-     * 以 { reason: 'pending_timeout' } 失败并级联下游——不可满足任务
-     * （能力无人具备、依赖链断裂）不再永久驻留内存与指标。默认关闭
-     * 以保留长依赖链的合法等待语义；配置即启用。
+     * 挂起任务 TTL（毫秒）。超时未获得调度的 pending 任务以
+     * { reason: 'pending_timeout' } 失败并级联下游——不可满足任务
+     * （能力无人具备、依赖链断裂）不再永久驻留内存与指标。
+     * 未配置时取 DEFAULT_PENDING_TIMEOUT_MS（10 分钟，01#5 收尾：
+     * 此前缺省关闭）；显式 0 关闭（长依赖链的合法等待语义）。
      */
     pendingTimeoutMs?: number;
     quantumAlgorithm?: QuantumAlgorithm;
@@ -232,10 +209,11 @@ export interface SchedulerSystemMetrics {
  * 量子多Agent调度器：单任务波函数/量子算法决策 + 批量联合量子调度
  * （全空间/约束子空间/QPU 三种演化载体）。任务生命周期由转移表守卫，
  * 巡检定时器负责超时回收与保留清理（shutdown() 释放）。
+ * （01#24：生命周期簿记与量子引擎编排分别拆入 TaskLifecycleManager 与
+ * QuantumEngineOrchestrator，本类保留注册表/亲和度/定时器接线与门面）
  */
 export class QuantumScheduler extends EventEmitter {
   private agents = new Map<string, Agent>();
-  private tasks = new Map<string, Task>();
   private quantumState = new Map<string, QuantumState>();
   private schedulingHistory: SchedulingDecision[] = [];
   private config: QuantumSchedulerConfig;
@@ -244,42 +222,40 @@ export class QuantumScheduler extends EventEmitter {
 
   // 性能索引：能力 → 具备该能力的agentId集合（候选集O(要求数)求交）
   private capabilityIndex = new Map<string, Set<string>>();
-  // 性能索引：挂起任务按优先级分桶，免除每次重调度的全量排序
-  private pendingBuckets = new Map<TaskPriority, string[]>();
-  /**
-   * 性能索引：依赖 → 其直接下游任务集合。级联失败曾对每次失败做全量
-   * 任务扫描（O(T)/次，批量失败 O(E·T)）。Set 按提交序遍历 == 原全表
-   * 扫描筛选序，级联的 completeTask 调用序列不变（位级行为一致）。
-   * 维护点：submitTask（建立）与 sweep 保留清理（随任务删除收缩）。
-   */
-  private dependents = new Map<string, Set<string>>();
   // 性能统计：替代每次决策过滤整个调度历史（O(1)量子相关性）
   private agentStats = new Map<string, AgentScheduleStats>();
   // 计数器：指标计算O(1)，不随任务总量增长
   private totalDecisions = 0;
-  private completedAssignments = 0;
-  private completedCount = 0;
-  private failedCount = 0;
-  /** 取消计数（01#15：取消≠失败，failedTasks 不得混入取消口径） */
-  private cancelledCount = 0;
-  private pendingCount = 0;
-  // 已入桶追踪：保证pendingCount只在真正入过桶的任务上增减
-  private pendingTracked = new Set<string>();
-  // 当前占用中的agent数（assigned/running），用于并发上限背压
-  private activeAssignments = 0;
   // 周期巡检：超时回收 + 已终结任务保留清理
   private sweepTimer: NodeJS.Timeout | null = null;
-  // 量子引擎统计：真实量子路径的运行计数与Born概率累积
-  private quantumSingleDecisions = 0;
-  private quantumBatchRuns = 0;
-  private quantumBatchAssigned = 0;
-  private quantumProbabilitySum = 0;
-  private lastOptimalityRatio: number | null = null;
+  // 01#24 拆分的协作对象（构造注入 ctx 回调，双向纯委托）
+  private readonly lifecycle: TaskLifecycleManager;
+  private readonly engine: QuantumEngineOrchestrator;
 
   constructor(config: QuantumSchedulerConfig) {
     super();
     this.config = config;
     this.rngSource = new Mulberry32(config.scheduling?.quantum?.seed ?? DEFAULT_SEED);
+    this.lifecycle = new TaskLifecycleManager({
+      config: this.config,
+      agents: this.agents,
+      agentStats: this.agentStats,
+      events: this,
+      generateQuantumState: () => this.generateQuantumState(),
+      scheduleTask: (taskId) => this.scheduleTask(taskId),
+      reschedulePendingTasks: () => this.reschedulePendingTasks(),
+    });
+    this.engine = new QuantumEngineOrchestrator({
+      config: this.config,
+      getAgents: () => this.getAgents(),
+      getTask: (taskId) => this.lifecycle.taskMap.get(taskId),
+      activeAssignments: () => this.lifecycle.activeAssignmentCount,
+      dependenciesMet: (task) => this.lifecycle.dependenciesMet(task),
+      collectPendingCandidates: () => this.lifecycle.collectPendingCandidates(),
+      checkCapabilityMatch: (agent, task) => this.checkCapabilityMatch(agent, task),
+      agentAffinity: (agent, task) => this.agentAffinity(agent, task),
+      applyAssignmentDecision: (task, decision) => this.applyAssignmentDecision(task, decision),
+    });
     // 巡检定时器随构造启动（审计 A1#3）：此前随首个任务/首次分配才启动，
     // 「只提交从不分配」「只注册 agent」的部署里挂起 TTL 与 assigned/
     // running 超时都不会运行。构造即启动把巡检与调用路径彻底解耦；
@@ -322,6 +298,14 @@ export class QuantumScheduler extends EventEmitter {
         this.capabilityIndex.get(capability)?.delete(agentId);
       }
       this.agentStats.delete(agentId);
+      // 01#14 收尾：清扫其余 agent 纠缠数组中的悬挂引用——被注销 id 若
+      // 残留在对端数组里，后续同 id 重注册会静默复活早已不存在的耦合
+      // （buildBatchProblem 直接读这些数组构建哈密顿量耦合项）。
+      for (const other of this.agents.values()) {
+        if (other.quantumEntanglement.includes(agentId)) {
+          other.quantumEntanglement = other.quantumEntanglement.filter((id) => id !== agentId);
+        }
+      }
       this.emit('agent_unregistered', agent);
       logInfo('QuantumScheduler', `Agent unregistered: ${agent.name} (${agentId})`);
     }
@@ -354,83 +338,9 @@ export class QuantumScheduler extends EventEmitter {
     }
   }
 
-  // Task管理
+  // Task管理（01#24：簿记委托 TaskLifecycleManager，门面签名不变）
   submitTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'quantumState'>): Task {
-    // 依赖校验：未知依赖ID直接拒绝，避免任务永远挂起的静默陷阱
-    for (const depId of task.dependencies) {
-      if (!this.tasks.has(depId)) {
-        throw new SchedulingError(`Unknown dependency '${depId}' for task '${task.name}'`);
-      }
-    }
-    // 需求契约诚实化（01#7）：类型层宣告了四类需求（capability/resource/
-    // location/quantum），调度器只实现 capability——其余三类此前静默
-    // 放行，等价于「要求 GPU 的任务被当作无约束调度」。实现不了的
-    // 约束就该在入口拒绝：调用方把 resource/location/quantum 写进
-    // requirements 是在表达硬约束，静默忽略比拒绝危险得多。
-    for (const req of task.requirements) {
-      if (req.type !== 'capability') {
-        throw new SchedulingError(
-          `Task '${task.name}' uses requirement type '${req.type}' ('${req.name}'), ` +
-            `which this scheduler does not enforce — it would be silently ignored. ` +
-            `Express hard constraints as 'capability' requirements or pre-filter candidates yourself.`,
-        );
-      }
-    }
-    // 依赖环检测（01#6）：环下任务永久 pending——巡检只回收
-    // assigned/running 超时，pending 无出边，环一旦入表即泄漏。
-    // 环的唯一现实注入通道是调用方持有 dependencies 数组引用事后
-    // 突变（下方防御拷贝已闭）；本检查兜住未来的依赖变更 API/旁路。
-    if (this.dependencyClosureHasCycle(task.dependencies)) {
-      throw new SchedulingError(
-        `Task '${task.name}' has a dependency cycle in [${task.dependencies.join(', ')}]`,
-      );
-    }
-
-    const fullTask: Task = {
-      ...task,
-      // 依赖数组防御拷贝（规则所有权同款契约）：{...task} 只浅拷，
-      // 调用方保留原数组引用——事后 push 反向边即注入 A↔B 环
-      dependencies: [...task.dependencies],
-      id: randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      quantumState: this.generateQuantumState(),
-    };
-
-    this.tasks.set(fullTask.id, fullTask);
-    for (const depId of fullTask.dependencies) {
-      let ids = this.dependents.get(depId);
-      if (!ids) {
-        ids = new Set<string>();
-        this.dependents.set(depId, ids);
-      }
-      ids.add(fullTask.id);
-    }
-    this.emit('task_submitted', fullTask);
-
-    // 立即尝试调度（批量模式下攒起来等联合量子调度）
-    if (this.config.scheduling?.autoSchedule !== false) {
-      this.scheduleTask(fullTask.id);
-    }
-
-    // 未被分配则进入对应优先级分桶等待
-    if (fullTask.status === 'pending') {
-      this.enqueuePending(fullTask.id, fullTask.priority);
-    }
-
-    logDebug('QuantumScheduler', `Task submitted: ${task.name} (${fullTask.id})`);
-    return fullTask;
-  }
-
-  private enqueuePending(taskId: string, priority: TaskPriority): void {
-    let bucket = this.pendingBuckets.get(priority);
-    if (!bucket) {
-      bucket = [];
-      this.pendingBuckets.set(priority, bucket);
-    }
-    bucket.push(taskId);
-    this.pendingTracked.add(taskId);
-    this.pendingCount++;
+    return this.lifecycle.submitTask(task);
   }
 
   /**
@@ -441,128 +351,17 @@ export class QuantumScheduler extends EventEmitter {
    * 会杀死任务（行为陷阱，已修复并由测试守护）。
    */
   updateTaskStatus(taskId: string, status: TaskStatus): void {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-    // 转移表裁决：非法请求（如对终态任务设置中间态）在断言模式下
-    // 显式抛错，生产模式静默拒绝——状态写入不再各自判断
-    if (!isLegalTaskTransition(task.status, status)) {
-      assertLegalTaskTransition(task.status, status);
-      logDebug(
-        'QuantumScheduler',
-        `updateTaskStatus refused: ${task.status} → ${status} is not a legal transition`,
-      );
-      return;
-    }
-    if (status === 'completed' || status === 'failed') {
-      this.completeTask(taskId, status === 'completed');
-      return;
-    }
-    if (status === 'cancelled') {
-      this.completeTask(taskId, false, { reason: 'cancelled' });
-      return;
-    }
-    task.status = status;
-    task.updatedAt = new Date();
-    this.tasks.set(taskId, task);
-  }
-
-  /** 取消收尾的判定：result 为 { reason: 'cancelled' } 载荷 */
-  private static isCancellation(result: unknown): boolean {
-    return (
-      typeof result === 'object' &&
-      result !== null &&
-      (result as { reason?: unknown }).reason === 'cancelled'
-    );
+    this.lifecycle.updateTaskStatus(taskId, status);
   }
 
   // 任务完成/失败：更新状态、释放agent、触发挂起任务重调度
   completeTask(taskId: string, success = true, result?: unknown): boolean {
-    const task = this.tasks.get(taskId);
-    if (!task) return false;
-
-    // 幂等守卫：终态任务不得二次收尾——重复调用会重复累计完成数、
-    // 重复扣减 activeAssignments/agent.load（虚增空闲容量、突破并发上限）
-    // 并重复发出终态事件（updateTaskStatus 与巡检超时可能竞争到达）
-    if (task.status === 'completed' || task.status === 'failed') {
-      logDebug('QuantumScheduler', `Task ${taskId} already ${task.status}, ignoring re-completion`);
-      return false;
-    }
-
-    const wasPending = task.status === 'pending';
-    const now = new Date();
-
-    // 取消是与失败分列的终态（TaskStatus 联合本就含 'cancelled'）：
-    // 此前取消走 failed 分支，failedTasks 里取消与失败不可区分
-    const cancelled = !success && QuantumScheduler.isCancellation(result);
-    const terminalStatus = success ? 'completed' : cancelled ? 'cancelled' : 'failed';
-    // 终态写入经转移表断言（幂等守卫已排除重复收尾，此处防御
-    // 未来新增调用点绕过守卫直达本函数的回归）
-    assertLegalTaskTransition(task.status, terminalStatus);
-    if (success) {
-      task.status = 'completed';
-      task.completedAt = now;
-      this.completedCount++;
-      // 仅统计真正经过调度决策并完成的任务
-      if (task.assignedAgentId) this.completedAssignments++;
-    } else if (cancelled) {
-      task.status = 'cancelled';
-      this.cancelledCount++;
-    } else {
-      task.status = 'failed';
-      this.failedCount++;
-    }
-    if (wasPending && this.pendingTracked.delete(taskId)) {
-      this.pendingCount--;
-    }
-    task.updatedAt = now;
-    // 执行时长从分配时点起算（01#16）：从 createdAt 起算把排队等待
-    // 计入执行时长，SLA/超时归因系统性偏大
-    task.actualDuration = now.getTime() - (task.assignedAt ?? task.createdAt).getTime();
-    if (result !== undefined) {
-      task.result = result;
-    }
-    this.tasks.set(taskId, task);
-
-    // 释放agent
-    if (task.assignedAgentId) {
-      this.activeAssignments = Math.max(0, this.activeAssignments - 1);
-      const agent = this.agents.get(task.assignedAgentId);
-      if (agent) {
-        agent.load = Math.max(0, agent.load - 1);
-        // overloaded 必须与 working 同样参与释放重判，否则它是无出边的
-        // 吸收态：load 归零仍停在 overloaded，agent 永久退出空闲候选池，
-        // systemLoad 也随之失真（全员 overloaded 时显示零负载）。
-        // 重判语义与 agent-manager 的 heartbeat 恢复一致：按当前 load 定态。
-        if (agent.state === 'working' || agent.state === 'overloaded') {
-          agent.state = agent.load > AGENT_OVERLOAD_THRESHOLD ? 'overloaded' : 'idle';
-        }
-        this.agents.set(agent.id, agent);
-      }
-    }
-
-    if (success) {
-      this.emit('task_completed', { taskId, task, result });
-    } else {
-      this.emit('task_failed', { taskId, task, result });
-      // 级联失败：依赖本任务的任务一并失败，避免永久挂起
-      this.cascadeFailure(taskId);
-    }
-
-    logDebug(
-      'QuantumScheduler',
-      `Task ${success ? 'completed' : 'failed'}: ${task.name} (${taskId})`,
-    );
-
-    // 释放出的容量立即用于挂起任务（批量模式下留待联合调度）
-    if (this.config.scheduling?.autoSchedule !== false) {
-      this.reschedulePendingTasks();
-    }
-    return true;
+    return this.lifecycle.completeTask(taskId, success, result);
   }
 
   // 量子调度算法
   scheduleTask(taskId: string): SchedulingDecision | null {
-    const task = this.tasks.get(taskId);
+    const task = this.lifecycle.taskMap.get(taskId);
     if (!task) {
       logDebug('QuantumScheduler', `Task not found: ${taskId}`);
       return null;
@@ -582,7 +381,7 @@ export class QuantumScheduler extends EventEmitter {
     }
 
     // 依赖门控：前置任务未全部完成前不调度
-    if (!this.dependenciesMet(task)) {
+    if (!this.lifecycle.dependenciesMet(task)) {
       logDebug('QuantumScheduler', `Task ${taskId} waiting for dependencies`);
       return null;
     }
@@ -596,75 +395,13 @@ export class QuantumScheduler extends EventEmitter {
     return decision;
   }
 
-  // 前置依赖是否全部完成
-  private dependenciesMet(task: Task): boolean {
-    if (task.dependencies.length === 0) return true;
-    return task.dependencies.every((depId) => {
-      const dep = this.tasks.get(depId);
-      return dep?.status === 'completed';
-    });
-  }
-
-  /**
-   * 新任务依赖闭包内是否已存在环（01#6 纵深防御）：从直接依赖出发
-   * 沿 dependencies 做三色 DFS，灰-灰相遇即环。O(闭包内 V+E)。
-   * 配合 submitTask 的依赖防御拷贝（切断调用方持有数组引用事后
-   * 注入反向边的别名通道），依赖环在结构上不可达——本检查兜住
-   * 未来新增的依赖变更 API 或反序列化入表等旁路。
-   */
-  private dependencyClosureHasCycle(roots: string[]): boolean {
-    const visiting = new Set<string>();
-    const visited = new Set<string>();
-    const hasCycleFrom = (taskId: string): boolean => {
-      if (visited.has(taskId)) return false;
-      if (visiting.has(taskId)) return true;
-      visiting.add(taskId);
-      const task = this.tasks.get(taskId);
-      let cycle = false;
-      if (task) {
-        for (const depId of task.dependencies) {
-          if (hasCycleFrom(depId)) {
-            cycle = true;
-            break;
-          }
-        }
-      }
-      visiting.delete(taskId);
-      visited.add(taskId);
-      return cycle;
-    };
-    return roots.some(hasCycleFrom);
-  }
-
-  // 级联失败：将依赖failedTaskId的未终结任务标记失败（递归向下传播）。
-  // 终止性由 completeTask 的幂等守卫保证：每个任务恰好一次转入终态，
-  // 环形依赖下重复到达的任务在守卫处早退，不会无限递归。
-  // 经 dependents 反向索引取直接下游（O(度)，原为全量任务扫描）；
-  // 状态过滤保持在读取时进行——任务的终结态转换发生在提交之后。
-  private cascadeFailure(failedTaskId: string): void {
-    const ids = this.dependents.get(failedTaskId);
-    if (!ids) return;
-
-    const dependents: string[] = [];
-    for (const id of ids) {
-      const t = this.tasks.get(id);
-      if (t && (t.status === 'pending' || t.status === 'assigned' || t.status === 'running')) {
-        dependents.push(id);
-      }
-    }
-
-    for (const id of dependents) {
-      this.completeTask(id, false, { reason: 'dependency_failed', dependency: failedTaskId });
-    }
-  }
-
   // 对给定候选集做量子决策并完成分配（供直接调度与重调度共用）
   private tryAssign(task: Task, candidates: Agent[]): SchedulingDecision | null {
     if (candidates.length === 0) return null;
 
     // 并发上限背压：占满后任务留待后续释放
     const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
-    if (maxConcurrent != null && this.activeAssignments >= maxConcurrent) {
+    if (maxConcurrent != null && this.lifecycle.activeAssignmentCount >= maxConcurrent) {
       logDebug(
         'QuantumScheduler',
         `Concurrency limit reached (${maxConcurrent}), task ${task.id} deferred`,
@@ -679,7 +416,7 @@ export class QuantumScheduler extends EventEmitter {
   // 应用一次已生成的调度决策：占用agent、入历史、广播事件
   // （经典单任务路径与量子批量路径共用）
   private applyAssignmentDecision(task: Task, decision: SchedulingDecision): SchedulingDecision {
-    this.assignTaskToAgent(task.id, decision.agentId);
+    this.lifecycle.assignTaskToAgent(task.id, decision.agentId);
     this.schedulingHistory.push(decision);
     this.totalDecisions++;
     // 有界历史：防止长时运行下内存无限增长
@@ -727,6 +464,8 @@ export class QuantumScheduler extends EventEmitter {
   // 空闲池匹配：直接在空闲agent池内按能力筛选后量子评分分配，
   // 池空即全局终止——不受"空闲但能力不符"的agent干扰，
   // 每轮成本O(挂起任务+空闲池)，与挂起总量解耦。
+  // （01#24：任务表与挂起桶归 TaskLifecycleManager，经只读视图与
+  // 桶操作方法读写——遍历序与重建语义不变）
   reschedulePendingTasks(): number {
     // 空闲池快照
     const idlePool: Agent[] = [];
@@ -738,7 +477,7 @@ export class QuantumScheduler extends EventEmitter {
     let scheduledCount = 0;
 
     for (const priority of PRIORITY_ORDER) {
-      const bucket = this.pendingBuckets.get(priority);
+      const bucket = this.lifecycle.getPendingBucket(priority);
       if (!bucket || bucket.length === 0) continue;
 
       const remaining: string[] = [];
@@ -750,12 +489,12 @@ export class QuantumScheduler extends EventEmitter {
           continue;
         }
 
-        const task = this.tasks.get(taskId);
+        const task = this.lifecycle.taskMap.get(taskId);
         // 惰性清理：已分配/完成/取消的条目直接出桶
         if (task?.status !== 'pending') continue;
 
         // 依赖未就绪的任务留桶，避免无效的候选匹配
-        if (!this.dependenciesMet(task)) {
+        if (!this.lifecycle.dependenciesMet(task)) {
           remaining.push(taskId);
           continue;
         }
@@ -783,9 +522,9 @@ export class QuantumScheduler extends EventEmitter {
       }
 
       if (remaining.length === 0) {
-        this.pendingBuckets.delete(priority);
+        this.lifecycle.deletePendingBucket(priority);
       } else {
-        this.pendingBuckets.set(priority, remaining);
+        this.lifecycle.setPendingBucket(priority, remaining);
       }
     }
 
@@ -794,73 +533,15 @@ export class QuantumScheduler extends EventEmitter {
 
   // 周期巡检：分配/挂起超时回收 + 已终结任务保留清理。
   // 构造函数即启动（幂等：已存在时早退）——巡检不依赖任何任务提交或
-  // 分配成功的调用路径
+  // 分配成功的调用路径（01#24：簿记本体在 TaskLifecycleManager.sweep）
   private ensureSweepTimer(): void {
     if (this.sweepTimer) return;
     const interval = this.config.scheduling?.sweepInterval ?? 5000;
     this.sweepTimer = setInterval(() => {
-      this.sweep();
+      this.lifecycle.sweep();
     }, interval);
     // 不阻止进程退出
     this.sweepTimer.unref();
-  }
-
-  private sweep(): void {
-    const now = Date.now();
-    const timeout = this.config.scheduling?.taskTimeout ?? 30000;
-
-    // 1) 超时回收：assigned/running超时的任务标记失败，释放agent并级联
-    for (const task of this.tasks.values()) {
-      if ((task.status === 'assigned' || task.status === 'running') && task.assignedAt) {
-        if (now - task.assignedAt.getTime() > timeout) {
-          this.completeTask(task.id, false, {
-            reason: 'timeout',
-            elapsedMs: now - task.assignedAt.getTime(),
-          });
-        }
-      }
-    }
-
-    // 1b) 挂起 TTL（01#5，默认关闭）：超时未调度的 pending 任务失败
-    // 出清（依赖下游级联），不可满足任务不再永久驻留。elapsed 从
-    // createdAt 起算——pending 任务没有 assignedAt，驻留期即排队期。
-    const pendingTimeoutMs = this.config.scheduling?.pendingTimeoutMs;
-    if (pendingTimeoutMs !== undefined && pendingTimeoutMs > 0) {
-      for (const task of this.tasks.values()) {
-        if (task.status === 'pending' && now - task.createdAt.getTime() > pendingTimeoutMs) {
-          this.completeTask(task.id, false, {
-            reason: 'pending_timeout',
-            elapsedMs: now - task.createdAt.getTime(),
-          });
-        }
-      }
-    }
-
-    // 2) 保留清理：终结超过保留期的任务从内存移除（计数器指标保留历史总量）
-    const retentionMs =
-      this.config.performance?.retentionMs ??
-      (this.config.performance?.retentionDays ?? 30) * 86400000;
-    if (retentionMs > 0) {
-      for (const [id, task] of this.tasks) {
-        // cancelled 同为终态（审计 A1#5 收尾）：取消与失败分列后，此处若
-        // 仍只认 completed/failed，取消任务会绕过保留 GC 永久驻留内存与
-        // 依赖反向索引。经转移表判终态——未来新增终态自动纳入清理
-        if (isTerminalTaskStatus(task.status)) {
-          const endedAt = task.completedAt?.getTime() ?? task.updatedAt.getTime();
-          if (now - endedAt > retentionMs) {
-            this.tasks.delete(id);
-            // 反向依赖索引同步收缩（该任务不可能再被级联到达：已终结）
-            for (const depId of task.dependencies) {
-              const ids = this.dependents.get(depId);
-              if (ids) {
-                ids.delete(id);
-                if (ids.size === 0) this.dependents.delete(depId);
-              }
-            }
-          }
-        }
-      }
-    }
   }
 
   // 停止巡检定时器，供平台关闭时调用
@@ -890,7 +571,8 @@ export class QuantumScheduler extends EventEmitter {
   private makeQuantumDecision(task: Task, agents: Agent[]): SchedulingDecision {
     const algorithm = this.config.scheduling?.quantumAlgorithm ?? 'hybrid';
     if (algorithm === 'quantum-qaoa' || algorithm === 'quantum-annealing') {
-      return this.makeTrueQuantumDecision(task, agents, algorithm);
+      // 01#24：真量子单任务决策与引擎统计迁入 QuantumEngineOrchestrator
+      return this.engine.makeTrueQuantumDecision(task, agents, algorithm);
     }
     // 量子波函数调度算法（亲和度求和序与批量路径共用同一实现——
     // 浮点加法不满足结合律，两套手写求和序在近平局处可有 ~1e-17 ULP
@@ -948,6 +630,7 @@ export class QuantumScheduler extends EventEmitter {
   // 单任务：任务在候选agent集合上建立 one-hot 叠加态，量子演化（QAOA/
   // 绝热退火）放大高福利分支的振幅，测量坍缩得到分配；
   // decision.probability 是所选基态的真实 Born 概率 |ψ(x)|²。
+  // （01#24：求解与统计本体在 QuantumEngineOrchestrator，亲和度由本类供给）
 
   /** agent-任务亲和度：经典评分四要素（能力/负载/相关性/量子距离）的加权和，进入哈密顿量 */
   private agentAffinity(agent: Agent, task: Task): number {
@@ -971,87 +654,6 @@ export class QuantumScheduler extends EventEmitter {
     );
   }
 
-  private buildSolverOptions(): QuantumSolverOptions {
-    const q = this.config.scheduling?.quantum ?? {};
-    // exactOptionalPropertyTypes：未配置的旋钮以属性缺省表达，
-    // 由求解器缺省解析填充（显式 undefined 不得进入可选属性）
-    return {
-      ...(q.layers !== undefined ? { layers: q.layers } : {}),
-      ...(q.shots !== undefined ? { shots: q.shots } : {}),
-      ...(q.select !== undefined ? { select: q.select } : {}),
-      ...(q.seed !== undefined ? { seed: q.seed } : {}),
-      ...(q.cvarAlpha !== undefined ? { cvarAlpha: q.cvarAlpha } : {}),
-      ...(q.angleMode !== undefined ? { angleMode: q.angleMode } : {}),
-      ...(q.anneal !== undefined ? { anneal: q.anneal } : {}),
-    };
-  }
-
-  private makeTrueQuantumDecision(
-    task: Task,
-    agents: Agent[],
-    algorithm: 'quantum-qaoa' | 'quantum-annealing',
-  ): SchedulingDecision {
-    // 单候选：平凡坍缩，无需演化
-    if (agents.length === 1) {
-      this.quantumSingleDecisions++;
-      return {
-        taskId: task.id,
-        agentId: agents[0]!.id,
-        probability: 1,
-        confidence: 1,
-        reasoning: 'trivial collapse: single candidate',
-        alternatives: [],
-      };
-    }
-
-    const priorityWeight = PRIORITY_WEIGHT[task.priority] / 4; // 0.25..1
-    const problem: AssignmentProblem = {
-      taskIds: [task.id],
-      agentIds: agents.map((a) => a.id),
-      weights: [agents.map((a) => priorityWeight * this.agentAffinity(a, task))],
-      ineligible: [agents.map(() => false)],
-      couplings: new Map(),
-      penaltyOneHot: 0,
-      penaltyCapacity: 0,
-    };
-    const penalties = defaultPenalties(problem);
-    problem.penaltyOneHot = penalties.oneHot;
-    problem.penaltyCapacity = penalties.capacity;
-
-    const solution =
-      algorithm === 'quantum-qaoa'
-        ? qaoaSolve(problem, this.buildSolverOptions())
-        : annealSolve(problem, this.buildSolverOptions());
-
-    const agentIndex = solution.assignment[0] ?? -1;
-    const degraded = agentIndex < 0 || !isValidAssignment(problem, solution.assignment);
-    const chosen = agentIndex >= 0 ? agents[agentIndex]! : agents[0]!;
-    this.quantumSingleDecisions++;
-    // 退化回退（agents[0] 兜底）不得上报 Born 概率/置信度（01#8）：
-    // 上报指标必须与实际决策同源——回退不是测量结果，把它计入
-    // quantumProbabilitySum 会毒化概率口径
-    if (!degraded) {
-      this.quantumProbabilitySum += solution.probability;
-    }
-
-    return {
-      taskId: task.id,
-      agentId: chosen.id,
-      probability: degraded ? 0 : solution.probability,
-      confidence: degraded ? 0 : solution.validMass,
-      reasoning: degraded
-        ? `${solution.engine}: degenerate solve fell back to first candidate ` +
-          `(reported metrics zeroed — decision is not a measurement)`
-        : `${solution.engine}: superposition over ${agents.length} agents, ` +
-          `evolution (${solution.layers} ${solution.engine === 'qaoa' ? 'layers' : 'steps'}), ` +
-          `Born collapse p=${solution.probability.toFixed(3)}`,
-      alternatives: solution.candidates.slice(1, 1 + ALTERNATIVES_COUNT).map((c) => ({
-        agentId: agents[c.assignment[0] ?? -1]?.id ?? chosen.id,
-        probability: c.probability,
-      })),
-    };
-  }
-
   /**
    * 批量联合量子调度（量子态调度的完整形态）：
    * 把一批挂起任务与空闲agent的**联合分配问题**编码为哈密顿量——
@@ -1066,29 +668,7 @@ export class QuantumScheduler extends EventEmitter {
    * @param taskIds 指定任务（缺省取全部挂起任务，按优先级）
    */
   scheduleBatchQuantum(taskIds?: string[]): QuantumBatchReport {
-    const ctx = this.collectBatchContext(taskIds);
-    if (ctx.candidates.length === 0 || ctx.idlePool.length === 0 || ctx.slots === 0) {
-      return this.emptyBatchReport(ctx.engineKind);
-    }
-
-    // 4) 首选：约束子空间精确引擎（多轮）—— 每轮把至多 min(空闲数, 维度
-    //    上限允许的任务数) 个任务联合编码进子空间精确求解。任务多于空闲
-    //    agent（m > n）时自动分轮，联合窗口保持最大，不再退化到全空间小分块。
-    //    可联合调度的批量远超全空间态矢量（例：8任务×10agent = 181万维
-    //    子空间，等效全空间 2^80 维）。
-    if (ctx.schedulable.length > 0 && ctx.idlePool.length >= 2) {
-      const subspaceReport = this.runSubspaceRounds(
-        ctx.schedulable,
-        ctx.algorithm,
-        ctx.subspaceCap,
-        ctx.slots,
-        ctx.maxConcurrent,
-      );
-      if (subspaceReport) return subspaceReport;
-    }
-
-    // 5-6) 回退：全空间态矢量分块路径（子空间超维或不定时使用）
-    return this.runFullspaceChunks(ctx);
+    return this.engine.scheduleBatchQuantum(taskIds);
   }
 
   /**
@@ -1109,597 +689,7 @@ export class QuantumScheduler extends EventEmitter {
    * @param taskIds 指定任务（缺省取全部挂起任务，按优先级）
    */
   async scheduleBatchQuantumAsync(taskIds?: string[]): Promise<QuantumBatchReport> {
-    const ctx = this.collectBatchContext(taskIds);
-    if (ctx.candidates.length === 0 || ctx.idlePool.length === 0 || ctx.slots === 0) {
-      return this.emptyBatchReport(ctx.engineKind);
-    }
-
-    if (ctx.schedulable.length > 0 && ctx.idlePool.length >= 2) {
-      const subspaceReport = await this.runSubspaceRoundsAsync(
-        ctx.schedulable,
-        ctx.algorithm,
-        ctx.subspaceCap,
-        ctx.slots,
-        ctx.maxConcurrent,
-      );
-      if (subspaceReport) return subspaceReport;
-    }
-
-    return this.runFullspaceChunks(ctx);
-  }
-
-  /**
-   * 批量路径的公共收集段（sync/async 孪生单源）：算法裁决、候选任务、
-   * 空闲池、并发余量、能力过滤与子空间上限。两孪生从同一状态快照出发，
-   * 位级一致性由结构保证（收集段无副作用）。
-   */
-  private collectBatchContext(taskIds?: string[]): {
-    algorithm: 'quantum-qaoa' | 'quantum-annealing';
-    engineKind: 'qaoa' | 'annealing';
-    candidates: Task[];
-    schedulable: Task[];
-    idlePool: Agent[];
-    slots: number;
-    maxConcurrent: number | null;
-    subspaceCap: number;
-  } {
-    const algorithm: 'quantum-qaoa' | 'quantum-annealing' =
-      this.config.scheduling?.quantumAlgorithm === 'quantum-annealing'
-        ? 'quantum-annealing'
-        : 'quantum-qaoa';
-    const engineKind = algorithm === 'quantum-qaoa' ? ('qaoa' as const) : ('annealing' as const);
-
-    // 1) 收集可调度任务：显式ID或按优先级桶顺序的全部挂起任务
-    let candidates: Task[];
-    if (taskIds) {
-      candidates = taskIds
-        .map((id) => this.tasks.get(id))
-        .filter((t): t is Task => !!t && t.status === 'pending' && this.dependenciesMet(t));
-    } else {
-      candidates = this.collectPendingCandidates();
-    }
-
-    // 2) 空闲agent池与并发余量
-    const idlePool = this.getAgents().filter((a) => a.state === 'idle');
-    const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
-    const slots =
-      maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
-
-    // 3) 能力过滤：无可匹配agent的任务出局
-    const schedulable = candidates.filter((task) =>
-      idlePool.some((agent) => this.checkCapabilityMatch(agent, task)),
-    );
-
-    const subspaceCap = this.config.scheduling?.quantum?.subspaceCap ?? SCHEDULER_SUBSPACE_CAP;
-    return {
-      algorithm,
-      engineKind,
-      candidates,
-      schedulable,
-      idlePool,
-      slots,
-      maxConcurrent: maxConcurrent ?? null,
-      subspaceCap,
-    };
-  }
-
-  /** 早退空报告（无可调度任务/空闲池空/并发余量为零；不计入运行统计） */
-  private emptyBatchReport(engineKind: 'qaoa' | 'annealing'): QuantumBatchReport {
-    return {
-      engine: engineKind,
-      representation: 'fullspace',
-      chunks: 0,
-      assigned: 0,
-      assignments: [],
-      validMass: 0,
-      meanProbability: 0,
-      entanglementCouplings: 0,
-      solutions: [],
-    };
-  }
-
-  /**
-   * 全空间态矢量分块回退路径（sync/async 批量调度共用）：分块受 qubitCap
-   * 钳制到 FULLSPACE_QUBIT_LIMIT（态矢量内存上限），单块求解时长有界，
-   * 因此在异步孪生中也保持同步执行（阻塞可控，无需 async 化）。
-   *    任务数×agent数 ≤ qubitCap（超限配置应在配置期报错，而不是让引擎
-   *    在调度中段抛出）
-   */
-  private runFullspaceChunks(ctx: {
-    algorithm: 'quantum-qaoa' | 'quantum-annealing';
-    engineKind: 'qaoa' | 'annealing';
-    candidates: Task[];
-    schedulable: Task[];
-    idlePool: Agent[];
-    slots: number;
-    maxConcurrent: number | null;
-  }): QuantumBatchReport {
-    const { schedulable, idlePool, slots, maxConcurrent, candidates, engineKind } = ctx;
-    const qubitCap = Math.min(
-      this.config.scheduling?.quantum?.qubitCap ?? SCHEDULER_QUBIT_CAP,
-      FULLSPACE_QUBIT_LIMIT,
-    );
-    const chunks: Task[][] = [];
-    let current: Task[] = [];
-    for (const task of schedulable) {
-      if (current.length > 0 && (current.length + 1) * idlePool.length > qubitCap) {
-        chunks.push(current);
-        current = [];
-      }
-      current.push(task);
-    }
-    if (current.length > 0) chunks.push(current);
-
-    // 逐块求解：构建哈密顿量（亲和度+纠缠耦合）→ 演化 → 坍缩
-    const report: QuantumBatchReport = {
-      engine: engineKind,
-      representation: 'fullspace',
-      chunks: chunks.length,
-      assigned: 0,
-      assignments: [],
-      validMass: 0,
-      meanProbability: 0,
-      entanglementCouplings: 0,
-      solutions: [],
-    };
-
-    let achievedWelfare = 0;
-    let optimalWelfare = 0;
-    let optimalityKnown = true;
-
-    for (const chunk of chunks) {
-      if (this.activeAssignments >= slots && maxConcurrent != null) break;
-      // 不变量兜底（01#3）：分块条件带 current.length > 0 前缀，
-      // 单任务×大空闲池（子空间引擎超维回退到这里的典型场景）产出的
-      // 单任务块仍可超 cap——引擎会在调度中段抛 QuantumEngineError。
-      // 超限块跳过本轮并告警（任务留 pending 等下一轮），调度循环
-      // 的契约是「不抛错的尽力而为」。
-      if (chunk.length * idlePool.length > qubitCap) {
-        logWarn(
-          'QuantumScheduler',
-          `Skipping batch chunk of ${chunk.length} task(s) over ${idlePool.length} idle agents: ` +
-            `${chunk.length * idlePool.length} qubits exceeds qubitCap=${qubitCap}`,
-        );
-        continue;
-      }
-      const remainingSlots = maxConcurrent != null ? slots - this.activeAssignments : Infinity;
-
-      const { problem, couplingCount, nqubits } = this.buildBatchProblem(chunk, idlePool);
-      report.entanglementCouplings += couplingCount;
-
-      const solverOptions = this.buildSolverOptions();
-      const solution =
-        ctx.algorithm === 'quantum-qaoa'
-          ? qaoaSolve(problem, solverOptions)
-          : annealSolve(problem, solverOptions);
-
-      // 精确最优对照（问题规模允许时）：量子解 vs 穷举最优的诚实自检
-      const brute = nqubits <= BRUTE_FORCE_QUBIT_LIMIT ? bruteForceOptimum(problem) : null;
-      achievedWelfare += solution.welfare;
-      if (brute) {
-        optimalWelfare += brute.welfare;
-      } else {
-        optimalityKnown = false;
-      }
-
-      report.solutions.push({
-        taskIds: chunk.map((t) => t.id),
-        welfare: solution.welfare,
-        probability: solution.probability,
-        validMass: solution.validMass,
-        layers: solution.layers,
-        evaluations: solution.evaluations,
-      });
-      report.validMass += solution.validMass;
-
-      // 应用坍缩结果：仍受并发上限约束
-      this.applyJointSolution(
-        chunk,
-        idlePool,
-        solution.assignment,
-        problem,
-        {
-          maxAssign: remainingSlots,
-          probability: solution.probability,
-          confidence: solution.validMass,
-          reasoning: () =>
-            `batch ${solution.engine}: joint superposition of ${chunk.length} tasks × ` +
-            `${idlePool.length} agents${couplingCount > 0 ? `, ${couplingCount} entanglement couplings` : ''}, ` +
-            `Born collapse p=${solution.probability.toFixed(3)}`,
-        },
-        report,
-      );
-    }
-
-    if (report.solutions.length > 0) {
-      report.validMass /= report.solutions.length;
-      report.meanProbability =
-        report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
-    }
-    if (optimalityKnown && optimalWelfare > 0) {
-      report.optimality = {
-        achieved: achievedWelfare,
-        optimal: optimalWelfare,
-        ratio: achievedWelfare / optimalWelfare,
-      };
-    }
-    this.finalizeBatchReport(report);
-
-    logInfo(
-      'QuantumScheduler',
-      `Quantum batch (${ctx.algorithm}/fullspace): ${report.assigned}/${candidates.length} tasks assigned ` +
-        `in ${report.chunks} chunk(s), meanBornP=${report.meanProbability.toFixed(3)}` +
-        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
-    );
-    return report;
-  }
-
-  /** 按优先级桶顺序收集依赖已满足的全部挂起任务（批量路径的公共候选语义） */
-  private collectPendingCandidates(): Task[] {
-    const candidates: Task[] = [];
-    for (const priority of PRIORITY_ORDER) {
-      for (const id of this.pendingBuckets.get(priority) ?? []) {
-        const task = this.tasks.get(id);
-        if (task?.status === 'pending' && this.dependenciesMet(task)) {
-          candidates.push(task);
-        }
-      }
-    }
-    return candidates;
-  }
-
-  /**
-   * 应用联合坍缩解的公共骨架：逐任务校验（并发余量/pending/资格/空闲）
-   * → 构建决策 → 应用 → 记入报告。资格校验对子空间/QPU 路径是冗余的
-   * 防御（其解构造上已合法），保留统一校验以挡住求解器实现缺陷。
-   */
-  private applyJointSolution(
-    chunk: Task[],
-    pool: Agent[],
-    assignment: readonly number[],
-    problem: AssignmentProblem,
-    opts: {
-      maxAssign: number;
-      probability: number;
-      confidence: number;
-      reasoning: () => string;
-    },
-    report: QuantumBatchReport,
-  ): void {
-    for (let t = 0; t < chunk.length; t++) {
-      if (report.assigned >= opts.maxAssign) break;
-      const task = chunk[t];
-      if (task?.status !== 'pending') continue; // 并发块内前序已占用
-      const agentIndex = assignment[t];
-      if (agentIndex == null || agentIndex < 0) continue;
-      if (problem.ineligible[t]?.[agentIndex]) continue;
-      const agent = pool[agentIndex];
-      if (agent?.state !== 'idle') continue; // 同块内被占用
-
-      this.applyAssignmentDecision(task, {
-        taskId: task.id,
-        agentId: agent.id,
-        probability: opts.probability, // 联合分配的Born概率
-        confidence: opts.confidence,
-        reasoning: opts.reasoning(),
-        alternatives: [],
-      });
-      report.assigned++;
-      report.assignments.push({
-        taskId: task.id,
-        taskName: task.name,
-        agentId: agent.id,
-        probability: opts.probability,
-      });
-      this.quantumProbabilitySum += opts.probability;
-    }
-  }
-
-  /** 批量路径的公共收尾：运行计数与最优率快照 */
-  private finalizeBatchReport(report: QuantumBatchReport): void {
-    this.quantumBatchRuns++;
-    this.quantumBatchAssigned += report.assigned;
-    if (report.optimality) {
-      this.lastOptimalityRatio = report.optimality.ratio;
-    }
-  }
-
-  /**
-   * 子空间多轮求解（同步驱动）：每轮取至多 P(空闲数, k) ≤ subspaceCap 的
-   * 最大 k 个挂起任务，与当前空闲池联合编码进约束子空间精确求解，应用
-   * 坍缩结果后进入下一轮（前轮占用的agent自动出池）。任何一轮都不可行
-   * 时返回 null 交由调用方回退全空间路径。
-   *
-   * 轮循环的三个阶段（准备/记录/收尾）与异步孪生 {@link runSubspaceRoundsAsync}
-   * 单源共享——两驱动仅在「求解调用」一处分叉（同步阻塞 vs await 异步
-   * 演化），位级一致性由结构保证。
-   */
-  private runSubspaceRounds(
-    tasks: Task[],
-    algorithm: 'quantum-qaoa' | 'quantum-annealing',
-    subspaceCap: number,
-    slots: number,
-    maxConcurrent: number | null,
-  ): QuantumBatchReport | null {
-    const report = this.initSubspaceReport(algorithm);
-    const acc = { achieved: 0, optimal: 0, maxDim: 0, maxQubits: 0 };
-    let pending = tasks.filter((t) => t.status === 'pending');
-    let anyRound = false;
-
-    while (pending.length > 0) {
-      const round = this.prepareSubspaceRound(
-        pending,
-        algorithm,
-        subspaceCap,
-        slots,
-        maxConcurrent,
-      );
-      if (!round) break;
-      const solution = round.useQaoa
-        ? qaoaSolveSubspace(round.model, this.buildSolverOptions())
-        : annealSolveSubspace(round.model, this.buildSolverOptions());
-      const progressed = this.recordSubspaceRound(report, round, solution, acc);
-      anyRound = true;
-      if (!progressed) break; // 防御：无进展即退出
-      pending = pending.filter((t) => t.status === 'pending');
-    }
-
-    if (!anyRound) return null;
-    return this.finalizeSubspaceReport(report, acc);
-  }
-
-  /**
-   * 子空间多轮求解的异步孪生（08#34）：轮结构与同步版逐字相同，唯一
-   * 区别是退火求解走 annealSolveSubspaceAsync（waitAsync 非阻塞驱动），
-   * 演化期间主线程事件循环存活。QAOA 分支保持同步——调度器仅在
-   * dimension ≤ SUBSPACE_QAOA_DIMENSION_LIMIT 时选择 QAOA，变分训练的
-   * 阻塞时长有界（真正可达分钟级的是大维度退火路径，已 async 化）。
-   */
-  private async runSubspaceRoundsAsync(
-    tasks: Task[],
-    algorithm: 'quantum-qaoa' | 'quantum-annealing',
-    subspaceCap: number,
-    slots: number,
-    maxConcurrent: number | null,
-  ): Promise<QuantumBatchReport | null> {
-    const report = this.initSubspaceReport(algorithm);
-    const acc = { achieved: 0, optimal: 0, maxDim: 0, maxQubits: 0 };
-    let pending = tasks.filter((t) => t.status === 'pending');
-    let anyRound = false;
-
-    while (pending.length > 0) {
-      const round = this.prepareSubspaceRound(
-        pending,
-        algorithm,
-        subspaceCap,
-        slots,
-        maxConcurrent,
-      );
-      if (!round) break;
-      const solution = round.useQaoa
-        ? qaoaSolveSubspace(round.model, this.buildSolverOptions())
-        : await annealSolveSubspaceAsync(round.model, this.buildSolverOptions());
-      const progressed = this.recordSubspaceRound(report, round, solution, acc);
-      anyRound = true;
-      if (!progressed) break; // 防御：无进展即退出
-      pending = pending.filter((t) => t.status === 'pending');
-    }
-
-    if (!anyRound) return null;
-    return this.finalizeSubspaceReport(report, acc);
-  }
-
-  /** 子空间报告的公共初态（两驱动单源） */
-  private initSubspaceReport(algorithm: 'quantum-qaoa' | 'quantum-annealing'): QuantumBatchReport {
-    return {
-      engine: algorithm === 'quantum-qaoa' ? 'qaoa' : 'annealing',
-      representation: 'subspace',
-      chunks: 0,
-      assigned: 0,
-      assignments: [],
-      validMass: 1, // 子空间全部基态合法：概率质量恒为1
-      meanProbability: 0,
-      entanglementCouplings: 0,
-      solutions: [],
-    };
-  }
-
-  /**
-   * 子空间单轮的准备段（两驱动单源）：空闲池快照、可行性过滤、维度上限
-   * 允许的最大联合任务数 k、哈密顿量构建与子空间模型构建。
-   * 返回 null 表示本轮不可行（调用方循环退出）。
-   */
-  private prepareSubspaceRound(
-    pending: Task[],
-    algorithm: 'quantum-qaoa' | 'quantum-annealing',
-    subspaceCap: number,
-    slots: number,
-    maxConcurrent: number | null,
-  ): {
-    round: Task[];
-    pool: Agent[];
-    built: { problem: AssignmentProblem; couplingCount: number; nqubits: number };
-    model: SubspaceModel;
-    useQaoa: boolean;
-  } | null {
-    if (maxConcurrent != null && this.activeAssignments >= slots) return null;
-    const pool = this.getAgents().filter((a) => a.state === 'idle');
-    if (pool.length < 1) return null;
-
-    // 本轮可行任务：当前空闲池中至少一个能力匹配的agent
-    const feasible = pending.filter((t) => pool.some((a) => this.checkCapabilityMatch(a, t)));
-    if (feasible.length === 0) return null;
-
-    // 维度上限允许的最大联合任务数 k：P(n,k) ≤ subspaceCap
-    let k = 0;
-    let d = 1;
-    while (k < pool.length) {
-      const next = d * (pool.length - k);
-      if (next > subspaceCap) break;
-      d = next;
-      k++;
-    }
-    k = Math.max(1, k);
-
-    const remainingSlots = maxConcurrent != null ? slots - this.activeAssignments : Infinity;
-    const round = feasible.slice(0, Math.min(k, pool.length, remainingSlots));
-    if (round.length === 0) return null;
-
-    const built = this.buildBatchProblem(round, pool);
-    const model = buildSubspaceModel(built.problem, { dimensionCap: subspaceCap });
-    if (!model || model.dimension === 0) return null;
-
-    // QAOA 变分训练成本随维度线性放大，大子空间自动改用退火（一次演化）
-    const useQaoa =
-      algorithm === 'quantum-qaoa' && model.dimension <= SUBSPACE_QAOA_DIMENSION_LIMIT;
-    return { round, pool, built, model, useQaoa };
-  }
-
-  /**
-   * 子空间单轮的记录与应用段（两驱动单源）：解入报告、记账、应用联合
-   * 坍缩结果。返回本轮是否有分配进展（false = 调用方循环退出）。
-   */
-  private recordSubspaceRound(
-    report: QuantumBatchReport,
-    round: {
-      round: Task[];
-      pool: Agent[];
-      built: { problem: AssignmentProblem; couplingCount: number; nqubits: number };
-      model: SubspaceModel;
-    },
-    solution: SubspaceSolution,
-    acc: { achieved: number; optimal: number; maxDim: number; maxQubits: number },
-  ): boolean {
-    const { round: roundTasks, pool, built, model } = round;
-    report.engine = solution.engine;
-    report.chunks++;
-    report.entanglementCouplings += built.couplingCount;
-    acc.achieved += solution.welfare;
-    acc.optimal += model.optimalWelfare;
-    acc.maxDim = Math.max(acc.maxDim, model.dimension);
-    acc.maxQubits = Math.max(acc.maxQubits, roundTasks.length * pool.length);
-    report.solutions.push({
-      taskIds: roundTasks.map((t) => t.id),
-      welfare: solution.welfare,
-      probability: solution.probability,
-      validMass: 1,
-      layers: solution.layers,
-      evaluations: solution.evaluations,
-    });
-
-    const assignedBefore = report.assigned;
-    this.applyJointSolution(
-      roundTasks,
-      pool,
-      solution.assignment,
-      built.problem,
-      {
-        maxAssign: Infinity,
-        probability: solution.probability,
-        confidence: 1,
-        reasoning: () =>
-          `subspace ${solution.engine}: exact evolution over P(${pool.length},${roundTasks.length})` +
-          `=${model.dimension} valid assignments (equiv. ${roundTasks.length * pool.length} qubits full space)` +
-          `${built.couplingCount > 0 ? `, ${built.couplingCount} entanglement couplings` : ''}, ` +
-          `Born collapse p=${solution.probability.toExponential(2)}`,
-      },
-      report,
-    );
-    return report.assigned > assignedBefore;
-  }
-
-  /** 子空间报告的公共收尾（两驱动单源）：均值/最优率/子空间信息/统计/日志 */
-  private finalizeSubspaceReport(
-    report: QuantumBatchReport,
-    acc: { achieved: number; optimal: number; maxDim: number; maxQubits: number },
-  ): QuantumBatchReport {
-    if (report.solutions.length > 0) {
-      report.meanProbability =
-        report.solutions.reduce((s, x) => s + x.probability, 0) / report.solutions.length;
-    }
-    if (acc.optimal > 0) {
-      report.optimality = {
-        achieved: acc.achieved,
-        optimal: acc.optimal,
-        ratio: acc.achieved / acc.optimal,
-      };
-    }
-    report.subspace = { dimension: acc.maxDim, equivalentQubits: acc.maxQubits };
-
-    this.finalizeBatchReport(report);
-
-    logInfo(
-      'QuantumScheduler',
-      `Quantum batch (${report.engine}/subspace, ${report.chunks} round(s)): ` +
-        `${report.assigned} tasks, maxDim=${acc.maxDim} (equiv ${acc.maxQubits} qubits)` +
-        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
-    );
-    return report;
-  }
-
-  /**
-   * 批量哈密顿量构建（子空间与全空间两条路径共用）：
-   * 福利权重 = 优先级 × 亲和度；能力不符 → 不合格；
-   * 纠缠agent对 → 二次耦合福利加成（物理意义上的哈密顿量耦合项）。
-   */
-  private buildBatchProblem(
-    chunk: Task[],
-    idlePool: Agent[],
-  ): {
-    problem: AssignmentProblem;
-    couplingCount: number;
-    nqubits: number;
-  } {
-    const entanglementBonus = this.config.scheduling?.quantum?.entanglementBonus ?? 0.15;
-    const problem: AssignmentProblem = {
-      taskIds: chunk.map((t) => t.id),
-      agentIds: idlePool.map((a) => a.id),
-      weights: [],
-      ineligible: [],
-      couplings: new Map(),
-      penaltyOneHot: 0,
-      penaltyCapacity: 0,
-    };
-    const nqubits = chunk.length * idlePool.length;
-
-    // 福利权重：优先级 × 亲和度；能力不符 → 不合格
-    for (const task of chunk) {
-      const pw = PRIORITY_WEIGHT[task.priority] / 4;
-      problem.weights.push(idlePool.map((agent) => pw * this.agentAffinity(agent, task)));
-      problem.ineligible.push(idlePool.map((agent) => !this.checkCapabilityMatch(agent, task)));
-    }
-
-    // 纠缠耦合：任意两任务落在纠缠agent对上 → 福利加成（哈密顿量的物理耦合项）
-    let couplingCount = 0;
-    for (let t1 = 0; t1 < chunk.length; t1++) {
-      for (let t2 = t1 + 1; t2 < chunk.length; t2++) {
-        const pwMin =
-          Math.min(PRIORITY_WEIGHT[chunk[t1]!.priority], PRIORITY_WEIGHT[chunk[t2]!.priority]) / 4;
-        for (let a1 = 0; a1 < idlePool.length; a1++) {
-          for (let a2 = 0; a2 < idlePool.length; a2++) {
-            if (a1 === a2) continue;
-            if (
-              idlePool[a1]!.quantumEntanglement.includes(idlePool[a2]!.id) &&
-              !problem.ineligible[t1]![a1]! &&
-              !problem.ineligible[t2]![a2]!
-            ) {
-              problem.couplings.set(
-                couplingKey(t1 * idlePool.length + a1, t2 * idlePool.length + a2, nqubits),
-                entanglementBonus * pwMin,
-              );
-              couplingCount++;
-            }
-          }
-        }
-      }
-    }
-
-    // 全空间路径需要罚项（子空间路径忽略罚项——约束内建于子空间本身）
-    const penalties = defaultPenalties(problem);
-    problem.penaltyOneHot = penalties.oneHot;
-    problem.penaltyCapacity = penalties.capacity;
-
-    return { problem, couplingCount, nqubits };
+    return this.engine.scheduleBatchQuantumAsync(taskIds);
   }
 
   /**
@@ -1713,93 +703,7 @@ export class QuantumScheduler extends EventEmitter {
     backend?: QuantumBackend,
     options: { numReads?: number; timeoutMs?: number; routing?: ExecutionTierRouting } = {},
   ): Promise<QuantumBatchReport> {
-    const engine = backend ?? getBackend();
-
-    // 收集可调度任务（与 scheduleBatchQuantum 相同语义：优先级桶顺序）
-    const candidates = this.collectPendingCandidates();
-    const idlePool = this.getAgents().filter((a) => a.state === 'idle');
-    const maxConcurrent = this.config.scheduling?.maxConcurrentTasks;
-    const slots =
-      maxConcurrent != null ? Math.max(0, maxConcurrent - this.activeAssignments) : Infinity;
-
-    if (candidates.length === 0 || idlePool.length === 0 || slots === 0) {
-      return {
-        engine: 'qpu',
-        representation: 'qpu',
-        chunks: 0,
-        assigned: 0,
-        assignments: [],
-        validMass: 0,
-        meanProbability: 0,
-        entanglementCouplings: 0,
-        solutions: [],
-      };
-    }
-
-    const feasible = candidates.filter((task) =>
-      idlePool.some((agent) => this.checkCapabilityMatch(agent, task)),
-    );
-    // 真 QPU 不受本地态矢量内存限制（Ising 变量数即规模），一轮吃满空闲池
-    //（slots 为 Infinity 时 Math.min 收敛到池大小）
-    const round = feasible.slice(0, Math.min(idlePool.length, slots));
-
-    const built = this.buildBatchProblem(round, idlePool);
-    const result = await solveAssignmentOnBackend(built.problem, engine, options);
-
-    const report: QuantumBatchReport = {
-      engine: 'qpu',
-      representation: 'qpu',
-      chunks: 1,
-      assigned: 0,
-      assignments: [],
-      validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
-      meanProbability: result.sampleFrequency,
-      entanglementCouplings: built.couplingCount,
-      solutions: [
-        {
-          taskIds: round.map((t) => t.id),
-          welfare: result.welfare,
-          probability: result.sampleFrequency,
-          validMass: 1 - result.invalidSamples / Math.max(1, result.totalReads),
-          // layers 语义是电路层数 p；QPU 采样路径无层数概念，恒 0
-          // （读取次数见 reasoning 与 totalReads——此前把 totalReads
-          // 塞进 layers 是字段挪用）
-          layers: 0,
-          evaluations: 1,
-        },
-      ],
-    };
-    if (result.optimality) {
-      report.optimality = result.optimality;
-    }
-
-    this.applyJointSolution(
-      round,
-      idlePool,
-      result.assignment,
-      built.problem,
-      {
-        maxAssign: Infinity,
-        probability: result.sampleFrequency, // 采样频率 = 量子分布的频率估计
-        confidence: report.validMass,
-        reasoning: () =>
-          `${engine.name}${engine.realHardware ? ' (real QPU)' : ''}: solver=${result.solver}, ` +
-          `${result.totalReads} reads, sample frequency=${(result.sampleFrequency * 100).toFixed(2)}%` +
-          (result.optimality ? `, optimality=${(result.optimality.ratio * 100).toFixed(1)}%` : ''),
-      },
-      report,
-    );
-
-    this.finalizeBatchReport(report);
-
-    logInfo(
-      'QuantumScheduler',
-      `Quantum batch on ${engine.name}${engine.realHardware ? ' [REAL QPU]' : ' [local exact]'}: ` +
-        `${report.assigned} tasks, solver=${result.solver}, ` +
-        `invalidSamples=${result.invalidSamples}/${result.totalReads}` +
-        (report.optimality ? `, optimality=${(report.optimality.ratio * 100).toFixed(1)}%` : ''),
-    );
-    return report;
+    return this.engine.scheduleBatchQuantumQpu(backend, options);
   }
 
   /** 量子引擎运行统计 */
@@ -1811,15 +715,7 @@ export class QuantumScheduler extends EventEmitter {
     meanProbability: number | null;
     lastOptimalityRatio: number | null;
   } {
-    const total = this.quantumSingleDecisions + this.quantumBatchAssigned;
-    return {
-      algorithm: this.config.scheduling?.quantumAlgorithm ?? 'hybrid',
-      singleDecisions: this.quantumSingleDecisions,
-      batchRuns: this.quantumBatchRuns,
-      batchAssigned: this.quantumBatchAssigned,
-      meanProbability: total > 0 ? this.quantumProbabilitySum / total : null,
-      lastOptimalityRatio: this.lastOptimalityRatio,
-    };
+    return this.engine.getQuantumMetrics();
   }
 
   private calculateCapabilityScore(agent: Agent, task: Task): number {
@@ -1848,51 +744,6 @@ export class QuantumScheduler extends EventEmitter {
     });
   }
 
-  private assignTaskToAgent(taskId: string, agentId: string): void {
-    const task = this.tasks.get(taskId);
-    const agent = this.agents.get(agentId);
-
-    if (task && agent) {
-      // 状态守卫（转移表裁决）：调度入口的公共 API 守卫不豁免内部
-      // 路径——批量联合调度同样不得把非 pending 任务推入 assigned。
-      // pending → assigned 是唯一合法入边。
-      if (!isLegalTaskTransition(task.status, 'assigned')) {
-        assertLegalTaskTransition(task.status, 'assigned');
-        logDebug(
-          'QuantumScheduler',
-          `assignTaskToAgent refused: ${task.status} → assigned is not a legal transition`,
-        );
-        return;
-      }
-      // 仅对真正入过挂起桶的任务回退计数（提交即分配的任务不涉及）
-      if (this.pendingTracked.delete(taskId)) {
-        this.pendingCount--;
-      }
-      task.assignedAgentId = agentId;
-      task.assignedAt = new Date();
-      task.status = 'assigned';
-      task.updatedAt = new Date();
-      agent.state = 'working';
-      agent.load = Math.min(agent.load + 1, 100);
-      if (agent.load > AGENT_OVERLOAD_THRESHOLD) {
-        agent.state = 'overloaded';
-      }
-      this.activeAssignments++;
-
-      // 更新agent调度统计（供O(1)相关性计算）
-      const stats = this.agentStats.get(agentId);
-      if (stats) {
-        stats.total++;
-        stats.byType.set(task.type, (stats.byType.get(task.type) ?? 0) + 1);
-      }
-
-      this.tasks.set(taskId, task);
-      this.agents.set(agentId, agent);
-
-      this.emit('task_assigned', { taskId, agentId });
-    }
-  }
-
   /**
    * 调试模式不变量校验（Wave 2.1 验收标准①的机制化）：
    * 对比计数器口径与全表扫描派生真值，返回违例列表（空 = 通过）。
@@ -1900,19 +751,7 @@ export class QuantumScheduler extends EventEmitter {
    * 生产默认不跑（全表扫描成本与热路径预算冲突）。
    */
   checkInvariants(): InvariantViolation[] {
-    let tasksInFlight = 0;
-    let bucketEntries = 0;
-    for (const bucket of this.pendingBuckets.values()) bucketEntries += bucket.length;
-    for (const task of this.tasks.values()) {
-      if (task.status === 'assigned' || task.status === 'running') tasksInFlight++;
-    }
-    return checkTaskInvariants(this.tasks.values(), {
-      activeAssignments: this.activeAssignments,
-      tasksInFlight,
-      pendingCount: this.pendingCount,
-      pendingTrackedSize: this.pendingTracked.size,
-      pendingBucketEntries: bucketEntries,
-    });
+    return this.lifecycle.checkInvariants();
   }
 
   /** 不变量断言是否开启（CI 回归开关的查询接口） */
@@ -1933,14 +772,14 @@ export class QuantumScheduler extends EventEmitter {
     return {
       totalAgents,
       activeAgents,
-      totalTasks: this.tasks.size,
-      completedTasks: this.completedCount,
-      failedTasks: this.failedCount,
-      cancelledTasks: this.cancelledCount,
-      pendingTasks: this.pendingCount,
+      totalTasks: this.lifecycle.taskMap.size,
+      completedTasks: this.lifecycle.completedTaskCount,
+      failedTasks: this.lifecycle.failedTaskCount,
+      cancelledTasks: this.lifecycle.cancelledTaskCount,
+      pendingTasks: this.lifecycle.pendingTaskCount,
       systemLoad: totalAgents > 0 ? activeAgents / totalAgents : 0,
       quantumEfficiency:
-        this.totalDecisions > 0 ? this.completedAssignments / this.totalDecisions : 0,
+        this.totalDecisions > 0 ? this.lifecycle.completedAssignmentCount / this.totalDecisions : 0,
       schedulingHistoryLength: this.totalDecisions,
     };
   }
@@ -1951,7 +790,7 @@ export class QuantumScheduler extends EventEmitter {
   }
 
   getTasks(): Task[] {
-    return Array.from(this.tasks.values());
+    return Array.from(this.lifecycle.taskMap.values());
   }
 
   getSchedulingHistory(): SchedulingDecision[] {

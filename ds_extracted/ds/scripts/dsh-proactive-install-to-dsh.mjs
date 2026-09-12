@@ -12,7 +12,10 @@
  *                   --dry-run                                  # 只打印不真改
  *                   --dsh-home <path>                          # 覆盖 DSH_HOME
  *                   --profiles web,headless                    # 限定 profile
- *   2. postinstall：npm/pnpm 在 install 时自动调用（已在 package.json 配）
+ *   2. postinstall：npm/pnpm 在 install 时自动调用——该钩子配置在部署目标
+ *      dsh-proactive 仓库自己的 package.json（见上方【落地位置】），不是也不
+ *      应配在本仓库 ds 的 package.json 里（06#20：旧文案「已在 package.json
+ *      配」所指即部署目标侧的钩子，本仓库并无 postinstall 脚本）
  *
  * 工作流程：
  *   识别 DSH_HOME → 扫描 profiles/* → 备份 manifest →
@@ -30,7 +33,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { join, resolve, dirname, delimiter as PATH_DELIM } from 'node:path';
+import {
+  join,
+  resolve,
+  dirname,
+  sep,
+  relative,
+  isAbsolute,
+  delimiter as PATH_DELIM,
+} from 'node:path';
 import { homedir, platform } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -42,7 +53,10 @@ const PLUGIN_VERSION = readJSON(join(PLUGIN_ROOT, 'package.json'))?.version ?? '
 
 // ─── 常量 ────────────────────────────────────────────────────────────────
 const DEFAULT_PROFILES = ['web', 'headless'];
-const IS_WIN = platform === 'win32';
+// 06/E-R10：历史上写的是 `platform === 'win32'`——platform 是 node:os 导入的
+// 函数对象，与字符串比较恒为 false，Windows 专属路径（dsh.cmd 探测、盘符扫描、
+// pnpm.cmd 借道 cmd.exe 的引用协议）全部是死代码。调用函数取真值：
+const IS_WIN = platform() === 'win32';
 
 // 子进程必须保留的环境变量白名单
 const SAFE_ENV_KEYS = [
@@ -267,18 +281,30 @@ function clearVersion(manifest) {
   }
 }
 
-function buildPnpmDepSpec(pluginRoot) {
-  let abs = resolve(pluginRoot);
-  if (IS_WIN) abs = abs.replace(/\\/g, '/');
-  // 仅 POSIX 需要前导 '/'；Windows 盘符路径（D:/...）再补 '/' 会产生
-  // file:/D:/... ——任何按 Node path 语义解析的消费方都会指向不存在的目录
-  if (!IS_WIN && !abs.startsWith('/')) abs = '/' + abs;
-  return `file:${abs}`;
+// 06#21：依赖 spec 优先用相对 profile 目录的路径（file:../../plugin 可移植，
+// 不把本机盘符/绝对路径写进 manifest）。跨盘时相对路径无解——Windows 的
+// path.relative 会直接返回目标的绝对路径（以 isAbsolute 识别），此时回退到
+// 绝对 file: 形式（正常部署同盘，走相对分支）
+function buildPnpmDepSpec(pluginRoot, profileDir) {
+  const rel = relative(profileDir, pluginRoot);
+  if (rel !== '' && !isAbsolute(rel)) {
+    return `file:${rel.split(sep).join('/')}`;
+  }
+  // 跨盘回退按路径内容判平台（盘符前缀）而非宿主 OS：跨盘时 host 判定
+  // （IS_WIN，R10 已修复恒 false 的函数对象比较）与路径内容可能分属两种
+  // 平台语义（如网络盘/容器挂载），内容判定保证两种平台上的绝对 spec 都可解析
+  const abs = resolve(pluginRoot);
+  if (/^[A-Za-z]:[\\/]/.test(abs)) {
+    // Windows 盘符路径：统一正斜杠；再补前导 '/' 会产生 file:/D:/…——
+    // 任何按 Node path 语义解析的消费方都会指向不存在的目录
+    return `file:${abs.replace(/\\/g, '/')}`;
+  }
+  return `file:${abs.startsWith('/') ? abs : '/' + abs}`;
 }
 
-function applyInstallEdits(manifest, pluginRoot) {
+function applyInstallEdits(manifest, pluginRoot, profileDir) {
   manifest.dependencies = manifest.dependencies || {};
-  manifest.dependencies[PLUGIN_NAME] = buildPnpmDepSpec(pluginRoot);
+  manifest.dependencies[PLUGIN_NAME] = buildPnpmDepSpec(pluginRoot, profileDir);
 
   manifest.dsh = manifest.dsh || {};
   manifest.dsh.profile = manifest.dsh.profile || {};
@@ -404,11 +430,14 @@ async function installToDsh(options = {}) {
     : allProfiles.filter((p) => DEFAULT_PROFILES.includes(p.name));
 
   if (targets.length === 0) {
+    // 06#22：除列出可用 profile 外，直接给出可复制的 --profiles 示例行，
+    // 省掉用户一次翻 --help 的往返
     console.warn(
       warn(
         `[dsh-proactive] No target profiles matched. Available: ${allProfiles.map((p) => p.name).join(', ')}`,
       ),
     );
+    console.warn(warn(`[dsh-proactive] try: --profiles ${allProfiles[0]?.name ?? '<name>'}`));
     return { skipped: true, reason: 'no matching profiles' };
   }
   console.log(info(`[dsh-proactive] target profiles: ${targets.map((p) => p.name).join(', ')}`));
@@ -441,7 +470,7 @@ async function processProfile(profile, opts) {
 
   const before = JSON.stringify(manifest, null, 2) + '\n';
   const draft = JSON.parse(before);
-  if (opts.cmd === 'install') applyInstallEdits(draft, PLUGIN_ROOT);
+  if (opts.cmd === 'install') applyInstallEdits(draft, PLUGIN_ROOT, profile.dir);
   else applyUninstallEdits(draft);
   const after = JSON.stringify(draft, null, 2) + '\n';
 

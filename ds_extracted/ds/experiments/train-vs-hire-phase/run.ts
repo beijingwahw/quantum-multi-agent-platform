@@ -31,6 +31,10 @@
  *
  * 运行：node --import tsx experiments/train-vs-hire-phase/run.ts
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BatchVCGScheduler, type BatchAgentSpec } from '../../src/core/batch-vcg-scheduler.js';
 
 export interface PhaseParams {
@@ -202,6 +206,12 @@ const ALPHAS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 const BETAS = [0.003, 0.005, 0.008, 0.012, 0.02, 0.03, 0.05, 0.08, 0.12, 0.18, 0.27, 0.4];
 const SEEDS = Array.from({ length: 12 }, (_, i) => 100 + i);
 
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+// 结果 sidecar（06#16）：console-only 输出没有 artifact——参数快照 + 汇总聚合
+// 落盘成文件（时间戳命名与 llm-learning-curve 的 06#14 打戳约定一致，不覆盖历史）
+const STAMP = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const OUT = process.env.OUT ?? path.join(HERE, `results-${STAMP}.json`);
+
 /** 经验格字符：培训显著赢 + / 培训弱赢 · / 边界 o / 雇佣弱赢 - / 雇佣显著赢 = */
 function empChar(d: number): string {
   if (d >= 0.03) return '█';
@@ -302,6 +312,14 @@ function main(): void {
   console.log('\n【探索修复】锁定格子（α, β）上市场臂的 hire 试用与福利');
   console.log('| α | β | explore | hire试用数 | vet份额 | 每单福利 |');
   console.log('|---|---|---|---|---|---|');
+  const exploreRows: Array<{
+    alpha: number;
+    beta: number;
+    explore: number;
+    hireTrials: number;
+    vetShare: number;
+    welfarePerTask: number;
+  }> = [];
   for (const [alpha, beta] of [
     [0.5, 0.27],
     [0.7, 0.12],
@@ -309,14 +327,64 @@ function main(): void {
   ] as Array<[number, number]>) {
     for (const explore of [0, 1.5]) {
       const mk = market(cell(alpha, beta, explore));
+      exploreRows.push({
+        alpha,
+        beta,
+        explore,
+        hireTrials: mk.hireTrials,
+        vetShare: mk.vetShare,
+        welfarePerTask: mk.welfarePerTask,
+      });
       console.log(
         `| ${alpha} | ${beta} | ${explore} | ${mk.hireTrials.toFixed(1)} | ${mk.vetShare.toFixed(2)} | ${mk.welfarePerTask.toFixed(2)} |`,
       );
     }
   }
+
+  // ---------- 结果 sidecar（06#16）：参数快照 + 汇总聚合落盘 ----------
+  // console-only 输出让 (α, β)×seeds×代码版本与结果数字之间没有 artifact 链路；
+  // git rev 快照与 llm-learning-curve run.ts 的 06#16 helper 同式
+  const winRange = (arr: number[]): [number, number] | null =>
+    arr.length === 0 ? null : [Math.min(...arr), Math.max(...arr)];
+  const report = {
+    meta: {
+      ...PHASE_DEFAULTS,
+      seeds: SEEDS,
+      alphas: ALPHAS,
+      betas: BETAS,
+      gitRev: (() => {
+        try {
+          return execSync('git rev-parse --short HEAD', { cwd: HERE, stdio: ['ignore', 'pipe'] })
+            .toString()
+            .trim();
+        } catch {
+          return null;
+        }
+      })(),
+      finishedAt: new Date().toISOString(),
+    },
+    theoryVsSimulation: { agree, solid },
+    cells: ALPHAS.flatMap((alpha) =>
+      BETAS.map((beta) => ({
+        alpha,
+        beta,
+        empiricalDiffRate: emp.get(`${alpha}|${beta}`)!,
+        theoreticalDiffRate: theo.get(`${alpha}|${beta}`)!,
+        marketVetShare: share.get(`${alpha}|${beta}`)!,
+      })),
+    ),
+    trainingWinBetaInterval: ALPHAS.map((alpha) => ({
+      alpha,
+      empirical: winRange(BETAS.filter((beta) => (emp.get(`${alpha}|${beta}`) ?? 0) > 0)),
+      theoretical: winRange(BETAS.filter((beta) => (theo.get(`${alpha}|${beta}`) ?? 0) > 0)),
+    })),
+    exploreRepair: exploreRows,
+  };
+  fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
+  console.log(`\n结果已写入 ${OUT}`);
 }
 
 // 入口判定用 URL 规范比较（06#12）：endsWith 匹配文件名，改名即静默失效；
-// 被作为模块 import（如网格扫描）时不触发 main 的副作用
-import { pathToFileURL } from 'node:url';
+// 被作为模块 import（如网格扫描/回归测试）时不触发 main 的副作用（含
+// 06#16 的结果 sidecar 写盘）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

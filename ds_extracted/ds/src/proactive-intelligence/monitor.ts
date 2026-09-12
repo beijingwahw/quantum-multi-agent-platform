@@ -38,13 +38,14 @@ export class StateMonitor extends EventEmitter {
   private maxBufferSize = 10000;
   private retentionMs = 3600000; // 1小时
   /**
-   * 已淘汰事件的惰性前缀游标（过期与容量超限共用——两者都只影响
-   * 前缀，语义统一为「逻辑上已不可见」）。事件按时间单调入列，
-   * 过期项必然是前缀。读取路径跳过 [0, prefix)，物理压缩推迟到
+   * 已淘汰事件的惰性前缀游标 deadPrefix（02#15 命名收口：过期淘汰与
+   * 容量淘汰共用——两者都只影响前缀，语义统一为「逻辑上已不可见」，
+   * expiredPrefix 的旧名只描述了两种淘汰路径之一）。事件按时间单调
+   * 入列，淘汰项必然是前缀。读取路径跳过 [0, prefix)，物理压缩推迟到
    * 前缀过半——每事件均摊 O(1)，事件风暴下不再逐事件全量 filter
    * （曾为 O(n²)）。
    */
-  private expiredPrefix = 0;
+  private deadPrefix = 0;
   /** 累计观察计数（total 的单一事实源，observe 时 O(1) 递增） */
   private totalObserved = 0;
   /** 各类型最新事件索引（observe 时 O(1) 维护，供规则/快照免扫描取用） */
@@ -59,10 +60,28 @@ export class StateMonitor extends EventEmitter {
   private liveBySeverity = new Map<string, number>();
   private liveCritical = 0;
 
-  constructor(private config: StateMonitorConfig = {}) {
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  private config: StateMonitorConfig;
+
+  constructor(config: StateMonitorConfig = {}) {
     super();
-    // 显式 undefined 判断：falsy 判断会把 maxBufferSize=0 /
-    // retentionMs=0（「立即淘汰/不限量」的合法语义）静默反转回默认值
+    this.config = config;
+    // 02#13 remainder：构造期拒绝垃圾容量/保留配置——非数字 / NaN / ≤0
+    // 此前被静默接受：maxBufferSize=0 让监控器永远持有 0 个事件（规则
+    // 读到空窗口，「完全失明」被静默当作正常运行）；负数/NaN 参与游标
+    // 算术后行为同样未定义。合法下界是 1（表达「只保留最新一条」）。
+    for (const [key, value] of [
+      ['maxBufferSize', config.maxBufferSize],
+      ['retentionMs', config.retentionMs],
+    ] as const) {
+      if (value === undefined) continue;
+      if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) {
+        throw new ConfigurationError(
+          `StateMonitorConfig.${key} must be a positive number, got ${String(value)}`,
+        );
+      }
+    }
+    // 显式 undefined 判断：非法值已在上方入口拒绝，这里只做合法值覆写
     if (config.maxBufferSize !== undefined) {
       this.maxBufferSize = config.maxBufferSize;
     }
@@ -119,7 +138,7 @@ export class StateMonitor extends EventEmitter {
     severity?: string;
     since?: Date;
   }): MonitorEvent[] {
-    let events = this.eventBuffer.slice(this.expiredPrefix);
+    let events = this.eventBuffer.slice(this.deadPrefix);
 
     if (filter) {
       if (filter.type) {
@@ -141,6 +160,22 @@ export class StateMonitor extends EventEmitter {
   }
 
   /**
+   * 获取最近 limit 条活跃事件（02#23 remainder）：决策上下文只消费事件
+   * 流尾部（extractEventValue 从尾部取各类型最新事件），整表拷贝使每批
+   * 决策成本随监控缓冲线性增长——本方法是那次的有界拷贝入口。
+   * limit 域守卫与 getDecisionHistory 同口径（非负整数；0 = 空数组）。
+   */
+  getRecentEvents(limit: number): MonitorEvent[] {
+    if (!Number.isInteger(limit) || limit < 0) {
+      throw new ConfigurationError(
+        `getRecentEvents() limit must be a non-negative integer, got ${String(limit)}`,
+      );
+    }
+    const start = Math.max(this.deadPrefix, this.eventBuffer.length - limit);
+    return this.eventBuffer.slice(start);
+  }
+
+  /**
    * 获取聚合统计（增量维护：byType/bySeverity/critical 由 observe/cleanup
    * O(1) 维护，调用时仅拷贝计数表 O(类型数)；recent 对时间单调的活跃区
    * 二分定位 60s 窗口下界 O(log n)。原实现为每调用 4 次独立 reduce 全量
@@ -155,7 +190,7 @@ export class StateMonitor extends EventEmitter {
 
     return {
       total: this.totalObserved,
-      live: this.eventBuffer.length - this.expiredPrefix,
+      live: this.eventBuffer.length - this.deadPrefix,
       byType,
       bySeverity,
       recent: this.countRecent(),
@@ -170,7 +205,7 @@ export class StateMonitor extends EventEmitter {
    */
   private countRecent(): number {
     const cutoff = Date.now() - 60000;
-    let lo = this.expiredPrefix;
+    let lo = this.deadPrefix;
     let hi = this.eventBuffer.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
@@ -188,32 +223,32 @@ export class StateMonitor extends EventEmitter {
     return this.latestByType.get(type) ?? null;
   }
 
-  /** 清理过期事件（游标推进同步扣减活跃窗口计数——见 liveByType 注释） */
+  /** 清理淘汰事件（游标推进同步扣减活跃窗口计数——见 liveByType 注释） */
   private cleanup(): void {
     const cutoff = Date.now() - this.retentionMs;
 
     // 过期项是前缀（时间单调），游标惰性推进
     while (
-      this.expiredPrefix < this.eventBuffer.length &&
-      this.eventBuffer[this.expiredPrefix]!.timestamp.getTime() <= cutoff
+      this.deadPrefix < this.eventBuffer.length &&
+      this.eventBuffer[this.deadPrefix]!.timestamp.getTime() <= cutoff
     ) {
-      this.uncountExpired(this.eventBuffer[this.expiredPrefix]!);
-      this.expiredPrefix++;
+      this.uncountExpired(this.eventBuffer[this.deadPrefix]!);
+      this.deadPrefix++;
     }
     // 容量超限：最旧的同样计入前缀
     const overflow = this.eventBuffer.length - this.maxBufferSize;
     if (overflow > 0) {
-      const newPrefix = Math.min(this.eventBuffer.length, this.expiredPrefix + overflow);
-      while (this.expiredPrefix < newPrefix) {
-        this.uncountExpired(this.eventBuffer[this.expiredPrefix]!);
-        this.expiredPrefix++;
+      const newPrefix = Math.min(this.eventBuffer.length, this.deadPrefix + overflow);
+      while (this.deadPrefix < newPrefix) {
+        this.uncountExpired(this.eventBuffer[this.deadPrefix]!);
+        this.deadPrefix++;
       }
     }
     // 前缀过半才物理压缩（splice 搬移一次覆盖多个事件，均摊 O(1)/事件；
     // 压缩移除的均为已出窗事件，计数不在此重复扣减）
-    if (this.expiredPrefix * 2 >= this.eventBuffer.length) {
-      this.eventBuffer.splice(0, this.expiredPrefix);
-      this.expiredPrefix = 0;
+    if (this.deadPrefix * 2 >= this.eventBuffer.length) {
+      this.eventBuffer.splice(0, this.deadPrefix);
+      this.deadPrefix = 0;
     }
   }
 
@@ -235,7 +270,7 @@ export class StateMonitor extends EventEmitter {
   /** 清空事件缓冲区 */
   clear(): void {
     this.eventBuffer = [];
-    this.expiredPrefix = 0;
+    this.deadPrefix = 0;
     this.latestByType.clear();
     this.totalObserved = 0;
     this.liveByType.clear();

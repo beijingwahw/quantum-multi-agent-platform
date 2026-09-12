@@ -88,9 +88,7 @@ function run(arm: 'naive' | 'static' | 'compound', simAlpha: number, simBeta: nu
     cumPerSeed.push(cum);
     traineeTasks += traineeCount / SEEDS.length;
     traineeCapital +=
-      ((brain.getState().agents.find((a) => a.id === 'trainee')!.capital as Record<string, number>)[
-        'X'
-      ] ?? 0) / SEEDS.length;
+      (brain.getState().agents.find((a) => a.id === 'trainee')!.capital['X'] ?? 0) / SEEDS.length;
     const cal = brain.calibrations()[0]!;
     alphaHat += cal.alphaHat / SEEDS.length;
     betaHat += cal.betaHat / SEEDS.length;

@@ -15,9 +15,21 @@ import type {
   TaskRequirement,
 } from './types/quantum-types.js';
 
-/** 递归可选：用户配置只需覆盖关心的字段，其余保留默认值 */
+/**
+ * 递归可选：用户配置只需覆盖关心的字段，其余保留默认值。
+ * 数组元素的完整性（08#51 余项）：deepMerge 对数组**整体替换**（见下），
+ * 不逐元素合并——因此覆盖数组时元素必须是完整形状（U[]），不允许
+ * 半指定元素。此前的同态映射碰巧把部分性传播进元素（partial 元素可
+ * 编译），运行时却被原样替换进配置——类型承诺了不会发生的合并，
+ * 半合并产物是静默垃圾。显式条件分支取代隐式行为；MAX_MERGE_DEPTH
+ * 运行时深度上限不变。
+ */
 export type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+  [K in keyof T]?: T[K] extends Array<infer U>
+    ? U[]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K];
 };
 
 // 原型污染防护：这些键出现在用户配置（可能来自 JSON.parse 的任意输入）里时
@@ -157,11 +169,54 @@ export interface ConsoleSnapshot {
 
 /** 平台级系统指标聚合（getSystemMetrics 返回结构） */
 export interface PlatformSystemMetrics {
+  /**
+   * 聚合采集时刻（ISO-8601，08#54）：五组件按固定顺序顺序拉取、非事务性
+   * 快照——本时间戳标记聚合起点，同一份报告内各子报告的数字来自
+   * [collectedAt, 聚合完成] 窗口内的不同内部时刻。消费方（控制台/日志）
+   * 据此界定数字的新鲜度；组件级原子快照属后续演进项。
+   */
+  collectedAt: string;
   scheduler: ReturnType<QuantumScheduler['getSystemMetrics']>;
   agents: ReturnType<AgentManager['getAgentMetrics']>;
   bus: ReturnType<QuantumBus['getMetrics']>;
   dsh: ReturnType<DSHIntegration['getMetrics']>;
   health: ReturnType<AgentManager['checkSystemHealth']>;
+}
+
+/**
+ * 控制台 submit_task 的 requirements 校验（08#49 余项）：与
+ * {@link QuantumScheduler.submitTask} 的需求契约同口径——本调度器只强制
+ * 'capability'（其余类型提交期拒绝，见 01#7），故控制台载荷也只接受
+ * capability 元素；name 非空字符串、weight 有限数。畸形远程输入抛
+ * ConfigurationError，由 handleConsoleCommand 的 catch 走 console error
+ * 日志路径（与 priority 校验同一处置），不静默降级为无约束任务。
+ */
+function parseConsoleRequirements(raw: unknown): TaskRequirement[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new ConfigurationError("'requirements' must be an array");
+  }
+  return raw.map((item, i) => {
+    if (typeof item !== 'object' || item === null) {
+      throw new ConfigurationError(`requirements[${i}] must be an object`);
+    }
+    const r = item as Record<string, unknown>;
+    if (r.type !== 'capability') {
+      throw new ConfigurationError(
+        `requirements[${i}].type '${String(r.type)}' is not enforced by this scheduler ` +
+          `(only 'capability' is supported)`,
+      );
+    }
+    if (typeof r.name !== 'string' || !r.name) {
+      throw new ConfigurationError(`requirements[${i}].name must be a non-empty string`);
+    }
+    if (typeof r.weight !== 'number' || !Number.isFinite(r.weight)) {
+      throw new ConfigurationError(`requirements[${i}].weight must be a finite number`);
+    }
+    const req: TaskRequirement = { type: 'capability', name: r.name, weight: r.weight };
+    if (r.value !== undefined) req.value = r.value;
+    return req;
+  });
 }
 
 /**
@@ -344,11 +399,13 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
           // type 可由调用方指定（协议与 SDK 的 submitTask 能力对齐，
           // 不再硬编码 'console'——任务类型是下游能力匹配的输入）
           const taskType = typeof p.type === 'string' && p.type ? p.type : 'console';
+          // requirements 可由调用方指定（08#49 余项：此前硬编码 []，控制台
+          // 任务永远表达不出能力约束）。校验与 submitTask 的需求契约同口径
           const task = this.submitTask({
             name: typeof p.name === 'string' && p.name ? p.name : 'Console Task',
             type: taskType,
             priority: (priority ?? 'medium') as TaskPriority,
-            requirements: [],
+            requirements: parseConsoleRequirements(p.requirements),
           });
           logInfo('QuantumPlatform', `Console command: task submitted (${task.id})`);
           break;
@@ -616,6 +673,9 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
    */
   getSystemMetrics(): PlatformSystemMetrics {
     return {
+      // 08#54：additive 采集时刻——标记非事务性聚合的起点（见接口注释），
+      // 全部既有字段保持不变
+      collectedAt: new Date().toISOString(),
       scheduler: this.scheduler.getSystemMetrics(),
       agents: this.agentManager.getAgentMetrics(),
       bus: this.quantumBus.getMetrics(),
@@ -788,7 +848,13 @@ export type {
   CalibrationReport,
   CapabilityAdvice,
   IncubationAdvice,
+  AgentPublicState,
+  CompoundSimFacts,
 } from './core/compound-brain.js';
+// 08#11：CompoundBrain 的实验驱动器（simulateBatch/misreport 的实验
+// 面迁出核心机制类后的正式入口）
+export { CompoundBrainSimulator } from './core/compound-brain-simulator.js';
+export type { CompoundBrainSimulatorOptions } from './core/compound-brain-simulator.js';
 export { GrowthSchedulerBrain } from './proactive-intelligence/brain.js';
 export type { BrainState } from './proactive-intelligence/brain.js';
 export { ProactiveIntelligencePlugin } from './proactive-intelligence/index.js';

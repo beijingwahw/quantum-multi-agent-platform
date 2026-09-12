@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
 import { createHash, timingSafeEqual } from 'crypto';
-import type {
-  QuantumMessage,
-  MessagePriority,
-  MessageType,
-  QuantumState,
+import {
+  reviveDate,
+  type QuantumMessage,
+  type MessagePriority,
+  type MessageType,
+  type QuantumState,
 } from '../types/quantum-types.js';
 import type { RawData } from 'ws';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -32,6 +33,16 @@ export interface QuantumBusConfig {
      * （无鉴权，host 默认强制 127.0.0.1，见下方 host 字段）。
      */
     authToken?: string;
+    /**
+     * 可选 token→agentId 绑定（09#F04 remainder）。仅在鉴权开启
+     * （authToken 已配置）时生效：authenticate 通过 token 校验后，
+     * 若呈现的 token 在本表中有绑定项，则其声称的 agentId 必须落在
+     * 该 token 的允许清单内——共享 token 泄露后也只能冒领被绑定的
+     * 身份，而非任意 agent。注意：本表不引入新的可接受 token（token
+     * 仍须与 authToken 常数时间匹配）；呈现 token 不在表中时不施加
+     * 绑定约束（与未配置时行为一致）。
+     */
+    tokenAgents?: ReadonlyMap<string, readonly string[]> | Record<string, readonly string[]>;
     /** 单连接订阅频道数上限（防恶意客户端无界增长） */
     maxSubscriptions?: number;
     /** 单帧消息大小上限（字节），超出即由 ws 层断开，防内存耗尽 */
@@ -55,6 +66,33 @@ export interface QuantumBusConfig {
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
 /** 订阅频道名长度上限：近 1MB 的 JSON 字符串值曾可直达订阅表（F01） */
 const MAX_CHANNEL_LENGTH = 128;
+/**
+ * agentId 长度上限（09#F04 remainder）：与频道名同量级——身份串会进入
+ * 连接表/离线队列键/agentsOnline/日志与按值比较路径，超长值在
+ * authenticate 边界即拒绝（4001 断开 + 计数），而非流入之后各路径。
+ */
+const MAX_AGENT_ID_LENGTH = 128;
+/**
+ * 可路由消息类型全集（09#F09 remainder）：与 quantum-types.ts 的
+ * MessageType 联合一一对应（类型联合演化时同步维护此表）。控制协议
+ * 分支（authenticate/subscribe/unsubscribe/console_*）在 dispatch 上方
+ * 已单独处理；不在本表内的帧类型是未知类型——显式回错误帧并计数，
+ * 不再落入常规消息分支被静默丢弃/路由。
+ */
+const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
+  'task_assignment',
+  'task_completed',
+  'task_failed',
+  'agent_status',
+  'status_update',
+  'quantum_entanglement',
+  'heartbeat',
+  'connection_ack',
+  'request',
+  'response',
+  'broadcast',
+  'error',
+]);
 /**
  * 离线队列桶数上限（F02）：per-agent 队列封顶挡不住「海量伪造
  * targetAgentId」的基数攻击——每个新桶本身就是一条 Map 记录，
@@ -112,6 +150,10 @@ export interface QuantumBusMetrics {
     unauthenticatedRejections: number;
     /** 已认证连接冒用他人 agentId 的次数 */
     identitySpoofRejections: number;
+    /** authenticate 声称的 agentId 形状/长度非法的拒绝次数（09#F04） */
+    invalidAgentIdRejections: number;
+    /** 未知帧类型的拒绝次数（09#F09：错误帧回发且连接保持） */
+    unknownTypeRejections: number;
     /** 同连接改绑身份的拒绝次数 */
     identityRebindRejections: number;
     /** 不合法订阅频道（非字符串/超长）的拒绝次数 */
@@ -202,6 +244,8 @@ export class QuantumBus extends EventEmitter {
   private securityCounters = {
     unauthenticatedRejections: 0,
     identitySpoofRejections: 0,
+    invalidAgentIdRejections: 0,
+    unknownTypeRejections: 0,
     identityRebindRejections: 0,
     invalidChannelRejections: 0,
     rateLimitDisconnects: 0,
@@ -213,6 +257,8 @@ export class QuantumBus extends EventEmitter {
   private startReject: ((error: Error) => void) | null = null;
   // 总线自身启动时刻（uptime基准，非进程存活时间）
   private startedAt: number | null = null;
+  /** tokenAgents 的统一只读视图（构造期把 Record/Map 归一为 Map；见配置项 JSDoc） */
+  private readonly tokenAgentMap: ReadonlyMap<string, readonly string[]>;
   /** 心跳定时器集中登记（F08）：shutdown 时确定性回收，不依赖连接
    * close 事件的终极到达 */
   private heartbeatTimers = new Set<NodeJS.Timeout>();
@@ -221,6 +267,34 @@ export class QuantumBus extends EventEmitter {
     super();
     validateBusLimits(config);
     this.config = config;
+    // tokenAgents 归一 + 形状校验（09#F04 remainder）：绑定表是安全配置，
+    // 垃圾形状（空 token 键 / 非字符串数组的允许清单）必须在构造期拒绝——
+    // 运行期才暴露会让绑定「看似配置、实则恒不生效或恒全拒」。
+    const tokenAgents = config.communication?.tokenAgents;
+    if (tokenAgents === undefined) {
+      this.tokenAgentMap = new Map();
+    } else {
+      const entries: Array<[string, readonly string[]]> =
+        tokenAgents instanceof Map
+          ? [...(tokenAgents as ReadonlyMap<string, readonly string[]>).entries()]
+          : Object.entries(tokenAgents as Record<string, readonly string[]>);
+      for (const [token, agents] of entries) {
+        if (typeof token !== 'string' || token.length === 0) {
+          throw new ConfigurationError(
+            `communication.tokenAgents keys must be non-empty strings, got ${String(token)}`,
+          );
+        }
+        if (
+          !Array.isArray(agents) ||
+          !agents.every((id) => typeof id === 'string' && id.length > 0)
+        ) {
+          throw new ConfigurationError(
+            `communication.tokenAgents['${sanitizeForLog(token)}'] must be an array of non-empty agent ids`,
+          );
+        }
+      }
+      this.tokenAgentMap = new Map(entries);
+    }
   }
 
   // 延迟启动：仅在显式调用start()时占用端口，支持port 0随机分配
@@ -446,8 +520,23 @@ export class QuantumBus extends EventEmitter {
           'QuantumBus',
           `Authentication with invalid agentId shape from ${connectionId} rejected`,
         );
+        this.securityCounters.invalidAgentIdRejections++;
         this.emit('authentication_failed', { connectionId, agentId: message.agentId });
         connection.ws.close(4001, 'invalid agentId');
+        return;
+      }
+      // 身份长度上限（09#F04 remainder）：超长身份串与非法形状同判定
+      // （4001 断开），且计入 dedicated 计数——身份串会流入连接表/
+      // 离线队列键/agentsOnline，近 1MB 的值不该在这些路径里被「事后」发现
+      if (message.agentId.length > MAX_AGENT_ID_LENGTH) {
+        logWarn(
+          'QuantumBus',
+          `Authentication with oversized agentId (${message.agentId.length} > ` +
+            `${MAX_AGENT_ID_LENGTH}) from ${connectionId} rejected`,
+        );
+        this.securityCounters.invalidAgentIdRejections++;
+        this.emit('authentication_failed', { connectionId, agentId: message.agentId });
+        connection.ws.close(4001, 'agentId too long');
         return;
       }
       // 身份重绑防护（F04）：已认证连接再 authenticate 即可冒领任意
@@ -473,6 +562,23 @@ export class QuantumBus extends EventEmitter {
         );
         this.emit('authentication_failed', { connectionId, agentId: message.agentId });
         connection.ws.close(4001, 'authentication failed');
+        return;
+      }
+      // token→身份绑定（09#F04 remainder）：token 校验已通过，若该 token
+      // 配置了允许清单，则声称的 agentId 必须在清单内。越界声称按
+      // 「共享 token 下的身份冒用」计入 identitySpoofRejections（与消息
+      // 路径的 sourceAgentId 冒用同口径），拒绝 + 断开 + 不绑定身份。
+      const allowedAgents =
+        message.token !== undefined ? this.tokenAgentMap.get(message.token) : undefined;
+      if (allowedAgents !== undefined && !allowedAgents.includes(message.agentId)) {
+        logWarn(
+          'QuantumBus',
+          `Agent '${sanitizeForLog(message.agentId)}' not in token binding set ` +
+            `(${allowedAgents.length} allowed) on ${connectionId} — rejected`,
+        );
+        this.securityCounters.identitySpoofRejections++;
+        this.emit('authentication_failed', { connectionId, agentId: message.agentId });
+        connection.ws.close(4001, 'agentId not permitted for token');
         return;
       }
       connection.agentId = message.agentId;
@@ -582,6 +688,25 @@ export class QuantumBus extends EventEmitter {
         this.securityCounters.identitySpoofRejections++;
         return;
       }
+      // 未知帧类型（09#F09 remainder）：此前的兜底分支不区分「MessageType
+      // 域内的未知值」与合法消息——未知类型要么凑巧通过形状校验被照常
+      // 路由（垃圾类型混入广播/离线队列），要么因其余字段不全被静默丢弃，
+      // 客户端无从得知协议不匹配。现在对该连接显式回错误帧（连接保持
+      // 打开——未知类型是协议协商问题，不是必须断连的安全判定）并计数。
+      if (typeof message.type !== 'string' || !KNOWN_MESSAGE_TYPES.has(message.type)) {
+        logWarn(
+          'QuantumBus',
+          `Unknown message type '${sanitizeForLog(message.type)}' from ${connectionId} rejected`,
+        );
+        this.securityCounters.unknownTypeRejections++;
+        this.sendErrorFrame(
+          connectionId,
+          'unknown_message_type',
+          `Unknown message type '${sanitizeForLog(message.type)}' ` +
+            `(protocol version ${PROTOCOL_VERSION})`,
+        );
+        return;
+      }
       this.processMessage(message);
     }
   }
@@ -635,12 +760,26 @@ export class QuantumBus extends EventEmitter {
       quantumState?: unknown;
       targetAgentId?: unknown;
       targetAgentIds?: unknown;
+      timestamp?: unknown;
     };
     const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+    // timestamp 形状校验（09#F05 remainder）：按 quantum-types.ts 文件头
+    // 的 DTO 契约，合法形态是 Date 实例（进程内 createMessage 构造）或
+    // 线上 JSON 的 ISO 8601 字符串 / epoch 毫秒数（DateLike；对端测试
+    // 与真实客户端发送的正是 ISO 字符串——总线是透传/再序列化层，
+    // 文档明确无需复活）。对象/数组/布尔/不可解析垃圾按无效格式丢弃；
+    // 字段缺失同样无效（timestamp 是必填字段）。
+    const isValidTimestamp = (v: unknown): boolean => {
+      if (v instanceof Date) return !Number.isNaN(v.getTime());
+      if (typeof v === 'number') return Number.isFinite(v);
+      if (typeof v === 'string') return reviveDate(v) !== undefined;
+      return false;
+    };
     return (
       isNonEmptyString(raw.id) &&
       isNonEmptyString(raw.sourceAgentId) &&
       isNonEmptyString(raw.type) &&
+      isValidTimestamp(raw.timestamp) &&
       typeof raw.quantumState === 'object' &&
       raw.quantumState !== null &&
       (raw.targetAgentId === undefined || isNonEmptyString(raw.targetAgentId)) &&
@@ -702,6 +841,23 @@ export class QuantumBus extends EventEmitter {
       }
     }
     return false;
+  }
+
+  /**
+   * 协议级错误帧（09#F09 remainder）：未知帧类型等「回发显式错误但不断连」
+   * 的统一出口。与 connection_ack 同一构造约定（总线为源、系统消息坍缩
+   * 量子态），content 携带稳定 code（客户端可编程判定）+ 人类可读 message。
+   */
+  private sendErrorFrame(connectionId: string, code: string, message: string): void {
+    this.sendToConnection(connectionId, {
+      id: randomUUID(),
+      type: 'error',
+      sourceAgentId: 'quantum-bus',
+      content: { code, message },
+      timestamp: new Date(),
+      priority: 'medium',
+      quantumState: collapsedSystemQuantumState(),
+    });
   }
 
   private queueMessageForAgent(agentId: string, message: QuantumMessage): void {

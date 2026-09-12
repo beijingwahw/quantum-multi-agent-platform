@@ -19,7 +19,6 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { performance } from 'node:perf_hooks';
 import { sleep } from '../helpers/fixtures.js';
 import type { EventEmitter } from 'node:events';
 import {
@@ -334,7 +333,27 @@ describe('审计3 [P1] · 确定性失败不重试、瞬态错误重试', () => 
   });
 
   it('参数校验失败（ToolError 同类路径）立即失败', async () => {
+    // 计数器是"未重试"的确定性证据：计时断言（<10ms）在套件并行负载下
+    // 结构性闪断（R10 全量跑三次现形一次），而 calls===1 在任何负载下
+    // 都不可能是重试过的（重试 ≥ 1 次意味着 calls ≥ 2）
+    let calls = 0;
     const executor = new ActionExecutor();
+    await assert.rejects(
+      executor.executeAction(
+        'r',
+        customAction(
+          'counting',
+          () => {
+            calls++;
+            throw new ToolError('requires title and message');
+          },
+          { retryPolicy: retry },
+        ),
+      ),
+      /requires/,
+    );
+    assert.equal(calls, 1, `参数校验失败只尝试 1 次（实际 ${calls}）`);
+    // 同一确定性分类在内建 notification 缺参路径上同样成立：
     // notification 缺 title/message → executeNotification 抛 ToolError（确定性域错误）
     const bad: Action = {
       type: 'notification',
@@ -342,13 +361,7 @@ describe('审计3 [P1] · 确定性失败不重试、瞬态错误重试', () => 
       parameters: {},
       retryPolicy: retry,
     };
-    // 高分辨率钟测量：Date.now() 在 Windows 上粒度约 15.6ms，两次采样
-    // 跨 tick 会让 ~0ms 的纯微任务路径读出 15ms+，<10ms 断言结构性闪断
-    // （与已修复的 5ms 单调钟闪断同类）。阈值不变，只换测量仪器。
-    const startedAt = performance.now();
     await assert.rejects(executor.executeAction('r', bad), /requires/);
-    // 确定性失败不重试的强证据：耗时远小于 3 次退避（5/10/15ms）叠加
-    assert.ok(performance.now() - startedAt < 10, '参数校验失败不应消耗任何退避周期');
   });
 
   it('瞬态错误（基础设施类）按 backoff 重试并在成功后停止', async () => {

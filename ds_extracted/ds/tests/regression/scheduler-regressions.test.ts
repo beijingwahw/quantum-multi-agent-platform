@@ -20,7 +20,8 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { QuantumScheduler } from '../../src/core/quantum-scheduler.js';
+import { QuantumScheduler, DEFAULT_PENDING_TIMEOUT_MS } from '../../src/core/quantum-scheduler.js';
+import type { QuantumBackend } from '../../src/core/qpu/quantum-backend.js';
 import { SchedulingError } from '../../src/utils/errors.js';
 import { makeAgent, sleep } from '../helpers/fixtures.js';
 
@@ -203,5 +204,96 @@ describe('调度器域审计回归（A1）', () => {
     assert.match(trivial.reasoning, /trivial collapse/);
     scheduler.shutdown();
     single.shutdown();
+  });
+});
+
+describe('调度器域第二轮收尾回归（01#4 / 01#5）', () => {
+  it('01#4 QPU await 窗口并发重查：求解期间事件路径消耗预算后不得超订', async () => {
+    // 桩后端：solveIsing 在 await 窗口内先跑回调（模拟 completeTask→
+    // reschedule 之类的事件路径占用并发位），再返回 T1→a1/T2→a2 的
+    // 合法 one-hot 采样（2 任务 × 4 agent = 8 量子比特）
+    const duringSolve: Array<() => void> = [];
+    const backend: QuantumBackend = {
+      name: 'stub-backend',
+      realHardware: false,
+      isAvailable: () => true,
+      solveIsing: (_h, _j, _nqubits) => {
+        for (const fn of duringSolve) fn();
+        return Promise.resolve({
+          spins: [[-1, 1, 1, 1, 1, -1, 1, 1]],
+          energies: [-1],
+          occurrences: [1],
+          solver: 'stub',
+          realHardware: false,
+        });
+      },
+    };
+
+    const scheduler = new QuantumScheduler({
+      scheduling: { autoSchedule: false, maxConcurrentTasks: 2 },
+    });
+    for (const id of ['a1', 'a2', 'a3']) {
+      scheduler.registerAgent(makeAgent(id, ['js']));
+    }
+    scheduler.registerAgent(makeAgent('a4', ['reserve']));
+
+    const t1 = scheduler.submitTask(makeTask('T1'));
+    const t2 = scheduler.submitTask(makeTask('T2'));
+    const reserve = scheduler.submitTask({
+      ...makeTask('R'),
+      requirements: [{ type: 'capability' as const, name: 'reserve', value: null, weight: 1.0 }],
+    });
+
+    // await 窗口内的事件路径：经典调度路径接走 reserve → activeAssignments 0→1
+    duringSolve.push(() => {
+      scheduler.scheduleTask(reserve.id);
+    });
+
+    const report = await scheduler.scheduleBatchQuantumQpu(backend);
+
+    assert.equal(reserve.status, 'assigned', 'await 窗口内的事件路径已占用 1 个并发位');
+    assert.equal(report.assigned, 1, 'QPU 结果只可套用剩余余量（2-1=1），不得超订');
+    assert.equal(t1.status, 'assigned');
+    assert.equal(t2.status, 'pending', '超出余量的第二个分配必须被拒（留 pending）');
+    const inFlight = scheduler.getTasks().filter((t) => t.status === 'assigned').length;
+    assert.ok(inFlight <= 2, '总在役任务不得超过 maxConcurrentTasks');
+    assert.deepEqual(scheduler.checkInvariants(), [], '计数器口径与全表扫描一致');
+    scheduler.shutdown();
+  });
+
+  it('01#5 缺省 TTL：未配置 pendingTimeoutMs 时按 10 分钟缺省回收超龄挂起任务', async () => {
+    // 不配置 pendingTimeoutMs（缺省 DEFAULT_PENDING_TIMEOUT_MS）——不真等
+    // 10 分钟：回拨 createdAt 模拟驻留超期（sweep 的 elapsed 从 createdAt 起算）
+    const scheduler = new QuantumScheduler({
+      scheduling: { autoSchedule: false, sweepInterval: 20 },
+    });
+
+    const task = scheduler.submitTask(makeTask('unsatisfiable'));
+    assert.equal(task.status, 'pending');
+
+    task.createdAt = new Date(Date.now() - DEFAULT_PENDING_TIMEOUT_MS - 1000);
+    await sleep(120);
+
+    assert.equal(task.status, 'failed', '缺省 TTL 到期后挂起任务必须出清');
+    assert.equal(
+      (task.result as { reason?: string } | undefined)?.reason,
+      'pending_timeout',
+      '失败记录携带结构化原因',
+    );
+    assert.equal(scheduler.getSystemMetrics().pendingTasks, 0, '回收后挂起计数归零');
+    scheduler.shutdown();
+  });
+
+  it('01#5 显式 0：pendingTimeoutMs=0 关闭缺省 TTL，超龄挂起任务保持 pending', async () => {
+    const scheduler = new QuantumScheduler({
+      scheduling: { autoSchedule: false, sweepInterval: 20, pendingTimeoutMs: 0 },
+    });
+
+    const task = scheduler.submitTask(makeTask('unsatisfiable'));
+    task.createdAt = new Date(Date.now() - DEFAULT_PENDING_TIMEOUT_MS - 1000);
+    await sleep(120);
+
+    assert.equal(task.status, 'pending', '0 是显式关闭：长依赖链的合法等待语义保留');
+    scheduler.shutdown();
   });
 });

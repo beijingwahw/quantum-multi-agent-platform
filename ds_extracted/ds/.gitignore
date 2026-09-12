@@ -10,3 +10,14 @@ qaoa_schedule.py
 .DS_Store
 .nyc_output/
 *.tgz
+
+# 06#26：Windows 缩略图缓存与 IDE 目录（GitHub Node gitignore 模板惯例）
+Thumbs.db
+Thumbs.db/
+ehthumbs.db
+Thumbs.db:encryptable
+.idea/
+.vscode/
+
+# 06#16：实验生成的打戳结果 sidecar（旧固定名 results*.json* 已被跟踪，不受影响）
+experiments/train-vs-hire-phase/results-*.json

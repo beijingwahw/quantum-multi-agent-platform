@@ -20,6 +20,10 @@ import { makeAgent } from './helpers/fixtures.js';
 
 const EPS = 1e-9;
 
+// 05#22：mulberry32 本地副本，与 src/utils/rng.ts 的差别仅一处——
+// 每轮多一次 `a |= 0` 再收紧（uint32 下为空操作，种子流与共享实现
+// 逐位相同）。因非逐字节同体，按 05#22 的保守规则不替换为共享实现
+// （本文件 makeProblem 的黄金值依赖此种子流，不冒任何移位风险）。
 function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

@@ -21,8 +21,14 @@ import {
   computeEnergies,
   QuantumStateVector,
   type AssignmentProblem,
+  type QuantumSolution,
+  type SolverSolution,
 } from '../src/core/quantum-optimizer.js';
-import { qaoaSolveSubspace, buildSubspaceModel } from '../src/core/subspace-optimizer.js';
+import {
+  qaoaSolveSubspace,
+  buildSubspaceModel,
+  type SubspaceSolution,
+} from '../src/core/subspace-optimizer.js';
 import { mulberry32 } from '../src/utils/rng.js';
 
 function coupledProblem(
@@ -31,6 +37,8 @@ function coupledProblem(
   n: number,
   density: number,
 ): AssignmentProblem {
+  // 05#28：权重取 U[−0.4, 1.6) 含负值——部分 (任务,agent) 格主动降低福利，
+  // 最优分配须在 agent 间权衡摊薄负格，实例族不退化为全正权重下贪心友好
   const weights = Array.from({ length: m }, () => Array.from({ length: n }, () => rng() * 2 - 0.4));
   const ineligible = Array.from({ length: m }, () => Array.from({ length: n }, () => rng() < 0.15));
   // 恒可行保证：清除恒等匹配上的格（否则 ~1% 实例无可行分配，
@@ -59,20 +67,78 @@ function coupledProblem(
   };
 }
 
+/**
+ * 05#27：解对象的字段级精确比较。这些用例全部是「同种子同代码路径」的
+ * 确定性对照（默认 angleMode === 'layer'；multi 重入同种子），逐字段
+ * === 保持与原整体 deepEqual 完全相同的强度，同时失败时能定位到具体
+ * 字段——含浮点字段的对象整体 deepEqual 一旦失败无从分辨差异来源。
+ */
+type AnySolution = SolverSolution &
+  Partial<Pick<QuantumSolution, 'validMass' | 'repaired'>> &
+  Partial<Pick<SubspaceSolution, 'optimalityRatio' | 'dimension'>>;
+
+function assertSameSolution(a: AnySolution, b: AnySolution, label: string): void {
+  assert.equal(a.engine, b.engine, `${label}: engine`);
+  assert.deepEqual(a.assignment, b.assignment, `${label}: assignment`);
+  assert.equal(a.layers, b.layers, `${label}: layers`);
+  assert.equal(a.evaluations, b.evaluations, `${label}: evaluations`);
+  for (const key of ['welfare', 'energy', 'probability', 'expectation'] as const) {
+    assert.equal(a[key], b[key], `${label}: ${key} ${a[key]} vs ${b[key]}`);
+  }
+  if (a.angles === null || b.angles === null) {
+    assert.equal(a.angles, b.angles, `${label}: angles nullability`);
+  } else {
+    assert.equal(a.angles.length, b.angles.length, `${label}: angles length`);
+    for (let i = 0; i < a.angles.length; i++) {
+      assert.equal(a.angles[i], b.angles[i], `${label}: angles[${i}]`);
+    }
+  }
+  assert.equal(a.candidates.length, b.candidates.length, `${label}: candidates length`);
+  for (let i = 0; i < a.candidates.length; i++) {
+    const ca = a.candidates[i]!;
+    const cb = b.candidates[i]!;
+    assert.deepEqual(ca.assignment, cb.assignment, `${label}: candidates[${i}].assignment`);
+    assert.equal(ca.welfare, cb.welfare, `${label}: candidates[${i}].welfare`);
+    assert.equal(ca.energy, cb.energy, `${label}: candidates[${i}].energy`);
+    assert.equal(ca.probability, cb.probability, `${label}: candidates[${i}].probability`);
+  }
+  // 引擎特有字段（两者同为全空间解或同为子空间解时逐一对照）
+  if (a.validMass !== undefined && b.validMass !== undefined) {
+    assert.equal(a.validMass, b.validMass, `${label}: validMass`);
+  }
+  if (a.repaired !== undefined && b.repaired !== undefined) {
+    assert.equal(a.repaired, b.repaired, `${label}: repaired`);
+  }
+  if (a.optimalityRatio !== undefined && b.optimalityRatio !== undefined) {
+    assert.equal(a.optimalityRatio, b.optimalityRatio, `${label}: optimalityRatio`);
+  }
+  if (a.dimension !== undefined && b.dimension !== undefined) {
+    assert.equal(a.dimension, b.dimension, `${label}: dimension`);
+  }
+}
+
 describe('ma-QAOA · 支配性定理（目标层面）', () => {
   it('同实例同种子：multi 的末态 ⟨E⟩ ≤ layer 的 ⟨E⟩（p=1/p=2 各 25 实例）', () => {
+    // 05#31：全量收集违规后一次断言——逐实例断言会在首个失败处
+    // 隐藏其余 49 个实例的结果
+    const violations: string[] = [];
     for (const layers of [1, 2]) {
       for (let s = 0; s < 25; s++) {
         const rng = mulberry32(9000 + s * 17);
         const problem = coupledProblem(rng, 3, 3, 0.15);
         const layerSol = qaoaSolve(problem, { layers, seed: 42, angleMode: 'layer' });
         const multiSol = qaoaSolve(problem, { layers, seed: 42, angleMode: 'multi' });
-        assert.ok(
-          multiSol.expectation <= layerSol.expectation + 1e-9,
-          `p=${layers} seed=${s}: ma ⟨E⟩ ${multiSol.expectation} 不得超过 layer ${layerSol.expectation}`,
-        );
+        if (multiSol.expectation > layerSol.expectation + 1e-9) {
+          violations.push(
+            `p=${layers} seed=${s}: ma ⟨E⟩ ${multiSol.expectation} > layer ${layerSol.expectation}`,
+          );
+        }
       }
     }
+    assert.ok(
+      violations.length === 0,
+      `支配性违规 ${violations.length} 处（共 50 实例）:\n${violations.join('\n')}`,
+    );
   });
 
   it('展开位级等价（单元）：全等 β 的逐 qubit 混合 == 全局混合', () => {
@@ -99,14 +165,14 @@ describe('ma-QAOA · 接入与不变量', () => {
     const problem = coupledProblem(mulberry32(11), 3, 3, 0.15);
     const a = qaoaSolve(problem, { layers: 2, seed: 42 });
     const b = qaoaSolve(problem, { layers: 2, seed: 42, angleMode: 'layer' });
-    assert.deepEqual(a, b);
+    assertSameSolution(a, b, '默认 vs layer'); // 05#27：字段级精确比较
   });
 
   it('multi 确定性：同种子两次调用逐位一致', () => {
     const problem = coupledProblem(mulberry32(22), 3, 3, 0.15);
     const a = qaoaSolve(problem, { layers: 1, seed: 42, angleMode: 'multi' });
     const b = qaoaSolve(problem, { layers: 1, seed: 42, angleMode: 'multi' });
-    assert.deepEqual(a, b);
+    assertSameSolution(a, b, 'multi 重入'); // 05#27：字段级精确比较
   });
 
   it('multi 角度布局：长度 = p + p·nqubits，γ 段在界内', () => {
@@ -128,7 +194,7 @@ describe('ma-QAOA · 接入与不变量', () => {
     assert.ok(model);
     const a = qaoaSolveSubspace(model, { seed: 42 });
     const b = qaoaSolveSubspace(model, { seed: 42, angleMode: 'layer' });
-    assert.deepEqual(a, b);
+    assertSameSolution(a, b, '子空间默认 vs layer'); // 05#27：字段级精确比较
     const layerSol = qaoaSolveSubspace(model, { seed: 42, layers: 2 });
     const multiSol = qaoaSolveSubspace(model, { seed: 42, layers: 2, angleMode: 'multi' });
     assert.ok(
@@ -143,7 +209,7 @@ describe('ma-QAOA · 接入与不变量', () => {
     const opts = { layers: 1, seed: 42, angleMode: 'multi' as const, cvarAlpha: 0.1 };
     const a = qaoaSolve(problem, opts);
     const b = qaoaSolve(problem, opts);
-    assert.deepEqual(a, b);
+    assertSameSolution(a, b, 'multi+CVaR 重入'); // 05#27：字段级精确比较
     const info = computeEnergies(problem);
     assert.ok(a.expectation >= info.min - 1e-6 && a.expectation <= info.max + 1e-6);
     assert.ok(a.welfare <= bruteForceOptimum(problem).welfare + 1e-9);
@@ -162,6 +228,8 @@ describe('ma-QAOA · 诚实基准', () => {
     let multiHits = 0;
     let multiWins = 0;
     let layerWins = 0;
+    // 05#26：逐种子配对记录——聚合断言失败时给出最差种子的明细
+    const perSeed: Array<{ seed: number; layerGap: number; multiGap: number }> = [];
     for (let i = 0; i < seeds; i++) {
       const rng = mulberry32(7000 + i * 13);
       const problem = coupledProblem(rng, m, n, 0.15);
@@ -186,6 +254,7 @@ describe('ma-QAOA · 诚实基准', () => {
       if (gm < 1e-9) multiHits++;
       if (gm < gl - 1e-12) multiWins++;
       else if (gm > gl + 1e-12) layerWins++;
+      perSeed.push({ seed: 7000 + i * 13, layerGap: gl, multiGap: gm });
     }
     return {
       layerGap: layerGap / seeds,
@@ -194,23 +263,48 @@ describe('ma-QAOA · 诚实基准', () => {
       multiHits,
       multiWins,
       layerWins,
+      perSeed,
     };
+  }
+
+  /** 05#26：失败诊断——multi 相对 layer 退化最严重的 10 个种子 */
+  function worstGaps(r: {
+    perSeed: Array<{ seed: number; layerGap: number; multiGap: number }>;
+  }): string {
+    return r.perSeed
+      .slice()
+      .sort((x, y) => y.multiGap - y.layerGap - (x.multiGap - x.layerGap))
+      .slice(0, 10)
+      .map((p) => `seed${p.seed}: layer=${p.layerGap.toFixed(4)} multi=${p.multiGap.toFixed(4)}`)
+      .join('; ');
   }
 
   it('子空间 6×6 p=1：命中率与平均差距大幅改善，配对占优', () => {
     const r = subspaceBattery(6, 6, 1, 40);
-    assert.ok(r.multiHits > r.layerHits, `命中 ${r.multiHits} 应 > ${r.layerHits}`);
+    assert.ok(
+      r.multiHits > r.layerHits,
+      `命中 ${r.multiHits} 应 > ${r.layerHits}; 最差种子 ${worstGaps(r)}`,
+    );
     assert.ok(
       r.multiGap < r.layerGap * 0.7,
-      `差距应降 ≥30%：${r.multiGap.toFixed(4)} vs ${r.layerGap.toFixed(4)}`,
+      `差距应降 ≥30%：${r.multiGap.toFixed(4)} vs ${r.layerGap.toFixed(4)}; 最差种子 ${worstGaps(r)}`,
     );
-    assert.ok(r.multiWins > r.layerWins, `配对 ${r.multiWins}:${r.layerWins} 应占优`);
+    assert.ok(
+      r.multiWins > r.layerWins,
+      `配对 ${r.multiWins}:${r.layerWins} 应占优; 最差种子 ${worstGaps(r)}`,
+    );
   });
 
   it('子空间 6×6 p=2：同向（增益随结构稳健）', () => {
     const r = subspaceBattery(6, 6, 2, 40);
-    assert.ok(r.multiHits > r.layerHits, `命中 ${r.multiHits} 应 > ${r.layerHits}`);
-    assert.ok(r.multiGap < r.layerGap, `差距 ${r.multiGap.toFixed(4)} < ${r.layerGap.toFixed(4)}`);
+    assert.ok(
+      r.multiHits > r.layerHits,
+      `命中 ${r.multiHits} 应 > ${r.layerHits}; 最差种子 ${worstGaps(r)}`,
+    );
+    assert.ok(
+      r.multiGap < r.layerGap,
+      `差距 ${r.multiGap.toFixed(4)} < ${r.layerGap.toFixed(4)}; 最差种子 ${worstGaps(r)}`,
+    );
   });
 
   it('全空间 p=1：standalone multi 对 welfare 无退步（坍缩不继承单调性，实测整体不劣）', () => {

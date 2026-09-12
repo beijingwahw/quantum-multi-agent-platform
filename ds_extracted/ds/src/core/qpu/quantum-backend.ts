@@ -43,11 +43,24 @@ export interface QpuSampleSet {
   realHardware: boolean;
 }
 
+/**
+ * Q8：numReads 的两个后端缺省（刻意不统一——语义不同）：
+ * - D-Wave：真机按 shot 计费/限时，100 是 Leap 混合求解器的常规工作点
+ *   （更多 reads 只线性增加费用与排队时长，不改变精确性保证）；
+ * - 本地精确引擎：128 = annealSolveSubspace 的 DEFAULT_SHOTS
+ *   （core/constants.ts），本地零成本，采样只服务于频率统计口径，
+ *   且经 solveAssignmentOnBackend 显式钉住并原样上报 totalReads。
+ * 两处使用点（dwave-backend / solve）统一引用本常量对，禁止再散写字面量。
+ */
+export const DEFAULT_NUM_READS_DWAVE = 100;
+export const DEFAULT_NUM_READS_LOCAL_EXACT = 128;
+
 export interface QpuSolveOptions {
   /**
-   * 采样次数。缺省依后端而定（不是统一值）：D-Wave 提交参数 100；
-   * 本地精确引擎 128（annealSolveSubspace 的 DEFAULT_SHOTS，经
-   * solveAssignmentOnBackend 显式钉住并原样上报 totalReads）。
+   * 采样次数。缺省依后端而定（不是统一值）：D-Wave 提交
+   * DEFAULT_NUM_READS_DWAVE；本地精确引擎 DEFAULT_NUM_READS_LOCAL_EXACT
+   * （annealSolveSubspace 的 DEFAULT_SHOTS，经 solveAssignmentOnBackend
+   * 显式钉住并原样上报 totalReads）。取值差异的理由见上方常量注释。
    */
   numReads?: number;
   /** 轮询超时毫秒（异步求解器，默认 60_000） */
@@ -84,7 +97,12 @@ export class LocalQuantumBackend implements QuantumBackend {
   readonly name = 'local-subspace';
   readonly realHardware = false;
 
-  constructor(private readonly annealParams: { tau?: number; steps?: number } = {}) {}
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  private readonly annealParams: { tau?: number; steps?: number };
+
+  constructor(annealParams: { tau?: number; steps?: number } = {}) {
+    this.annealParams = annealParams;
+  }
 
   isAvailable(): boolean {
     return true; // 纯本地计算，恒可用
@@ -137,6 +155,14 @@ export function registerBackend(backend: QuantumBackend): void {
   registry.set(backend.name, backend);
 }
 
+/**
+ * 注销命名后端（05#20：注册表此前只进不出，测试注册的临时后端只能
+ * 靠同名覆盖清理）。返回是否确有该项被移除（不存在则 false）。
+ */
+export function unregisterBackend(name: string): boolean {
+  return registry.delete(name);
+}
+
 export function getBackend(name?: string): QuantumBackend {
   if (name) {
     const backend = registry.get(name);
@@ -164,5 +190,11 @@ export function listBackends(): Array<{ name: string; realHardware: boolean; ava
   }));
 }
 
-// 注册默认本地后端（D-Wave 后端在 dwave-backend.ts 中按需注册）
-registerBackend(new LocalQuantumBackend());
+/**
+ * 注册默认本地后端（Q6：从模块顶层移入此函数——导入必须零副作用，
+ * 与仓库文档的注册哲学一致）。唯一刻意调用点是 qpu/index.ts 桶；
+ * 绕过桶直接使用量子后端的代码不隐式获得任何注册。
+ */
+export function registerLocalDefaults(): void {
+  registerBackend(new LocalQuantumBackend());
+}

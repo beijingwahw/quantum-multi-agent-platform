@@ -5,7 +5,7 @@
 > 🇬🇧 **English version**: [README.en.md](./README.en.md)（图内文字为中文，图注附英文关键词）
 
 ![version](https://img.shields.io/badge/version-1.12.0-blue)
-![tests](https://img.shields.io/badge/tests-639-brightgreen)
+![tests](https://img.shields.io/badge/tests-687-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -29,7 +29,7 @@
 | 🧠 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
 | 📊 | [基准与性能](#-基准与性能) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | 🚀 | [快速开始](#-快速开始) | 十条命令 + 代码示例 |
-| 🧪 | [测试与质量](#-测试与质量) | 639 用例 · 六门禁 · 覆盖率棘轮 |
+| 🧪 | [测试与质量](#-测试与质量) | 687 用例 · 六门禁 · 覆盖率棘轮 |
 | 📁 | [目录结构](#-目录结构) | 含图集生成器 |
 | 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.12 |
 | ⚠️ | [诚实的边界](#️-诚实的边界) | 等效≠真机 · 组合爆炸 · 热路径 |
@@ -253,7 +253,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 639 用例 · 0 失败
+npm test                # 687 用例 · 0 失败
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/DSH 工具调用）
@@ -297,7 +297,7 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 ## 🧪 测试与质量
 
-**639 用例 · 0 失败 · 63 个测试文件 / 193 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
+**687 用例 · 0 失败 · 65 个测试文件 / 207 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](docs/diagrams/16-quality.png)
 
@@ -308,17 +308,17 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | `subspace-parallel.test.ts` | 11 | **并行=串行逐位一致** · 跨运行确定性 · 大维度最优 · 禁用回退 |
 | `classical-baselines.test.ts` | 5 | **量子×匈牙利逐点一致** · 多轮调度 · 超维回退 |
 | `qpu-backend.test.ts` | 12 | D-Wave 客户端**真实 HTTP 往返**(stub) · 双格式解析 · 轮询 · 调度器异步入口 |
-| qiskit-selfcheck · qpu-crossval-smoke | 5 | Qiskit 导出自检 · QPU 跨验证冒烟 |
+| qiskit-selfcheck · qpu-crossval-smoke | 8 | Qiskit 导出自检 · QPU 跨验证冒烟 |
 | CVaR / ma-QAOA（v1.9/v1.10） | 22 | CVaR 数学性质 · ma-QAOA 支配定理 · 位级等价 |
 | execution-tier（v1.11 FTQC） | 14 | 资源估算数值内核 · 三态路由 · 接缝行为 |
 | twin-convergence（v1.12 单源化） | 13 | 孪生收敛对拍 · 引擎级位同构回放 · 独立算法互证 |
-| `security-hardening.test.ts` | 23 | 命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归 |
-| 调度/管理/通信/平台/控制台 | 50 | 平台全链路回归 · 控制台协议端到端 |
-| DSH / 主动智能 | 35 | DSH 集成 · 插件全量 + 冒烟 |
-| 市场机制（CompoundBrain/VCG/增长市场/相变） | 62 | DSIC · 校准 · 定律验证 |
-| 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils） | 202 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 |
-| tests/ 子目录（bench·mutation·sched-bench） | 36 | 基准诚实性 · 变异杀死 · 基准错误面负对照 |
-| **全套** | **639** | **63 个测试文件 / 193 个套件 · 0 失败** |
+| `security-hardening.test.ts` | 24 | 命令注入 · 沙箱逃逸 · 原型污染 · 引擎回归 · junction 穿越 |
+| 调度/管理/通信/平台/控制台 | 48 | 平台全链路回归 · 控制台协议端到端（R10 拆分后委托不变式钉板） |
+| DSH / 主动智能 | 36 | DSH 集成 · 插件全量 + 冒烟 · 容量边界（05#16） |
+| 市场机制（CompoundBrain/VCG/增长市场/相变） | 87 | DSIC · 校准 · 定律验证 · 模拟器分离（08#11）· 守恒不变量（05#7） |
+| 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts） | 331 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） |
+| tests/ 子目录（bench·mutation·sched-bench） | 46 | 基准诚实性 · 变异杀死 · 基准错误面负对照 |
+| **全套** | **687** | **65 个测试文件 / 207 个套件 · 0 失败** |
 
 （表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
@@ -330,7 +330,7 @@ npm run lint      # ESLint 0 错误（类型感知 strict 集：no-floating-prom
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
 npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖（唯一既定发现：index.ts 的同名 named+default 双导出，为兼容 import X from 的刻意 API）
-npm test          # 639 用例 · 0 失败 ✅
+npm test          # 687 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -381,7 +381,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            # 测试套件（63 文件 / 639 用例）
+├── tests/                            # 测试套件（65 文件 / 687 用例）
 ├── docs/diagrams/                    # 🎨 README 原理图集 + generate.py 生成器
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）

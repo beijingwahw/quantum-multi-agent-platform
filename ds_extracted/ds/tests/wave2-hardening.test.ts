@@ -45,6 +45,19 @@ describe('Wave 2 收尾 · 重复注册拒绝（01#14）', () => {
         err instanceof SchedulingError && err.message.includes('already registered'),
     );
   });
+
+  it('01#14 收尾：注销 agent 时清扫其余 agent 纠缠数组中的悬挂引用', () => {
+    const scheduler = new QuantumScheduler({});
+    const a1 = makeAgent('a1', ['js'], { entanglement: ['a2'] });
+    const a2 = makeAgent('a2', ['js'], { entanglement: ['a1'] });
+    scheduler.registerAgent(a1);
+    scheduler.registerAgent(a2);
+    assert.ok(a1.quantumEntanglement.includes('a2'));
+
+    scheduler.unregisterAgent('a2');
+    assert.ok(!a1.quantumEntanglement.includes('a2'), '对端数组的悬挂 id 必须出清');
+    assert.deepEqual(a1.quantumEntanglement, []);
+  });
 });
 
 describe('Wave 2 收尾 · 依赖数组别名隔离（01#6）', () => {
@@ -97,9 +110,11 @@ describe('Wave 2 收尾 · 挂起任务 TTL（01#5）', () => {
     assert.equal(scheduler.getSystemMetrics().pendingTasks, 0);
   });
 
-  it('默认关闭：无 pendingTimeoutMs 配置时任务保持 pending（长依赖链语义保留）', async () => {
+  it('0 显式关闭：pendingTimeoutMs=0 时任务保持 pending（长依赖链语义保留）', async () => {
+    // 01#5 收尾：缺省 TTL 已改为 DEFAULT_PENDING_TIMEOUT_MS（10 分钟），
+    // 关闭必须经显式 0 表达——本用例锚定 opt-out 契约
     const scheduler = new QuantumScheduler({
-      scheduling: { autoSchedule: false, sweepInterval: 25 },
+      scheduling: { autoSchedule: false, sweepInterval: 25, pendingTimeoutMs: 0 },
     });
     scheduler.registerAgent(makeAgent('a1', ['python']));
     const task = scheduler.submitTask(makeTask('T1', 'javascript'));

@@ -43,6 +43,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { Worker } from 'node:worker_threads';
 import WebSocket from 'ws';
 
 import {
@@ -63,6 +64,7 @@ import {
 } from '../../src/core/subspace-optimizer.js';
 import { QuantumBus } from '../../src/communication/quantum-bus.js';
 import QuantumMultiAgentPlatform from '../../src/index.js';
+import type { DeepPartial } from '../../src/index.js';
 import { reviveDate, reviveDateRequired } from '../../src/types/quantum-types.js';
 import type { QuantumMessage } from '../../src/types/quantum-types.js';
 import { DateValidationError, PlatformError } from '../../src/utils/errors.js';
@@ -539,5 +541,211 @@ describe('A3#10 Date 字段 DTO 复活', () => {
     const revived = reviveDateRequired(wire.timestamp as string, 'timestamp');
     assert.ok(revived instanceof Date);
     assert.equal(revived.getTime(), msg.timestamp.getTime(), '复活后时刻逐毫秒一致');
+  });
+});
+
+// ----------------------------------------------------------------------------
+// R10 收口批（subspace-optimizer / subspace-parallel / index 公开面）
+// ----------------------------------------------------------------------------
+
+describe('R10 · subspace-optimizer / index 收口', () => {
+  it('08#25: memoryBudgetBytes——预算不足一态即 null；充足预算与无预算逐位一致', () => {
+    const problem = makeProblem(3, 5); // P(5,3)=60 维；每态字节 = 4·3+8+8+8·3 = 52
+    // 预算 < 每基态字节数 → floor(budget/bytesPerState)=0 → 与维度超限同路 null
+    const tiny = buildSubspaceModel(problem, { memoryBudgetBytes: 10 });
+    assert.equal(tiny, null, '预算不足一态应返回 null');
+
+    // 非有限/负预算显式判退（NaN 与比较恒 false，不得静默绕过上限）
+    assert.equal(buildSubspaceModel(problem, { memoryBudgetBytes: Number.NaN }), null);
+    assert.equal(buildSubspaceModel(problem, { memoryBudgetBytes: -1 }), null);
+
+    // 恰好容纳全部 60 态（60×52=3120B）：正常构建
+    const exactFit = buildSubspaceModel(problem, { memoryBudgetBytes: 60 * 52 });
+    assert.ok(exactFit, '精确预算应可构建');
+    const plain = buildSubspaceModel(problem);
+    assert.ok(plain);
+    assert.equal(exactFit.dimension, plain.dimension);
+    for (let s = 0; s < plain.dimension; s++) {
+      assert.ok(exactFit.energies[s] === plain.energies[s], `预算充足时 energies[${s}] 逐位一致`);
+    }
+
+    // 富余预算：固定 seed 的退火解与无预算逐位一致（位不变性）
+    const generous = buildSubspaceModel(problem, { memoryBudgetBytes: 1 << 20 });
+    assert.ok(generous);
+    const opts = { seed: 7, anneal: { tau: 20, steps: 150 } } as const;
+    const a = annealSolveSubspace(generous, opts);
+    const b = annealSolveSubspace(plain, opts);
+    assert.deepEqual(a.assignment, b.assignment, '退火分配逐位一致');
+    assert.ok(a.welfare === b.welfare, '福利逐位一致');
+    assert.ok(a.expectation === b.expectation, '期望读数逐位一致');
+  });
+
+  it('08#28: 谱宽实际 fiber 估计——无掩码与旧上界逐值相等；掩码收紧后仍命中最优', () => {
+    // 无掩码 4×6：每移动纤维恰 n−m+1=3 元素 ⇒ Σ(k_max−1) = m·(n−m) = 8，
+    // 与旧公式逐值相等——全部既有（无掩码）退火数值因此不动
+    const unmasked = buildSubspaceModel(makeProblem(4, 6))!;
+    let sum = 0;
+    for (const g of unmasked.mixers) {
+      let maxRun = 1;
+      for (let i = 0; i + 1 < g.runs.length; i += 2) {
+        maxRun = Math.max(maxRun, g.runs[i + 1]! - g.runs[i]!);
+      }
+      sum += maxRun - 1;
+    }
+    assert.equal(sum, 4 * (6 - 4), '无掩码：实际 fiber 估计 === 旧 m·(n−m) 上界');
+
+    // 掩码切断纤维（t0 仅可选 a0 ⇒ move-t0 纤维全退化，贡献 0）：
+    // 实际估计严格小于旧界（归一化收紧），退火仍须命中最优
+    const maskedProblem = makeProblem(4, 6);
+    maskedProblem.ineligible[0] = [false, true, true, true, true, true];
+    const masked = buildSubspaceModel(maskedProblem)!;
+    let maskedSum = 0;
+    for (const g of masked.mixers) {
+      let maxRun = 1;
+      for (let i = 0; i + 1 < g.runs.length; i += 2) {
+        maxRun = Math.max(maxRun, g.runs[i + 1]! - g.runs[i]!);
+      }
+      maskedSum += maxRun - 1;
+    }
+    assert.ok(maskedSum < 4 * (6 - 4), `掩码收紧谱宽：${maskedSum} < ${8}`);
+    const sol = annealSolveSubspace(masked, {
+      anneal: { tau: 20, steps: 150 },
+      select: 'shots-best',
+      shots: 512,
+    });
+    assert.ok(
+      Math.abs(sol.optimalityRatio - 1) < 1e-9,
+      `收紧归一化下仍命中最优，ratio=${sol.optimalityRatio}`,
+    );
+  });
+
+  it('08#35: 关闭票唤醒等待中的 Worker 自行退出（无需 terminate 强杀）', async () => {
+    const { workerSource } = await import('../../src/core/subspace-parallel.js');
+    // header 布局镜像 subspace-parallel：OP=0, SEQ=2, WAITING=5
+    const header = new SharedArrayBuffer(64);
+    const H = new Int32Array(header);
+    const dim = 8;
+    const ampBuf = () => new SharedArrayBuffer(dim * 8);
+    const emptyGroup = {
+      order: { buf: new SharedArrayBuffer(dim * 4), off: 0, len: 0 },
+      runs: { buf: new SharedArrayBuffer(dim * 4), off: 0, len: 0 },
+    };
+    const w = new Worker(workerSource(), { eval: true });
+    w.unref();
+    const exited = new Promise<number>((resolve) => {
+      w.on('exit', (code: number) => resolve(code));
+    });
+    w.postMessage({
+      type: 'init',
+      header,
+      re: ampBuf(),
+      im: ampBuf(),
+      phRe: ampBuf(),
+      phIm: ampBuf(),
+      zRe: ampBuf(),
+      zIm: ampBuf(),
+      dim,
+      workers: 1,
+      rank: 0,
+      groups: [emptyGroup],
+    });
+
+    // 等待 Worker 捕获 SEQ 基线并入栏
+    const readyDeadline = Date.now() + 10_000;
+    while (Atomics.load(H, 5) < 1) {
+      if (Date.now() > readyDeadline) {
+        void w.terminate();
+        assert.fail('Worker 未在预算内入栏');
+      }
+      Atomics.wait(H, 5, Atomics.load(H, 5), 50);
+    }
+
+    // 只发关闭票（abortAll 的唤醒半部）：OP=3 + SEQ++ + notify——不调用
+    // terminate()。Worker 应被唤醒并自行 process.exit(0)
+    Atomics.store(H, 0, 3);
+    Atomics.store(H, 2, Atomics.load(H, 2) + 1);
+    Atomics.notify(H, 2, Infinity);
+
+    const code = await Promise.race([
+      exited,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('关闭票未唤醒 Worker（5s）')), 5_000).unref(),
+      ),
+    ]);
+    assert.equal(code, 0, 'Worker 依靠关闭票自行退出且退出码为 0');
+  });
+
+  it('08#54: getSystemMetrics 携带 collectedAt 采集时刻（additive，既有字段全部保留）', () => {
+    const platform = new QuantumMultiAgentPlatform({ communication: { port: 0 } });
+    try {
+      const m = platform.getSystemMetrics();
+      assert.equal(typeof m.collectedAt, 'string', 'collectedAt 为 ISO 字符串');
+      const t = Date.parse(m.collectedAt);
+      assert.ok(Number.isFinite(t), '可解析的 ISO-8601');
+      assert.ok(Math.abs(Date.now() - t) < 60_000, '采集时刻为当前时间附近');
+      // 既有五组件子报告原样保留
+      assert.ok(m.scheduler && m.agents && m.bus && m.dsh && m.health);
+    } finally {
+      platform.dispose();
+    }
+  });
+
+  it('08#49: submit_task requirements——合法透传、畸形走 console error 路径拒绝', () => {
+    const platform = new QuantumMultiAgentPlatform({ communication: { port: 0 } });
+    try {
+      platform.registerAgent({ name: 'runner', type: 'custom', capabilities: ['js'] });
+
+      // 合法 requirements：透传到任务（不再硬编码 []）
+      platform.quantumBus.emit('console_command', {
+        action: 'submit_task',
+        payload: {
+          name: 'Req Task',
+          requirements: [{ type: 'capability', name: 'js', value: null, weight: 1 }],
+        },
+      });
+      const task = platform.getTasks().find((t) => t.name === 'Req Task');
+      assert.ok(task, '合法 requirements 应创建任务');
+      assert.deepEqual(task.requirements, [
+        { type: 'capability', name: 'js', value: null, weight: 1 },
+      ]);
+
+      // 非实现的需求类型（调度器对 resource 提交期拒绝，控制台同口径）
+      platform.quantumBus.emit('console_command', {
+        action: 'submit_task',
+        payload: { name: 'Bad Type', requirements: [{ type: 'resource', name: 'gpu', weight: 1 }] },
+      });
+      // 非数组载荷
+      platform.quantumBus.emit('console_command', {
+        action: 'submit_task',
+        payload: { name: 'Bad Shape', requirements: 'js' },
+      });
+      // 半指定元素（缺 name/weight）
+      platform.quantumBus.emit('console_command', {
+        action: 'submit_task',
+        payload: { name: 'Bad Element', requirements: [{ type: 'capability' }] },
+      });
+      for (const bad of ['Bad Type', 'Bad Shape', 'Bad Element']) {
+        assert.ok(
+          !platform.getTasks().some((t) => t.name === bad),
+          `${bad}：畸形 requirements 不得创建任务（console error 路径拒绝）`,
+        );
+      }
+      assert.ok(!platform.quantumBus.isStarted(), '平台未启动（emit 直驱句柄）');
+    } finally {
+      platform.dispose();
+    }
+  });
+
+  it('08#51: DeepPartial 数组元素必须完整（类型级锚定——数组整体替换语义）', () => {
+    type ProbeConfig = { reqs: Array<{ type: string; name: string; weight: number }> };
+    // @ts-expect-error 半指定数组元素不再被接受：deepMerge 对数组整体替换，
+    // 元素不会被合并补全（08#51 强化的正是这条静默垃圾通道）
+    const partialElement: DeepPartial<ProbeConfig> = { reqs: [{ type: 'capability' }] };
+    const completeElement: DeepPartial<ProbeConfig> = {
+      reqs: [{ type: 'capability', name: 'js', weight: 1 }],
+    };
+    assert.ok(Array.isArray(completeElement.reqs) && completeElement.reqs.length === 1);
+    // 运行时佐证：被拒载荷本身仍是「数组整体替换」语义下的原样透传对象
+    assert.deepEqual(partialElement.reqs, [{ type: 'capability' }]);
   });
 });

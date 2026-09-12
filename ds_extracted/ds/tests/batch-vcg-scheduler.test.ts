@@ -6,6 +6,9 @@ import {
   type BatchAgentSpec,
 } from '../src/core/batch-vcg-scheduler.js';
 import { MechanismError } from '../src/utils/errors.js';
+// 05#22：本地 mulberry32 副本与 src/utils/rng.ts 逐位同算法（含种子推进
+// 次序，仅 OR 操作数书写顺序不同），收敛到平台唯一实现——种子流不变
+import { mulberry32 } from '../src/utils/rng.js';
 
 /**
  * 理论预测实例（全部手工推导，见各 test 注释）。
@@ -53,6 +56,27 @@ describe('BatchVCGScheduler · 替代效应：批量 vs 短视', () => {
     // 两种方式分配本身都是最优的（此处差异纯粹在定价）
     assert.equal(batch.welfare, 8);
     assert.equal(myopic.welfare, 8);
+
+    // 05#7：把注释里的手工推导升格为程序化不变量（机制输出自身核账）
+    const V = BASE.successValue * BASE.priorQuality; // 无资历估值 v = 10×0.5 = 5
+    // (a) 支付守恒：Σp + platformTake = Σ中标格真实估值（本批两单 → 2v）
+    for (const alloc of [batch, myopic] as const) {
+      const paymentSum = Object.values(alloc.payments).reduce((sum, p) => sum + p, 0);
+      assert.ok(
+        Math.abs(paymentSum + alloc.platformTake - V * alloc.assignments.length) < 1e-9,
+        `支付守恒破裂：Σp(${paymentSum}) + take(${alloc.platformTake}) ` +
+          `≠ Σv(${V * alloc.assignments.length})`,
+      );
+    }
+    // (b) VCG 分解：p_w = b_w·k_w + Clarke 外部性（W* − W*_{−w}）。
+    //     W* = batch.welfare = 8；W*_{−w}：仅剩 j（容量 1、成本 3）只得一单
+    //     = (v−b_j)·1 = 2；b_w = 1（如实报价），k_w 由分配读出
+    const kW = batch.assignments.filter((x) => x.agentId === 'w').length;
+    const clarkExternality = batch.welfare - (V - 3) * 1;
+    assert.ok(
+      Math.abs(batch.payments['w'] - (1 * kW + clarkExternality)) < 1e-9,
+      `VCG 分解破裂：p_w(${batch.payments['w']}) ≠ b·k(${1 * kW}) + 外部性(${clarkExternality})`,
+    );
   });
 });
 
@@ -151,16 +175,6 @@ describe('BatchVCGScheduler · DSIC 实证', () => {
         capacity: 1 + Math.floor(rng() * 3),
       };
     });
-  }
-
-  function mulberry32(seed: number): () => number {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
   }
 
   /** 预算不紧：精确批量 VCG，任何虚报收益 ≤ 1e-6 */
@@ -408,16 +422,6 @@ describe('BatchVCGScheduler · 公开乘子随机实例 DSIC 实证证书', () =
         capacity: 1 + Math.floor(rng() * 3),
       };
     });
-  }
-
-  function mulberry32(seed: number): () => number {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
   }
 
   /**

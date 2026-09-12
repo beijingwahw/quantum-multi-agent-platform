@@ -24,12 +24,12 @@ export class PlatformError extends Error {
  * 优先、code 稳定性优先，两者分离后文案演化不再破坏断言）。
  */
 export class SecurityViolationError extends PlatformError {
-  constructor(
-    message: string,
-    readonly code: string,
-    options?: { cause?: unknown },
-  ) {
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  readonly code: string;
+
+  constructor(message: string, code: string, options?: { cause?: unknown }) {
     super(message, options);
+    this.code = code;
   }
 }
 
@@ -62,12 +62,12 @@ export class QuantumEstimateError extends PlatformError {}
  * 容错预算内可行），decision 携带完整资源画像供排队方使用。
  */
 export class FtqcDeferredError extends PlatformError {
-  constructor(
-    message: string,
-    readonly decision: ExecutionTierDecision,
-    options?: { cause?: unknown },
-  ) {
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  readonly decision: ExecutionTierDecision;
+
+  constructor(message: string, decision: ExecutionTierDecision, options?: { cause?: unknown }) {
     super(message, options);
+    this.decision = decision;
   }
 }
 

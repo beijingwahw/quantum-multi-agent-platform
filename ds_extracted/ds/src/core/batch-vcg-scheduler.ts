@@ -795,11 +795,15 @@ export class BatchVCGScheduler {
 export class BudgetPacer {
   private mu = 1;
 
-  constructor(
-    private readonly budget: number,
-    private readonly kappa = 0.5,
-    private readonly maxMu = 100,
-  ) {
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  private readonly budget: number;
+  private readonly kappa: number;
+  private readonly maxMu: number;
+
+  constructor(budget: number, kappa = 0.5, maxMu = 100) {
+    this.budget = budget;
+    this.kappa = kappa;
+    this.maxMu = maxMu;
     // NaN 预算会击穿 update() 的 `budget <= 0` 惰性守卫（NaN 比较恒
     // false）→ ratio=NaN → μ 永久 NaN（NaN·anything 不再恢复），下游
     // allocateAffineBatch 只能看到一个不指名来源的 mu 拒绝。κ/maxMu

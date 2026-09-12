@@ -22,6 +22,7 @@ import {
 import { annealSolve, qaoaSolve } from '../src/core/quantum-optimizer.js';
 import type { AssignmentProblem } from '../src/core/quantum-optimizer.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
+import { QuantumEngineError } from '../src/utils/errors.js';
 import { estimateQuality, type MarketAgentRecord } from '../src/core/market-estimation.js';
 import { QuantumBus } from '../src/communication/quantum-bus.js';
 import { DSHIntegration } from '../src/dsh/dsh-integration.js';
@@ -312,20 +313,41 @@ describe('求解器 · 退化参数显式拒绝', () => {
   const problem = tinyProblem();
   const model = buildSubspaceModel(problem);
 
+  /**
+   * 05#12：判别式 = 错误类型（QuantumEngineError）+ 消息指名参数——
+   * 原裸正则（/steps/ 等）会放行任何含该词的 Error，类型契约未被钉住。
+   */
+  const isEngineParamError =
+    (param: string) =>
+    (err: unknown): boolean =>
+      err instanceof QuantumEngineError && err.message.includes(param);
+
   it('annealSolve：steps=0 / tau=0 抛 QuantumEngineError 而非 NaN 静默穿流', () => {
-    assert.throws(() => annealSolve(problem, { anneal: { tau: 20, steps: 0 } }), /steps/);
-    assert.throws(() => annealSolve(problem, { anneal: { tau: 0, steps: 10 } }), /tau/);
+    assert.throws(
+      () => annealSolve(problem, { anneal: { tau: 20, steps: 0 } }),
+      isEngineParamError('steps'),
+    );
+    assert.throws(
+      () => annealSolve(problem, { anneal: { tau: 0, steps: 10 } }),
+      isEngineParamError('tau'),
+    );
   });
 
   it('annealSolveSubspace：同样校验', () => {
     assert.ok(model, '2x2 问题必有子空间模型');
-    assert.throws(() => annealSolveSubspace(model, { anneal: { tau: 5, steps: 0 } }), /steps/);
-    assert.throws(() => annealSolveSubspace(model, { anneal: { tau: -1, steps: 10 } }), /tau/);
+    assert.throws(
+      () => annealSolveSubspace(model, { anneal: { tau: 5, steps: 0 } }),
+      isEngineParamError('steps'),
+    );
+    assert.throws(
+      () => annealSolveSubspace(model, { anneal: { tau: -1, steps: 10 } }),
+      isEngineParamError('tau'),
+    );
   });
 
   it('layers/shots 非正整数拒绝（QAOA 路径）', () => {
-    assert.throws(() => qaoaSolve(problem, { layers: 0 }), /layers/);
-    assert.throws(() => qaoaSolve(problem, { shots: 0 }), /shots/);
+    assert.throws(() => qaoaSolve(problem, { layers: 0 }), isEngineParamError('layers'));
+    assert.throws(() => qaoaSolve(problem, { shots: 0 }), isEngineParamError('shots'));
   });
 });
 

@@ -17,7 +17,7 @@ import type { AssignmentProblem } from '../quantum-optimizer.js';
 import { toIsing, isValidAssignment, welfareOf, bruteForceOptimum } from '../quantum-optimizer.js';
 import { buildSubspaceModel } from '../subspace-optimizer.js';
 import type { QuantumBackend, QpuSolveOptions } from './quantum-backend.js';
-import { LocalQuantumBackend } from './quantum-backend.js';
+import { LocalQuantumBackend, DEFAULT_NUM_READS_LOCAL_EXACT } from './quantum-backend.js';
 import { decideExecutionTier } from './execution-tier.js';
 import type { ExecutionTierDecision } from './execution-tier.js';
 import { BackendError, FtqcDeferredError } from '../../utils/errors.js';
@@ -87,8 +87,9 @@ export async function solveAssignmentOnBackend(
 
   // ---- 本地精确路径 ----
   if (engine instanceof LocalQuantumBackend) {
-    // 显式钉住采样数并原样上报：否则后端默认值(128)与报告值(100)不一致
-    const numReads = options.numReads ?? 128;
+    // 显式钉住采样数并原样上报：否则后端默认值(128)与报告值(100)不一致。
+    // Q8：缺省值引用 quantum-backend.ts 的命名常量（差异理由见其注释）
+    const numReads = options.numReads ?? DEFAULT_NUM_READS_LOCAL_EXACT;
     const solution = await engine.solveProblem(problem, { ...options, numReads });
     const model = buildSubspaceModel(problem);
     return {
@@ -99,8 +100,11 @@ export async function solveAssignmentOnBackend(
       sampleFrequency: solution.probability,
       totalReads: numReads,
       invalidSamples: 0,
-      // exactOptionalPropertyTypes：optimality 仅在可对照时存在
-      ...(model && model.optimalWelfare > 0
+      // exactOptionalPropertyTypes：optimality 仅在可对照时存在。
+      // Q10：optimalWelfare === 0（全零福利问题）此前被 `> 0` 守卫静默
+      // 丢弃——现在纳入。ratio 由子空间引擎的 safeOptimalityRatio 给出
+      // （optimal ≤ 0 退化为二值命中判定：精确引擎命中自身模型最优 → 1）
+      ...(model && model.optimalWelfare >= 0
         ? {
             optimality: {
               achieved: solution.welfare,
@@ -212,10 +216,34 @@ export async function solveAssignmentOnBackend(
     sampleFrequency: best.occurrences / totalOccurrences,
     totalReads: totalOccurrences,
     invalidSamples,
-    ...(optimal !== undefined && optimal > 0
-      ? { optimality: { achieved: best.welfare, optimal, ratio: best.welfare / optimal } }
+    // Q10：optimal === 0（全零福利问题）此前被 `> 0` 守卫静默丢弃，
+    // 最优对照整段缺失。现在纳入；ratio 语义见 optimalityRatioOf。
+    ...(optimal !== undefined && optimal >= 0
+      ? {
+          optimality: {
+            achieved: best.welfare,
+            optimal,
+            ratio: optimalityRatioOf(best.welfare, optimal),
+          },
+        }
       : {}),
     solver: samples.solver,
     ...(decision !== undefined ? { executionTier: decision } : {}),
   };
+}
+
+/**
+ * Q10：optimal === 0 时的最优率语义：
+ * - achieved ≤ 0 → ratio 1：采样命中零最优（全零福利问题的常态），
+ *   与正常域 ratio=achieved/optimal 的极限一致，无病态；
+ * - achieved > 0 → ratio = +Infinity：采样器「超过」零最优只可能意味着
+ *   本地参照不完整/不一致（穷举或子空间枚举漏解）——诚实上报发散值，
+ *   让对照闸门红出来，而不是伪造 1 掩盖参照缺陷。
+ * 下游审计（2026-09）：optimality ratio 仅被单值快照存储与日志格式化
+ * （quantum-scheduler.lastOptimalityRatio / reasoning 模板），不存在对
+ * ratio 求均值的聚合点，Infinity 不会污染任何统计口径。
+ */
+function optimalityRatioOf(achieved: number, optimal: number): number {
+  if (optimal > 0) return achieved / optimal;
+  return achieved <= 0 ? 1 : Number.POSITIVE_INFINITY;
 }

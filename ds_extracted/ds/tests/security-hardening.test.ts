@@ -19,6 +19,7 @@ import {
   resetCommandPolicy,
 } from '../src/tools/system-tools.js';
 import QuantumMultiAgentPlatform from '../src/index.js';
+import { SecurityViolationError } from '../src/utils/errors.js';
 import {
   computeEnergies,
   annealSolve,
@@ -65,16 +66,20 @@ describe('工具面安全加固', () => {
     );
   });
 
-  it('read_file 拒绝指向沙箱外的符号链接', async () => {
+  it('read_file 拒绝指向沙箱外的符号链接', async (t) => {
     const { symlink, unlink } = await import('node:fs/promises');
     const os = await import('node:os');
     const { join } = await import('node:path');
     const outside = join(os.tmpdir(), 'sandbox-escape-target.txt');
-    // 无开发者模式的 Windows 无法创建符号链接；创建失败则本用例自动跳过
+    // 05#3：创建失败（如无开发者模式的 Windows 缺少符号链接特权）必须
+    // 显式 skip——静默 return 会让用例在报表里伪装成"通过"
     const created = await symlink(outside, 'escape-link.txt', 'file')
       .then(() => true)
       .catch(() => false);
-    if (!created) return;
+    if (!created) {
+      t.skip('symlink privilege unavailable (Windows developer mode off)');
+      return;
+    }
     try {
       await assert.rejects(() => read_file('escape-link.txt'), /escapes the filesystem sandbox/);
     } finally {
@@ -82,13 +87,56 @@ describe('工具面安全加固', () => {
     }
   });
 
-  it('execute_command 拒绝 shell 元字符（命令注入）', async () => {
-    await assert.rejects(() => execute_command('echo hello; del /q *'), /metacharacter/i);
-    await assert.rejects(
-      () => execute_command('npm test && curl http://evil.example'),
-      /metacharacter/i,
-    );
-    await assert.rejects(() => execute_command('echo $(whoami)'), /metacharacter/i);
+  it('read_file 拒绝指向沙箱外的 junction（Windows 无特权替代路径）', async (t) => {
+    // 05#3：junction 的创建不需要符号链接特权——symlink 用例被跳过的
+    // Windows 环境仍能验证同一沙箱逃逸属性（realpath 同样解引用 junction）
+    if (process.platform !== 'win32') {
+      t.skip('junction reparse points only exist on Windows');
+      return;
+    }
+    const { symlink, rm, mkdir, writeFile } = await import('node:fs/promises');
+    const os = await import('node:os');
+    const { join } = await import('node:path');
+    const outsideDir = join(os.tmpdir(), 'sandbox-escape-dir-r10');
+    await mkdir(outsideDir, { recursive: true });
+    await writeFile(join(outsideDir, 'secret.txt'), 'outside');
+    // junction 要求绝对目录目标；创建失败同样显式跳过而非静默通过
+    const created = await symlink(outsideDir, 'escape-junction', 'junction')
+      .then(() => true)
+      .catch(() => false);
+    if (!created) {
+      t.skip('junction creation unavailable');
+      return;
+    }
+    try {
+      await assert.rejects(
+        () => read_file(join('escape-junction', 'secret.txt')),
+        /escapes the filesystem sandbox/,
+      );
+    } finally {
+      // rm 对 junction 只删链接本身，不触碰目标目录内容
+      await rm('escape-junction', { force: true, recursive: true }).catch(() => {});
+      await rm(outsideDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it('execute_command 拒绝 shell 元字符（命令注入，code=POLICY_METACHAR）', async () => {
+    // 05#4：结构化判别——instanceof SecurityViolationError + 稳定 code，
+    // 文案仍保留人类可读断言（code 是稳定契约，文案可演化）
+    for (const cmd of [
+      'echo hello; del /q *',
+      'npm test && curl http://evil.example',
+      'echo $(whoami)',
+    ]) {
+      await assert.rejects(
+        () => execute_command(cmd),
+        (err: unknown) =>
+          err instanceof SecurityViolationError &&
+          err.code === 'POLICY_METACHAR' &&
+          /metacharacter/i.test(err.message),
+        `命令应被 coded 元字符闸门拒绝: ${cmd}`,
+      );
+    }
   });
 
   it('execute_command 拒绝 token 内的引号与 %（跨平台引号语义错配）', async () => {
@@ -122,9 +170,17 @@ describe('工具面安全加固', () => {
   });
 
   it('默认白名单不含解释器/包管理器（node -e 载荷无需元字符即可 RCE）', async () => {
-    await assert.rejects(() => execute_command('node -v'), /not in the allowed list/);
-    await assert.rejects(() => execute_command('npx some-package'), /not in the allowed list/);
-    await assert.rejects(() => execute_command('npm install evil-pkg'), /not in the allowed list/);
+    // 05#4：与元字符闸门同口径的 coded 断言（code=POLICY_PROGRAM_NOT_ALLOWED）
+    for (const cmd of ['node -v', 'npx some-package', 'npm install evil-pkg']) {
+      await assert.rejects(
+        () => execute_command(cmd),
+        (err: unknown) =>
+          err instanceof SecurityViolationError &&
+          err.code === 'POLICY_PROGRAM_NOT_ALLOWED' &&
+          err.message.includes('not in the allowed list'),
+        `解释器/包管理器应被 coded 白名单闸门拒绝: ${cmd}`,
+      );
+    }
   });
 
   it('解释器内联代码旗标被无条件拒绝（即便宿主显式开启解释器）', async () => {

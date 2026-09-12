@@ -34,13 +34,20 @@ describe('proactive-intelligence · Bug 修复回归', () => {
     );
     await plugin.start();
 
-    // data.value = 85 > 80 → 应触发（decision_made 由 engine 发出）
-    plugin.getEngine().on('decision_made', (d: any) => {
-      assert.ok(d.triggeredRules.includes('r'), '规则应被触发');
+    // data.value = 85 > 80 → 应触发（decision_made 由 engine 发出）。
+    // 05#6 remainder：回调内直接断言依赖「监听器同步先行」的隐式时序，
+    // 失败时栈点在 emit 处而非测试主线——先收集后断言（flush 收尾后判读）。
+    const decisions: string[][] = [];
+    plugin.getEngine().on('decision_made', (d: { triggeredRules: string[] }) => {
+      decisions.push(d.triggeredRules);
     });
 
     plugin.observe({ type: 'test', source: 's', data: { value: 85 }, severity: 'info' });
     await plugin.flush();
+    assert.ok(
+      decisions.some((rules) => rules.includes('r')),
+      '规则应被触发',
+    );
 
     const hist = plugin.getExecutor().getExecutionHistory();
     assert.ok(
@@ -411,5 +418,45 @@ describe('GrowthSchedulerBrain · 单元', () => {
 
     // 未知任务结算返回 false
     assert.equal(brain.settleTask('nonexistent', true), false);
+  });
+
+  /**
+   * 05#16：能力边界（capacity boundary）测试。
+   * 先读契约再定断言：GrowthSchedulerBrain/GrowthMarketScheduler 并无
+   * 「在途任务容量」概念——openTasks 只受 TTL 清扫约束，单一 agent 可
+   * 连续承接任意多单，因此「capacity=1 的 agent 第二单被拒」并非文档化
+   * 行为，不得发明。文档化的边界是 submitTask 的 null 契约（brain.ts
+   * JSDoc「无可行赢家（无人具备能力或估值不抵报价）时返回 null」）：
+   * 单一能力（capacity=1 种能力）的 agent，能力内首单得到分配，
+   * 越界能力的第二单不被分配（null）——本测试钉住该文档化语义。
+   */
+  it('能力边界：仅具单一能力的 agent，越界任务不被分配（null 契约）', () => {
+    const brain = new GrowthSchedulerBrain({ seed: 3 });
+    brain.registerAgent({
+      id: 'solo',
+      capabilities: ['X'],
+      trueCost: 0.5,
+      trueQuality: { X: 0.9 },
+    });
+
+    const first = brain.submitTask('X');
+    assert.ok(first, '能力内的首单应被分配');
+    assert.equal(first.winnerId, 'solo');
+
+    // 越界能力：无人具备 → 无可行赢家 → null（非错误、非排队、非强制分配）
+    assert.equal(brain.submitTask('Y'), null, '能力外的任务不得被分配');
+
+    // 文档化语义的另一半：能力内可继续承接（无在途容量上限）
+    assert.ok(brain.submitTask('X'), '能力内第二单照常分配（无在途容量上限）');
+
+    // 免费处置边界：估值不抵报价（成本远超社会价值）→ null 而非倒贴分配
+    const pricey = new GrowthSchedulerBrain({ seed: 3 });
+    pricey.registerAgent({
+      id: 'dear',
+      capabilities: ['Z'],
+      trueCost: 1e9,
+      trueQuality: { Z: 0.9 },
+    });
+    assert.equal(pricey.submitTask('Z'), null, '估值不抵报价 → 弃标返回 null');
   });
 });

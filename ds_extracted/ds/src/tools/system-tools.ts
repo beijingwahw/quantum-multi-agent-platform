@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { stat } from 'fs/promises';
 import { resolve, sep } from 'path';
-import { ToolError } from '../utils/errors.js';
+import { ToolError, SecurityViolationError } from '../utils/errors.js';
 
 /**
  * 命令执行策略：execute_command 的输入来自不可信任的调用方（DSH 工具面
@@ -29,6 +29,10 @@ import { ToolError } from '../utils/errors.js';
  *    类内联代码旗标仍然被无条件拒绝（见 INLINE_EXEC_FLAGS）：白名单宿主
  *    预期的是 `node script.js`，而非 `node -e <任意代码>`；git 的 `-c`
  *    同理（alias.`!<命令>` 等价于任意执行）。
+ *
+ * 闸门 1/2 的拒绝以 SecurityViolationError + 稳定 code 暴露
+ * （POLICY_PROGRAM_NOT_ALLOWED / POLICY_METACHAR，05#4）：测试与监控
+ * 断言 code 而非文案（文案可读性演化不破坏断言，见 errors.ts 契约）。
  */
 
 export interface CommandPolicy {
@@ -57,6 +61,10 @@ export function configureCommandPolicy(overrides: Partial<CommandPolicy>): void 
 
 // 引号外必须整体拒绝的 shell 控制字符/运算符
 const SHELL_METACHARS = /[;&|<>`\n]|\$\(|\|\|/;
+
+// 安全闸门拒绝的稳定 code（SecurityViolationError.code 的取值契约）
+const POLICY_METACHAR = 'POLICY_METACHAR';
+const POLICY_PROGRAM_NOT_ALLOWED = 'POLICY_PROGRAM_NOT_ALLOWED';
 
 // token 值内禁止出现的字符：引号会破坏重建命令行时的包裹，
 // % 在 cmd.exe 的双引号内仍会发生变量展开，反引号在 POSIX shell 内是命令替换。
@@ -132,7 +140,10 @@ function tokenizeCommand(command: string): string[] {
       continue;
     }
     if (SHELL_METACHARS.test(ch) || (ch === '$' && command[i + 1] === '(')) {
-      throw new ToolError(`Shell metacharacter '${ch}' is not allowed in commands`);
+      throw new SecurityViolationError(
+        `Shell metacharacter '${ch}' is not allowed in commands`,
+        POLICY_METACHAR,
+      );
     }
     if (/\s/.test(ch)) {
       if (hasToken || current.length > 0) {
@@ -156,9 +167,10 @@ function validateProgram(program: string): void {
   }
   const allowed = policy.allowedPrograms.some((p) => p.toLowerCase() === program.toLowerCase());
   if (!allowed) {
-    throw new ToolError(
+    throw new SecurityViolationError(
       `Command program '${program}' is not in the allowed list ` +
         `(${policy.allowedPrograms.join(', ')}). Use configureCommandPolicy() to extend it.`,
+      POLICY_PROGRAM_NOT_ALLOWED,
     );
   }
 }

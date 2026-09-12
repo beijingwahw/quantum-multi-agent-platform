@@ -25,7 +25,10 @@ import { describe, it } from 'node:test';
 import { performance } from 'node:perf_hooks';
 import assert from 'node:assert/strict';
 import { CompoundBrain } from '../src/core/compound-brain.js';
+// 08#11：simulateBatch（实验面）自 CompoundBrain 迁至模拟器
+import { CompoundBrainSimulator } from '../src/core/compound-brain-simulator.js';
 import { lawKMin } from '../src/core/compound-brain.js';
+import type { AgentPublicState } from '../src/core/compound-brain.js';
 import { AgentManager } from '../src/core/agent-manager.js';
 import { SettlementHistory } from '../src/core/market-estimation.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
@@ -170,6 +173,70 @@ describe('P2/P3 收尾 · compound-brain', () => {
     // 直接对未知 taskId 结算：false 且不发事件（台账缺失是幂等语义）
     assert.equal(brain.settle('no-such-task', true), false);
     assert.equal(skipped.length, 0);
+    brain.dispose();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R10 · compound-brain 公开面收口（08#8 learnable 单点化 / 08#12 状态形状精化）
+// ---------------------------------------------------------------------------
+
+describe('R10 · compound-brain 公开面收口', () => {
+  it('08#8: learnable 判定单点化——calibrations() 与 advise() 逐能力逐字段一致', () => {
+    // 校准检出是概率性的（分箱+门限），但无论检出与否，两个消费面必须
+    // 恒同口径——此前是两处独立硬编码副本（0.15/0.15），漂移即矛盾结论
+    let anyLearnable = false;
+    for (const seed of [1, 2, 3]) {
+      const brain = new CompoundBrain({
+        minCalibrationAttempts: 20,
+        seed,
+      });
+      brain.registerAgent({ id: 'a', capabilities: ['X'], trueCost: 0.5, trueQuality: { X: 0.5 } });
+      brain.registerAgent({ id: 'b', capabilities: ['X'], trueCost: 0.5, trueQuality: { X: 0.5 } });
+      // 08#11：实验参数经模拟器注入（同 seed 同流，断言口径不变）
+      const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.9, simBeta: 0.15, seed });
+      for (let i = 0; i < 150; i++) {
+        sim.simulateBatch([{ capability: 'X', value: 10 }]);
+      }
+      const cals = brain.calibrations();
+      const advice = brain.advise();
+      assert.ok(cals.length >= 1, '能力 X 应有校准快照');
+      for (const cal of cals) {
+        const adv = advice.find((x) => x.capability === cal.capability);
+        assert.ok(adv, `advise() 应覆盖能力 ${cal.capability}`);
+        assert.deepEqual(adv.calibration, cal, `seed=${seed} 两面校准报告逐字段一致`);
+        assert.equal(
+          cal.learnable,
+          cal.alphaHat > 0.15 && cal.r2 > 0.15,
+          `seed=${seed} learnable 与门限定义一致`,
+        );
+        anyLearnable ||= cal.learnable;
+      }
+      brain.dispose();
+    }
+    // 覆盖强度：至少一个 seed 达到 learnable=true（否则只锚定了 false 分支）
+    assert.ok(anyLearnable, '8 批 seed 中应至少一个检出学习信号（覆盖 true 分支）');
+  });
+
+  it('08#12: getState().agents 元素形状精确（AgentPublicState，不再 Record<string, unknown>）', () => {
+    const brain = new CompoundBrain({ defaultTaskValue: 10 });
+    brain.registerAgent({
+      id: 'a1',
+      capabilities: ['js', 'ml'],
+      trueCost: 1,
+      trueQuality: { js: 0.6 },
+    });
+    const alloc = brain.allocateBatch([{ capability: 'js', value: 10 }]);
+    brain.settle(alloc.assignments[0]!.taskId, true);
+
+    // 类型级：返回元素可直接标注为导出的 AgentPublicState（精确字段）
+    const agents: AgentPublicState[] = brain.getState().agents;
+    const a1 = agents.find((a) => a.id === 'a1');
+    assert.ok(a1, 'a1 应在公开状态中');
+    assert.deepEqual(a1.capabilities, ['js', 'ml']);
+    assert.equal(a1.capital.js, 1, '结算后资本 +1');
+    assert.equal(a1.attempts.js, 1);
+    assert.equal(a1.successes.js, 1);
     brain.dispose();
   });
 });

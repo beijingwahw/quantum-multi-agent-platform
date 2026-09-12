@@ -64,8 +64,11 @@ import { EventEmitter } from 'events';
 import type { FlowEdgeRef } from './min-cost-flow.js';
 import { MinCostFlow } from './min-cost-flow.js';
 import { MechanismError } from '../utils/errors.js';
-import { Mulberry32 } from '../utils/rng.js';
 import { logWarn, logError } from '../utils/logger.js';
+// 08#11：模拟（实验）逻辑迁往 CompoundBrainSimulator——本类仅保留
+// deprecated simulateBatch 薄委托（见该方法注释），运行时依赖单向
+// （模拟器对本类只做 type import，无环）
+import { CompoundBrainSimulator } from './compound-brain-simulator.js';
 
 // ----------------------------------------------------------------------------
 // 类型
@@ -74,7 +77,7 @@ import { logWarn, logError } from '../utils/logger.js';
 export interface CompoundAgentSpec {
   id: string;
   capabilities: string[];
-  /** 私有：真实单位成本（报价默认等于它；实验可用 misreport 覆盖） */
+  /** 私有：真实单位成本（报价默认等于它；实验可用 CompoundBrainSimulator.misreport 覆盖，08#11） */
   trueCost: number;
   /** 私有：各能力基础质量真相（仅 simulate 结算抽样用，机制不可见） */
   trueQuality: Record<string, number>;
@@ -104,10 +107,20 @@ export interface CompoundConfig {
   minCalibrationAttempts: number;
   /** 默认任务价值（单任务入口 submitTask 用） */
   defaultTaskValue: number;
-  /** 模拟专用：真实学习参数（机制不可见） */
-  simAlpha: number;
-  simBeta: number;
-  /** 模拟专用：随机种子 */
+  /**
+   * @deprecated 08#11 实验参数已迁往 CompoundBrainSimulatorOptions——
+   * 本字段仅被 CompoundBrain 上保留的 deprecated simulateBatch 委托
+   * 路径消费（既有回归测试/示例仍经 config 传入）。新实验代码请直接
+   * 构造 CompoundBrainSimulator。真实学习幅度 α（机制不可见）
+   */
+  simAlpha?: number;
+  /** @deprecated 08#11 同 simAlpha：真实学习速率 β（机制不可见） */
+  simBeta?: number;
+  /**
+   * 模拟专用随机种子：08#11 后仅被 deprecated simulateBatch 委托路径
+   * 消费；直接使用 CompoundBrainSimulator 时由其 options.seed 提供
+   * （缺省同为 42）。机制自身无任何随机性。
+   */
   seed: number;
   /**
    * 在途台账积压告警阈值（条数）。达到时发出一次 'backlog_warning' 事件
@@ -134,7 +147,9 @@ export interface CompoundConfig {
   calibrateDetectDeviance?: number;
 }
 
-/** CompoundConfig 的全字段缺省（实验对照臂的公共基线；覆盖见各字段注释） */
+/** CompoundConfig 的全字段缺省（实验对照臂的公共基线；覆盖见各字段注释）。
+ * 08#11：simAlpha/simBeta 已移出缺省——机制缺省配置不含实验旋钮，
+ * 实验参数经 CompoundBrainSimulatorOptions 显式注入 */
 export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   growthHorizon: 60,
   growthDiscount: 1,
@@ -143,8 +158,6 @@ export const DEFAULT_COMPOUND_CONFIG: CompoundConfig = {
   priorWeight: 3,
   minCalibrationAttempts: 10,
   defaultTaskValue: 10,
-  simAlpha: 0,
-  simBeta: 0,
   seed: 42,
   pendingBacklogWarnAt: 1000,
   valueAlpha: 0.2,
@@ -195,6 +208,19 @@ export interface CalibrationReport {
   learnable: boolean;
 }
 
+/**
+ * learnable 判定的共享门限（08#8）：calibrations() 与 advise() 此前各写
+ * 一份 `alphaHat > 0.15 && r2 > 0.15`——两处漂移会让「仪表盘判定」与
+ * 「顾问判定」对同一校准状态给出矛盾结论。门限值经 20 seed × 150 批
+ * 实证校准（见 calibrate 注释），单点定义后两消费方恒同口径。
+ */
+const LEARNABLE_ALPHA_MIN = 0.15;
+const LEARNABLE_R2_MIN = 0.15;
+
+function isLearnableCalibration(cs: CapabilityState): boolean {
+  return cs.alphaHat > LEARNABLE_ALPHA_MIN && cs.r2 > LEARNABLE_R2_MIN;
+}
+
 export interface IncubationAdvice {
   agentId: string;
   capital: number;
@@ -211,6 +237,33 @@ export interface CapabilityAdvice {
   capability: string;
   calibration: CalibrationReport;
   incubations: IncubationAdvice[];
+}
+
+/**
+ * getState() 中 agents 数组元素的精确形状（08#12）：此前返回类型声明为
+ * Array<Record<string, unknown>>，消费者只能 any 断言读取。字段与
+ * getState 内实际 push 的对象逐字段对应（Map 经 Object.fromEntries 摊平）。
+ */
+export interface AgentPublicState {
+  id: string;
+  capabilities: string[];
+  /** 能力 → 累计资本（结算入账） */
+  capital: Record<string, number>;
+  /** 能力 → 尝试次数 */
+  attempts: Record<string, number>;
+  /** 能力 → 成功次数 */
+  successes: Record<string, number>;
+}
+
+/**
+ * 模拟驱动面快照（08#11）：CompoundBrain.simFacts 的返回形状——真实
+ * 成本/真实基准质量/当前资本的只读副本，供 CompoundBrainSimulator
+ * 抽样真实动力学（模拟器的「实验输入」），机制数值路径绝不读取。
+ */
+export interface CompoundSimFacts {
+  trueCost: number;
+  trueQuality: Record<string, number>;
+  capital: Record<string, number>;
 }
 
 // ----------------------------------------------------------------------------
@@ -343,16 +396,22 @@ export class CompoundBrain extends EventEmitter {
     }
   >();
   private taskSeq = 0;
-  private readonly rngSource: Mulberry32;
   /** 已实现福利累计（结算时按成败与真实成本入账；getState.netWelfare 口径） */
   private netWelfareSum = 0;
   /** 积压告警的迟滞状态：越过阈值只告警一次，回落到半阈值以下才重新武装 */
   private backlogWarned = false;
+  /**
+   * 兼容模拟器（08#11）：deprecated simulateBatch 的委托目标，惰性构造。
+   * RNG 流此前只在 simulateBatch 内被消耗、构造后到首调用之间无 draw，
+   * 惰性构造与「构造即建流」产生逐位相同的序列。
+   */
+  private compatSimulator: CompoundBrainSimulator | null = null;
 
   constructor(config: Partial<CompoundConfig> = {}) {
     super();
     this.config = { ...DEFAULT_COMPOUND_CONFIG, ...config };
-    this.rngSource = new Mulberry32(this.config.seed);
+    // 08#11：rngSource 随模拟逻辑迁往 CompoundBrainSimulator（机制自身
+    // 无随机性；seed 仅由 deprecated 委托路径的内部模拟器消费）
   }
 
   /** 统一时钟出口（08#5）：缺省墙钟，测试注入虚拟时钟 */
@@ -427,12 +486,35 @@ export class CompoundBrain extends EventEmitter {
     return this;
   }
 
-  /** 实验用：虚报成本（DSIC 检验）。未知 id 与 register 的重复注册同类：
-   * 都是调用方 bug，静默跳过会让 DSIC 实验带着错误定价跑完全程 */
-  misreport(agentId: string, bid: number): void {
+  /**
+   * 报价更新（机制输入面，08#11）：注册后更新报价。报价是机制的公开
+   * 输入（DSIC 恰意味着任意报价都被接受），实验中的「虚报」经
+   * CompoundBrainSimulator.misreport 表达——misreport 自 CompoundBrain
+   * 迁出（原方法零调用方）。未知 id 与 register 的重复注册同类：
+   * 都是调用方 bug，静默跳过会让 DSIC 实验带着错误定价跑完全程
+   */
+  setBid(agentId: string, bid: number): this {
     const a = this.agents.get(agentId);
     if (!a) throw new MechanismError(`Unknown agent: ${agentId}`);
     a.bid = bid;
+    return this;
+  }
+
+  /**
+   * 模拟驱动面（08#11）：只读私有真相快照——真实成本/真实基准质量/
+   * 当前资本（副本）。仅供 CompoundBrainSimulator 抽样真实动力学；
+   * 机制自身的任何数值路径绝不读取（trueQuality 对机制不可见是
+   * DSIC 定理的前提）。未知 id 返回 null（分配产出必为已注册 agent，
+   * null 即内部不变量违例，由模拟器抛错暴露）。
+   */
+  simFacts(agentId: string): CompoundSimFacts | null {
+    const a = this.agents.get(agentId);
+    if (!a) return null;
+    return {
+      trueCost: a.spec.trueCost,
+      trueQuality: { ...a.spec.trueQuality },
+      capital: Object.fromEntries(a.capital),
+    };
   }
 
   // ---------- 公开估计（与报价无关——DSIC 定理的前提） ----------
@@ -1073,49 +1155,26 @@ export class CompoundBrain extends EventEmitter {
     return true;
   }
 
-  // ---------- 模拟（实验用：真实动力学抽样，机制不可见） ----------
-
-  private rng(): number {
-    return this.rngSource.next();
-  }
-
-  /** 真实动力学下的成功率（仅 simulate 使用） */
-  private trueQuality(a: AgentState, c: string): number {
-    const base = a.spec.trueQuality[c] ?? 0.5;
-    const k = a.capital.get(c) ?? 0;
-    return base + this.config.simAlpha * (1 - base) * (1 - Math.exp(-this.config.simBeta * k));
-  }
+  // ---------- 模拟（实验用：已迁 CompoundBrainSimulator，08#11） ----------
 
   /**
-   * 一步模拟：分配 → 按真实动力学抽成败 → 结算。
-   * 返回本批真实福利 Σ(v·success − trueCost)。
+   * @deprecated 08#11 实验逻辑已迁 CompoundBrainSimulator——机制类不再
+   * 实现模拟（真实动力学抽样与 RNG 流全部移出）。本方法是为既有调用方
+   * （回归测试/示例）保留的薄委托：按 config.simAlpha/simBeta/seed 构造
+   * 内部模拟器并复用，RNG 流与迁移前逐位一致。新代码请直接
+   * `new CompoundBrainSimulator(brain, options)`。
    */
   simulateBatch(tasks: CompoundTaskSpec[]): {
     allocation: CompoundAllocation;
     settlements: Settlement[];
     realizedWelfare: number;
   } {
-    const allocation = this.allocateBatch(tasks);
-    const settlements: Settlement[] = [];
-    let realized = 0;
-    for (const asg of allocation.assignments) {
-      const a = this.agents.get(asg.agentId)!;
-      const q = this.trueQuality(a, asg.capability);
-      const success = this.rng() < q;
-      // 资本快照必须取自 settle 之前（与 pending 台账/校准观测同一口径）：
-      // 同批多次获胜时 settle 后再读会把 kBefore+1 报成分配时资本
-      const kBefore = a.capital.get(asg.capability) ?? 0;
-      this.settle(asg.taskId, success);
-      realized += (success ? asg.taskValue : 0) - a.spec.trueCost;
-      settlements.push({
-        taskId: asg.taskId,
-        agentId: asg.agentId,
-        capability: asg.capability,
-        success,
-        capitalAtAssignment: kBefore,
-      });
-    }
-    return { allocation, settlements, realizedWelfare: realized };
+    this.compatSimulator ??= new CompoundBrainSimulator(this, {
+      simAlpha: this.config.simAlpha ?? 0,
+      simBeta: this.config.simBeta ?? 0,
+      seed: this.config.seed,
+    });
+    return this.compatSimulator.simulateBatch(tasks);
   }
 
   // ---------- 相变定律顾问 ----------
@@ -1128,7 +1187,7 @@ export class CompoundBrain extends EventEmitter {
       betaHat: cs.betaHat,
       r2: cs.r2,
       attempts: cs.observations.length,
-      learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15,
+      learnable: isLearnableCalibration(cs), // 08#8：与 advise() 共享单点门限
     }));
   }
 
@@ -1170,7 +1229,7 @@ export class CompoundBrain extends EventEmitter {
           betaHat: cs.betaHat,
           r2: cs.r2,
           attempts: cs.observations.length,
-          learnable: cs.alphaHat > 0.15 && cs.r2 > 0.15,
+          learnable: isLearnableCalibration(cs), // 08#8：与 calibrations() 共享单点门限
         },
         incubations,
       });
@@ -1211,7 +1270,8 @@ export class CompoundBrain extends EventEmitter {
     netWelfare: number;
     /** 在途台账积压：漏结算的量与最长滞留时长（健康管道应接近 0） */
     pendingBacklog: { count: number; oldestAgeMs: number };
-    agents: Array<Record<string, unknown>>;
+    /** 08#12：元素形状精化（原 Array<Record<string, unknown>>） */
+    agents: AgentPublicState[];
   } {
     let attempts = 0;
     let successes = 0;

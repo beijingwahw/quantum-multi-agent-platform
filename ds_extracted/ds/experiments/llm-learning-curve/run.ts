@@ -58,6 +58,17 @@ function boundedEnvInt(name: string, fallback: number, max: number): number {
 const RUNS = boundedEnvInt('RUNS', 12, 200);
 const CONCURRENCY = boundedEnvInt('CONCURRENCY', 8, 32);
 const MAX_LIBRARY = 40;
+// 采样温度（06#15）：从硬编码 0.7 提为有界环境变量；非法值按 boundedEnvInt
+// 的口径指名拒绝（合法域 [0,2] 与 API 文档一致），未设置回落默认 0.7
+function boundedEnvFloat(name: string, fallback: number, min: number, max: number): number {
+  const v = Number(process.env[name]);
+  if (!Number.isFinite(v)) return fallback;
+  if (v < min || v > max) {
+    throw new Error(`${name}=${v} 超出 [${min}, ${max}]——如确有需要请修改代码中的范围`);
+  }
+  return v;
+}
+const TEMPERATURE = boundedEnvFloat('GLM_TEMPERATURE', 0.7, 0, 2);
 
 type Condition = 'treatment' | 'control';
 
@@ -87,7 +98,13 @@ const answerOf = (t: Ticket) =>
 class Semaphore {
   private active = 0;
   private queue: Array<() => void> = [];
-  constructor(private readonly limit: number) {}
+  // 04 P2-11（erasableSyntaxOnly）：参数属性改为显式字段 + 构造器赋值
+  private readonly limit: number;
+
+  constructor(limit: number) {
+    this.limit = limit;
+  }
+
   async acquire(): Promise<void> {
     if (this.active < this.limit) {
       this.active++;
@@ -126,7 +143,7 @@ async function chat(messages: Array<{ role: string; content: string }>): Promise
         body: JSON.stringify({
           model: MODEL,
           messages,
-          temperature: 0.7,
+          temperature: TEMPERATURE, // 06#15：有界环境变量，默认 0.7
           max_tokens: 200,
         }),
         signal: controller.signal,
@@ -305,6 +322,7 @@ function analyze() {
   const report: any = {
     meta: {
       model: MODEL,
+      temperature: TEMPERATURE, // 06#15：参数-结果链路里的温度快照
       runs: RUNS,
       concurrency: CONCURRENCY,
       // git rev 快照（06#16）：参数-结果-代码版本链路；无 git 环境为 null

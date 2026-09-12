@@ -15,6 +15,7 @@ import {
 } from '../src/core/quantum-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
 import type { Agent } from '../src/types/quantum-types.js';
+import { makeTask } from './helpers/fixtures.js';
 
 const EPS = 1e-9;
 
@@ -64,17 +65,15 @@ function makeSchedulerAgent(
   };
 }
 
-function makeTask(name: string, capability: string, priority: any = 'medium') {
-  return {
-    name,
-    type: 'test',
-    priority,
-    requirements: [{ type: 'capability' as const, name: capability, value: null, weight: 1.0 }],
-    dependencies: [],
-    estimatedDuration: 1000,
-    actualDuration: 0,
-    status: 'pending' as const,
-  };
+// 05#22：popcountLocal 定义前移至首个使用点之前（原本依赖函数声明
+// 提升才可用——纯位置整理，逻辑不变）
+function popcountLocal(k: number): number {
+  let c = 0;
+  while (k) {
+    k &= k - 1;
+    c++;
+  }
+  return c;
 }
 
 describe('QuantumStateVector（物理层）', () => {
@@ -137,24 +136,20 @@ describe('QuantumStateVector（物理层）', () => {
     const brute = bruteForceOptimum(problem);
     const best = brute.ranking[0]!;
     const second = brute.ranking[1] ?? best;
-    let hitTop = false;
+    // 05#21 统计功效注记：20 个固定 seed（确定性集合，非重采样），实测
+    // 8/20 命中福利前二（6 次恰为最优 1.58、2 次为次优 1.12）——按聚合
+    // 命中率 p≈0.4 计，全 miss 概率 ≈ 0.6^20 ≈ 3.7e-5。种子集固定，
+    // 该界是设计注记而非 flake 风险；频率断言（≥5/20）在保留"至少一次"
+    // 之上增加分布下限，裕量 3 吸收未来电路微调。
+    let hits = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const s = qaoaSolve(problem, { select: 'born', seed, layers: 4 });
       assert.ok(s.welfare > 0);
-      if (s.welfare >= second - EPS) hitTop = true;
+      if (s.welfare >= second - EPS) hits++;
     }
-    assert.ok(hitTop, '20次Born坍缩应至少一次落在福利前二');
+    assert.ok(hits >= 5, `20次Born坍缩命中福利前二应 ≥5 次（实测口径 8），实际 ${hits}`);
   });
 });
-
-function popcountLocal(k: number): number {
-  let c = 0;
-  while (k) {
-    k &= k - 1;
-    c++;
-  }
-  return c;
-}
 
 describe('quantum-optimizer（求解质量）', () => {
   it('穷举最优在手算实例上正确', () => {

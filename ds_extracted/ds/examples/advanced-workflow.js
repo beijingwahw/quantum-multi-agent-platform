@@ -98,6 +98,16 @@ async function advancedWorkflowExample() {
     // 并行提交多个任务
     console.log('\n=== Submitting Parallel Tasks ===');
 
+    // 07#I5（checkJs）：priority 的字面量类型会被 widen 成 string 而
+    // 无法赋给 TaskPriority 联合——以 JSDoc 显式标注提交形状
+    /**
+     * @type {Array<{
+     *   name: string,
+     *   type: string,
+     *   priority: import('../src/types/quantum-types.js').TaskPriority,
+     *   requirements: Array<import('../src/types/quantum-types.js').TaskRequirement>,
+     * }>}
+     */
     const tasks = [
       {
         name: 'Frontend Development',
@@ -145,7 +155,10 @@ async function advancedWorkflowExample() {
       console.log('✓ Workflow execution completed');
       console.log('  Steps executed:', workflowResult.length);
     } catch (error) {
-      console.log('✗ Workflow execution failed:', error.message);
+      console.log(
+        '✗ Workflow execution failed:',
+        error instanceof Error ? error.message : String(error),
+      );
     }
 
     // 模拟任务完成，通过统一入口释放agent

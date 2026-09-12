@@ -61,12 +61,16 @@ async function basicExample() {
     // 执行DSH工具
     console.log('=== DSH Tool Execution ===');
     try {
-      const result = await platform.executeDSHTool('read_file', {
-        path: 'examples/basic-usage.js',
-      });
+      // read_file 工具实际返回文件文本（string）；executeDSHTool 的宽返回
+      // 签名是 Promise<unknown>，07#I5（checkJs）起对此显式收窄
+      const result = /** @type {string} */ (
+        await platform.executeDSHTool('read_file', {
+          path: 'examples/basic-usage.js',
+        })
+      );
       console.log('✓ File read successfully, length:', result.length);
     } catch (error) {
-      console.log('✗ File read failed:', error.message);
+      console.log('✗ File read failed:', error instanceof Error ? error.message : String(error));
     }
 
     // 模拟任务执行完成后，通过统一入口关闭任务并释放agent

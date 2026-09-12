@@ -341,17 +341,22 @@ export class DecisionEngine extends EventEmitter {
         return value !== condition.value;
       case 'contains':
       case 'notContains': {
+        // 缺失值不参与（String(undefined) 曾使 contains 命中 "undefined" 子串）
         if (value == null || condition.value == null) return false;
         const contains = condition.operator === 'contains';
+        // 数组成员语义：目标值按原值精确匹配（不字符串化）
         if (Array.isArray(value)) {
           return contains ? value.includes(condition.value) : !value.includes(condition.value);
         }
-        // 仅原始值参与子串比较：对象的默认字符串化是 '[object Object]'，
-        // 子串命中不可能有语义
-        if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+        // 02#6 remainder：子串语义仅存在于「值与条件值都是字符串」时
+        // （string→includes）。数字/布尔排除在外——`12` 经隐式字符串化
+        // "包含" `1` 是数值形状泄漏进子串域，不是语义；对象同样排除
+        // （默认字符串化 '[object Object]' 无子串语义）。域外一律按
+        // 条件不成立处理（notContains 不因「不含」而翻转成立）。
+        if (typeof value !== 'string' || typeof condition.value !== 'string') {
           return false;
         }
-        const hit = String(value).includes(String(condition.value));
+        const hit = value.includes(condition.value);
         return contains ? hit : !hit;
       }
       case 'greaterThan': {

@@ -2,23 +2,17 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CompoundBrain,
+  DEFAULT_COMPOUND_CONFIG,
   lawKMin,
   lawDeltaMax,
   type CompoundAgentSpec,
   type CompoundTaskSpec,
 } from '../src/core/compound-brain.js';
-
-/** 确定性随机数（测试内独立于实现） */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// 08#11：实验面（simulateBatch/misreport）自 CompoundBrain 迁出
+import { CompoundBrainSimulator } from '../src/core/compound-brain-simulator.js';
+// 05#22：本地 mulberry32 副本与 src/utils/rng.ts 的 Mulberry32.next
+// 逐位同算法（同操作序列、同种子推进），收敛到平台唯一实现——种子流不变
+import { mulberry32 } from '../src/utils/rng.js';
 
 function agent(
   id: string,
@@ -27,6 +21,23 @@ function agent(
   trueQuality: Record<string, number>,
 ): CompoundAgentSpec {
   return { id, capabilities, trueCost, trueQuality, capacity: 1 };
+}
+
+/**
+ * 05#8：稳定序列化——对象键排序后递归序列化，数组保序。
+ * 语义等价性比较不得依赖 JSON.stringify 的 V8 键插入序（payments 等
+ * Record 的键序取决于运行时构造路径，等价内容可能排出不同字符串）。
+ */
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const body = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => `${JSON.stringify(k)}:${stableSerialize(v)}`)
+      .join(',');
+    return `{${body}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 
 // ============================================================================
@@ -155,15 +166,17 @@ describe('CompoundBrain · 增长投资行为', () => {
     { id: 'trainee', capabilities: ['X'], trueCost: 0.2, trueQuality: { X: 0.6 } },
   ];
 
+  /** 08#11：实验参数（simAlpha/simBeta/seed 的抽样流）经模拟器注入，
+   * 机制 config 只保留机制旋钮 */
   function makeBrain(
     growthDiscount: number,
     simAlpha: number,
     simBeta: number,
     seed = 42,
-  ): CompoundBrain {
-    const brain = new CompoundBrain({ growthDiscount, simAlpha, simBeta, growthHorizon: 80, seed });
+  ): { brain: CompoundBrain; sim: CompoundBrainSimulator } {
+    const brain = new CompoundBrain({ growthDiscount, growthHorizon: 80, seed });
     for (const a of AGENTS) brain.registerAgent(a);
-    return brain;
+    return { brain, sim: new CompoundBrainSimulator(brain, { simAlpha, simBeta, seed }) };
   }
 
   it('可学习 regime（深投资区）：compound 比 static（γ=0）累计真实福利更高（孵化投资回收）', () => {
@@ -175,9 +188,9 @@ describe('CompoundBrain · 增长投资行为', () => {
       const seeds = [11, 22, 33, 44, 55, 66, 77, 88];
       let total = 0;
       for (const seed of seeds) {
-        const brain = makeBrain(gamma, 0.85, 0.15, seed);
+        const { sim } = makeBrain(gamma, 0.85, 0.15, seed);
         for (let b = 0; b < 50; b++) {
-          const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
+          const { realizedWelfare } = sim.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
         }
       }
@@ -202,8 +215,6 @@ describe('CompoundBrain · 增长投资行为', () => {
       for (const seed of seeds) {
         const brain = new CompoundBrain({
           growthDiscount: gamma,
-          simAlpha: 0.75,
-          simBeta: 0.12,
           growthHorizon: 80,
           seed,
         });
@@ -219,8 +230,9 @@ describe('CompoundBrain · 增长投资行为', () => {
           trueCost: 0.2,
           trueQuality: { X: 0.5 },
         });
+        const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.75, simBeta: 0.12, seed });
         for (let b = 0; b < 50; b++) {
-          const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
+          const { realizedWelfare } = sim.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
         }
       }
@@ -239,9 +251,9 @@ describe('CompoundBrain · 增长投资行为', () => {
       const seeds = [11, 22, 33, 44, 55, 66];
       let total = 0;
       for (const seed of seeds) {
-        const brain = makeBrain(gamma, 0, 0, seed);
+        const { sim } = makeBrain(gamma, 0, 0, seed);
         for (let b = 0; b < 50; b++) {
-          const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
+          const { realizedWelfare } = sim.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
         }
       }
@@ -267,8 +279,6 @@ describe('CompoundBrain · 增长投资行为', () => {
       for (const seed of seeds) {
         const brain = new CompoundBrain({
           growthDiscount: gamma,
-          simAlpha: 0.85,
-          simBeta: 0.15,
           growthHorizon: 80,
           seed,
         });
@@ -284,8 +294,9 @@ describe('CompoundBrain · 增长投资行为', () => {
           trueCost: 3.0,
           trueQuality: { X: 0.6 },
         });
+        const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.85, simBeta: 0.15, seed });
         for (let b = 0; b < 50; b++) {
-          const { realizedWelfare } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
+          const { realizedWelfare } = sim.simulateBatch([{ capability: 'X', value: 10 }]);
           total += realizedWelfare / seeds.length;
         }
       }
@@ -306,10 +317,10 @@ describe('CompoundBrain · 增长投资行为', () => {
     let total = 0;
     const perSeed: number[] = [];
     for (let seed = 5; seed <= 12; seed++) {
-      const brain = makeBrain(1, 0.85, 0.15, seed);
+      const { sim } = makeBrain(1, 0.85, 0.15, seed);
       let traineeTasks = 0;
       for (let b = 0; b < 60; b++) {
-        const { settlements } = brain.simulateBatch([{ capability: 'X', value: 10 }]);
+        const { settlements } = sim.simulateBatch([{ capability: 'X', value: 10 }]);
         traineeTasks += settlements.filter((s) => s.agentId === 'trainee').length;
       }
       perSeed.push(traineeTasks);
@@ -345,15 +356,14 @@ describe('CompoundBrain · 在线校准', () => {
     let detected = 0;
     for (let seed = 1; seed <= 8; seed++) {
       const brain = new CompoundBrain({
-        simAlpha: 0.9,
-        simBeta: 0.15,
         minCalibrationAttempts: 20,
         seed,
       });
       brain.registerAgent(agent('a', ['X'], 0.5, { X: 0.5 }));
       brain.registerAgent(agent('b', ['X'], 0.5, { X: 0.5 }));
+      const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.9, simBeta: 0.15, seed });
       for (let b = 0; b < 150; b++) {
-        brain.simulateBatch([{ capability: 'X', value: 10 }]);
+        sim.simulateBatch([{ capability: 'X', value: 10 }]);
       }
       const cal = brain.calibrations().find((c) => c.capability === 'X')!;
       if (cal.alphaHat > 0.15 && cal.learnable) detected++;
@@ -364,15 +374,14 @@ describe('CompoundBrain · 在线校准', () => {
   it('不可学习 regime：α̂ 保持 0（零误报，宁缺勿假）', () => {
     for (let seed = 1; seed <= 5; seed++) {
       const brain = new CompoundBrain({
-        simAlpha: 0,
-        simBeta: 0,
         minCalibrationAttempts: 20,
         seed,
       });
       brain.registerAgent(agent('a', ['X'], 0.5, { X: 0.5 }));
       brain.registerAgent(agent('b', ['X'], 0.5, { X: 0.5 }));
+      const sim = new CompoundBrainSimulator(brain, { simAlpha: 0, simBeta: 0, seed });
       for (let b = 0; b < 150; b++) {
-        brain.simulateBatch([{ capability: 'X', value: 10 }]);
+        sim.simulateBatch([{ capability: 'X', value: 10 }]);
       }
       const cal = brain.calibrations().find((c) => c.capability === 'X')!;
       assert.equal(cal.alphaHat, 0, `seed=${seed}：不可学习 regime 不应误报学习信号`);
@@ -380,12 +389,13 @@ describe('CompoundBrain · 在线校准', () => {
     }
   });
 
-  it('advise()：校准驱动孵化建议（结构完整，δ 单调）', () => {
-    const brain = new CompoundBrain({ simAlpha: 0.8, simBeta: 0.15, growthHorizon: 60, seed: 3 });
+  it('advise()：校准驱动孵化建议（结构完整，K_min 随 δ 单调不减）', () => {
+    const brain = new CompoundBrain({ growthHorizon: 60, seed: 3 });
     brain.registerAgent(agent('expert', ['X'], 1, { X: 0.85 }));
     brain.registerAgent(agent('novice', ['X'], 1, { X: 0.5 }));
+    const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.8, simBeta: 0.15, seed: 3 });
     for (let b = 0; b < 80; b++) {
-      brain.simulateBatch([{ capability: 'X', value: 10 }]);
+      sim.simulateBatch([{ capability: 'X', value: 10 }]);
     }
     const advice = brain.advise();
     const capX = advice.find((a) => a.capability === 'X');
@@ -400,6 +410,31 @@ describe('CompoundBrain · 在线校准', () => {
     // expert 无劣势 → kMin = 0
     const expert = capX.incubations.find((i) => i.agentId === 'expert')!;
     assert.ok(expert.kMin === null || expert.kMin === 0, '最佳者无需孵化资本');
+
+    // 05#14：兑现标题的「δ 单调」——lawKMin 的文档方向是 K_min 随凭证
+    // 劣势 δ 单调不减（δ=0 → 0；劣势越大所需资本越多；不可行 = null = ∞）。
+    // δ 未在建议中直接暴露，从公开的 base 字段重算：
+    // δ_i = max(0, max_{j≠i} base_j − base_i)
+    const incubations = capX.incubations;
+    const deltaOf = (idx: number): number =>
+      Math.max(
+        0,
+        ...incubations.filter((_, j) => j !== idx).map((o) => o.base - incubations[idx]!.base),
+      );
+    const kMinAsInf = (k: number | null): number => (k === null ? Number.POSITIVE_INFINITY : k);
+    const byDelta = incubations
+      .map((inc, idx) => ({ inc, delta: deltaOf(idx) }))
+      .sort((a, b) => a.delta - b.delta);
+    assert.ok(byDelta[byDelta.length - 1]!.delta > 0, 'novice 应存在正凭证劣势（前提自查）');
+    for (let i = 1; i < byDelta.length; i++) {
+      const prev = byDelta[i - 1]!;
+      const curr = byDelta[i]!;
+      assert.ok(
+        kMinAsInf(curr.inc.kMin) >= kMinAsInf(prev.inc.kMin) - 1e-9,
+        `K_min 应随 δ 单调不减：δ=${prev.delta.toFixed(3)} → K_min=${String(prev.inc.kMin)}, ` +
+          `δ=${curr.delta.toFixed(3)} → K_min=${String(curr.inc.kMin)}`,
+      );
+    }
   });
 });
 
@@ -512,9 +547,9 @@ describe('CompoundBrain · 校准缓存（08#3）', () => {
 describe('CompoundBrain · 插件集成', () => {
   it('CompoundBrain 实例直接作为 config.brain 接入并完成闭环', async () => {
     const { ProactiveIntelligencePlugin } = await import('../src/proactive-intelligence/index.js');
+    // 08#11：本用例只走 submitTask/settleTask 闭环，实验参数随模拟逻辑
+    // 迁出 config（原 simAlpha/simBeta 从未在此路径被消费）
     const brain = new CompoundBrain({
-      simAlpha: 0.8,
-      simBeta: 0.15,
       defaultTaskValue: 10,
       seed: 9,
     });
@@ -641,7 +676,9 @@ describe('CompoundBrain · 在途台账积压可观测性', () => {
   });
 
   it('可观测性零数值影响：同 seed 下分配/支付/福利与无观测配置逐位一致', () => {
-    const run = (cfg?: { pendingBacklogWarnAt?: number }): string => {
+    // 05#8：结构化快照 + 稳定序列化比较（键排序），不再依赖
+    // JSON.stringify 的 V8 键插入序——同一确定性保证，无键序脆性
+    const snapshot = (cfg?: { pendingBacklogWarnAt?: number }): unknown => {
       const b = new CompoundBrain({ seed: 99, ...cfg });
       b.registerAgent(agent('a', ['api'], 1, { api: 0.7 }), 1);
       b.registerAgent(agent('b', ['api'], 1.5, { api: 0.6 }), 1.5);
@@ -649,13 +686,177 @@ describe('CompoundBrain · 在途台账积压可观测性', () => {
         { capability: 'api', value: 10 },
         { capability: 'api', value: 9 },
       ]);
-      return JSON.stringify({
+      return {
         assignments: alloc.assignments.map((x) => [x.agentId, x.payment, x.estQuality]),
         payments: alloc.payments,
         welfareAugmented: alloc.welfareAugmented,
-      });
+      };
     };
-    assert.equal(run(), run({ pendingBacklogWarnAt: 1 }));
+    assert.equal(
+      stableSerialize(snapshot()),
+      stableSerialize(snapshot({ pendingBacklogWarnAt: 1 })),
+      '告警路径开启前后，分配/支付/增广福利的稳定序列化应逐字一致',
+    );
     // pendingBacklogWarnAt:1 触发告警路径（代码覆盖）而结果逐位不变
+  });
+});
+
+// ============================================================================
+// 08#11 关注点分离：实验面（simulateBatch/misreport）迁出核心机制类
+// ============================================================================
+
+describe('CompoundBrain · 实验面分离（08#11）', () => {
+  it('核心类不再暴露实验 API：misreport 迁出，缺省配置不含实验旋钮', () => {
+    const brain = new CompoundBrain();
+    brain.registerAgent(agent('a', ['X'], 1, { X: 0.5 }));
+    // 编译级探针（同 08#51 的 @ts-expect-error 锚定法；不执行调用，
+    // 仅证明属性已不在 CompoundBrain 类型上）
+    // @ts-expect-error 08#11：misreport 已迁至 CompoundBrainSimulator
+    const removed: undefined = brain.misreport;
+    assert.equal(removed, undefined);
+    assert.equal('misreport' in brain, false, '运行时同样不得残留 misreport');
+    assert.ok(
+      !('simAlpha' in DEFAULT_COMPOUND_CONFIG) && !('simBeta' in DEFAULT_COMPOUND_CONFIG),
+      '机制缺省配置不得携带实验旋钮（实验参数经 CompoundBrainSimulatorOptions 注入）',
+    );
+    brain.dispose();
+  });
+
+  it('模拟器复现迁移前的精确数值流（位级迁移契约，pins 取自迁移前实跑）', () => {
+    const brain = new CompoundBrain({ growthHorizon: 80, seed: 123 });
+    brain.registerAgent({
+      id: 'veteran',
+      capabilities: ['X'],
+      trueCost: 2.0,
+      trueQuality: { X: 0.8 },
+    });
+    brain.registerAgent({
+      id: 'trainee',
+      capabilities: ['X'],
+      trueCost: 0.2,
+      trueQuality: { X: 0.6 },
+    });
+    const sim = new CompoundBrainSimulator(brain, { simAlpha: 0.85, simBeta: 0.15, seed: 123 });
+    // pins：迁移前 CompoundBrain.simulateBatch 同 seed/同参数的实跑输出
+    // （2026-09-12 迁移前捕获，含中间批次的支付/welfareAug）
+    const pins: Array<{
+      realized: number;
+      welfareAug: number;
+      payments: Record<string, number>;
+      settlements: Array<[string, boolean, number]>;
+    }> = [
+      {
+        realized: 16.8,
+        welfareAug: 20.7,
+        payments: { veteran: 12.149999999999999, trainee: 10.149999999999999 },
+        settlements: [
+          ['veteran', true, 0],
+          ['trainee', true, 0],
+        ],
+      },
+      {
+        realized: 16.8,
+        welfareAug: 18.044787148544927,
+        payments: { veteran: 10.795120846999737, trainee: 8.84057539245428 },
+        settlements: [
+          ['veteran', true, 1],
+          ['trainee', true, 1],
+        ],
+      },
+      {
+        realized: 7.8,
+        welfareAug: 17.058160890634777,
+        payments: { veteran: 10.249080445317388, trainee: 8.382413778650722 },
+        settlements: [
+          ['veteran', true, 2],
+          ['trainee', false, 2],
+        ],
+      },
+    ];
+    for (const [b, pin] of pins.entries()) {
+      const r = sim.simulateBatch([
+        { capability: 'X', value: 10 },
+        { capability: 'X', value: 9 },
+      ]);
+      assert.equal(r.realizedWelfare, pin.realized, `批 ${b} 真实福利逐位一致`);
+      assert.equal(r.allocation.welfareAugmented, pin.welfareAug, `批 ${b} 增广福利逐位一致`);
+      assert.deepEqual(r.allocation.payments, pin.payments, `批 ${b} Clarke pivot 支付逐位一致`);
+      assert.deepEqual(
+        r.settlements.map((s) => [s.agentId, s.success, s.capitalAtAssignment]),
+        pin.settlements,
+        `批 ${b} 结算流逐位一致`,
+      );
+    }
+    assert.equal(brain.getState().netWelfare, 41.4, '累计已实现福利逐位一致');
+    brain.dispose();
+  });
+
+  it('模拟器 misreport 驱动报价（DSIC 实验面）且复现迁移前分配结果', () => {
+    const brain = new CompoundBrain({ seed: 7 });
+    brain.registerAgent({
+      id: 'a1',
+      capabilities: ['api'],
+      trueCost: 1,
+      trueQuality: { api: 0.7 },
+      capacity: 2,
+    });
+    brain.registerAgent({
+      id: 'a2',
+      capabilities: ['api'],
+      trueCost: 1.5,
+      trueQuality: { api: 0.6 },
+      capacity: 2,
+    });
+    const sim = new CompoundBrainSimulator(brain, { simAlpha: 0, simBeta: 0 });
+    sim.misreport('a1', 5);
+    const alloc = brain.allocateBatch([
+      { capability: 'api', value: 10 },
+      { capability: 'api', value: 9 },
+    ]);
+    // pins：迁移前 brain.misreport('a1', 5) + allocateBatch 同 seed 实跑输出
+    assert.deepEqual(
+      alloc.assignments.map((a) => a.agentId),
+      ['a2', 'a2'],
+      '虚报 5 后两任务都应流向 a2',
+    );
+    assert.deepEqual(alloc.payments, { a2: 8.099999999999998 });
+    assert.equal(alloc.welfareAugmented, 17.9);
+    // 未知 id 立即抛错（迁移前 misreport 的契约原样保持）
+    assert.throws(() => sim.misreport('nope', 1), /Unknown agent: nope/);
+    brain.dispose();
+  });
+
+  it('deprecated 委托路径与直接模拟器同流（冻结回归调用方的位级等价保证）', () => {
+    // tests/regression/r8-core-lifecycle.test.ts、compound-brain-emit-isolation
+    // 与 examples 仍经 brain.simulateBatch 调用——委托内部模拟器必须与
+    // 直接使用 CompoundBrainSimulator 产生逐位相同的序列（同 seed、
+    // 同 draw 序：每个分配恰一次、按分配序）
+    const mk = (): { brain: CompoundBrain; sim: CompoundBrainSimulator } => {
+      const brain = new CompoundBrain({ simAlpha: 0.8, simBeta: 0.15, seed: 5, growthHorizon: 80 });
+      brain.registerAgent({ id: 'a', capabilities: ['X'], trueCost: 1, trueQuality: { X: 0.6 } });
+      brain.registerAgent({ id: 'b', capabilities: ['X'], trueCost: 1.5, trueQuality: { X: 0.5 } });
+      return {
+        brain,
+        sim: new CompoundBrainSimulator(brain, { simAlpha: 0.8, simBeta: 0.15, seed: 5 }),
+      };
+    };
+    const viaDelegator = mk();
+    const viaSimulator = mk();
+    const TASKS: CompoundTaskSpec[] = [
+      { capability: 'X', value: 10 },
+      { capability: 'X', value: 9 },
+    ];
+    for (let i = 0; i < 10; i++) {
+      const d = viaDelegator.brain.simulateBatch(TASKS);
+      const s = viaSimulator.sim.simulateBatch(TASKS);
+      assert.deepEqual(d, s, `批 ${i} 委托路径与模拟器逐位一致`);
+    }
+    assert.deepEqual(
+      viaDelegator.brain.getState().agents,
+      viaSimulator.brain.getState().agents,
+      '委托与直连的学习状态逐位一致',
+    );
+    viaDelegator.brain.dispose();
+    viaSimulator.brain.dispose();
   });
 });

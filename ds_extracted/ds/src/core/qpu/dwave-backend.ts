@@ -15,7 +15,7 @@
  */
 
 import type { QuantumBackend, QpuSampleSet, QpuSolveOptions } from './quantum-backend.js';
-import { registerBackend } from './quantum-backend.js';
+import { registerBackend, DEFAULT_NUM_READS_DWAVE } from './quantum-backend.js';
 import { decodeCouplingKey } from '../quantum-optimizer.js';
 import { BackendError } from '../../utils/errors.js';
 
@@ -46,6 +46,16 @@ interface DWaveProblemResponse {
 
 /** 可继续轮询的进行中状态；其余未知状态（EXCEPTION 等）立即失败 */
 const PENDING_STATUSES = new Set(['PENDING', 'IN_PROGRESS', 'SUBMITTED']);
+
+/**
+ * Q3 自适应轮询节流：固定 500ms 对分钟级的混合求解是每分钟 ~120 次
+ * 的无效轰炸。轮询间隔从 500ms 起几何翻倍至 5000ms 封顶；间隔是
+ * solveIsing 的局部状态，每次提交（即每个终态）自然重置。总轮询
+ * 仍受 timeoutMs 预算钳制（sleep 前取剩余预算的 min）。
+ */
+const POLL_INTERVAL_BASE_MS = 500;
+const POLL_INTERVAL_GROWTH = 2;
+const POLL_INTERVAL_MAX_MS = 5000;
 
 /** 解析后的答案（内部统一格式） */
 interface DWaveAnswer {
@@ -97,7 +107,7 @@ export class DWaveBackend implements QuantumBackend {
           'variable or pass a token to the constructor.',
       );
     }
-    const numReads = options.numReads ?? 100;
+    const numReads = options.numReads ?? DEFAULT_NUM_READS_DWAVE; // Q8
     const timeoutMs = options.timeoutMs ?? 60_000;
 
     // 混合求解器 → bqm 三元组格式；结构化求解器 → 经典 ising 字典格式
@@ -131,6 +141,9 @@ export class DWaveBackend implements QuantumBackend {
     let problem = submitted;
     try {
       const deadline = Date.now() + timeoutMs;
+      // Q3：首次轮询等基础间隔，之后每轮仍在跑则几何退避（封顶 5000ms）；
+      // 间隔随本次 solveIsing 调用重置——终态即出循环，无需显式复位
+      let pollIntervalMs = POLL_INTERVAL_BASE_MS;
       while (problem.status !== 'COMPLETED') {
         if (problem.status === 'FAILED' || problem.status === 'CANCELLED') {
           throw new BackendError(
@@ -152,11 +165,13 @@ export class DWaveBackend implements QuantumBackend {
             `DWave polling timed out (${timeoutMs}ms), problem id ${problem.id}`,
           );
         }
-        await sleep(Math.min(500, remaining));
+        await sleep(Math.min(pollIntervalMs, remaining));
         // 每次请求只消耗「退避之后」的剩余预算，总墙钟时间不超过
         // timeoutMs——继承 sleep 前的旧预算会让总时长超限一个退避间隔。
         // 瞬态轮询失败（网络抖动/5xx）重试一次而不是抛弃已提交的问题。
         problem = await this.pollWithRetry(problem.id, deadline - Date.now());
+        // Q3：非终态 → 下一次轮询退避一档（COMPLETED 时循环条件已兜住）
+        pollIntervalMs = Math.min(pollIntervalMs * POLL_INTERVAL_GROWTH, POLL_INTERVAL_MAX_MS);
       }
     } catch (error) {
       if (problem.id) await this.cancelQuietly(problem.id);
@@ -374,8 +389,6 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     // 歪曲 invalidSamples 与频率统计
     const energiesLen = (asNumberArray(answer.energies) ?? []).length;
     const occurrencesLen = (asNumberArray(answer.num_occurrences) ?? []).length;
-    const fallbackCount =
-      energiesLen > 0 ? energiesLen : occurrencesLen > 0 ? occurrencesLen : maxSolutions;
     // num_solutions 是解数：非负整数。小数计数（1.5）此前作为循环上界
     // `s < numSolutions` 静默解出 ceil 个解——多出一个幻影样本，歪曲频率
     // 统计。与 vector 字校验同款「不盲信外部 JSON」。
@@ -388,6 +401,19 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
         `DWave qp answer has a malformed num_solutions: ${rawNumSolutions} (expected a non-negative integer)`,
       );
     }
+    // Q9 收尾：缺 num_solutions 且 energies/occurrences 均无可用长度时，
+    // 次级信号全部缺席——全长解码只会把位对齐 padding 解成 maxSolutions
+    // 个幻影样本。此时显式拒绝而不是猜测解数（显式 num_solutions: 0
+    // 仍然合法——那是「零个解」，不是「不知道多少个解」）。
+    if (rawNumSolutions === undefined && energiesLen === 0 && occurrencesLen === 0) {
+      throw new BackendError(
+        'DWave qp answer is missing num_solutions and has no usable energies/num_occurrences ' +
+          'length to infer the solution count; refusing to full-length decode (alignment ' +
+          'padding would become phantom samples)',
+      );
+    }
+    // 到这里两者必有其一可用（推断信号非空或显式计数）
+    const fallbackCount = energiesLen > 0 ? energiesLen : occurrencesLen;
     const numSolutions = Math.min(rawNumSolutions ?? fallbackCount, maxSolutions);
     const solutions: number[][] = [];
     for (let s = 0; s < numSolutions; s++) {
@@ -480,4 +506,10 @@ class LazyDWaveRegistration implements QuantumBackend {
   }
 }
 
-registerBackend(new LazyDWaveRegistration());
+/**
+ * 注册默认 D-Wave 懒代理（Q6：从模块顶层移入此函数——导入必须零副作用）。
+ * 唯一刻意调用点是 qpu/index.ts 桶；直接导入本模块不会隐式注册。
+ */
+export function registerDWaveDefaults(): void {
+  registerBackend(new LazyDWaveRegistration());
+}

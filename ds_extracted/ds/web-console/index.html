@@ -225,6 +225,10 @@
       .priority-critical {
         background: #dc3545;
       }
+      /* 06#23：未知优先级兜底色（priorityToken 白名单外一律归 other） */
+      .priority-other {
+        background: #adb5bd;
+      }
 
       .task-info {
         flex: 1;
@@ -332,6 +336,11 @@
         border-radius: 10px;
         padding: 20px;
         position: relative;
+      }
+
+      /* 06#25：画布随容器收缩（clientWidth 含 padding，超宽时由 max-width 兜底） */
+      #performance-chart {
+        max-width: 100%;
       }
 
       .pulse {
@@ -575,6 +584,7 @@
       // 初始化
       document.addEventListener('DOMContentLoaded', function () {
         initializeQuantumVisualization();
+        resizePerformanceChart(); // 06#25：首绘即用容器宽度，而非固定 400
         updateDashboard();
         startDataRefresh();
       });
@@ -591,7 +601,7 @@
       function connect() {
         const url = document.getElementById('bus-url').value.trim();
         if (!url) {
-          alert('请输入总线地址');
+          showStatusMessage('请输入总线地址'); // 06#24：内联提示替代 alert()
           return;
         }
 
@@ -680,9 +690,20 @@
         } else {
           indicator.className = 'status-indicator ' + (reason ? 'error' : 'warning');
           indicator.innerHTML =
-            '<span>●</span><span>' + (reason ? reason + ' · ' : '') + '离线演示模式</span>';
+            '<span>●</span><span>' +
+            (reason ? escapeHtml(reason) + ' · ' : '') +
+            '离线演示模式</span>';
           btn.textContent = '连接平台';
         }
+      }
+
+      // 06#24：内联状态提示（替代 alert() 阻塞弹窗）——复用 4001 鉴权失败同款
+      // #platform-status 指示条，但只更新文案，不翻转 connected/按钮
+      // （任务名为空时连接可能在线，setConnected(false) 会造成状态失真）
+      function showStatusMessage(message) {
+        const indicator = document.getElementById('platform-status');
+        indicator.className = 'status-indicator warning';
+        indicator.innerHTML = '<span>●</span><span>' + escapeHtml(message) + '</span>';
       }
 
       function sendCommand(action, payload) {
@@ -757,6 +778,18 @@
         return String(v ?? '').replace(/[^A-Za-z0-9_-]/g, '');
       }
 
+      // 06#23：priority 走已知值白名单（比 classToken 更严：字符过滤拦不住
+      // "合法字符拼出的未知类名"）——已知优先级映射到固定 token，未知归 'other'
+      const PRIORITY_CLASS_TOKENS = {
+        low: 'low',
+        medium: 'medium',
+        high: 'high',
+        critical: 'critical',
+      };
+      function priorityToken(v) {
+        return PRIORITY_CLASS_TOKENS[String(v)] ?? 'other';
+      }
+
       function updateDashboard() {
         const data = currentData();
 
@@ -804,7 +837,7 @@
               ? (data.agents.find((a) => a.id === task.assignedAgentId) || {}).name
               : null;
             taskItem.innerHTML = `
-                    <div class="task-priority priority-${escapeHtml(task.priority)}"></div>
+                    <div class="task-priority priority-${priorityToken(task.priority)}"></div>
                     <div class="task-info">
                         <div class="task-name">${escapeHtml(task.name)}</div>
                         <div class="task-meta">${escapeHtml(task.type)} - ${escapeHtml(task.status)}</div>
@@ -857,13 +890,29 @@
         ctx.stroke();
       }
 
+      // 06#25：画布自适应——固定 width=400 在窄容器溢出、宽容器浪费像素；
+      // resize 时跟随容器 clientWidth（夹在 280..800），高度保持 160 并重绘。
+      // 隐藏（display:none）时 clientWidth=0 → 夹到下界 280，设置尺寸与
+      // getContext 绘制都不会抛错；宽度未变则跳过，避免多余采样
+      function resizePerformanceChart() {
+        const canvas = document.getElementById('performance-chart');
+        const parent = canvas && canvas.parentElement;
+        if (!canvas || !parent) return;
+        const width = Math.max(280, Math.min(800, parent.clientWidth));
+        if (width === canvas.width) return;
+        canvas.width = width;
+        canvas.height = 160;
+        updatePerformanceChart();
+      }
+      window.addEventListener('resize', resizePerformanceChart);
+
       // 提交任务：已连接走真实总线命令，未连接本地模拟
       function submitTask() {
         const taskName = document.getElementById('task-name').value;
         const taskPriority = document.getElementById('task-priority').value;
 
         if (!taskName) {
-          alert('请输入任务名称');
+          showStatusMessage('请输入任务名称'); // 06#24：内联提示替代 alert()
           return;
         }
 

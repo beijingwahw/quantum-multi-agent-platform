@@ -5,6 +5,7 @@
     "declaration": false,
     "rootDir": ".",
     "types": ["node"],
+    "checkJs": true,
     "paths": {}
   },
   "include": ["src/**/*", "tests/**/*", "examples/**/*", "experiments/**/*", "scripts/**/*.ts"],

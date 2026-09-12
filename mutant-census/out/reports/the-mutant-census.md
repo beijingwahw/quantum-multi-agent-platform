@@ -357,7 +357,7 @@ The registry is imported LIVE on every run: 726 errors across 93 batches, each w
 | `depreciation-ledger/test/ledger.test.ts :: L5 error face: a malformed appeal package.json is BOOKED as a violation, never a crash` | 1 | wrong-object |
 | `switch-sched/src/experiments/exp3-sched-contact.ts :: ${positiveJoint}/${N}` | 1 | statistics |
 | `ds_extracted/ds/package.json :: lint` | 1 | toolchain |
-| `letter-audit/src/kernel/frontier.ts :: tests-639` | 1 | citation-drift |
+| `letter-audit/src/kernel/frontier.ts :: tests-687` | 1 | citation-drift |
 
 **Booked unenforceable — the visible boundary, every row:**
 
@@ -789,7 +789,7 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **RESOLVED** — `mutant-census/package.json :: typecheck` — tsconfig.typecheck.json on disk — the project the gate compiles
 - **RESOLVED** — `ds_extracted/ds/package.json :: format:check` — prettier in devDependencies — the formatter the gate invokes is installed
 - **RESOLVED** — `ds_extracted/ds/package.json :: lint` — eslint.config.mjs on disk and eslint in devDependencies — the gate's machinery is wired (registered the moment b89#7 first sat on it)
-- **RESOLVED** — `letter-audit/src/kernel/frontier.ts :: tests-639` — the needle is on disk in the citing tree and the frontier checker fires it against the sibling's README on every letter-audit suite run (registered the moment b89#10 first sat on it)
+- **RESOLVED** — `letter-audit/src/kernel/frontier.ts :: tests-687` — the needle is on disk in the citing tree and the frontier checker fires it against the sibling's README on every letter-audit suite run (registered the moment b89#10 first sat on it)
 - **RESOLVED** — `ds_extracted/ds/package.json :: test` — the tests/ tree exists and carries test files
 - **RESOLVED** — `ds_extracted/ds/package.json :: typecheck` — tsconfig.typecheck.json on disk
 - **RESOLVED** — `ds_extracted/ds/tsconfig.json :: exactOptionalPropertyTypes` — the flag itself is the machinery (content already E3-verified); compile-level firing would re-run tsc per census run — the cost is booked here, the check stays content-level
