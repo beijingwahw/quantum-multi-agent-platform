@@ -511,6 +511,79 @@ describe('QuantumBus · 鉴权门覆盖全部流量路径', () => {
     ws.close();
   });
 
+  it('未认证连接不得接收广播内容（接收面与注入面同口径）', async () => {
+    const bus = new QuantumBus({ communication: { port: 0, authToken: 'secret' } });
+    buses.push(bus);
+    await bus.start();
+
+    // 合法广播源：已认证连接
+    const authed = await openSocket(bus.getPort()!);
+    const authedTypes: string[] = [];
+    authed.on('message', (data: WebSocket.RawData) => {
+      try {
+        authedTypes.push(
+          (JSON.parse((data as Buffer).toString('utf8')) as { type?: string }).type ?? '',
+        );
+      } catch {
+        /* 非 JSON 帧忽略 */
+      }
+    });
+    authed.send(JSON.stringify({ type: 'authenticate', agentId: 'agent-1', token: 'secret' }));
+    await waitForBusEvent(
+      bus,
+      'agent_authenticated',
+      (e: { agentId: string }) => e.agentId === 'agent-1',
+    );
+
+    // 窃听者：TCP 连接但不认证——空订阅在旧实现下「默认接收全部广播」，
+    // authToken 对广播载荷完全不设防（与配置 JSDoc「全部流量路径仅对
+    // 已认证连接开放」的主张矛盾）
+    const eavesdropper = await openSocket(bus.getPort()!);
+    const eavesdroppedTypes: string[] = [];
+    eavesdropper.on('message', (data: WebSocket.RawData) => {
+      try {
+        eavesdroppedTypes.push(
+          (JSON.parse((data as Buffer).toString('utf8')) as { type?: string }).type ?? '',
+        );
+      } catch {
+        /* 非 JSON 帧忽略 */
+      }
+    });
+
+    authed.send(
+      JSON.stringify({
+        id: 'bcast-leak-probe',
+        type: 'status_update',
+        sourceAgentId: 'agent-1',
+        content: { secret: 'do-not-leak' },
+        timestamp: new Date().toISOString(),
+        priority: 'medium',
+        quantumState: {
+          id: 'q',
+          amplitude: 1,
+          phase: 0,
+          collapsed: true,
+          position: { x: 0, y: 0, z: 0 },
+        },
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 300));
+    // 窃听者只见 connection_ack（服务端 hello），广播载荷不得到达
+    assert.ok(
+      !eavesdroppedTypes.includes('status_update'),
+      `未认证连接不得接收广播内容（实际收到: ${eavesdroppedTypes.join(',')}）`,
+    );
+    // 对照：已认证的空订阅连接照常收到广播（门是鉴权不是广播断路）
+    assert.ok(
+      authedTypes.includes('status_update'),
+      '已认证连接应照常接收广播（正对照，防门过宽）',
+    );
+
+    authed.close();
+    eavesdropper.close();
+  });
+
   it('连接数上限：超限连接被 1013 拒绝', async () => {
     const bus = new QuantumBus({ communication: { port: 0, maxConnections: 1 } });
     buses.push(bus);

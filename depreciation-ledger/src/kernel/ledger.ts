@@ -65,7 +65,7 @@ export const LEDGER: readonly LedgerRow[] = [
     epoch: "1",
     claim: "QAOA",
     verdict: "HEURISTIC",
-    numberColumn: "platform: 292/292 tests, subspace-exact engine, three QPU backends",
+    numberColumn: "platform: subspace-exact engine, three QPU backends; the platform's test count is machine-audited by its own npm run test — never quoted here (the count-drift law)",
     costColumn: "heuristic complexity class — no speedup claim; numbers reproducible, class unmoved; the physical-verification pipeline is READY (wukong-crossval: instances enumerated, parameters offline-only, dry-run green — awaiting granted hours only)",
     atlasRow: "qaoa-heuristic",
     appealRepo: "ds_extracted/ds",

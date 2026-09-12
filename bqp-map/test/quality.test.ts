@@ -14,6 +14,8 @@
  *     throw is exercised (a contract that is never tested is a wish).
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { Rng } from "../src/core/rng.js";
 import { fitSlope, hoeffdingShots, median, randInts } from "../src/core/stats.js";
@@ -126,6 +128,23 @@ describe("quality: single-source anchors (the merged helpers)", () => {
     assert.equal(fmt(Number.NaN, 3), "NaN");
     assert.equal(fmt(Number.POSITIVE_INFINITY), "Infinity");
     assert.equal(table(["a", "b"], [["1", "2"]]), "| a | b |\n| --- | --- |\n| 1 | 2 |");
+  });
+});
+
+describe("quality: the books agree (package.json and BOTH lock slots)", () => {
+  it("package.json and both package-lock.json version slots carry the same version (the b85-family residual, anchored)", () => {
+    // the lockfile face struck this repo at v0.2.1: the b89#11 prose correction
+    // bumped the manifest but both lock slots stayed 0.2.0, undetected for a
+    // whole version because no test compared the books. This anchor (the
+    // dtc-clock b86#11 shape) convicts any recurrence on every suite run.
+    const read = (p: string): string => readFileSync(resolve(process.cwd(), p), "utf8");
+    const pkg = JSON.parse(read("package.json")) as { version: string };
+    const lockTop = JSON.parse(read("package-lock.json")) as { version: string };
+    const lockRoot = (JSON.parse(read("package-lock.json")) as {
+      packages: { "": { version: string } };
+    }).packages[""];
+    assert.equal(lockTop.version, pkg.version, "lockfile top-level version slot");
+    assert.equal(lockRoot.version, pkg.version, 'lockfile packages[""] version slot');
   });
 });
 

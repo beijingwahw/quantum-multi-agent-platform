@@ -28,8 +28,10 @@ import {
   distinguishabilityMatrix,
   gatesByIndices,
   hadamardCensus,
+  product2,
   shortestSupersequence,
   ORDERS4,
+  type Mat2,
 } from "../src/kswitch/hadamard4.js";
 import { verifyDistinguishabilityMatrix, verifyParityCertificate, verifyQuadCensus, verifySupersequenceClaim } from "../src/kswitch/verify.js";
 
@@ -190,6 +192,52 @@ describe("T5 the TCA+21 Hadamard face at d=2", () => {
     assert.equal(dm.pairs.length, 6);
     for (let pi = 0; pi < 24; pi++) {
       for (const v of dm.gameMatrix[pi]!) assert.equal(v, 0, `order ${pi} claimed separable`);
+    }
+  });
+
+  it("the separation fraction uses the PHYSICAL Pauli ray — ±i-proportional products are the same channel, not separated", () => {
+    // the hole: sameRay compared products under s ∈ {+1, -1} only, but
+    // products of {I,X,Y,Z} quartets carry phases in {±1, ±i} (YX = -iZ),
+    // and two unitaries differing by a GLOBAL phase are physically one
+    // channel (the docstring's own "0 on the same ray"; the repo's Pauli ray
+    // is q·P for any unit phase — k4.ts pauliReference). The ±-only ray
+    // counted those pairs separated: machine-measured 16128 of 160128
+    // cross-column pairs, overstating the average-case separation fraction
+    const census = hadamardCensus();
+    const dm = distinguishabilityMatrix(census);
+    const sameRayPhysical = (a: Mat2, b: Mat2): boolean => {
+      for (const [qc, qs] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
+        let dev = 0;
+        for (let i = 0; i < 2; i++) {
+          for (let j = 0; j < 2; j++) {
+            const rr = a.re[i]![j]! * qc - a.im[i]![j]! * qs;
+            const ii = a.re[i]![j]! * qs + a.im[i]![j]! * qc;
+            dev = Math.max(dev, Math.hypot(rr - b.re[i]![j]!, ii - b.im[i]![j]!));
+          }
+        }
+        if (dev < 1e-12) return true;
+      }
+      return false;
+    };
+    for (let pi = 0; pi < 24; pi++) {
+      for (let q = 0; q < dm.pairs.length; q++) {
+        const { y, y2 } = dm.pairs[q]!;
+        let separated = 0;
+        let total = 0;
+        for (const s1 of census.byColumn[y]!) {
+          const p1 = product2(gatesByIndices(s1.gates), S4[pi]!.seq);
+          for (const s2 of census.byColumn[y2]!) {
+            const p2 = product2(gatesByIndices(s2.gates), S4[pi]!.seq);
+            total++;
+            if (!sameRayPhysical(p1, p2)) separated++;
+          }
+        }
+        const frac = total === 0 ? 0 : separated / total;
+        assert.ok(Math.abs(frac - dm.matrix[pi]![q]!) < 1e-12, `order ${pi} pair (${y},${y2}): module ${dm.matrix[pi]![q]} vs physical ${frac}`);
+        // the worst-case game entry must agree with the physical reading too
+        const game = separated === total && total > 0 ? 1 : 0;
+        assert.equal(dm.gameMatrix[pi]![q], game, `order ${pi} pair (${y},${y2}) game entry`);
+      }
     }
   });
 });

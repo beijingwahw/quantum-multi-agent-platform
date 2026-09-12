@@ -49,7 +49,7 @@ and law.
 
 ```
 npm ci
-npm test          # 14/14
+npm test          # 15/15
 npm run repro     # renders out/reports/the-ledger.md, or throws
 ```
 

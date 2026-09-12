@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DOSSIERS, type Dossier } from "../src/kernel/dossier.js";
 import { checkDossiers, type DossierInput } from "../src/kernel/audit.js";
-import { c, conditionalData, outer } from "../src/kernel/linalg.js";
+import { c, conditionalData, normalize, outer } from "../src/kernel/linalg.js";
 import { q, qDiv } from "../src/kernel/exact.js";
 
 /** a kernel refusal is only usable if it is NAMED: the throw must carry the
@@ -69,6 +69,30 @@ test("regression: a zero denominator is not a rational — the exact layer refus
   assert.deepEqual(q(1n, -2n), { n: -1n, d: 2n });
   assert.deepEqual(qDiv(q(1n), q(2n)), { n: 1n, d: 2n });
   assert.deepEqual(q(5n), { n: 5n, d: 1n });
+});
+
+test("regression: a null vector has no direction — normalize refuses it by name, not NaN (NORMALIZE_NULL_VECTOR)", () => {
+  // the hole: the linalg header's own contract says "degenerate linear
+  // algebra is refused by name, never normalized into NaN cells" — but
+  // normalize divided by the norm unguarded, so the zero vector handed back
+  // NaN cells (1/0) exactly the way conditionalData's null trace used to
+  // (COND_NULL_OUTCOME's twin): NaN defeats every threshold downstream, so
+  // a corrupt state would read as fidelity 0 everywhere and pass checks
+  expectNamed(() => normalize([c(0), c(0)]), "LinAlgError", "NORMALIZE_NULL_VECTOR");
+  expectNamed(() => normalize([c(0, 0), c(0, 0), c(0, 0)]), "LinAlgError", "NORMALIZE_NULL_VECTOR");
+  // a NaN cell makes the norm itself NaN (NaN > 0 is false) — the same refusal
+  expectNamed(() => normalize([c(Number.NaN), c(0)]), "LinAlgError", "NORMALIZE_NULL_VECTOR");
+  expectNamed(() => normalize([c(1), c(Number.POSITIVE_INFINITY)]), "LinAlgError", "NORMALIZE_NULL_VECTOR");
+  // legal neighbors: the 3-4-5 normalization keeps its cells (3/5 is one ulp
+  // off binary-exact — tolerance, not ==)
+  const v = normalize([c(3), c(4)]);
+  assert.ok(Math.abs(v[0]!.re - 0.6) < 1e-15);
+  assert.equal(v[0]!.im, 0);
+  assert.ok(Math.abs(v[1]!.re - 0.8) < 1e-15);
+  // a unit vector is a fixed point, bitwise (1/1 exact)
+  const u = normalize([c(0), c(0, 1)]);
+  assert.equal(u[1]!.im, 1);
+  assert.equal(u[0]!.re, 0);
 });
 
 test("regression: an empty local anchor certifies nothing — R4 names it (the cite: branch already did)", () => {

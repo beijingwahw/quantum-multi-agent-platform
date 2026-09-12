@@ -1,7 +1,8 @@
 /** Seeded RNG (mulberry32) — every experiment rerun must reproduce bit-for-bit.
- * (v0.21.1 dead-code sweep: the int/normal/pick members had zero callers
- * anywhere in the workspace — grep-proven — and went; only the raw stream is
- * consumed, and the stream itself is unchanged bit-for-bit.) */
+ * (the post-0.21.0 dead-code sweep — the books stayed at 0.21.0: the
+ * int/normal/pick members had zero callers anywhere in the workspace —
+ * grep-proven — and went; only the raw stream is consumed, and the stream
+ * itself is unchanged bit-for-bit.) */
 export interface Rng {
   (): number;
 }

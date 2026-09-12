@@ -11,4 +11,4 @@
 | cat:process | 1 | b21#3 (b21) | BOOKED-UNENFORCEABLE | the witness measured 9977.19 against the hand's 9977.87 — run the witness first, then write the number into the text |
 | cat:toolchain | 1 | b21#2 (b21) | BOOKED-UNENFORCEABLE | an entry guard (import.meta.url === pathToFileURL(process.argv[1]).href) — otherwise the test's first import executes the rendering |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-08T09:38:48.009Z; src tree newest 2026-09-08T00:26:08.758Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T20:56:21.665Z; src tree newest 2026-09-11T15:59:13.277Z — FRESH (the newest render postdates every source)

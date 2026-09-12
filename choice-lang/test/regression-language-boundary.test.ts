@@ -4,8 +4,9 @@ import { branchProduct, conditionOnPattern, controlState, membershipExpectation,
 import { leaf, node, pathSlotPattern, runTerm, termIsometry, termPaths } from "../src/kernel/compose.js";
 import { iteratedProgram, loopTrajectory } from "../src/kernel/iterate.js";
 import { ChoiceLangError } from "../src/core/errors.js";
-import { mMul } from "../src/core/cmat.js";
+import { mAdd, mMul } from "../src/core/cmat.js";
 import { engineeredUnitary, worldProjector, worldState, DATA_DIM } from "../src/kernel/fixtures.js";
+import { identity, mat } from "../src/core/cmat.js";
 
 /**
  * Regression: the language boundary's degenerate-input holes.
@@ -147,5 +148,42 @@ describe("R4 a non-finite pattern weight cannot divide the conditional silently"
       for (const b1 of [0, 1] as const) psum += conditionOnPattern(fin, 2, [b0, b1], DATA_DIM).p;
     }
     assert.ok(Math.abs(psum - 1) < 1e-14);
+  });
+});
+
+describe("R5 the core add refuses mismatched shapes by name — mAdd alone used to corrupt silently", () => {
+  // the hole: mMul carried the MAT_SHAPE guard, mAdd did not — mAdd(2x2, 4x4)
+  // read b's top-left block at a's offsets (a plausible WRONG value, the
+  // nosignal-tariff "0.375 quietly" face) and mAdd(4x4, 2x2) laundered NaN
+  // into the tail cells, while the suite's own T10 title claims "core shape
+  // mismatches are named, not turned into silent NaN"
+  it("mAdd refuses both mismatch directions by name (MAT_SHAPE)", () => {
+    assertRejects(() => mAdd(mat(2, 2), mat(4, 4)), "MAT_SHAPE", /2x2 \+ 4x4/);
+    assertRejects(() => mAdd(mat(4, 4), mat(2, 2)), "MAT_SHAPE", /4x4 \+ 2x2/);
+    assertRejects(() => mAdd(mat(2, 3), mat(3, 2)), "MAT_SHAPE", /2x3 \+ 3x2/);
+  });
+
+  it("legal same-shape additions keep their exact cells", () => {
+    const a = identity(4);
+    const b = identity(4);
+    const sum = mAdd(a, b);
+    assert.equal(sum.re[0], 2);
+    assert.equal(sum.re[5], 2);
+    assert.equal(sum.re[1], 0);
+    assert.equal(sum.im[0], 0);
+    // stepOperator's own call shape (the live consumer) still computes: the
+    // two branch-routing Kronecker terms of one step add exactly
+    const u = engineeredUnitary(501);
+    const p0 = mat(4, 4);
+    p0.re[0] = 1;
+    const p1 = mat(4, 4);
+    p1.re[3 * 4 + 3] = 1;
+    const viaAdd = mAdd(
+      { rows: 4, cols: 4, re: new Float64Array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), im: new Float64Array(16) },
+      { rows: 4, cols: 4, re: new Float64Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]), im: new Float64Array(16) },
+    );
+    assert.equal(viaAdd.re[0], 1);
+    assert.equal(viaAdd.re[15], 1);
+    assert.ok(Number.isFinite(u.re[0]));
   });
 });

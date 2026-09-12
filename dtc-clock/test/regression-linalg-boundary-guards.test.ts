@@ -4,7 +4,8 @@ import { DtcError } from "../src/core/errors.js";
 import { basisVec, mat, mAdd } from "../src/core/cmat.js";
 
 /**
- * Regression: the linalg boundary guards (v0.21.1). Both refusals close a
+ * Regression: the linalg boundary guards (landed with the post-0.21.0
+ * quality sweeps; the books stayed at 0.21.0). Both refusals close a
  * silent-failure class the rest of the channel layer already refuses by
  * name: an out-of-range basisVec index was a no-op write into the
  * Float64Array (the zero vector out, no error), and a shape-mismatched mAdd

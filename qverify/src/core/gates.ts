@@ -221,8 +221,14 @@ export function mirrorCircuit(circuit: RandomCircuit): RandomCircuit {
     // do not necessarily commute with them; exact inverse = reverse order + dagger
     for (let i = src.length - 1; i >= 0; i--) {
       const op = src[i]!;
+      if (op.kind === 'u1' && op.u === undefined) {
+        // the same contract runCircuitVec refuses by name — substituting
+        // identity here would launder the violation into a legal-looking
+        // no-op mirror that no downstream guard can catch
+        throw new Error('QV_OP_NO_UNITARY: mirrorCircuit met a u1 op without its unitary');
+      }
       const inv: CircuitOp =
-        op.kind === 'cz' ? { kind: 'cz', qubits: op.qubits } : { kind: 'u1', qubits: op.qubits, u: mDagger(op.u ?? identity(2)) };
+        op.kind === 'cz' ? { kind: 'cz', qubits: op.qubits } : { kind: 'u1', qubits: op.qubits, u: mDagger(op.u!) };
       cur.push(inv);
       ops.push(inv);
     }

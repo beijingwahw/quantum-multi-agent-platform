@@ -13,6 +13,6 @@
 | cat:wrong-object | 3 | b66#8 (b66) | GATE-ENFORCED | the kernel owns safe constructors (pFromMonomials) — mutating readonly internals from a caller is never the route, even in a leaf helper |
 | cat:dimension-slot | 2 | b18#3 (b18) | GATE-ENFORCED | ascending order yields combinations, not k-permutations — agent order matters in assignment; 'looks right' combinatorics exposed at runtime |
 | cat:machine-overruled | 1 | b18#1 (b18) | GATE-ENFORCED | SD is the classic non-manipulable rule — the machine refused to break it 40/40; second-best (one step from optimal) is the biter (25/40). Prior intuition yields to machine precedent, and corrections are recorded, not buried |
-| cat:statistics | 1 | b18#5 (b18) | GATE-ENFORCED | the floor is set by the largest intermediate (|q+ - q|/h terms ~56 -> ~1e-14); guard 1e-13 with provenance |
+| cat:statistics | 1 | b18#5 (b18) | BOOKED-UNENFORCEABLE | the floor is set by the largest intermediate (|q+ - q|/h terms ~56 -> ~1e-14); guard 1e-13 with provenance |
 
-Reports freshness (the repro-no-op face, v0.22.0): 7 reports on disk; newest render 2026-09-08T09:04:30.252Z; src tree newest 2026-09-08T07:32:29.693Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 7 reports on disk; newest render 2026-09-11T21:01:33.606Z; src tree newest 2026-09-11T16:01:53.522Z — FRESH (the newest render postdates every source)

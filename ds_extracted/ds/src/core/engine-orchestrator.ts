@@ -216,7 +216,6 @@ export class QuantumEngineOrchestrator {
         ctx.schedulable,
         ctx.algorithm,
         ctx.subspaceCap,
-        ctx.slots,
         ctx.maxConcurrent,
       );
       if (subspaceReport) return subspaceReport;
@@ -254,7 +253,6 @@ export class QuantumEngineOrchestrator {
         ctx.schedulable,
         ctx.algorithm,
         ctx.subspaceCap,
-        ctx.slots,
         ctx.maxConcurrent,
       );
       if (subspaceReport) return subspaceReport;
@@ -383,7 +381,12 @@ export class QuantumEngineOrchestrator {
     let optimalityKnown = true;
 
     for (const chunk of chunks) {
-      if (this.ctx.activeAssignments() >= slots && maxConcurrent != null) break;
+      // R12#1：并发上限以 maxConcurrent 为比较基准——slots 已按入口在役数
+      // 预扣（= maxConcurrent − A0），再与含 A0 的 activeAssignments() 比较
+      // 是对同批在役任务的二次扣减：A0 ≥ slots（利用率过半）时此处立即
+      // break，批量调度静默空转。单任务路径（tryAssign）与 01#4 QPU 修复
+      // 的规范公式均为实时余量 maxConcurrent − activeAssignments()。
+      if (maxConcurrent != null && this.ctx.activeAssignments() >= maxConcurrent) break;
       // 不变量兜底（01#3）：分块条件带 current.length > 0 前缀，
       // 单任务×大空闲池（子空间引擎超维回退到这里的典型场景）产出的
       // 单任务块仍可超 cap——引擎会在调度中段抛 QuantumEngineError。
@@ -397,8 +400,13 @@ export class QuantumEngineOrchestrator {
         );
         continue;
       }
-      const remainingSlots =
-        maxConcurrent != null ? slots - this.ctx.activeAssignments() : Infinity;
+      // R12#1：applyJointSolution 的 maxAssign 与**累计**已派数（report.
+      // assigned）比较，是「本批总配额」语义——取入口余量 slots 恒定值。
+      // 此前每块重算 slots − activeAssignments() 会随本批自己的派单收缩，
+      // 块 1 派过之后块 2 立即断裂（余量被重复扣减）。全空间路径在本方法
+      // 内无宏任务 await，入口余量在整批内不失效（异步孪生落到本路径时
+      // 前置的子空间轮未执行任何求解 await），无需按事件窗口复查。
+      const batchAssignBudget = maxConcurrent != null ? slots : Infinity;
 
       const { problem, couplingCount, nqubits } = this.buildBatchProblem(chunk, idlePool);
       report.entanglementCouplings += couplingCount;
@@ -428,14 +436,14 @@ export class QuantumEngineOrchestrator {
       });
       report.validMass += solution.validMass;
 
-      // 应用坍缩结果：仍受并发上限约束
+      // 应用坍缩结果：仍受并发上限约束（R12#1：累计配额见 batchAssignBudget）
       this.applyJointSolution(
         chunk,
         idlePool,
         solution.assignment,
         problem,
         {
-          maxAssign: remainingSlots,
+          maxAssign: batchAssignBudget,
           probability: solution.probability,
           confidence: solution.validMass,
           reasoning: () =>
@@ -540,7 +548,6 @@ export class QuantumEngineOrchestrator {
     tasks: Task[],
     algorithm: 'quantum-qaoa' | 'quantum-annealing',
     subspaceCap: number,
-    slots: number,
     maxConcurrent: number | null,
   ): QuantumBatchReport | null {
     const report = this.initSubspaceReport(algorithm);
@@ -549,18 +556,12 @@ export class QuantumEngineOrchestrator {
     let anyRound = false;
 
     while (pending.length > 0) {
-      const round = this.prepareSubspaceRound(
-        pending,
-        algorithm,
-        subspaceCap,
-        slots,
-        maxConcurrent,
-      );
+      const round = this.prepareSubspaceRound(pending, algorithm, subspaceCap, maxConcurrent);
       if (!round) break;
       const solution = round.useQaoa
         ? qaoaSolveSubspace(round.model, this.buildSolverOptions())
         : annealSolveSubspace(round.model, this.buildSolverOptions());
-      const progressed = this.recordSubspaceRound(report, round, solution, acc);
+      const progressed = this.recordSubspaceRound(report, round, solution, acc, maxConcurrent);
       anyRound = true;
       if (!progressed) break; // 防御：无进展即退出
       pending = pending.filter((t) => t.status === 'pending');
@@ -581,7 +582,6 @@ export class QuantumEngineOrchestrator {
     tasks: Task[],
     algorithm: 'quantum-qaoa' | 'quantum-annealing',
     subspaceCap: number,
-    slots: number,
     maxConcurrent: number | null,
   ): Promise<QuantumBatchReport | null> {
     const report = this.initSubspaceReport(algorithm);
@@ -590,18 +590,12 @@ export class QuantumEngineOrchestrator {
     let anyRound = false;
 
     while (pending.length > 0) {
-      const round = this.prepareSubspaceRound(
-        pending,
-        algorithm,
-        subspaceCap,
-        slots,
-        maxConcurrent,
-      );
+      const round = this.prepareSubspaceRound(pending, algorithm, subspaceCap, maxConcurrent);
       if (!round) break;
       const solution = round.useQaoa
         ? qaoaSolveSubspace(round.model, this.buildSolverOptions())
         : await annealSolveSubspaceAsync(round.model, this.buildSolverOptions());
-      const progressed = this.recordSubspaceRound(report, round, solution, acc);
+      const progressed = this.recordSubspaceRound(report, round, solution, acc, maxConcurrent);
       anyRound = true;
       if (!progressed) break; // 防御：无进展即退出
       pending = pending.filter((t) => t.status === 'pending');
@@ -635,7 +629,6 @@ export class QuantumEngineOrchestrator {
     pending: Task[],
     algorithm: 'quantum-qaoa' | 'quantum-annealing',
     subspaceCap: number,
-    slots: number,
     maxConcurrent: number | null,
   ): {
     round: Task[];
@@ -644,7 +637,10 @@ export class QuantumEngineOrchestrator {
     model: SubspaceModel;
     useQaoa: boolean;
   } | null {
-    if (maxConcurrent != null && this.ctx.activeAssignments() >= slots) return null;
+    // R12#1：与全空间分块同修——slots 已按入口在役数预扣，此处与含 A0 的
+    // activeAssignments() 比较是二次扣减。规范公式：实时余量
+    // maxConcurrent − activeAssignments()（tryAssign 与 01#4 同款）。
+    if (maxConcurrent != null && this.ctx.activeAssignments() >= maxConcurrent) return null;
     const pool = this.ctx.getAgents().filter((a) => a.state === 'idle');
     if (pool.length < 1) return null;
 
@@ -663,7 +659,9 @@ export class QuantumEngineOrchestrator {
     }
     k = Math.max(1, k);
 
-    const remainingSlots = maxConcurrent != null ? slots - this.ctx.activeAssignments() : Infinity;
+    // R12#1：实时余量（不再对入口在役数二次扣减）
+    const remainingSlots =
+      maxConcurrent != null ? Math.max(0, maxConcurrent - this.ctx.activeAssignments()) : Infinity;
     const round = feasible.slice(0, Math.min(k, pool.length, remainingSlots));
     if (round.length === 0) return null;
 
@@ -691,6 +689,7 @@ export class QuantumEngineOrchestrator {
     },
     solution: SubspaceSolution,
     acc: { achieved: number; optimal: number; maxDim: number; maxQubits: number },
+    maxConcurrent: number | null,
   ): boolean {
     const { round: roundTasks, pool, built, model } = round;
     report.engine = solution.engine;
@@ -709,14 +708,26 @@ export class QuantumEngineOrchestrator {
       evaluations: solution.evaluations,
     });
 
+    // R12#2（01#4 同族的 await 窗口复查）：异步孪生的演化 await
+    // （serialAnnealEvolveAsync 的 setImmediate 让出 / waitAsync）期间，
+    // 事件路径（completeTask→重调度、并发 scheduleTask）可能已消耗并发位
+    // ——此前 maxAssign: Infinity 全量套用会超订 maxConcurrentTasks。
+    // 求解后按实时余量封顶；applyJointSolution 的 maxAssign 与**累计**
+    // 已派数（report.assigned，本批口径）比较，故配额 = 实时余量 + 本批
+    // 已派数。同步驱动无 await 窗口（Δ=0），该值恒等于入口余量上限、
+    // 不小于本轮规模（轮切片已按同一实时余量截断）——对同步路径零漂移。
     const assignedBefore = report.assigned;
+    const maxAssign =
+      maxConcurrent != null
+        ? Math.max(0, maxConcurrent - this.ctx.activeAssignments() + report.assigned)
+        : Infinity;
     this.applyJointSolution(
       roundTasks,
       pool,
       solution.assignment,
       built.problem,
       {
-        maxAssign: Infinity,
+        maxAssign,
         probability: solution.probability,
         confidence: 1,
         reasoning: () =>

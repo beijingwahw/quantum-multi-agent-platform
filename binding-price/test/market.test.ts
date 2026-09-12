@@ -41,7 +41,7 @@ import {
   partialTrace,
 } from "../src/core/channels.js";
 import * as channelsModule from "../src/core/channels.js";
-import { basisVec, identity, kron, mat, mMul, mDagger } from "../src/core/cmat.js";
+import { basisVec, identity, kron, mat, mAdd, mMul, mDagger } from "../src/core/cmat.js";
 import { traceDistance, traceReal } from "../src/core/measures.js";
 import { MarketError } from "../src/kernel/errors.js";
 
@@ -577,5 +577,32 @@ describe("core family guard: basisVec (R9-A — the silent zero-vector hole)", (
     assert.deepEqual(Array.from(v.re), [0, 1, 0]);
     assert.deepEqual(Array.from(v.im), [0, 0, 0]);
     assert.equal(v.n, 3);
+  });
+});
+
+describe("core family guard: mAdd (R12 — the silent shape-mismatch hole)", () => {
+  it("refuses mismatched shapes instead of adding whatever the offsets hit", () => {
+    // the hole: mMul and mTrace refuse shape mismatches by name in the same
+    // file, mAdd did not — a 2x2 plus a 4x4 read b's top-left block at a's
+    // offsets and answered a confident wrong value (measured 1.15 where no
+    // sum exists — the nosignal-tariff "0.375 quietly" face on this repo's
+    // own traceDistance path), and the reverse direction laundered NaN into
+    // the tail cells
+    assert.throws(() => mAdd(mat(2, 2), mat(4, 4)), /shape mismatch 2x2 \+ 4x4/);
+    assert.throws(() => mAdd(mat(4, 4), mat(2, 2)), /shape mismatch 4x4 \+ 2x2/);
+    assert.throws(() => mAdd(mat(2, 3), mat(3, 2)), /shape mismatch 2x3 \+ 3x2/);
+  });
+
+  it("same-shape additions keep their exact cells (the live consumers' shapes)", () => {
+    // traceDistance's own call shape: rho plus another 2x2, cell for cell
+    const rho = blochState([0.3, 0, 0.5]); // re = [0.75, 0.15, 0.15, 0.25]
+    const half = blochState([0, 0, 0]); // re = [0.5, 0, 0, 0.5]
+    const sum = mAdd(rho, half);
+    assert.deepEqual(Array.from(sum.re), [1.25, 0.15, 0.15, 0.75]);
+    assert.ok(sum.im.every((v) => v === 0), "imaginary cells are zero (possibly -0)");
+    const twoI = mAdd(identity(2), identity(2));
+    assert.equal(twoI.re[0], 2);
+    assert.equal(twoI.re[3], 2);
+    assert.equal(twoI.re[1], 0);
   });
 });

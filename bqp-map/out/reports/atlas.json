@@ -660,7 +660,7 @@
         {
           "kind": "cross-prototype",
           "ref": "dtc-clock",
-          "note": "the open core executed at the model layer: beat-keyed universal reversible computation (cargo exact), the legislated tariff table (0 < 5 < 9 < 43.02 units), zero-net-work and detuned-payment laws, the frontier census, and the WO15 tombstone — 17 board rows, six witnesses, every number re-derived; v0.20.0 TWO CONVICTIONS of previously-shipped claims, both machine-convicted by the new tests: (i) the TC13(ii)/TC18 echo-decay law |cos2d|^k had been verified TAUTOLOGICALLY (the v0.2.0 witness certified the formula against itself) and is FALSE — the true isolated-echo law is m(k) = (-1)^k cos(2k*delta) exactly (8.3e-15), and the geometric law is re-founded by TC46 as exact-in-expectation under per-period sign noise (exhaustive over all 2^k sequences, 3.6e-15), with route-price credited as the discovering sibling; (ii) zetaEM ADDED a spurious (1/2)N^-s tail term — the v0.19.0 'Phi1 = -4.547e-4 small but NONZERO' was that bug's artifact: Phi1 now bracketed +7.14e-8 within |Phi1| <= 5.58e-7 CONTAINING ZERO (fate open), kappa = -0.306852819, and the sigma1 transfer confirmed 5.8e-6 on an independent incremental-binomial road"
+          "note": "the open core executed at the model layer: beat-keyed universal reversible computation (cargo exact), the legislated tariff table (0 < 5 < 9 < 43.02 units), zero-net-work and detuned-payment laws, the frontier census, and the WO15 tombstone — every number re-derived by the sibling's own witness battery on every suite run (the board and witness counts are machine-audited THERE by npm test, never quoted here); v0.20.0 TWO CONVICTIONS of previously-shipped claims, both machine-convicted by the new tests: (i) the TC13(ii)/TC18 echo-decay law |cos2d|^k had been verified TAUTOLOGICALLY (the v0.2.0 witness certified the formula against itself) and is FALSE — the true isolated-echo law is m(k) = (-1)^k cos(2k*delta) exactly (8.3e-15), and the geometric law is re-founded by TC46 as exact-in-expectation under per-period sign noise (exhaustive over all 2^k sequences, 3.6e-15), with route-price credited as the discovering sibling; (ii) zetaEM ADDED a spurious (1/2)N^-s tail term — the v0.19.0 'Phi1 = -4.547e-4 small but NONZERO' was that bug's artifact: Phi1 now bracketed +7.14e-8 within |Phi1| <= 5.58e-7 CONTAINING ZERO (fate open), kappa = -0.306852819, and the sigma1 transfer confirmed 5.8e-6 on an independent incremental-binomial road"
         }
       ]
     },
@@ -860,7 +860,7 @@
       "family": "genealogy",
       "classical": {
         "cls": "exact at benchmarked sizes",
-        "note": "Hungarian parity point-for-point on the linear track; strongest classical heuristics 0/5 on the NP-hard coupling track"
+        "note": "Hungarian parity point-for-point on the linear track; strongest classical heuristics 3/5 on the NP-hard coupling track (v1.11 unified accounting — the earlier 0/5 was a half-ledger artifact the platform's own erratum corrected; volatile counts are machine-audited THERE by npm test, never quoted here)"
       },
       "quantumUpper": "exact constrained-subspace evolution at effective 80 qubits (full-space simulation would need ~10^15 TB); seeded, reproducible",
       "quantumLower": "no complexity-class movement: exactness is at benchmarked sizes against exact classical referees — 'effective' is subspace equivalence, NOT 80 physical qubits",

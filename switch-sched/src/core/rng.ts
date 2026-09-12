@@ -32,6 +32,17 @@ export function makeRng(seed: number): Rng {
   // the b86#10 lesson repeats)
   const rng: Rng = Object.assign(next, {
     int(maxExclusive: number): number {
+      // refuse BEFORE any draw so legal seeded streams stay bit-identical —
+      // the guard every sibling mulberry32 lineage carries (qram-sched,
+      // ent-sched, bqp-map, qverify, quantum-mech, k-switch, ft-qaoa,
+      // nonstoq-anneal, dsic-noether): a non-integer bound has no uniform
+      // value (int(2.5) draws 0/1/2 at 40/40/20), and 0/negative/Infinity
+      // return impossible indices — silently
+      if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
+        throw new Error(
+          `int(maxExclusive) draws uniformly from [0, maxExclusive): integer >= 1 required, got ${maxExclusive}`,
+        );
+      }
       return Math.floor(next() * maxExclusive);
     },
     normal(): number {

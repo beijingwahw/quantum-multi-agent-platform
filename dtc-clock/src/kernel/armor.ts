@@ -281,8 +281,9 @@ export interface ShadowResult {
 
 /** Pascal's triangle rows 0..n as Float64Arrays (row k has k+1 entries) —
  * the single binomial-row source for every chain builder in this file (the
- * v0.21.1 consolidation: four expression-identical local copies folded in,
- * bit-identical by the shared recurrence). */
+ * post-0.21.0 consolidation, books unchanged at 0.21.0: four
+ * expression-identical local copies folded in, bit-identical by the shared
+ * recurrence). */
 function binomials(n: number): Float64Array[] {
   const rows: Float64Array[] = [];
   for (let k = 0; k <= n; k++) {

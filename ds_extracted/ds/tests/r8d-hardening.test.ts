@@ -26,10 +26,11 @@ import type { MonitorEvent, Rule } from '../src/proactive-intelligence/index.js'
 import {
   configureCommandPolicy,
   execute_command_argv,
+  getCommandPolicy,
   resetCommandPolicy,
 } from '../src/tools/system-tools.js';
 import { QuantumBus } from '../src/communication/quantum-bus.js';
-import { ToolError } from '../src/utils/errors.js';
+import { ToolError, SecurityViolationError } from '../src/utils/errors.js';
 
 // ----------------------------------------------------------------------------
 // 修复 1：between 的 ±Infinity 边界是合法规则语义
@@ -157,6 +158,48 @@ describe('R8-D · workdir 沙箱跨平台前缀比对', () => {
         error.message.includes(tmpdir()) &&
         error.message.includes(root),
     );
+  });
+});
+
+// ----------------------------------------------------------------------------
+// R12：getCommandPolicy「只读视图」不得是活引用
+// ----------------------------------------------------------------------------
+
+describe('R12 · getCommandPolicy 只读快照（防写穿）', () => {
+  afterEach(() => {
+    resetCommandPolicy();
+  });
+
+  it('视图上的白名单 push / 字段改写必须被冻结挡下，不得写穿策略闸门', async () => {
+    const view = getCommandPolicy();
+
+    // 旧实现返回内部 policy 引用：push 静默把 'node' 写进白名单，
+    // 命令安全闸门被绕过（Readonly<CommandPolicy> 的类型承诺是谎言）
+    assert.throws(
+      () => (view.allowedPrograms as string[]).push('node'),
+      TypeError,
+      '冻结视图上的数组变异必须抛错',
+    );
+    assert.throws(
+      () => {
+        (view as { timeoutMs: number }).timeoutMs = 1;
+      },
+      TypeError,
+      '冻结视图上的字段赋值必须抛错',
+    );
+
+    // 策略状态未被写穿：node 仍在白名单外，执行闸门照常拒绝
+    // （程序白名单拒绝是 SecurityViolationError，不进 ToolError 包装层）
+    assert.ok(!getCommandPolicy().allowedPrograms.includes('node'));
+    await assert.rejects(
+      () => execute_command_argv('node', ['--version']),
+      (error: unknown) =>
+        error instanceof SecurityViolationError &&
+        error.message.includes('not in the allowed list'),
+    );
+
+    // 合法邻位：视图仍如实反映当前策略（只读消费方零影响）
+    assert.ok(getCommandPolicy().allowedPrograms.includes('echo'));
   });
 });
 

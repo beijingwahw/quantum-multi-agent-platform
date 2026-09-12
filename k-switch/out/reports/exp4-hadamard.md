@@ -18,7 +18,7 @@ Order quartet Σ = {ABCD, BADC, CBDA, DACB} (their experiment), Sylvester H₄; 
 | #3 0231 | 0 | 0 | 0 | 0 | 0 | 0 |
 | #4 0312 | 0 | 0 | 0 | 0 | 0 | 0 |
 | #5 0321 | 0 | 0 | 0 | 0 | 0 | 0 |
-(first 6 of 24 rows; all rows are zero — and the minimum average-case separation fraction over all 144 cells is 0.820513, i.e. matched same-ray pairs are everywhere).
+(first 6 of 24 rows; all rows are zero — and the minimum average-case separation fraction over all 144 cells is 0.666667, i.e. matched same-ray pairs are everywhere).
 
 | quantity | value | anchor |
 | --- | --- | --- |

@@ -897,6 +897,12 @@ export class QuantumBus extends EventEmitter {
     const openConnections: string[] = [];
     for (const connection of this.connections.values()) {
       if (connection.ws.readyState === WebSocket.OPEN) {
+        // 广播接收面与注入面同口径（鉴权开启时）：未认证连接不得收到
+        // 广播载荷——空订阅「默认收全部」曾使 authToken 只挡注入不挡
+        // 接收，任何能建立 TCP 连接的对端可被动收听全部广播内容
+        // （与 authToken 配置 JSDoc「全部流量路径仅对已认证连接开放」
+        // 的主张矛盾）。connection_ack/error 帧经专用出口直发，不受影响
+        if (!this.authenticated(connection)) continue;
         // 检查连接是否订阅了相关频道（无订阅=接收全部广播）
         if (
           connection.subscriptions.length === 0 ||

@@ -261,6 +261,17 @@ describe("T4 the memory substrate's structure is law (B9, v0.5.0)", () => {
     assert.ok(hit, `expected the lesson-heading conviction, got ${JSON.stringify(v)}`);
   });
 
+  it("a duplicated lesson heading in MIXED numerals is convicted — 第67批 and 第六十七批 are one batch (the either-tongue count law applied to the structure guard)", () => {
+    const v = memoryStructureViolations("### 关键经验（第67批——digits\n\n### 关键经验（第六十七批——numerals\n");
+    const hit = v.find((x) => /appears twice/.test(x.detail));
+    assert.ok(hit, `expected the mixed-numeral lesson-heading conviction, got ${JSON.stringify(v)}`);
+    assert.deepEqual(
+      memoryStructureViolations("### 关键经验（第67批——a\n\n### 关键经验（第六十八批——b\n"),
+      [],
+      "distinct batches written in different numeral systems must not convict — the key is the batch number, never its spelling",
+    );
+  });
+
   it("legitimate two-section visits do NOT convict — visit-number uniqueness was a false invariant, retired", () => {
     const v = memoryStructureViolations("## 三十九访点名交付：dtc-clock v0.1.0\n\n正文一\n\n## 三十九访点名：后信开工（双段访）\n\n正文二\n");
     assert.deepEqual(v, [], "a visit may carry several sections — the first draft false-convicted exactly this history");

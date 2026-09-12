@@ -251,6 +251,34 @@ test('rng: int/pick/normal surface still behaves after the Object.assign assembl
   assert.ok(Math.abs(mean) < 0.1, `standard normal mean too far from 0: ${mean}`);
 });
 
+test('rng.int refuses degenerate domains by name (was: silent biased/impossible draws)', () => {
+  // the guard every sibling mulberry32 lineage carries (qram-sched, ent-sched,
+  // bqp-map, qverify, quantum-mech, k-switch, ft-qaoa, nonstoq-anneal,
+  // dsic-noether): int(0) "returned" 0 — an impossible index out of [0,0) —
+  // int(-2) returned -1, int(2.5) drew 0/1/2 at 40/40/20, and int(Infinity)
+  // returned Infinity, all silently. This repo's copy was the family's
+  // unswept tenth member.
+  for (const bad of [0, -2, 2.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+    assert.throws(
+      () => makeRng(9).int(bad),
+      (e: unknown) => e instanceof Error && /int\(maxExclusive\) draws uniformly/.test(e.message) && String(bad).length > 0,
+      `int(${String(bad)}) must be refused by name`,
+    );
+  }
+  // the guard sits BEFORE any draw: a refused call leaves the stream untouched
+  const refused = makeRng(101);
+  assert.throws(() => refused.int(0));
+  const fresh = makeRng(101);
+  assert.ok(Object.is(refused(), fresh()), 'a refused call must not consume a draw');
+  // the one-element range [0,1) is legal and always draws 0
+  assert.equal(makeRng(101).int(1), 0);
+  // legal draws keep the exact stream: int(n) floors the same u a bare call yields
+  const r = makeRng(42);
+  const u = r();
+  const r2 = makeRng(42);
+  assert.equal(r2.int(1000), Math.floor(u * 1000));
+});
+
 test('makeRng reproducibility: same seed, same bitstream (the repro contract)', () => {
   const a = makeRng(20260905);
   const b = makeRng(20260905);

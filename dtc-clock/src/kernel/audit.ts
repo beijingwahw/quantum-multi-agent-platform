@@ -39,24 +39,27 @@
  *   W-P the Krawtchouk spectrum and the second-order face (v0.10.0);
  *   W-Q the Rayleigh-Schrodinger closed form for c_2 (v0.11.0);
  *   W-R the general-n law for c_2 — the central-binomial partial sum and
- *       the retired pi/4 scaling (v0.12.0);
+ *   the retired pi/4 scaling (v0.12.0);
  *   W-S the third-order coefficient c_3 — the first level-repulsion
+ *       face (v0.13.0);
  *   W-T the quotient-face law — u as the joint Rayleigh vector of the
- *   W-U the coupling closed forms — the truncated norms equal the
- *   W-V the 9/8 limit assembled — the exact central-binomial
- *   W-W the arcsine law — the exact chain identity, the pi/2
- *   W-X the correction constant pinned — sigma1 to ten digits, the
- *       one-term refutations, and the exact fixed-k edge law;
- *   W-Z the isolated echo laws independently re-verified (the v0.2.0
- *       tautology convicted) and the Phi1 machine bracket (v0.20.0);
- *       profile limit reproducing 9/8, and a's structure;
- *       factorization, the geometric-tail bracket, and the correction
- *       constant's convergence;
- *       classical ones, the coupling is proportional to c_2's binomial,
- *       and the share extrapolates to 9/8 at n=1024;
  *       second and third orders, plus the cancellation census that
  *       refutes the 2/3-share hypothesis;
- *       face (v0.13.0).
+ *   W-U the coupling closed forms — the truncated norms equal the
+ *       classical ones, the coupling is proportional to c_2's binomial,
+ *       and the share extrapolates to 9/8 at n=1024;
+ *   W-V the 9/8 limit assembled — the exact central-binomial
+ *       factorization, the geometric-tail bracket, and the correction
+ *       constant's convergence;
+ *   W-W the arcsine law — the exact chain identity, the pi/2
+ *       profile limit reproducing 9/8, and a's structure;
+ *   W-X the correction constant pinned — sigma1 to ten digits, the
+ *       one-term refutations, and the exact fixed-k edge law;
+ *   W-Y the singular Euler-Maclaurin assembly — the exact transfer and
+ *       the edge-mass series, the zetaEM sign fix witnessed (v0.19.0,
+ *       corrected v0.20.0);
+ *   W-Z the isolated echo laws independently re-verified (the v0.2.0
+ *       tautology convicted) and the Phi1 machine bracket (v0.20.0);
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";

@@ -222,8 +222,10 @@ async function readDshHomeFromCmd() {
   return null;
 }
 
-function platformHomeCandidates() {
-  if (IS_WIN) {
+// platformName 参数化（R12）：默认取宿主平台，供测试注入其他平台值——
+// 函数内全部按 platformName 分派（宿主行为与原 IS_WIN 判定逐点一致）
+function platformHomeCandidates(platformName = platform()) {
+  if (platformName === 'win32') {
     const out = [];
     if (process.env.APPDATA) out.push(join(process.env.APPDATA, 'dsh'));
     if (process.env.LOCALAPPDATA) out.push(join(process.env.LOCALAPPDATA, 'dsh'));
@@ -231,7 +233,9 @@ function platformHomeCandidates() {
     out.push(join(homedir(), 'AppData', 'Roaming', 'dsh'));
     return out;
   }
-  if (platform === 'darwin') {
+  // R12：同款函数对象比较笔误的漏网点（06/E-R10 只修了 win32 分支）——
+  // `platform === 'darwin'` 恒 false，macOS 自动探测候选整体判死
+  if (platformName === 'darwin') {
     return [join(homedir(), 'Library', 'Application Support', 'dsh'), join(homedir(), '.dsh')];
   }
   return [join(homedir(), '.config', 'dsh'), join(homedir(), '.dsh')];
@@ -590,6 +594,7 @@ export {
   installToDsh,
   isInstalledInManifest,
   listStatus,
+  platformHomeCandidates,
   PLUGIN_NAME,
   PLUGIN_ROOT,
   PLUGIN_VERSION,

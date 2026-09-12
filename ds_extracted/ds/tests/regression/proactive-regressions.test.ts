@@ -492,6 +492,64 @@ describe('审计4 [P1] · 规则对象不被引擎内部改写', () => {
     assert.notEqual(stored.conditions[0]!.value, sharedRegex, '正则应拷贝入库');
     assert.ok(stored.conditions[0]!.value instanceof RegExp);
   });
+
+  it('R12：makeDecision 返回的动作数组不得别名引擎内部存储', async () => {
+    const engine = new DecisionEngine();
+    engine.addRule(alwaysRule());
+
+    const first = await engine.makeDecision(ctx());
+    assert.ok(first.has('iso'));
+    // 调用方改写返回值（如插件 brain 路径的 push）：旧实现里该数组就是
+    // 引擎存储的引用——写穿后规则被永久改写，违反类头「出库无别名」契约
+    first.get('iso')!.push({
+      type: 'notification',
+      name: 'injected',
+      parameters: { title: 'x', message: 'y' },
+    });
+
+    const second = await engine.makeDecision(ctx());
+    assert.equal(
+      second.get('iso')!.length,
+      1,
+      '引擎内规则的动作数不得被调用方 push 改写（决策返回值是出库面）',
+    );
+    assert.equal(engine.getRule('iso')!.actions.length, 1, '出库快照同样不得看到注入动作');
+  });
+
+  it('R12：插件 brain 分配动作不得腐蚀同名规则的引擎存储（每批追加膨胀）', async () => {
+    const plugin = new ProactiveIntelligencePlugin({
+      brain: { successValue: 10, exploreCoefficient: 0.35, seed: 7 },
+      brainAgents: [{ id: 'a1', capabilities: ['X'], trueCost: 1, trueQuality: { X: 0.6 } }],
+    });
+    // 与插件虚拟 'brain' 键撞名的真实规则（用户可自由命名）：条件对
+    // task_request 事件成立，使其与 brain 分配同批触发
+    plugin.addRule(
+      makeRule(
+        'brain',
+        50,
+        [notifyAction],
+        [{ type: 'event', operator: 'equals', field: 'task_request.capability', value: 'X' }],
+      ),
+    );
+    await plugin.start();
+
+    for (let i = 0; i < 2; i++) {
+      plugin.observe({
+        type: 'task_request',
+        source: 's',
+        data: { capability: 'X' },
+        severity: 'info',
+      });
+      await plugin.flush();
+    }
+
+    assert.equal(
+      plugin.getEngine().getRule('brain')!.actions.length,
+      1,
+      '引擎内动作列表不得随批次膨胀（旧实现：makeDecision 返回内部数组被 brain 路径 push 写穿）',
+    );
+    await plugin.stop();
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 93;
-export const DECLARED_TOTAL_ERRORS = 726;
+export const DECLARED_TOTAL_BATCHES = 94;
+export const DECLARED_TOTAL_ERRORS = 736;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4548,6 +4548,66 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[pre-flight conviction, found while wiring batch ninety-three] mutant-census's own package-lock.json carried 0.31.0 at BOTH top-level slots against package.json's 0.32.0 — the repo that enrolled the lockfile face and pins every sibling's slots shipped its own drift one version deep, the E3 needle quoting the stale lock digits and convicting nothing",
         right: "both slots pinned to the live version with the 0.33.0 bump and the needle repointed to follow it — the registrar's own books agree before it audits anyone else's",
         category: "citation-drift",
+      },
+    ],
+  },
+  {
+    batch: 94,
+    repo: "burial-record",
+    date: "2026-09-13",
+    context:
+      "the R12 quality wave (visit eighty-seven: three batches of four agents over every line of the workspace, orchestrator-wired): ten delivery errors from eight actors booked in one batch — the orchestrator's own pipe-masked baseline and half-wired anchor re-pin beside the delivery agents' refused edit, inverted proof order, late shared-registry baseline, an assumed error surface, a sed count edit, an infinity-blind guard, a hand-typed roster, and one truncated diagnostic; every one self-corrected or tool-caught in the act, none shipped",
+    source: { file: "memory/2026-09-13.md", heading: "关键经验（第九十四批" },
+    errors: [
+      {
+        wrong: "[orchestrator self-report, this batch] the wave's own baseline chained `npm test 2>&1 | tail -8 && echo DONE` — tail printed the text while eating the verdict, and the chain stamped ALL-BASELINE-GREEN over a log that carried a failure diagnostic (the concurrent agents' mid-edit state); the exit-code-masking family's twenty-eighth sighting, committed by the session that had just re-cited the no-pipe law in its own dispatch prompts",
+        right: "re-run pipeless, the direct exit code the only verdict — the law binds the orchestrator first: a gate command never wears a pipe, not even to tidy its output",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] the b84#6 re-pin edited the enrollment row alone — the symmetric anchors.ts evidence row kept the dead 0.3.0 needle, and the next census run failed three tests at once (A1-A3 registry symmetry, E4 render refusal, the M-board parameterization) — the half-derived registration face the b86#12 class convicted before",
+        right: "the anchors.ts row re-pointed in the same breath with its evidence prose — an enrollment edit and its anchor evidence are one atomic wiring act, proven by the suite's own symmetry check before anything ships",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent B] the getCommandPolicy leak test first asserted a ToolError surface — the program allowlist refusal throws SecurityViolationError before ToolError's wrapping layer, and the draft asserted its imagination of the error surface instead of the code's",
+        right: "the predicate corrected after the first red was read instead of trusted — a test's expected error type is read from the throw site, never assumed from a sibling path (the wrong-object family's test face)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent C] bqp-map's package.json Edit was dispatched before the file was Read — the tool refused, the tenth refusal on the b48#2/b53#0/b67#4/b82#6/b83#20/b86#6/b88#0 line",
+        right: "Read-before-Edit is the tool's own guard and the wave's own protocol step — the refusal itself the correction",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent D] the census anchor-liveness conclusion (audit.ts reads the target file live) was written into the report BEFORE the readFileSync-includes line was verified — the conclusion held, but the order of proof was inverted",
+        right: "the verification moved ahead of the conclusion in the re-run — an anchor's mechanism is proven by reading its code first, then asserted",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent E] the census-side needle edits were made before the census suite itself had a baseline run — the pre-existing b87#24 red (switch-sched's same-wave 0.4.0 bump had already killed the needle) surfaced only while verifying the agent's own re-points, muddying attribution for three test failures",
+        right: "the baseline-first law held for the six work repos but was skipped for the shared registry the agent also edited — every tree you touch gets its baseline before its first edit, shared registries included; the failures were attributed cleanly in the end (zero burial-record rows among them)",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent F] k-switch's README count edit went through sed -i instead of the Edit tool — the same face batch ninety-two convicted for the version-slot collateral (a bare digit pattern across a whole file), here on a count face; damage verified zero by grep after the fact, the process error stands where the collateral was nil",
+        right: "prose edits ride the Edit tool with the context lines visible — batch ninety-two's own rule quoted back one batch later",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent F] route-price's normalize guard first refused only non-positive norms (`!(nrm > 0)`) — +Infinity sailed through into 0*Infinity = NaN, the exact silent-NaN class the guard existed to close; the red test caught the hole inside the same red/green loop",
+        right: "the domain reads `!Number.isFinite(nrm) || nrm === 0` — a numeric guard's domain is enumerated from the arithmetic it protects (infinity is a value the multiplication will consume), not from the first failing example",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent G] the workspace-wide README count sweep enumerated 28 of the 29 research repos — depreciation-ledger missing from the hand-typed first pass, its lockfile and count checks done only after a find-based package.json census corrected the roster",
+        right: "an enumeration over all repos is built from the filesystem's own package.json census, never from a hand-typed list — the count-drift law's roster face",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent H2] a diagnostic command's head-pipe slipped into a background execution and returned a truncated frame — no verdict was taken from it",
+        right: "the re-run wrote output to a log file and read it whole — diagnostics follow the same pipeless law as gates when their output is evidence, and evidence is read whole or not at all",
+        category: "toolchain",
       },
     ],
   },

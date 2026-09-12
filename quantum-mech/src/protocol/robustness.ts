@@ -138,6 +138,12 @@ export function interceptSeparation(
   gamma: number,
   rng: Rng,
 ): SeparationStats {
+  if (!Number.isInteger(trials) || trials < 1) {
+    throw new Error(`SEP01-bad-trials: interceptSeparation needs integer trials >= 1 (0 divides the flip rates into NaN), got ${trials}`);
+  }
+  if (!Number.isInteger(m) || m < 1) {
+    throw new Error(`SEP02-bad-m: interceptSeparation needs integer m >= 1 payload qubit (0 divides the flip rates into NaN), got ${m}`);
+  }
   let honest = 0;
   let intercept = 0;
   for (let t = 0; t < trials; t++) {

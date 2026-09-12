@@ -9,6 +9,6 @@
 | --- | --- | --- | --- | --- |
 | cat:dimension-slot | 1 | b27#2 (b27) | GATE-ENFORCED | an off-by-one in index arithmetic, caught in self-review — substitute concrete numbers into index formulas the same way |
 | cat:process | 1 | b27#0 (b27) | BOOKED-UNENFORCEABLE | the third draft defined the clean self-encoding (4(n+1) options per entry) on paper first — encodings are designed before they are typed |
-| cat:statistics | 1 | b27#1 (b27) | GATE-ENFORCED | precedence: that is 4*((n+1)^(2n)) = 324, not (4(n+1))^(2n) = 20736 — the enumeration ran on a truncated universe and returned BB=3 against the expected 6. Hand-evaluate formulas on a concrete case before they enter code |
+| cat:statistics | 1 | b27#1 (b27) | BOOKED-UNENFORCEABLE | precedence: that is 4*((n+1)^(2n)) = 324, not (4(n+1))^(2n) = 20736 — the enumeration ran on a truncated universe and returned BB=3 against the expected 6. Hand-evaluate formulas on a concrete case before they enter code |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-08T09:25:21.217Z; src tree newest 2026-09-08T09:23:30.175Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-12T18:43:48.740Z; src tree newest 2026-09-12T18:38:49.461Z — FRESH (the newest render postdates every source)

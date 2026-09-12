@@ -90,6 +90,18 @@ test('interceptor detection: separation shrinks with noise but survives dephasin
   assert.ok(noisy.separation < clean.separation);
 });
 
+test('interceptSeparation refuses trials/m < 1 by name before any draw (the 0/0 NaN floor)', () => {
+  // trials=0 made both flip rates honest/(0*m) = NaN and separation NaN-NaN
+  // on this direct-caller surface (robustness.test.ts) — the sibling entries
+  // (PRIV03 interceptExperiment, WIESNER02 wiesnerExperiment) already refuse
+  // by name; R12-D convicted the omission, R12 closeout landed it with the
+  // census b84#6 lockfile anchor re-pinned to 0.4.0 in the same breath
+  const rng = makeRng(1);
+  assert.throws(() => interceptSeparation(0, 3, 3, 'dephase', 0, rng), /SEP01-bad-trials/);
+  assert.throws(() => interceptSeparation(1.5, 3, 3, 'dephase', 0, rng), /SEP01-bad-trials/);
+  assert.throws(() => interceptSeparation(10, 0, 3, 'dephase', 0, rng), /SEP02-bad-m/);
+});
+
 test('noisy unlock MC is seeded-reproducible', () => {
   const a = makeRng(1234);
   const b = makeRng(1234);

@@ -50,16 +50,19 @@ function cloneCondition(c: Condition): Condition {
   }
 }
 
+/** 动作拷贝（参数/重试策略浅层复制——与规则所有权契约同口径的出库防御） */
+function cloneAction(a: Action): Action {
+  const action: Action = { ...a, parameters: { ...a.parameters } };
+  if (a.retryPolicy) action.retryPolicy = { ...a.retryPolicy };
+  return action;
+}
+
 /** 规则深拷贝（见类头「规则所有权契约」） */
 function cloneRule(rule: Rule): Rule {
   const cloned: Rule = {
     ...rule,
     conditions: rule.conditions.map((c) => cloneCondition(c)),
-    actions: rule.actions.map((a) => {
-      const action: Action = { ...a, parameters: { ...a.parameters } };
-      if (a.retryPolicy) action.retryPolicy = { ...a.retryPolicy };
-      return action;
-    }),
+    actions: rule.actions.map(cloneAction),
   };
   return cloned;
 }
@@ -211,10 +214,13 @@ export class DecisionEngine extends EventEmitter {
     triggeredRules.sort((a, b) => b.priority - a.priority);
 
     // 收集要执行的动作（每条规则至多出现一次，直接收集）。
-    // 动作数组来自内部拷贝（addRule 深拷贝保证），出库无别名。
+    // 出库动作数组是逐动作拷贝（R12）：makeDecision 的返回值交给调用方
+    // （插件层 brain 路径会向其 push 分配动作）——曾直接 set 内部存储
+    // 引用，调用方改写会写穿规则存储（同名 'brain' 规则随批次无限
+    // 膨胀且陈旧动作反复执行），违反类头「出库无别名」契约。
     const actions = new Map<string, Action[]>();
     for (const rule of triggeredRules) {
-      actions.set(rule.id, rule.actions);
+      actions.set(rule.id, rule.actions.map(cloneAction));
 
       // 更新规则触发计数
       this.metrics.rulesTriggered[rule.id] = (this.metrics.rulesTriggered[rule.id] ?? 0) + 1;

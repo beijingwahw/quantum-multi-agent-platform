@@ -4,6 +4,7 @@ import {
   RcError,
   entropyBits,
   jointTable,
+  phasePair,
   projector,
   wernerCorrelation,
   wernerPair,
@@ -92,4 +93,32 @@ test("K.M regression: the field censuses refuse the shift-wrap vacuum by name (R
   assert.equal(c.family, 255);
   assert.equal(c.maxCollisionProb, 15 / 255);
   assert.ok(c.universal2);
+});
+
+test("K.O regression: phasePair refuses a non-finite angle — the phase-family constructor scalar", () => {
+  // the hole: the README claims "every public entry rejects illegal input by
+  // name" and K.B claims the same for every entry — but the |Phi_theta>
+  // constructor took any theta, and cos/sin laundered NaN/Infinity into
+  // silent NaN cells of the state matrix (re/im full of NaN, no refusal
+  // anywhere on the kernel path; only the report printer would catch it,
+  // far downstream and off the kernel contract)
+  expectRc(() => phasePair(Number.NaN), "RC_NON_FINITE");
+  expectRc(() => phasePair(Number.POSITIVE_INFINITY), "RC_NON_FINITE");
+  expectRc(() => phasePair(Number.NEGATIVE_INFINITY), "RC_NON_FINITE");
+  // legal neighbors unchanged: theta = 0 is |Phi+> with the 1/2 coherence on
+  // both off-diagonal cells; theta = pi/2 carries it purely imaginary (the
+  // off-diagonal is SQRT1_2*SQRT1_2 = 0.5 + 1 ulp — tolerance, not ==)
+  const t0 = phasePair(0);
+  assert.equal(t0.re[0]![0], 0.5);
+  assert.equal(t0.re[3]![3], 0.5);
+  assert.ok(Math.abs(t0.re[0]![3]! - 0.5) < 1e-15);
+  assert.ok(Math.abs(t0.re[3]![0]! - 0.5) < 1e-15);
+  // the theta=0 imaginary cells are -(0 * c) = -0: a legal zero under ===
+  // (assert.strictEqual's Object.is would insist on the sign of zero)
+  assert.ok(t0.im[0]![3]! === 0, "im(0,3) is zero (possibly -0) at theta=0");
+  assert.ok(t0.im[3]![0]! === 0, "im(3,0) is zero (possibly -0) at theta=0");
+  const tq = phasePair(Math.PI / 2);
+  assert.ok(Math.abs(tq.re[0]![3]!) < 1e-15, "cos(pi/2) coherence vanishes");
+  assert.ok(Math.abs(tq.im[0]![3]! + 0.5) < 1e-15, "im(0,3) = -sin(pi/2)/2");
+  assert.ok(Math.abs(tq.im[3]![0]! - 0.5) < 1e-15, "im(3,0) = +sin(pi/2)/2 (the conj)");
 });

@@ -12,4 +12,4 @@
 | cat:machine-overruled | 1 | b17#6 (b17) | GATE-ENFORCED | both physics claims overruled twice: the marginal-COHERENCE law is the true law (the identity circuit is fully coherent), and the tilt closes on the trajectory-covariant subspace — the fuel account moves to the spectral gap; re-narrate per machine, closed forms supplied |
 | cat:wrong-object | 1 | b17#4 (b17) | GATE-ENFORCED | H_prop's ground state is 2^n-fold degenerate — the gap reads via firstExcited with multiplicity; 'every input's history state is a ground state' becomes the assertion at that site |
 
-Reports freshness (the repro-no-op face, v0.22.0): 4 reports on disk; newest render 2026-09-08T17:36:38.650Z; src tree newest 2026-09-08T08:50:57.128Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 4 reports on disk; newest render 2026-09-11T21:02:42.021Z; src tree newest 2026-09-11T16:05:40.509Z — FRESH (the newest render postdates every source)

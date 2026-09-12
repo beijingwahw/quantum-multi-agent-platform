@@ -5,12 +5,12 @@
 > 🇬🇧 **English version**: [README.en.md](./README.en.md)（图内文字为中文，图注附英文关键词）
 
 ![version](https://img.shields.io/badge/version-1.12.0-blue)
-![tests](https://img.shields.io/badge/tests-687-brightgreen)
+![tests](https://img.shields.io/badge/tests-695-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
-一个把**真实量子算法**（QAOA / 绝热量子退火 / Born 测量坍缩）作为调度决策引擎的多Agent平台：任务分配被编码为哈密顿量，在约束子空间上**精确演化**——联合调度规模达**等效 80 量子比特**（全空间模拟需 10¹⁵ TB 内存，宇宙尺度不可行），且在 NP-hard 耦合赛道上 **5/5 精确命中最优**（最强经典对手 3/5；`npm run bench` 一键复现，v1.11 统一记账勘误见[基准节](#-基准与性能-benchmarks--performance)）。
+一个把**真实量子算法**（QAOA / 绝热量子退火 / Born 测量坍缩）作为调度决策引擎的多Agent平台：任务分配被编码为哈密顿量，在约束子空间上**精确演化**——联合调度规模达**等效 80 量子比特**（全空间模拟需 10¹⁵ TB 内存，宇宙尺度不可行），且在 NP-hard 耦合赛道上 **5/5 精确命中最优**（最强经典对手为匈牙利 4/5、耦合感知最强经典 SA 3/5，全 25 实例赛道则为量子 25/25 vs SA 23/25；`npm run bench` 一键复现，v1.11 统一记账勘误见[基准节](#-基准与性能-benchmarks--performance)）。
 
 ![架构总览](docs/diagrams/01-architecture.png)
 
@@ -29,7 +29,7 @@
 | 🧠 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
 | 📊 | [基准与性能](#-基准与性能) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | 🚀 | [快速开始](#-快速开始) | 十条命令 + 代码示例 |
-| 🧪 | [测试与质量](#-测试与质量) | 687 用例 · 六门禁 · 覆盖率棘轮 |
+| 🧪 | [测试与质量](#-测试与质量) | 695 用例 · 六门禁 · 覆盖率棘轮 |
 | 📁 | [目录结构](#-目录结构) | 含图集生成器 |
 | 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.12 |
 | ⚠️ | [诚实的边界](#️-诚实的边界) | 等效≠真机 · 组合爆炸 · 热路径 |
@@ -209,10 +209,11 @@ sequenceDiagram
 |---|---|
 | 贪心 Greedy | 2/5 |
 | 局部搜索 Local search | 2/5 |
+| 匈牙利 Hungarian（线性分配松弛） | 4/5 |
 | 模拟退火 Simulated annealing | 3/5 |
 | **量子子空间 Quantum subspace** | **5/5** ✅ |
 
-> ⚠️ **勘误（v1.11，由 QuantumSched-Bench 定罪）**：本表早期版本载"贪心 0/5、局部搜索 0/5"——那是示例脚本给经典侧只记**不含耦合加成的半账**、却对照含耦合的最优所致的记账 Artifact；统一记账下经典侧实为 2/5。量子侧 5/5 与线性侧逐点一致原样复现，胜负结论不变（5/5 vs 最强经典 3/5），差距数字如实修正。
+> ⚠️ **勘误（v1.11，由 QuantumSched-Bench 定罪）**：本表早期版本载"贪心 0/5、局部搜索 0/5"——那是示例脚本给经典侧只记**不含耦合加成的半账**、却对照含耦合的最优所致的记账 Artifact；统一记账下经典侧实为 2/5。量子侧 5/5 与线性侧逐点一致原样复现，胜负结论不变，差距数字如实修正。R12 复核再勘误：同家族最强经典实为匈牙利（线性分配松弛）4/5 而非 SA 3/5，上表已补行；全 25 实例赛道最强经典为 SA 23/25、量子 25/25。
 
 ### 4️⃣ 确定性并行演化（v1.6）
 
@@ -253,7 +254,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 687 用例 · 0 失败
+npm test                # 695 用例 · 0 失败
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/DSH 工具调用）
@@ -297,7 +298,7 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 ## 🧪 测试与质量
 
-**687 用例 · 0 失败 · 65 个测试文件 / 207 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
+**695 用例 · 0 失败 · 66 个测试文件 / 209 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](docs/diagrams/16-quality.png)
 
@@ -316,9 +317,9 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | 调度/管理/通信/平台/控制台 | 48 | 平台全链路回归 · 控制台协议端到端（R10 拆分后委托不变式钉板） |
 | DSH / 主动智能 | 36 | DSH 集成 · 插件全量 + 冒烟 · 容量边界（05#16） |
 | 市场机制（CompoundBrain/VCG/增长市场/相变） | 87 | DSIC · 校准 · 定律验证 · 模拟器分离（08#11）· 守恒不变量（05#7） |
-| 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts） | 331 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） |
+| 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts） | 339 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） · R12 并发余量/守卫回归（r12-scheduler-concurrency 3） |
 | tests/ 子目录（bench·mutation·sched-bench） | 46 | 基准诚实性 · 变异杀死 · 基准错误面负对照 |
-| **全套** | **687** | **65 个测试文件 / 207 个套件 · 0 失败** |
+| **全套** | **695** | **66 个测试文件 / 209 个套件 · 0 失败** |
 
 （表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
@@ -330,7 +331,7 @@ npm run lint      # ESLint 0 错误（类型感知 strict 集：no-floating-prom
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
 npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖（唯一既定发现：index.ts 的同名 named+default 双导出，为兼容 import X from 的刻意 API）
-npm test          # 687 用例 · 0 失败 ✅
+npm test          # 695 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -381,7 +382,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            # 测试套件（65 文件 / 687 用例）
+├── tests/                            # 测试套件（66 文件 / 695 用例）
 ├── docs/diagrams/                    # 🎨 README 原理图集 + generate.py 生成器
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）

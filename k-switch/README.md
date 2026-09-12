@@ -63,7 +63,7 @@ d = 4; k = 4 at d = 4 — four pairwise-anticommuting unitaries need d = 4).
 
 ```
 npm install
-npm test        # 42/42
+npm test        # 43/43
 npm run repro   # 5 reports in out/reports/
 ```
 

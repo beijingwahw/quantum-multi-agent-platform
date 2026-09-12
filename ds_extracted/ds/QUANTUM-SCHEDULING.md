@@ -26,7 +26,8 @@
 > IBM Qiskit QAOA 程序导出（内嵌本仓库训练角度）、`QuantumBackend` 注册表
 > （无凭据自动回退本地精确引擎）。`scheduleBatchQuantumQpu()` 异步入口：
 > 真机采样 → 三道闸门（合法性校验/非法样本过滤/福利聚合与最优率对照）→ 调度。
-> 客户端经本地 stub 服务器做**真实 HTTP 往返**测试（12 用例），无需凭据。
+> 客户端经**注入 mock 传输**离线测试（05#17：无真实网络往返，12 用例），
+> 无需凭据。
 
 ## 一、过去与现在
 
@@ -56,8 +57,10 @@
 - **`bruteForceOptimum`**：精确最优（分支定界），量子解质量的诚实对照
 - **`toIsing`**：导出 (h, J) Ising 系数——**QPU 可移植**：同一调度问题可直接
   提交 D-Wave / QAOA 硬件；模拟器只是执行位置的差异
-- **三种坍缩模式**：`shots-best`（默认，多次测量取最优——真实退火实践协议）、
-  `argmax-valid`（合法子空间中概率最大的基态）、`born`（单次真随机坍缩）
+- **三种坍缩模式**（缺省依引擎而定：全空间 `qaoaSolve`/`annealSolve` 为
+  `argmax-valid`，约束子空间为 `shots-best`）：`shots-best`（多次测量取最优
+  ——真实退火实践协议）、`argmax-valid`（合法子空间中概率最大的基态）、
+  `born`（单次真随机坍缩）
 
 问题编码（QUBO → Ising）：
 - 比特 x_{t,a}：任务 t 交给 agent a；one-hot 与容量约束为二次罚项
@@ -177,7 +180,8 @@ v1.3 补上两条赛道的最强经典对手：
   > 半账**、却对照含耦合的最优所致的记账 Artifact；统一记账下经典侧各 2/5。
   > 量子侧 5/5 与线性侧逐点一致原样复现（`out/bench/bench-report.md`，
   > `npm run bench` 从公开种子重建）。历史记录不抹除，胜负结论不变
-  > （5/5 vs 最强经典 SA 3/5）。
+  > （5/5；同家族最强经典为匈牙利（线性分配松弛）4/5、耦合感知最强
+  > 经典 SA 3/5）。
 
   量子联合演化同时利用线性权重与二次耦合的全局结构，不受邻域局部最优
   盆地限制——这正是量子方法在 NP-hard 调度上的价值所在。
@@ -212,9 +216,9 @@ const report = await scheduler.scheduleBatchQuantumQpu();   // 有凭据自动�
 **诚实边界**：结构化 QPU 求解器（Advantage）要求拓扑嵌入，建议经 Ocean
 `EmbeddingComposite`；本客户端默认 Leap 混合求解器（接受任意 BQM，内部以
 真 QPU 求解难核）。客户端对 D-Wave SAPI 的请求编码（bqm 三元组/ising
-字典）、异步轮询、经典与 qp 压缩响应解析均经**本地 stub 服务器真实 HTTP
-往返**测试（`tests/qpu-backend.test.ts`，12 用例）——离线可复现，有凭据
-即上真机。
+字典）、异步轮询、经典与 qp 压缩响应解析均经**注入 mock 传输**测试
+（`tests/qpu-backend.test.ts`，12 用例；05#17 起无真实网络往返——离线
+可复现，有凭据即上真机）。
 
 ## 七½、v1.6 演化内核的性能跃迁（fiber-kernel + subspace-parallel）
 
@@ -320,7 +324,7 @@ regime（QAOA 真正困难的区间）上，α=0.1 温和而稳定地优于均�
    自动回退全空间分块或贪心。8×10 属质量模式而非热路径——v1.6 内核使其
    演化提速 23.5×（同机同状态，16 线程，逐位一致），见七½节。
 
-## 九、测试覆盖（124 个量子/基线/QPU 用例 / 全套 687 用例）
+## 九、测试覆盖（124 个量子/基线/QPU 用例 / 全套 695 用例）
 
 量子/基线/QPU 家族构成：quantum-optimizer 20 + subspace-optimizer 10 +
 subspace-parallel 11 + classical-baselines 5 + qpu-backend 12 +
@@ -355,7 +359,7 @@ QAOA 末态干涉集中、Born 坍缩分布合理性。
 
 ```bash
 npm run build           # TypeScript 严格模式零错误
-npm test                # 687 用例 · 0 失败（含 124 个量子/基线/QPU 用例）
+npm test                # 695 用例 · 0 失败（含 124 个量子/基线/QPU 用例）
 npm run example:quantum # 量子突破基准（七部分）
 npm run example:qpu     # 真 QPU 执行入口（自动检测凭据）
 ```

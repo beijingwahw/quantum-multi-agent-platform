@@ -9,7 +9,7 @@
 | --- | --- | --- | --- | --- |
 | cat:anchor-blindspot | 2 | b9#3 (b9) | GATE-ENFORCED | kept/measured strides must be recomputed in the OUTPUT space — input strides silently transpose (the W-state reduction wrote |01> into |10>; GHZ/Bell all-diagonal, immune) |
 | cat:process | 2 | b9#6 (b9) | BOOKED-UNENFORCEABLE | the demo needs slot-0 + a strict price gap (ties-to-low-index lose slot-1) — 'mathematically fine but demonstration-powerless' sets get rebuilt |
-| cat:statistics | 2 | b9#4 (b9) | GATE-ENFORCED | per-bid vs per-bit counting, qubits-per-run = bidders x m, k=min(2^m,4) dilutes flips with payload-free high bits — the '0.167 bug' was bookkeeping |
+| cat:statistics | 2 | b9#4 (b9) | BOOKED-UNENFORCEABLE | per-bid vs per-bit counting, qubits-per-run = bidders x m, k=min(2^m,4) dilutes flips with payload-free high bits — the '0.167 bug' was bookkeeping |
 | cat:conjugation | 1 | b9#1 (b9) | GATE-ENFORCED | values come from the Jacobi diagonal (always right); vectors from block inverse iteration + cluster-block orthogonalization + a rebuild judge — convention-free by construction |
 | cat:wrong-object | 1 | b9#7 (b9) | GATE-ENFORCED | GHZ attains double-mortgage Bell fidelity (1/2, 1/2); the concurrence-balanced family (x=1/2) has LOWER fidelity there — two metrics, two optima, two stories |
 

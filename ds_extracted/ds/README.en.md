@@ -3,12 +3,12 @@
 > 🇨🇳 **中文版（主文档）**: [README.md](./README.md) — the diagrams' in-figure labels are Chinese; captions below each embed carry the key English terms.
 
 ![version](https://img.shields.io/badge/version-1.12.0-blue)
-![tests](https://img.shields.io/badge/tests-687-brightgreen)
+![tests](https://img.shields.io/badge/tests-695-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
-A multi-agent platform whose scheduling core runs **real quantum algorithms** (QAOA / adiabatic annealing / Born-rule measurement collapse). Task assignments are encoded as Hamiltonians and evolved **exactly** inside the constraint subspace — jointly scheduling batches up to the **equivalent of 80 qubits** (full-space simulation would need ~10¹⁵ TB of memory), and hitting the exact optimum **5/5** on NP-hard coupled instances where the best classical opponent scores **3/5** (reproducible via `npm run bench`; v1.11 unified-accounting erratum in the baselines section).
+A multi-agent platform whose scheduling core runs **real quantum algorithms** (QAOA / adiabatic annealing / Born-rule measurement collapse). Task assignments are encoded as Hamiltonians and evolved **exactly** inside the constraint subspace — jointly scheduling batches up to the **equivalent of 80 qubits** (full-space simulation would need ~10¹⁵ TB of memory), and hitting the exact optimum **5/5** on NP-hard coupled instances where the best classical opponent scores **4/5** — Hungarian on the linear relaxation (best coupling-aware classical heuristic: simulated annealing 3/5); across the full 25-instance track it is quantum **25/25** vs SA **23/25** (reproducible via `npm run bench`; v1.11 unified-accounting erratum in the baselines section).
 
 ![Architecture](docs/diagrams/01-architecture.png)
 
@@ -72,10 +72,10 @@ Task allocation as a **market for intellectual capital**: settlement streams cal
   ![Ladder](docs/diagrams/09-ladder.png)
 - **Linear track** — quantum subspace × Hungarian O(n³): **both 25/25 point-wise optimal** (independent-algorithm cross-validation):
   ![Linear](docs/diagrams/10-bench-linear.png)
-- **NP-hard coupled track** (6×8 × 5 public seeds, unified accounting): greedy 2/5, local search 2/5, simulated annealing 3/5, **quantum 5/5**:
+- **NP-hard coupled track** (6×8 × 5 public seeds, unified accounting): greedy 2/5, local search 2/5, hungarian (linear-assignment relaxation) 4/5, simulated annealing 3/5, **quantum 5/5**:
   ![NP-hard](docs/diagrams/11-bench-nphard.png)
 
-  > ⚠️ **Erratum (v1.11)**: an earlier table read "greedy 0/5, local search 0/5" — an accounting artifact (classical side scored without coupling bonuses against a coupling-aware optimum). Under the single accounting the classical side scores 2/5; the verdict stands (5/5 vs best classical 3/5), the margin restated honestly.
+  > ⚠️ **Erratum (v1.11)**: an earlier table read "greedy 0/5, local search 0/5" — an accounting artifact (classical side scored without coupling bonuses against a coupling-aware optimum). Under the single accounting the classical side scores 2/5; the verdict stands (5/5 vs best classical 4/5), the margin restated honestly. An R12 re-audit added the hungarian row: it is the strongest classical on this family (4/5, linear relaxation), while SA 3/5 is the strongest coupling-aware classical; on the full 25-instance track the best classical is SA 23/25 vs quantum 25/25.
 
 - **Deterministic parallel evolution (v1.6)** — 8×10 evolution 285.8 s → 56.2 s (5.1×) → **12.2 s with 16 threads (23.5×)**, bitwise identical to serial (worker_threads + SharedArrayBuffer + Atomics; every fiber owned by one thread; pinned by bit-level tests):
   ![Parallel](docs/diagrams/12-parallel.png)
@@ -87,7 +87,7 @@ Task allocation as a **market for intellectual capital**: settlement streams cal
 ```bash
 git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform && npm install
-npm test                 # 687 tests · 0 failures
+npm test                 # 695 tests · 0 failures
 npm run typecheck        # strict + noUncheckedIndexedAccess, whole repo
 npm run bench            # QuantumSched-Bench full comparison
 npm run example:qpu      # real-QPU entry (auto-detects DWAVE_API_TOKEN)
@@ -96,7 +96,7 @@ npm run dev              # start the platform (WS :8080)
 
 ## Tests & Quality
 
-**687 tests · 0 failures · 65 files / 207 suites**; six gates green; coverage ratchet 92/82/92/92 with measured 94.2% statements / 86.2% branches; knip dead-code sweep clean; single runtime dependency (`ws`).
+**695 tests · 0 failures · 66 files / 209 suites**; six gates green; coverage ratchet 92/82/92/92 with measured 94.2% statements / 86.2% branches; knip dead-code sweep clean; single runtime dependency (`ws`).
 
 ![Quality gates](docs/diagrams/16-quality.png)
 

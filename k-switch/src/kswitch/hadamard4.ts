@@ -321,11 +321,18 @@ export interface DistinguishabilityMatrix {
 }
 
 function sameRay(a: Mat2, b: Mat2): boolean {
-  for (const s of [1, -1]) {
+  // the PHYSICAL Pauli ray: q·P for any unit phase q ∈ {1, i, -1, -i} (the
+  // repo's own ray definition, k4.ts pauliReference). Products of {I,X,Y,Z}
+  // quartets carry ±i phases (YX = -iZ), and two unitaries differing by a
+  // global phase are ONE channel — the ±-only form counted 16128/160128
+  // cross-column pairs as separated when their outputs are trace-distance 0
+  for (const [qc, qs] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
     let dev = 0;
     for (let i = 0; i < 2; i++) {
       for (let j = 0; j < 2; j++) {
-        dev = Math.max(dev, Math.hypot(a.re[i]![j]! - s * b.re[i]![j]!, a.im[i]![j]! - s * b.im[i]![j]!));
+        const rr = a.re[i]![j]! * qc - a.im[i]![j]! * qs;
+        const ii = a.re[i]![j]! * qs + a.im[i]![j]! * qc;
+        dev = Math.max(dev, Math.hypot(rr - b.re[i]![j]!, ii - b.im[i]![j]!));
       }
     }
     if (dev < 1e-12) return true;

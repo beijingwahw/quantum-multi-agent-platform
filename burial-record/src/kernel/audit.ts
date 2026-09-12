@@ -350,13 +350,20 @@ export function memoryStructureViolations(text: string): Array<{ law: LawName; d
     if (line.startsWith("（访客令牌")) {
       v.push({ law: "B9", detail: `line ${idx + 1} opens with an orphaned heading tail (（访客令牌…) — a heading was swallowed by an insertion` });
     }
-    // (d) duplicated lesson headings — 关键经验（第N批
+    // (d) duplicated lesson headings — 关键经验（第N批. The key is the BATCH
+    // NUMBER, normalized across numeral systems (parseCnCount): 第67批 and
+    // 第六十七批 are one batch twice, not two batches — v0.4.0's either-tongue
+    // count law applied to the structure guard (a retype crossing numeral
+    // systems is still the insertion-duplication family this law exists for).
+    // An unparseable numeral keeps its raw key rather than being guessed.
     const lesson = /关键经验（第([\d一两二三四五六七八九十]+)批/.exec(line);
     if (lesson) {
-      const key = lesson[1]!;
+      const raw = lesson[1]!;
+      const parsed = parseCnCount(raw);
+      const key = parsed !== null ? `#${parsed}` : raw;
       const first = seenLessons.get(key);
       if (first !== undefined) {
-        v.push({ law: "B9", detail: `lesson heading 关键经验（第${key}批 appears twice (lines ${first} and ${idx + 1})` });
+        v.push({ law: "B9", detail: `lesson heading 关键经验（第${raw}批 appears twice (lines ${first} and ${idx + 1})` });
       } else {
         seenLessons.set(key, idx + 1);
       }

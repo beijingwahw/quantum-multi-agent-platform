@@ -67,6 +67,12 @@ export function vNormalize(a: CVec): CVec {
 }
 
 export function mAdd(a: CMat, b: CMat): CMat {
+  if (a.rows !== b.rows || a.cols !== b.cols) {
+    // mMul's twin guard: a mismatched add used to read b's cells at a's
+    // offsets — a plausible wrong value (or NaN in the tail cells) where
+    // every other binary kernel refuses by name
+    throw new ChoiceLangError("MAT_SHAPE", `mAdd: shape mismatch ${a.rows}x${a.cols} + ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
     m.re[k] = a.re[k]! + b.re[k]!;

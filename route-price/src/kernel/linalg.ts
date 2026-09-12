@@ -95,6 +95,11 @@ export function outer(v: Vec): Mat {
 
 export function normalize(v: Vec): Vec {
   const nrm = Math.sqrt(v.reduce((acc, x) => acc + cabs2(x), 0));
+  // the null vector has no direction, and a corrupt cell makes the norm NaN:
+  // dividing by either used to hand back NaN cells — the exact face the
+  // module header refuses to normalize into (NaN > every threshold is false,
+  // so corruption would read as a pass downstream). !(nrm > 0) covers both.
+  if (!(nrm > 0) || !Number.isFinite(nrm)) throw new LinAlgError("NORMALIZE_NULL_VECTOR", `normalize: vector has null/non-finite norm ${nrm} — the zero vector has no direction, a NaN cell has no norm`);
   return v.map((x) => cscale(1 / nrm, x));
 }
 

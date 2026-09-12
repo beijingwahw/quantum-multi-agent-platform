@@ -15,7 +15,7 @@
 | [实测战绩](#-实测战绩benchmarks) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | [真 QPU 与执行分级](#-真-qpu-后端与执行分级路由) | D-Wave · Qiskit · FTQC 三态路由 |
 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
-| [质量门禁](#-质量门禁体系) | 687 用例 · 六道门禁 · 覆盖率棘轮 |
+| [质量门禁](#-质量门禁体系) | 695 用例 · 六道门禁 · 覆盖率棘轮 |
 | [版本演进](#️-版本演进时间线) | v1.0 → v1.12 |
 | [研究线子项目索引](#-研究线子项目索引) | 29 个子项目 |
 | [诚实的边界](#️-诚实的边界) | 等效 ≠ 真机 · 组合爆炸 · 热路径 |
@@ -167,7 +167,7 @@
 
 ## 🧪 质量门禁体系
 
-**687 用例 · 0 失败 · 65 个测试文件 / 207 个套件**；六道门禁全绿，覆盖率棘轮只升不降：
+**695 用例 · 0 失败 · 66 个测试文件 / 209 个套件**；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](ds_extracted/ds/docs/diagrams/16-quality.png)
 
@@ -236,7 +236,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform/ds_extracted/ds
 npm install
 
-npm test                # 687 用例 · 0 失败
+npm test                # 695 用例 · 0 失败
 npm run bench           # QuantumSched-Bench：50 实例 × 7 求解器
 npm run diagrams        # 重建本页全部 18 张原理图 + 三道机器视觉自检
 npm run coverage        # c8 覆盖率 vs 防回归门槛棘轮

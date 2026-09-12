@@ -98,6 +98,14 @@ export function outer(a: CVec, b: CVec): CMat {
 }
 
 export function mAdd(a: CMat, b: CMat): CMat {
+  if (a.rows !== b.rows || a.cols !== b.cols) {
+    // mMul and mTrace refuse shape mismatches in this same file; mAdd did
+    // not, and a mismatched add read b's cells at a's offsets — a confident
+    // wrong value (or NaN in the tail cells) where every sibling kernel
+    // refuses (the nosignal-tariff "0.375 quietly" face; R12 guarded the
+    // whole byte-identical family in one breath, binding-price first)
+    throw new Error(`shape mismatch ${a.rows}x${a.cols} + ${b.rows}x${b.cols}`);
+  }
   const m = mat(a.rows, a.cols);
   for (let k = 0; k < a.re.length; k++) {
     m.re[k] = a.re[k]! + b.re[k]!;

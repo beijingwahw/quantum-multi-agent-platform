@@ -171,6 +171,11 @@ export function wernerPair(p: number): CMat {
  *  conj is what an earlier draft dropped, flipping the state to |Phi_-theta>
  *  and the sin(theta) correlation terms with it — the referee caught it). */
 export function phasePair(theta: number): CMat {
+  // guard at the boundary: theta is a real angle; a non-finite one flows
+  // through cos/sin as silent NaN cells that survive every threshold — the
+  // same constructor-scalar face wernerPair (RC_P_RANGE) and projector
+  // (RC_NON_FINITE) already refuse by name
+  if (!Number.isFinite(theta)) throw new RcError("RC_NON_FINITE", `phasePair: theta must be finite (got ${theta})`);
   const c11r = Math.cos(theta) * Math.SQRT1_2;
   const c11i = Math.sin(theta) * Math.SQRT1_2;
   const out = cmatZero(4);

@@ -134,7 +134,7 @@ The CHSH-2-limited classical adversary vs the entangled withdrawal, priced:
 
 ```
 npm ci
-npm test          # 41/41
+npm test          # 42/42
 npm run repro     # rebuilds out/reports/w1..w6 markdown; W5's exhaustive census dominates
                    # the runtime (measured 32s idle to ~11 min on a loaded box)
 ```

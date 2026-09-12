@@ -20,9 +20,9 @@
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -145,6 +145,43 @@ describe('scripts/dsh-proactive-install-to-dsh.mjs CLI 边界', () => {
     const res = runNode([INSTALL_SCRIPT, '--help'], NO_NPM_ENV);
     assert.equal(res.status, 0);
     assert.match(res.stdout, /Usage: dsh-proactive-install/);
+  });
+
+  it('R12：macOS 平台默认候选含 ~/Library/Application Support/dsh（darwin 分支曾被函数对象比较判死）', () => {
+    // 子进程 import 后直接调用导出的纯函数（--dsh-home 隔离 + isEntry
+    // 为 false：-e 模式下 argv[1] 为 undefined，模块顶层零副作用）。
+    // 06/E-R10 修了 IS_WIN 的 `platform === 'win32'` 函数对象比较，
+    // 但 darwin 分支同款笔误漏网——help 文档承诺的 macOS 自动探测
+    // 位置在实现里不可达（恒落 Linux 候选）
+    const code =
+      `import { platformHomeCandidates } from ${JSON.stringify(pathToFileURL(INSTALL_SCRIPT).href)};\n` +
+      `console.log('DARWIN=' + JSON.stringify(platformHomeCandidates('darwin')));\n` +
+      `console.log('LINUX=' + JSON.stringify(platformHomeCandidates('linux')));\n`;
+    const res = runNode(['--input-type=module', '-e', code], NO_NPM_ENV);
+    assert.equal(res.status, 0, `stderr=${res.stderr}`);
+    const line = (prefix: string): string[] => {
+      const found = res.stdout
+        .split('\n')
+        .find((l) => l.startsWith(prefix))!
+        .slice(prefix.length);
+      return JSON.parse(found) as string[];
+    };
+    const darwin = line('DARWIN=');
+    const home = homedir();
+    assert.ok(
+      darwin.includes(join(home, 'Library', 'Application Support', 'dsh')),
+      `darwin 候选应含 macOS 默认安装位置，实际 ${JSON.stringify(darwin)}`,
+    );
+    assert.ok(darwin.includes(join(home, '.dsh')), 'darwin 候选保留 ~/.dsh 次选');
+    const linux = line('LINUX=');
+    assert.ok(
+      linux.includes(join(home, '.config', 'dsh')),
+      `linux 候选应含 ~/.config/dsh，实际 ${JSON.stringify(linux)}`,
+    );
+    assert.ok(
+      !linux.includes(join(home, 'Library', 'Application Support', 'dsh')),
+      'linux 候选不得混入 macOS 专属位置',
+    );
   });
 
   after(() => {

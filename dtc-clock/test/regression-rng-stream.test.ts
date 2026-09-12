@@ -5,8 +5,9 @@ import { randomClockCensus } from "../src/kernel/clock.js";
 import { DEMO_CIRCUIT } from "../src/kernel/audit.js";
 
 /**
- * Regression: the v0.21.1 rng dead-member sweep (int/normal/pick removed,
- * zero callers workspace-wide) must not disturb the seeded stream — every
+ * Regression: the rng dead-member sweep (int/normal/pick removed, zero
+ * callers workspace-wide; the books stayed at 0.21.0 through the sweep) must
+ * not disturb the seeded stream — every
  * experiment's reproducibility hangs on it. The values were captured from
  * the pre-sweep mulberry32 (the algorithm is untouched, so the streams are
  * bit-identical); this anchor convicts any accidental change.

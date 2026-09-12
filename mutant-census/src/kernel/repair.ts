@@ -414,6 +414,16 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b91#1", verdict: "HELD", basis: "draft face: the latent escapes and plain-text tofu shipped through a render no gate executed — the AST escape audit, the glyph-verified mathtext conversion and the -W error::SyntaxWarning escalation are factory checks ON DISK at the diagrams script; booked pending a scheduled render gate (CI runs Node only, disclosed)" },
   { key: "b91#2", verdict: "HELD", basis: "channel-act face: the heredoc family's twenty-first canonical act on a repo manifest — no scheduled gate audits which channel wrote a file's bytes, the Edit-tool discipline the only enforcement (the b81#4 twin held)" },
   { key: "b92#0", verdict: "HELD", basis: "sed face: the bare-digit substitution's collateral was caught on the diff before any consumer ran and reverted in the same breath — no landing, but the shape is the b87#15 one; the channel stays author-discipline, booked on the act face" },
+  { key: "b94#0", verdict: "HELD", basis: "shell-act face: the pipe-masked baseline stamped green over a failure diagnostic — re-issued pipeless with the direct code the only verdict; the family's twenty-eighth sighting and the orchestrator's own, no scheduled gate inspects the shell" },
+  { key: "b94#1", verdict: "HELD", basis: "act face: the half-wired re-pin (enrollment row without its anchors.ts twin) was convicted by the suite's own symmetry check on the next run — the check is gate-held, the atomic-pair discipline is author-side" },
+  { key: "b94#2", verdict: "HELD", basis: "test-draft face: the assumed error surface was corrected after the first red was read — the shipped test asserts the code's real throw, the drafting miss is not observable to any scheduled gate" },
+  { key: "b94#3", verdict: "HELD", basis: "discipline face: the tenth Edit-before-Read refusal on its line — the tool's own guard refused, the refusal itself the correction" },
+  { key: "b94#4", verdict: "HELD", basis: "act face: the conclusion-before-verification order held in content and failed in order — no gate observes the order in which a report's claims were verified" },
+  { key: "b94#5", verdict: "HELD", basis: "sequencing face: the shared registry's baseline was skipped until mid-verification — attribution was recovered cleanly; the baseline-first discipline extends to every tree touched, shared registries included" },
+  { key: "b94#6", verdict: "HELD", basis: "channel-act face: the sed count edit quoted batch ninety-two's own rule back one batch later — damage verified zero by grep, clean does not absolve" },
+  { key: "b94#7", verdict: "HELD", basis: "draft face: the infinity-blind domain was caught by its own red test and the shipped guard is machine-held in route-price's suite — the drafting miss that preceded it is not observable to any scheduled gate" },
+  { key: "b94#8", verdict: "HELD", basis: "enumeration face: the hand-typed roster missed one of twenty-nine — the filesystem's own package.json census is the count's only legal roster" },
+  { key: "b94#9", verdict: "HELD", basis: "shell-act face: the truncated diagnostic frame was never taken as a verdict — evidence is read whole or not at all; no scheduled gate inspects the shell" },
 ];
 
 export interface RepairViolation {

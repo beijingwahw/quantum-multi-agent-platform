@@ -441,5 +441,9 @@ export function resetCommandPolicy(): void {
 
 /** 测试与文档用：当前策略（只读视图） */
 export function getCommandPolicy(): Readonly<CommandPolicy> {
-  return policy;
+  // R12：真快照而非内部引用——旧实现把 policy 对象本体交出去，调用方
+  // （含按文档只读的测试代码）一句 push/赋值就能静默改写白名单与超时
+  // 闸门，Readonly<CommandPolicy> 的类型承诺在运行时是谎言。深冻结论：
+  // 数组之外的成员均为不可变原语（字符串/数字/null），一层冻结即完备。
+  return Object.freeze({ ...policy, allowedPrograms: Object.freeze([...policy.allowedPrograms]) });
 }

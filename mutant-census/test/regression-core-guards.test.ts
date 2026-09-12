@@ -4,11 +4,13 @@
  * the hardened siblings already refuse by (stable-world R4, ent-clearing
  * R7, dtc-clock; qverify/quantum-mech rng 2026-09-11) — each test pins the
  * refusal AND the exact legal output, so the guards can neither vanish nor
- * creep onto the legal path.
+ * creep onto the legal path. R12 appended the mAdd shape refusal: adopted
+ * rootward from binding-price (R12-F's conviction) so the byte-identical
+ * family (canon / binding-price / quantum-mech / qverify) shares the bytes.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { basisVec } from "../src/core/cmat.js";
+import { basisVec, mAdd, mat } from "../src/core/cmat.js";
 import { KET0, KET1 } from "../src/core/states.js";
 import { makeRng } from "../src/core/rng.js";
 
@@ -53,4 +55,27 @@ test("rng.int keeps the legal seeded stream bit-identical (the battery's own dra
   const picker = makeRng(7);
   assert.equal(picker.pick(["a", "b", "c", "d", "e"]), "a");
   assert.deepEqual([picker.int(5), picker.int(5)], [0, 4]);
+});
+
+test("mAdd refuses shape mismatches before any write (R12 rootward adoption, binding-price first)", () => {
+  // a mismatched add read b's cells at a's offsets — a confident wrong
+  // value (or NaN tail cells) where mMul/mTrace in this same file already
+  // refuse; binding-price (R12-F) was convicted first, the canon adopted
+  // the guard in the same breath so the byte-identical family needs no
+  // census divergence row (the R9-A rng.int convergence precedent)
+  assert.throws(() => mAdd(mat(2, 2), mat(4, 4)), /shape mismatch 2x2 \+ 4x4/);
+  assert.throws(() => mAdd(mat(4, 4), mat(2, 2)), /shape mismatch 4x4 \+ 2x2/);
+});
+
+test("mAdd keeps the exact legal sum (the family's reference output)", () => {
+  const a = mat(2, 2);
+  a.re[0] = 1.5;
+  a.im[3] = -0.5;
+  const b = mat(2, 2);
+  b.re[0] = 0.25;
+  b.re[3] = 2;
+  b.im[3] = 0.5;
+  const s = mAdd(a, b);
+  assert.deepEqual(Array.from(s.re), [1.75, 0, 0, 2]);
+  assert.deepEqual(Array.from(s.im), [0, 0, 0, 0]);
 });

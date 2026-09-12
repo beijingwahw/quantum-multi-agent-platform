@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { makeRng, meanStdErr } from '../src/core/rng.js';
-import { sampleIndex, applyLocalVec, randomCircuit, circuitProbs, type RandomCircuit } from '../src/core/gates.js';
+import { sampleIndex, applyLocalVec, randomCircuit, circuitProbs, mirrorCircuit, type RandomCircuit } from '../src/core/gates.js';
 import { vKron, type CMat, type CVec, mat, identity } from '../src/core/cmat.js';
 import { vKronAll, fromVec, equatorial, KET0 } from '../src/core/states.js';
 import { applyKraus } from '../src/core/channels.js';
@@ -254,6 +254,20 @@ test('regression: mirror refuses a unitary-less u1 op by the SAME code as runCir
   // noiseless lambda = 0 return probability is exactly 1
   const guarded: RandomCircuit = { n: 1, layers: [[{ kind: 'u1', qubits: [0], u: identity(2) }]], ops: [] };
   assert.ok(Math.abs(mirrorReturnProb(guarded, 0) - 1) < 1e-12);
+});
+
+test('regression: mirrorCircuit refuses a unitary-less u1 op instead of laundering it into identity (R12)', () => {
+  // mirrorCircuit used to substitute mDagger(identity(2)) for a missing u —
+  // the contract violation sailed through as a legal-looking no-op mirror,
+  // invisible to every downstream QV_OP_NO_UNITARY guard (the silent-identity
+  // family the registry convicted at b-v0.3.0 gates.ts:96-107)
+  const unguarded: RandomCircuit = { n: 1, layers: [[{ kind: 'u1', qubits: [0] }]], ops: [{ kind: 'u1', qubits: [0] }] };
+  assert.throws(() => mirrorCircuit(unguarded), /QV_OP_NO_UNITARY/);
+  // the legal neighbor: a real unitary mirrors to its dagger bit-exactly
+  const guarded: RandomCircuit = { n: 1, layers: [[{ kind: 'u1', qubits: [0], u: identity(2) }]], ops: [{ kind: 'u1', qubits: [0], u: identity(2) }] };
+  const inv = mirrorCircuit(guarded);
+  assert.equal(inv.ops.length, 1);
+  assert.ok(Math.abs((inv.ops[0]!.u?.re[0] ?? 0) - 1) < 1e-15);
 });
 
 test('regression: importing run-all renders nothing (was: bare module-level main())', async () => {

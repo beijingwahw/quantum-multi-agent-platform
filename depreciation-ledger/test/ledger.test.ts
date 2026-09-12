@@ -223,3 +223,19 @@ test("re-run determinism: the checker and the witnesses reproduce byte-identical
   assert.deepEqual(JSON.stringify(checkLedger()), JSON.stringify(checkLedger()));
   assert.deepEqual(JSON.stringify(runWitnesses()), JSON.stringify(runWitnesses()));
 });
+
+test("count-drift law: no row quotes the platform's volatile test count (b89#11's class — the count belongs to the platform's own machine audit)", () => {
+  // #03's number column once read "platform: 292/292 tests" while the
+  // platform's live badge had moved twice (520 at the b89 reconciliation,
+  // further since) — a sibling's live test count is a data copy no gate here
+  // reconciles; the b89#11 judgment hands it back to the sibling's own
+  // `npm run test` and forbids the quote. The regex has teeth: re-quoting any
+  // "N/N tests" face in any row re-reds this test.
+  for (const r of LEDGER) {
+    assert.doesNotMatch(
+      r.numberColumn,
+      /\d+\/\d+ tests/,
+      `${r.claimId}: a sibling's live test count is a volatile quote — it belongs to the sibling's own machine audit, never to this book`,
+    );
+  }
+});

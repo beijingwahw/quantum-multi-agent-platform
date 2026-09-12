@@ -13,4 +13,4 @@
 | cat:citation-drift | 1 | b24#3 (b24) | GATE-ENFORCED | the machine returned 2.793 deviation; after the fix 1.27e-3 exposed the boundary convergence issue (at d=1 the series converges only as 1/(2N)) — 400 terms on the open grid q in [0.05, 0.45], closed forms at the endpoints; a series is quoted only where it is honest |
 | cat:process | 1 | b24#7 (b24) | BOOKED-UNENFORCEABLE | rewritten in review before merge — drafts do not reach the machine dirty, and the draft's errors still book |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-08T13:44:05.124Z; src tree newest 2026-09-08T13:40:02.170Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T21:12:02.132Z; src tree newest 2026-09-11T16:06:35.263Z — FRESH (the newest render postdates every source)
