@@ -36,7 +36,7 @@ import { bellState, fromVec, wernerFidelity } from '../core/states.js';
 import { fidelity } from '../core/measures.js';
 import { horodeckiSMax, pptMinEigenvalue } from './chsh.js';
 
-/** Kaniewski's threshold violation β* = (16+14√2)/17 ≈ 2.1078 (bound leaves the trivial floor). */
+/** Kaniewski's threshold violation β* = (16+14√2)/17 ≈ 2.1058 (bound leaves the trivial floor). */
 export const BETA_STAR: number = (16 + 14 * Math.SQRT2) / 17;
 /** Visibility v* = β* over 2√2 = (7+4√2)/17 ≈ 0.7445 — the census rigidity threshold. */
 export const V_STAR: number = (7 + 4 * Math.SQRT2) / 17;

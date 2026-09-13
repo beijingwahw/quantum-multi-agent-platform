@@ -78,8 +78,10 @@ plugin.on('action_completed', (exec) => {
 ### 加载预设规则
 
 ```typescript
+// 仓内开发：预设规则从源码相对导入（npm 包 exports 只开放根入口与
+// ./package.json，深路径导出不可用）
 import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
-import { allPresetRules } from 'quantum-multi-agent-platform/dist/proactive-intelligence/rules.js';
+import { allPresetRules } from './rules.js';
 
 const plugin = new ProactiveIntelligencePlugin();
 

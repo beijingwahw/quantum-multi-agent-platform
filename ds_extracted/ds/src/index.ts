@@ -757,6 +757,28 @@ export type {
   SubspaceBuildOptions,
 } from './core/subspace-optimizer.js';
 export { hungarianAssignment, localSearchAssignment } from './core/classical-baselines.js';
+// —— R14 创新波 opt-in 模块（未接入默认调度路径，显式导入使用）——
+export { composeBatches } from './core/entanglement-batch-composer.js';
+export type {
+  EntangledAgentPair,
+  ComposerTask,
+  BatchComposition,
+  ComposerOptions,
+} from './core/entanglement-batch-composer.js';
+export { MinCostFlowPotentials } from './core/min-cost-flow-potentials.js';
+export type { SspMetrics } from './core/min-cost-flow-potentials.js';
+export { ShadowPriceAdmissionController, extractCapacityDuals } from './core/admission-control.js';
+export type {
+  AgentCapacityUsage,
+  AgentShadowPrice,
+  CapacityDualReport,
+  AdmissionControlConfig,
+  AdmissionCandidate,
+  AdmissionEvaluation,
+  AdmissionDecision,
+  AdmissionCertificate,
+  AdmissionReason,
+} from './core/admission-control.js';
 export {
   LocalQuantumBackend,
   registerBackend,
@@ -794,6 +816,31 @@ export type {
 } from './core/qpu/execution-tier.js';
 export { toQiskitProgram } from './core/qpu/qiskit-export.js';
 export type { QiskitExportOptions } from './core/qpu/qiskit-export.js';
+// R14 创新波 opt-in：跨后端结果融合与读出误差缓解
+export {
+  crossBackendConsensus,
+  wilsonInterval,
+  WILSON_Z_95,
+} from './core/qpu/cross-backend-consensus.js';
+export type {
+  BackendSampleReport,
+  WilsonInterval,
+  CrossBackendOptions,
+  BackendAgreementStats,
+  PairwiseAgreement,
+  ConsensusResult,
+} from './core/qpu/cross-backend-consensus.js';
+export {
+  hammingBlockCosts,
+  mapDecodeAssignment,
+  mitigateReadout,
+} from './core/qpu/readout-mitigation.js';
+export type {
+  MapDecodeResult,
+  MitigatedCandidate,
+  MitigationReport,
+  MitigateReadoutOptions,
+} from './core/qpu/readout-mitigation.js';
 export { AgentManager } from './core/agent-manager.js';
 export {
   PlatformError,
@@ -858,6 +905,55 @@ export type {
 // 面迁出核心机制类后的正式入口）
 export { CompoundBrainSimulator } from './core/compound-brain-simulator.js';
 export type { CompoundBrainSimulatorOptions } from './core/compound-brain-simulator.js';
+// —— R14 创新波 opt-in：优化器精确梯度族与机制变体 ——
+export {
+  twoEigenvalueShift,
+  perQubitShiftedBetas,
+  fullspaceLayerMixerGradient,
+  subspaceMixerGap,
+  refineAnglesByExactGradient,
+} from './core/parameter-shift.js';
+export type {
+  MixerAngleSpec,
+  GradientRefineOptions,
+  GradientRefineResult,
+} from './core/parameter-shift.js';
+export {
+  DEFAULT_NATURAL_DAMPING,
+  fubiniStudyMetric,
+  dampedNaturalDirection,
+  refineAnglesByNaturalGradient,
+} from './core/natural-gradient.js';
+export type {
+  StateAmplitudes,
+  NaturalMixerSpec,
+  FubiniStudyMetricResult,
+  NaturalGradientOptions,
+  NaturalGradientResult,
+} from './core/natural-gradient.js';
+export { allocateWithReserve, reserveOfCapability } from './core/reserve-price-vcg.js';
+export type {
+  ReservePriceAgent,
+  ReserveSchedule,
+  ReservePriceAllocation,
+} from './core/reserve-price-vcg.js';
+export {
+  BayesianHireBrain,
+  DEFAULT_BAYESIAN_HIRE_CONFIG,
+} from './proactive-intelligence/bayesian-hire-brain.js';
+export {
+  lgamma,
+  logBeta,
+  betaCdf,
+  betaQuantile,
+} from './proactive-intelligence/beta-distribution.js';
+export { ToolCapabilityPolicy } from './tools/tool-capability-policy.js';
+export type {
+  CapabilityKind,
+  ToolCapability,
+  ToolCapabilityDeclaration,
+  CapabilityDecision,
+} from './tools/tool-capability-policy.js';
 export { GrowthSchedulerBrain } from './proactive-intelligence/brain.js';
 export type { BrainState } from './proactive-intelligence/brain.js';
 export { ProactiveIntelligencePlugin } from './proactive-intelligence/index.js';

@@ -131,11 +131,22 @@ unenrolled, no row padded); quantum-binding stays as the audit-added no-go row:
 - `out/reports/atlas.md` + `atlas.json` + `exp6-genealogy.md` — the rendered deliverables
 - `docs/theory.md` — theory layer, honest boundaries, verified bibliography
 
+## The comparison-model walls (v0.3.0, `src/lower/comparison.ts`)
+
+The atlas's P-EXACT island (sorting / assignment optimality) carried only citations; the comparison model is now executable, on three mutually cross-checking legs:
+
+- **Find-max needs ≥ n−1 comparisons.** Flat exhaustive sweep: every canonical depth-q comparison tree audited on all n! inputs — zero correct trees at q = n−2 (n = 3, 4, 5; exact ordinal counts at the optimum: 3 correct trees at (3,2), 54 at (4,3)); game-tree DFS on memoized partial orders gives the exact optimum n−1 for n = 2..6 (17 states at n=4, 1107 at n=6); and the adversary argument as a machine-checked invariant: answers follow the transcript, else the undefeated element wins — every one of the exhaustive adaptive strategies at (n, k) = (4,2)/(5,3)/(6,4) (36/1000/50625 plays) keeps ≥ n−k undefeated, each with a verified witness total order crowning it. King-of-the-hill at depth n−1 audits correct for n = 3..6 — the bound is tight.
+- **Sorting needs ≥ ⌈log₂(n!)⌉ comparisons.** The leaf-counting gate is exact BigInt (2^q ≥ n!, e.g. 2^29 ≥ 12! = 479001600); the flat sweep holds it as data — every correct depth-3 tree on n=3 (108 of 2187) sends 6 permutations to 6 distinct leaves, and all 27 depth-2 trees die; the game DFS confirms the optimum equals ⌈log₂(n!)⌉ at n = 2..5 (1, 3, 5, 7).
+- **Why the adversary leg matters:** counting gives find-max only ⌈log₂ n⌉ (n possible maxima, n leaves — verified as data on every correct swept tree); the gap to n−1 is exactly what the adversary closes.
+- **Smuggling trials:** a truncated king-of-the-hill (the n−2 forgery — champion over the first n−1 elements, anchors clean) is convicted BY NAME (n=4: leaf 0, wrong perm [0,1,3,2], true max 2 vs claimed 3); a shallow sorting tree dies on the pigeonhole AND by named permutation pair; degenerate inputs (self-pairs, non-canonical orientation, wrong ask length, out-of-range n) are refused with descriptive errors per house style.
+
+The atlas entries/registry are untouched — enrolling these walls as atlas rows is left to a dedicated visit; this section ships the machinery and the trials.
+
 ## Reproduce
 
 ```
 npm install
-npm test        # 70/70 — includes re-running every machine certificate
+npm test        # 81/81 — includes re-running every machine certificate
 npm run repro   # ~4 s — rebuilds all six experiment reports + the atlas
 ```
 

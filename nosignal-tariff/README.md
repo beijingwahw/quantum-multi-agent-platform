@@ -25,6 +25,18 @@ The letter's clause — "no-signaling 关税逐条记着" — was priced inside 
 
 The renderer refuses to print an illegal schedule; the tests include eight smuggling trials (unpriced item, marketing zero, dead anchor, illegal tag, duplicate id — v0.1.0's five; plus v0.2.0's counterfeit monotonicity certificate on an anchor-preserving non-monotone perturbation, a fake inflection table that passes the monotonicity gate but is named by the convexity gate, and a counterfeit "twin path" shifted 1e-18 — beyond float sight, not exact sight), each named and rejected. Since v0.3.0 every kernel refusal carries a named error code (`RefusalError`, message text frozen), the seeded RNG stream is anchored bit-for-bit against frozen constants, and the source carries no unwitnessed dead exports — the core imports only what a witness or the renderer consumes.
 
+## The gap-free certificate (v0.4.0)
+
+T6 certified net strictly increasing across the grid family's adjacent pairs; between grid points the curve carried no certificate. The new face closes the gaps — on all of [0,1), not just the lattice:
+
+**Theorem (machine half, exact).** Substituting d = 1−2q = p in the T5/T8 series turns the withdrawal curve into an all-positive-coefficient power series, net(p) = Σ_{k≥1} p²ᵏ/(4·ln2·k(2k−1)), so for every rational pair 0 ≤ p₁ < p₂ < 1 the increment obeys the exact algebraic bound **net(p₂) − net(p₁) ≥ (p₂² − p₁²)/(4·ln2) > 0** — the k = 1 term plus a nonnegative remainder, pure BigInt rational algebra, no grid, no minimum-gap caveat, no calculus. The margin is certified at any scale the rationals name: the trial certifies the pair (0, 10⁻¹²) with margin ≈ 3.61e-25, far below anything a grid could resolve. Machine numbers from the tests: min cell margin 0.000901684400555 over the 19 cells partitioning [0,1); the (19/20 → 1) anchor pair gap 0.084330465748335 (closed path, net(1) = 1/2 exact); the power path re-derives T6's grid gaps independently (min 0.000902060478594) with widest enclosure 5.0e-22, overlapping both existing paths at every grid point and at off-grid samples.
+
+**Citation half (consistency, not proof).** T7's net′(p) = log₂((1−q)/q)/4 is evaluated per subinterval with the kernel's own negLn/LN2/iDivPos interval machinery: a subinterval queue with adaptive bisection (bisect on a nonpositive bound, convict at depth exhaustion) certifies net′ > 0 on the 19 seeded cells — at depth 0 on the true curve, the left-endpoint bound sufficing on (0,1] — and every derivative bound × cell width stays under the enclosures' upper bound on the increment (the data gate). GIVEN net′ nondecreasing (T7's convexity citation face) the halves agree; the theorem half stands on the series identity alone.
+
+**Smuggling trials (four gap-free faces).** A forged table (anchor-clean −1/25 dip at p = 1/2) is named by `certifyStrictlyIncreasing` at the pair (9/20 → 10/20); an inflated margin (claiming 0.05 where the cross-path enclosures cap the increment at ≈ 0.00271) dies at the data gate; a hidden derivative dip in (0.47, 0.53) is run down by the bisection and convicted at depth 4 with the seed named; a coarse-but-honest bound is rescued by refinement (8 leaves, depth 3) — the machinery convicts liars and terminates on honesty. Degenerate inputs (p ≥ 1, reversed pairs, empty seed queues, cells outside (0,1]) refuse with named `GLOBAL_*` codes.
+
+**Honest boundary.** The power-series leg is the series path re-indexed in p (the substitution d = p is exact algebra; the tests verify agreement with the closed path as data — it is not a third independent derivation). Report enrollment (out/reports) and the tariff row (T9) are deliberately left to a dedicated visit — this section ships the theorem, the machinery, and the trials; nothing existing was re-rendered.
+
 ## Honest boundary
 
 The zeros are theorems (no-signaling holds for ANY state — including biased resources; the distinguishing property of the singlet is its maximally mixed marginal, and the tests say so explicitly). The withdrawal schedule prices reconciliation and settings exactly as retro-cache scoped it: **no adversary privacy amplification** — the Shor-Preskill-grade security statement is not claimed. h₂ endpoints q=0 (and q=1) are closed forms; the series path is honest only on the open grid.
@@ -35,6 +47,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 35/35 — checker, eight witnesses, correlator machinery, interior theorem, smuggling trials, coded refusals, entry guard, witness determinism
+npm test        # 46/46 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, smuggling trials, coded refusals, entry guard, witness determinism
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

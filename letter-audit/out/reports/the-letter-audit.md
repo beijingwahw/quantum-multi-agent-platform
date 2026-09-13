@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- |
 | #01 | HEURISTIC (held) | held | held — heuristic complexity class, no speedup claim; the wall is real-time qLDPC decode | `ft-qaoa/out/exp1-monotonic.md` · "Worst-case r_128 across 7 instances: 0.991166" |
 | #02 | HEURISTIC (held) | held | held — delivery is real, the storage-slot price is the boundary | `ent-sched/out/exp3-network.md` · "0.66631" |
-| #03 | HEURISTIC (held) | held | held — class unmoved; physical verification awaiting granted hours only | `ds_extracted/ds/README.md` · "tests-749" |
+| #03 | HEURISTIC (held) | held | held — class unmoved; physical verification awaiting granted hours only | `ds_extracted/ds/README.md` · "tests-937" |
 | #04 | HEURISTIC (held) | held | held — 'equivalent' stays subspace equivalence, never a physical 80-qubit machine | `bqp-map/out/reports/atlas.md` · "NP ⊆ BQP" |
 | #05 | HW-WAIT (held) | held | held — the capacity advantage is machine-witnessed; hardware does not ship switches at scale | `switch-sched/reports/exp2-capacity.md` · "χ_joint = 0.048795 bits" |
 | #06 | HW-WAIT (held) | held | held — order is superposable, not abolishable (the measurement wall, executed) | `k-switch/out/reports/exp1-switch.md` · "the parity-orthogonality law, executed" |

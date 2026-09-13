@@ -158,7 +158,7 @@ interface Condition {
 
 ```typescript
 interface Action {
-  type: 'command' | 'notification' | 'workflow' | 'custom';
+  type: 'command' | 'notification' | 'workflow' | 'custom' | 'assignment';
   name: string;            // 动作名称
   parameters: any;         // 参数
   timeout?: number;        // 超时时间
@@ -176,7 +176,7 @@ interface Action {
 ### 系统监控 (3条规则)
 
 1. **CPU高使用率警告** (`cpu-high-usage`)
-   - 条件: CPU > 80% 且连续5次
+   - 条件: CPU > 80% 且活跃窗口内 system_metrics 事件累计 ≥5（state between [5,∞]，非「连续」判断，见 rules.ts）
    - 动作: 发送警告 + 收集诊断信息
 
 2. **内存不足警告** (`memory-low`)
@@ -560,15 +560,9 @@ A: 检查：规则是否启用、条件是否满足、是否在冷却期内
 
 ## 📊 性能指标
 
-基于测试环境的性能数据：
-
-| 指标 | 数值 |
-|------|------|
-| 事件处理速度 | > 10,000 events/sec |
-| 规则评估速度 | > 1,000 decisions/sec |
-| 动作执行延迟 | < 100ms (平均) |
-| 内存占用 | < 50MB (默认配置) |
-| CPU占用 | < 5% (空闲时) |
+本仓未维护静态性能表（历史版本曾列「>10,000 events/sec」等数字，因无
+基准工件支撑已撤除）——事件吞吐/决策延迟以 `npm run performance` 与
+`tests/proactive-intelligence-smoke.test.ts` 的实测输出为准。
 
 ## 🔗 相关资源
 

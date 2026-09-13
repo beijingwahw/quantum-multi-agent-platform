@@ -14,3 +14,6 @@ export * from './solve.js';
 export * from './qiskit-export.js';
 export * from './ft-estimate.js';
 export * from './execution-tier.js';
+// R14 创新波 opt-in：跨后端共识统计与读出误差缓解解码（未接入默认管线）
+export * from './cross-backend-consensus.js';
+export * from './readout-mitigation.js';

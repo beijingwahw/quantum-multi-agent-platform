@@ -33,3 +33,16 @@ export { DecisionEngine } from './decision-engine.js';
 export { ActionExecutor } from './executor.js';
 export { ProactiveIntelligencePlugin } from './plugin.js';
 export type { ProactiveIntelligencePluginConfig, PluginStatistics } from './plugin.js';
+
+// R14 创新波 opt-in：贝叶斯雇佣大脑（Thompson/greedy/UCB1 + LCB 雇佣阈值）
+// 与 Beta 数值内核——不接入默认装配，宿主显式传入 brain 使用
+export { BayesianHireBrain, DEFAULT_BAYESIAN_HIRE_CONFIG } from './bayesian-hire-brain.js';
+export type {
+  HireAgentSpec,
+  HirePolicy,
+  BayesianHireConfig,
+  HireSkillSnapshot,
+  HireAgentSnapshot,
+  BayesianHireState,
+} from './bayesian-hire-brain.js';
+export { lgamma, logBeta, betaCdf, betaQuantile } from './beta-distribution.js';

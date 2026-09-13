@@ -32,22 +32,18 @@ config:
       maxBufferSize: 10000
       retentionMs: 3600000
 
-    # 决策引擎配置
-    engine:
-      maxRules: 1000
-      decisionHistoryLimit: 1000
+    # 决策引擎无配置节（DecisionEngine 无构造旋钮，见 decision-engine.ts 头注）
 
     # 执行器配置
     executor:
-      enabled: true
       safeMode: false
       maxConcurrentActions: 10
       actionTimeoutMs: 30000
-      auditLogEnabled: true
       allowedActions:
-        - 'notification:*'
-        - 'workflow:*'
-        - 'command:nuke:*'
+        # 只支持精确匹配：裸 type、'type:name' 或 '*'
+        - 'notification'
+        - 'workflow'
+        - 'command:nuke'
       blockedActions:
         - 'command:rm'
         - 'command:delete'

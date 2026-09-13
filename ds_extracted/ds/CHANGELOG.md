@@ -1,7 +1,74 @@
 # Changelog
 
-本仓库遵循语义化版本。每轮变更前先全量回归（749 用例含位级数值基准），
+本仓库遵循语义化版本。每轮变更前先全量回归（937 用例含位级数值基准），
 覆盖率与死代码门禁随质量收益同步棘轮上调。
+
+## v1.13.0 — 创新波：11 个 opt-in 架构/算法模块（2026-09-14）
+
+> R14 创新波（第 89 访，3 批 × 4 代理逐行遍历全工作区）。**主张冻结律
+> 全程生效**：默认行为路径字节不变（bench 50 实例 regenerate 字节同一），
+> 全部创新以 opt-in 新模块交付（显式导入使用，不接入默认调度/求解管线），
+> 每模块行为有测试钉死并带负对照。测试 749→937（+188），四门禁 + knip
+> + prettier 全绿。
+
+### 调度与机制域
+
+- **纠缠感知批组成**（`src/core/entanglement-batch-composer.ts`）：多轮
+  调度下跨轮任务对的纠缠耦合项被优先级切片结构性丢弃——本模块以耦合势
+  局部搜索找回（对基线切片零遗憾，200 随机实例钉死），端到端实测福利
+  1.2→1.2875（差额恰=被找回的耦合加成）。
+- **位势驱动最小费用流**（`src/core/min-cost-flow-potentials.ts`）：SSP+
+  Johnson 位势+Klein 负环消除；与 SPFA 版 150 实例对拍逐位一致；同实例
+  增量重解松弛计数 −4.8×；对偶面 getPotentials 公开（容量影子价格）。
+  诚实边界：140×160 WDP 单解墙钟慢 87–110%，价值=对偶面/增量/负环安全。
+- **影子价格准入控制**（`src/core/admission-control.ts`）：LP 对偶证书
+  驱动的过载节流——已证明放行侧边际改进、有条件证明拒绝侧零损失；
+  over-rejection 反例代码钉板（SSP 提前停机的 conservative 证书）。
+- **保留价 VCG**（`src/core/reserve-price-vcg.ts`）：准入资格截除变体，
+  公开保留价下精确 DSIC+IR 保持（与 μ-VCG 组合仍仿射最大化）；垄断
+  pivot/竞争抬升两条机制性质被专门测试钉住而非掩盖。
+
+### 优化器域
+
+- **参数移位精确梯度**（`src/core/parameter-shift.ts`）：两值谱生成元
+  的精确移位梯度（子空间纤维谱隙判定；对角 γ 段诚实排除）；种子化精修
+  构造性支配（返回值≤种子）。
+- **量子自然梯度**（`src/core/natural-gradient.ts`）：Fubini–Study 度规
+  的精确移位估计（2K+1 态制备，无统计噪声）+ λI 阻尼 Cholesky；支配性
+  构造性成立。诚实分账：4×5 实例族上不赢坐标下降的质量，赢提前收敛的
+  评估成本（26–77ev vs 137–421ev）。
+
+### QPU 域
+
+- **跨后端共识统计**（`src/core/qpu/cross-backend-consensus.ts`）：多后端
+  采样报告的融合/共识胜者/Wilson 区间/Kendall tau-b/TVD；与 solve.ts
+  解码口径逐点对齐、差异双向声明。
+- **读出误差缓解解码器**（`src/core/qpu/readout-mitigation.ts`）：对称
+  翻转噪声模型的 MAP 解码（复用仓内 O(m³) 匈牙利）+对数空间后验频率；
+  输出标注为推断量非测量量。
+
+### 智能与工具域
+
+- **Beta 数值内核**（`src/proactive-intelligence/beta-distribution.ts`）：
+  lgamma/logBeta/正则化不完全 Beta（Lentz 连分式）/分位数——平台首个
+  可审计区间陈述原语。
+- **贝叶斯雇佣大脑**（`src/proactive-intelligence/bayesian-hire-brain.ts`）：
+  逐（agent,能力）Beta 后验+thompson/greedy/ucb1 三策略+LCB 雇佣阈值+
+  实习通道+指数遗忘；类头声明不主张 DSIC（要 DSIC 用 CompoundBrain）。
+- **工具能力策略**（`src/tools/tool-capability-policy.ts`）：按宿主授权、
+  按调用点参数的细粒度能力裁决（fs/cmd/net/subagent），default-deny，
+  点锚后缀匹配防伪域名。
+
+### 入口与文档
+
+- 新增 `examples/quantum-innovation-showcase.ts`（9 模块可运行展演）与
+  `docs/web-console-v2-design.md`（控制台 v2 架构设计：数据新鲜度四态
+  状态机修复「已连接 0 agent 时演示数据冒充实测」的语义缺陷）。
+- 桶导出接线（index/qpu/proactive-intelligence 三桶）；文档计数簇同步
+  749→937（README/README.en/CHANGELOG/QUANTUM-SCHEDULING/PROJECT_SUMMARY/
+  README-print/根 README）；PROACTIVE 三文档 6 处文档-代码谎言修复、
+  README 2²⁰/2²¹ 双常量口径补限定词。
+
 
 ## v1.12.0 — 本体仓入质量交付波（2026-09-09）
 

@@ -5,7 +5,7 @@
 > 🇬🇧 **English version**: [README.en.md](./README.en.md)（图内文字为中文，图注附英文关键词）
 
 ![version](https://img.shields.io/badge/version-1.12.0-blue)
-![tests](https://img.shields.io/badge/tests-749-brightgreen)
+![tests](https://img.shields.io/badge/tests-937-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -29,7 +29,7 @@
 | 🧠 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
 | 📊 | [基准与性能](#-基准与性能) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | 🚀 | [快速开始](#-快速开始) | 十条命令 + 代码示例 |
-| 🧪 | [测试与质量](#-测试与质量) | 749 用例 · 六门禁 · 覆盖率棘轮 |
+| 🧪 | [测试与质量](#-测试与质量) | 937 用例 · 六门禁 · 覆盖率棘轮 |
 | 📁 | [目录结构](#-目录结构) | 含图集生成器 |
 | 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.12 |
 | ⚠️ | [诚实的边界](#️-诚实的边界) | 等效≠真机 · 组合爆炸 · 热路径 |
@@ -138,7 +138,7 @@ sequenceDiagram
     Note over S: 任务按优先级挂起
     U->>S: scheduleBatchQuantum()
     S->>Q: buildBatchProblem()<br/>w = 优先级×亲和度, J = 纠缠耦合
-    Q->>Q: buildSubspaceModel()<br/>枚举 P(n,m) ≤ 2²⁰ 个合法分配
+    Q->>Q: buildSubspaceModel()<br/>枚举 P(n,m) ≤ subspaceCap（调度缺省 2²⁰；引擎自身缺省 2²¹）个合法分配
     Q->>Q: 均匀叠加 → 绝热演化(τ=20/150步) → 测量
     Q-->>S: assignment[] + Born 概率 + optimalityRatio
     S->>Ag: applyAssignmentDecision()
@@ -254,7 +254,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 749 用例 · 0 失败
+npm test                # 937 用例 · 0 失败
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/DSH 工具调用）
@@ -298,7 +298,7 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 ## 🧪 测试与质量
 
-**749 用例 · 0 失败 · 71 个测试文件 / 231 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
+**937 用例 · 0 失败 · 82 个测试文件 / 282 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](docs/diagrams/16-quality.png)
 
@@ -320,7 +320,9 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | 回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts） | 339 | 回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） · R12 并发余量/守卫回归（r12-scheduler-concurrency 3） |
 | tests/ 子目录（bench·mutation·sched-bench） | 46 | 基准诚实性 · 变异杀死 · 基准错误面负对照 |
 | R13 位级同一优化钉（r13-kernel/market/bus-qpu/infra/testnet-gaps） | 54 | 状态矢量复用/路由索引/环形窗口/记忆化的失效路径 · 双引擎指纹往返 · 位级对拍参考实现 |
-| **全套** | **749** | **71 个测试文件 / 231 个套件 · 0 失败** |
+| R14 调度/机制/优化器创新（r14a/d/i/j） | 121 | 纠缠批组成零遗憾性质 · 位势流对拍 SPFA 150 实例 · 参数移位精确梯度 · 自然梯度 FS 度规 · 保留价 VCG DSIC · 影子价格准入 LP 对偶证书 |
+| R14 QPU/智能创新（r14b/c） | 67 | 跨后端共识 tau-b/Wilson/TVD · 读出 MAP 缓解闭式 · Beta 数值内核解析锚 · 贝叶斯雇佣三策略 · 能力策略 default-deny |
+| **全套** | **937** | **82 个测试文件 / 282 个套件 · 0 失败** |
 
 （表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
@@ -332,7 +334,7 @@ npm run lint      # ESLint 0 错误（类型感知 strict 集：no-floating-prom
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
 npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖（唯一既定发现：index.ts 的同名 named+default 双导出，为兼容 import X from 的刻意 API）
-npm test          # 749 用例 · 0 失败 ✅
+npm test          # 937 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -383,7 +385,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            # 测试套件（71 文件 / 749 用例）
+├── tests/                            # 测试套件（82 文件 / 937 用例）
 ├── docs/diagrams/                    # 🎨 README 原理图集 + generate.py 生成器
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）
@@ -418,7 +420,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 ## ⚠️ 诚实的边界
 
 1. 量子核心是薛定谔方程的**经典精确模拟**，不是真 QPU；`toIsing()` 导出的 (h,J) 可直接提交真实量子退火机，届时同一问题无需改代码即可换执行位置。
-2. 子空间维度仍组合增长 P(n,m)，默认上限 2²⁰（≈150MB 内存）；8×10 规模为**决策质量模式**而非热路径——v1.6 内核使其演化提速 23.5×（同机同状态，16 线程并行，与串行逐位一致），绝对耗时随机器核数与热状态浮动。
+2. 子空间维度仍组合增长 P(n,m)，调度器批量路径默认上限 2²⁰（SCHEDULER_SUBSPACE_CAP，≈150MB 内存；`config.subspaceCap` 可覆盖；引擎全局缺省为 2²¹=SUBSPACE_DIMENSION_CAP，constants.ts 双常量口径）；8×10 规模为**决策质量模式**而非热路径——v1.6 内核使其演化提速 23.5×（同机同状态，16 线程并行，与串行逐位一致），绝对耗时随机器核数与热状态浮动。
 3. 高吞吐热路径（>10³ tasks/s）仍走经典 `hybrid` 启发式。
 4. 所有最优率/概率均为末态真实观测量；耦合赛道的最优对照来自子空间枚举（≤2²¹ 维时精确），不做外推。
 5. 本 README 图集中的退火能级、Born 分布与纤维结构为**按公式解析绘制的示意图**（图题已标注）；一切实测数字以命令产物为准（`npm test` / `npm run bench` / `npm run performance`）。

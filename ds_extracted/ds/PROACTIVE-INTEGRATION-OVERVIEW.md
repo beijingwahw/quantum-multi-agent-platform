@@ -309,24 +309,15 @@ import { EventEmitter } from 'events';
 // 其他模块可以使用主动智能插件
 import { ProactiveIntelligencePlugin } from './proactive-intelligence';
 
-// 在AgentManager中使用
-class AgentManager {
-  constructor(config: any) {
-    // 可选地集成主动智能
-    if (config.proactiveEnabled) {
-      this.proactive = new ProactiveIntelligencePlugin(config.proactive);
-    }
-  }
-}
+// AgentManager 无 proactiveEnabled 集成键（平台核心不持有插件）。
+// 主动智能是独立插件：宿主自建实例并桥接平台事件，例如：
+import { ProactiveIntelligencePlugin } from 'quantum-multi-agent-platform';
 
-// 在主应用中使用
-class QuantumMultiAgentPlatform {
-  constructor(config: any) {
-    this.agentManager = new AgentManager(config);
-    this.scheduler = new QuantumScheduler(config);
-    this.proactive = new ProactiveIntelligencePlugin(config.proactive);
-  }
-}
+const plugin = new ProactiveIntelligencePlugin({ /* config */ });
+platform.on('agent_state_changed', (e) => plugin.observe({
+  agentId: e.agentId, kind: 'state', payload: e,
+}));
+await plugin.start();
 ```
 
 ## 📦 发布和安装
@@ -434,23 +425,18 @@ const plugin = new ProactiveIntelligencePlugin({
     retentionMs: 3600000  // 1小时
   },
 
-  // 决策引擎配置
-  engine: {
-    maxRules: 1000,
-    decisionHistoryLimit: 1000
-  },
-
-  // 执行器配置
+  // 执行器配置（注意：不存在 engine 配置节——DecisionEngine 无构造
+  // 旋钮，规则与历史容量由插件内部管理，见 decision-engine.ts 头注）
   executor: {
-    enabled: true,
     safeMode: false,  // 生产环境设为false
     maxConcurrentActions: 10,
     actionTimeoutMs: 30000,
-    auditLogEnabled: true,
     allowedActions: [
-      'notification:*',
-      'workflow:*',
-      'command:nuke:*'
+      // 只支持精确匹配：裸 type、'type:name' 或 '*'
+      // （无前缀通配语法，'notification:*' 永不匹配任何动作）
+      'notification',
+      'workflow',
+      'command:nuke'
     ],
     blockedActions: [
       'command:rm',

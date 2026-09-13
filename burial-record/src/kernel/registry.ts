@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 95;
-export const DECLARED_TOTAL_ERRORS = 757;
+export const DECLARED_TOTAL_BATCHES = 96;
+export const DECLARED_TOTAL_ERRORS = 785;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4722,6 +4722,156 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "[wave-collective] five delivery agents (A/D/E/J/K) each converged lint or prettier on the second or third round — rules read after the writing instead of before — and J's bscBlockInfo rewrite briefly referenced a deleted scope's bindings in the fallback branch, caught by pre-commit self-review",
         right: "the repo's rule face is read before the first line is written and the format gate runs before the first test — and a refactor of a function with a fallback re-checks both branches' dependencies before it is called done",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 96,
+    repo: "burial-record",
+    date: "2026-09-14",
+    context:
+      "the R14 innovation wave (visit eighty-nine: three batches of four agents over every line of the workspace under innovation lenses — architecture and algorithm inventory plus opt-in world-class implementations, orchestrator-wired): twenty-eight delivery errors from twelve delivery agents and the orchestrator — the exit-code family struck six times in a single wave (the orchestrator's again at the closeout's first gate, four delivery agents', and one read-only lane's, every one self-caught and re-run pipeless), two sanctioned-channel violations committed by the orchestrator itself while enrolling the channel law, hand-anchor expectations drawn from mental arithmetic and convicted by first runs, one Fubini–Study metric double-conjugation caught by the module's own PSD assertion, and family/pin misattributions refuted by md5 and registry reads; every one self-caught, tool-caught, or test-caught in the act, none shipped",
+    source: { file: "memory/2026-09-14.md", heading: "关键经验（第九十六批" },
+    errors: [
+      {
+        wrong: "[orchestrator self-report, this batch] the doc-cluster verification gate ran `npx prettier --check ... | tail -2; echo PRETTIER=$?` — tail ate the failing verdict and PRETTIER=0 stood over a one-error run; the exit-code family's thirtieth sighting, the orchestrator's again, one wave after enrolling the twenty-ninth at this same closeout position",
+        right: "re-ran write-then-check with the exit code read from the shell itself — the no-pipe law binds every orchestrator command, including four-line cosmetic checks",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] three channel violations: five documentation files batch-edited through a python heredoc, the census package.json description through a python -c script, and two genealogy tier rows through a second python heredoc — all assert-guarded and content-correct, but the sanctioned-channel law (b95#16's own text) was quoted in this wave's dispatch prompts and then violated three times by the wave's own wirer",
+        right: "documentation edits ride the Edit tool like code edits — the channel law is about the channel, not the file type",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] the root-README edit addressed ../README.md (which is ds_extracted/, not the workspace root) and two Edits were attempted before a Read — the read-state guard refused both, the second old_string also carrying a hand-slip (覆盖率棘程 for 棘轮); zero shipped",
+        right: "absolute paths from the workspace root and Read-before-Edit are pre-flight checklist items, not recoveries — the guard caught what the prompt discipline should have prevented",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent A] two composer test anchors were written from recall — the expected capturedMass missed the default entanglementBonus of 0.15 (0.35 asserted against a true 0.15) and the duplicate-id message substring was quoted from memory rather than copied from the thrown text",
+        right: "expected values and message texts are copied from the implementation or a captured run before the green is trusted — the wrong-reason pass is eliminated, not forgiven",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent A] `Number.isInfinite` — an API that does not exist — was typed where `!Number.isFinite` was meant; the test run caught it",
+        right: "API surfaces are read, not recalled — a fluent-sounding method name is a compile error wearing a sentence",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent A] the potential-transfer design asserted hot-start feasibility survives pivot-edge deletion — refuted by its own strict mode: the saturated S→agent edge of the base solution is not in the final residual network and violates on the zero-flow pivot graph; the design was restructured to constructive-only guarantees with cross-instance transfer honestly labeled heuristic",
+        right: "a feasibility claim is proven against the residual network that actually exists, not the one the derivation imagines",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent A] the no-displacement incremental scenario was constructed by intuition — arriving scores in increasing order form improving rings among themselves (four cycle cancellations actually fired), and two diagnostic scripts mis-numbered a sink and double-added an edge",
+        right: "incremental-flow scenarios are constructed from the ring structure first, and diagnostic scripts get the same review as shipped code — their outputs were re-derived independently before being believed",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent B] two first Writes carried draft residue — a module-level invalidMemo placeholder wired to a stale aggregate that called .add on a ReadonlySet, and a no-op ternary with void-suppressed duplicate accumulation — both caught by post-write re-reads and rewritten whole",
+        right: "the Write tool ships the file the moment it is called — a draft is either complete or it is not written, and the post-write re-read is the residue detector that makes this recoverable",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent B] an Edit that added the occurrences guard pushed the decode body out of its for loop — the zero-check ran before any decoding; the immediately following re-Read caught the broken brace nesting",
+        right: "structural Edits are followed by a re-read of the whole block before any test run — the Edit tool replaces strings, not intentions",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent B] three test anchors were self-convicted — topFrequency asserted 1 where 8/15 was the true ratio, the f=0.1 weight formula dropped the cross terms and the (1−f)^N factor, and one assertion was tautological (Math.min(...) === 2 ? 2 : -1)",
+        right: "anchors are hand-derived twice — once for the expectation, once against the formula — and a conditional assertion that cannot fail is deleted on sight",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent B] the f=0 anchor read 59.999999999999986 against 60 — a log→exp round trip's floating dust; the fix tightened the implementation (an exact direct-addition path at f=0) instead of loosening the assertion",
+        right: "when a boundary case admits an exact path, the exact path is implemented and the strict equality kept — the assertion is not the enemy of convenience",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent B] the first typecheck verdict was taken through `| tail; echo EXIT=$?` — EXIT=0 stood over a real exit 2 (the errors were in a sibling's in-flight files); self-caught on the same turn",
+        right: "the re-run read the log from a redirect — sibling-file noise makes a masked verdict actively misleading, not merely stale",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent C] Beta(1.5,1.5)'s 0.9 quantile was estimated from memory as ≈0.1 (actual 0.8435) — two thresholds were built on the misestimate and the first green pass was correct for the wrong reason; an error-message regex was also written from recall",
+        right: "a distributional anchor is computed, never estimated — and a test that passes on a wrong expectation is a defect with a green face, removed by construction (a no-probation counter-proof now pins that admission rides the probation path)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agents C, D, E and H] the exit-code family struck four more times in one wave — early test/typecheck verdicts piped through tail with $? reading the tail (C four commands, D several, E seven repos whose first-round EXIT pins were all false, H once); every one self-caught and re-run under pipefail or redirect",
+        right: "the pipeless law was written into this wave's own dispatch constitution and was still violated — the law's living enforcement point remains the actor's own re-run discipline, restated per wave, not assumed inherited",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent D] the first Write of the parameter-shift test carried a corrupted identifier (normalize�dEnergies — mojibake inside an import) and the dominance case passed a multi-layout closure to the layer-layout coordinate-descent API — both caught by self-review before any run",
+        right: "mojibake and closure-API mismatches are pre-run review items; both were fixed before the first execution, which is where they are cheapest",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent E] three first judgments were refuted by evidence — 'most repos' versions are anchor-pinned' (anchors.ts showed the pins are content needles; only vacuum-compiler pins a version), causal-ineq's cmat attributed to the byte-identical family (it is a registered-divergence descendant), and a test constant charged as a typo (two legitimate derivation paths) — with coverage discounts declared rather than silently narrowed",
+        right: "family and pin attributions are grep-verified before they gate a recommendation — the ripple map that decides what may be implemented was rebuilt from the refuted versions before any implementation was approved",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent F] five slips — nosignal-tariff's cmat assigned to the quadruplet family (md5 refuted: a 202-line registered divergence), binding-price's channels assumed byte-locked (a registered legal divergence), the dtc-clock pin count stated as six where grep finds seven, vacuum-compiler's own version misread for a moment, and a wc glob overreaching into experiments/",
+        right: "hash and registry checks precede family claims — a same-named file is not a family member until the bytes say so",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent G] the first file sweep missed k-switch's root-level experiments/ directory (eight files, exposed only by a test import), parts of three repos' docs were covered structurally rather than line-by-line, and one wide grep's output was persisted to a temp file",
+        right: "the traversal territory list is built from find over the repo root, not from the src/ convention — and declared coverage discounts replace silent ones",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent H] a scoping false charge (a reused s0 variable read as shadowing — separate block scopes), a README passage first judged historical then convicted as stale prose, and registry data-table tails (~2500 rows) covered by structure with the discount declared",
+        right: "charges are withdrawn with the same ceremony they are filed — the report carries both the accusation and the refutation so the ledger stays symmetric",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent I] the below-reserve-price case initially asserted the wrong direction (an 8−0−3=5 margin admits; the draft first asserted rejection) with muddled mid-correction comments, and a NOT_TRACKED sentinel placeholder survived the first write",
+        right: "the admission predicate is written from the inequality before the test case is chosen, and sentinels die with the draft they guarded",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent I] a hand-computed potential anchor missed the reverse edge t1→a1 (π_a1 judged 1, actual 0) — the anchor was corrected only after the solver ran, so the shipped test pins an empirically verified value rather than the raw arithmetic",
+        right: "dual-path anchors stay dual: the hand derivation is checked by the machine before it becomes the expectation, not after",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent J] the Fubini–Study metric assembly conjugated twice — the i-side factor was negated and then fed through the plain product formula (x+iy)(u+iv) — twelve tests fell at once with g diagonals of −2.25/−4.0, caught by the module's own PSD assertion and analytic anchors; a hand computation (‖Ω‖²=3, g=0.75) located the guilty branch",
+        right: "complex kernels carry their conjugation at the site of multiplication — ⟨Ω_i|Ω_j⟩ is (x−iy)(u+iv) there — and a PSD self-check plus one hand-derived anchor is the fastest path from twelve reds to the guilty line",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent J] process residue — the damping exploration reported only two tiers (disclosed as anti-cherry-pick rather than swept), and prettier --write plus three node --eval diagnostics ran beyond the literal command whitelist (own files, read-only, disclosed)",
+        right: "channel and scope discipline is self-reported with the act, not discovered later — the whitelist is the constitution and deviations are disclosures",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent K] four reference constants were written from recall and test-convicted in sequence — the anchor gap 0.143 against a true 0.0843, the power-path envelope 1e-23 against 5.0e-22, the QUOTED_NET_GRID tier misremembered twice (0.011→0.0136→0.00271), and a threshold/depth off-by-one",
+        right: "frozen constants are copied from the table they live in — memory holds shapes, tables hold digits (the identifier-grade law's numeric face)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent K] the adversary machinery carried two direction bugs (mixed-branch answer inversion, repeated-comparison transcript flip) caught by the invariant sweep, one debug script sorted before negating (descending by accident), and the 24-order enumeration probe was abandoned mid-run for an eigendecomposition criterion",
+        right: "adversary transcripts are validated by the invariant they must preserve before any bound is read off them — and a too-slow probe is replaced, not waited out",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent L] the showcase's first assertions violated the no-reuse capacity contract ([0,0] double-books one agent) and two hand anchors missed the reserve semantics (excludedByReserve counts task slots: 3 not 2; the counterfactual world also applies the reserve: payment 8 not 7.5) — two exit-1 runs convicted them",
+        right: "example code obeys the same domain contracts as production code — a showcase that hand-waves the contract teaches the bug",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent L] two boundary commands ran beyond the whitelist — a sibling repo's test suite for a count check and a live scanFamily import; read-only and disclosed, but the whitelist was the constitution's edge",
+        right: "verification needs are met inside the sanctioned command set or surfaced to the orchestrator — convenience is not a scope",
+        category: "process",
+      },
+      {
+        wrong: "[wave-collective] eleven of twelve delivery agents converged lint, prettier, or typecheck on the second or third round — A (eslint 10, tsc 4, prettier), C (eslint 7, tsc 2, prettier 6), D (eslint 4, TS1484, prettier), I (eslint 88), J (eslint 5), L (eslint 1, tsc 4) — the rule faces were read after the writing",
+        right: "the repo's rule face is read before the first line is written and the format gate runs before the first test — third consecutive wave running, the collective face is now booked as the wave's own",
         category: "process",
       },
     ],

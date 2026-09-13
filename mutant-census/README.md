@@ -27,9 +27,11 @@
 - **P 板（性质电池）**：10 条性质，对全体种子化输入成立——形状守卫、态资格
   （Hermitian/迹 1/PSD/双路内积）、代数恒等式、CPTP 保迹、测量与条件化、
   吸收单调、渐近恒等、同事件统计、后选择分母、设置面 no-signaling（含 CNOT 负对照）。
-- **K 板（家系活普查）**：cmat/states/channels/rng/measures 五件套在 10 仓字节级
-  同源；quantum-mech/qverify 的 states.ts 等 11 处分歧**注册在案**（登记，不裁决）；
-  未注册漂移与陈旧注册都是违规——注册表必须与现实精确互指。
+- **K 板（家系活普查）**：cmat/states/channels/rng/measures 五件套现存 **12 个
+  (仓,文件) 对字节级同源**（无任何一仓五件全套同源，全成员计数为 0）；
+  readout-wall/binding-price/ent-clearing/quantum-mech/qverify 等仓的 **42 条分歧
+  注册在案**（登记，不裁决）；未注册漂移与陈旧注册都是违规——注册表必须与
+  现实精确互指。
 - **W 板（卫生活普查）**：28/28 仓 test/typecheck/repro + TS strict 全过；
   批 21 立法前的守卫债已全额清偿（批 33，42 入口三形制补装），注册表清空、
   法律绝对化——零未守卫入口，无豁免通道。

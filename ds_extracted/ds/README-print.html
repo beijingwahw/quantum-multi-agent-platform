@@ -227,7 +227,7 @@
     <p class="lang-note">🇬🇧 <strong>English version</strong>: <code>README.en.md</code>（图内文字为中文，图注附英文关键词）</p>
     <div class="badges">
       <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.12.0</span></span>
-      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">749</span></span>
+      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">937</span></span>
       <span class="badge"><span class="b-l">TypeScript</span><span class="b-v" style="background:#007ec6">5.9 strict</span></span>
       <span class="badge"><span class="b-l">node</span><span class="b-v" style="background:#97ca00">&gt;=22</span></span>
       <span class="badge"><span class="b-l">license</span><span class="b-v" style="background:#9f9f9f">MIT</span></span>
@@ -254,7 +254,7 @@
       <tr><td class="c">🧠</td><td><a href="#market-research">市场机制研究线</a></td><td>增广 WDP · DSIC · 学习曲线</td></tr>
       <tr><td class="c">📊</td><td><a href="#benchmarks">基准与性能</a></td><td>量子 5/5 · 匈牙利互证 · 23.5× 并行</td></tr>
       <tr><td class="c">🚀</td><td><a href="#quick-start">快速开始</a></td><td>十条命令 + 代码示例</td></tr>
-      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>749 用例 · 六门禁 · 覆盖率棘轮</td></tr>
+      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>937 用例 · 六门禁 · 覆盖率棘轮</td></tr>
       <tr><td class="c">📁</td><td><a href="#directory-structure">目录结构</a></td><td>含图集生成器</td></tr>
       <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.12</td></tr>
       <tr><td class="c">⚠️</td><td><a href="#honest-limits">诚实的边界</a></td><td>等效≠真机 · 组合爆炸 · 热路径</td></tr>
@@ -537,7 +537,7 @@
 cd quantum-multi-agent-platform
 npm install
 
-npm test                <span class="c"># 749 用例 · 0 失败</span>
+npm test                <span class="c"># 937 用例 · 0 失败</span>
 npm run typecheck       <span class="c"># 全仓类型检查（strict + noUncheckedIndexedAccess）</span>
 npm run lint            <span class="c"># ESLint（typescript-eslint 推荐规则集）</span>
 npm run example:basic   <span class="c"># 基础用法全链路（平台启停/调度/控制台协议）</span>
@@ -581,7 +581,7 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
 
   <!-- ══════════════ 测试与质量 ══════════════ -->
   <h2 id="testing-quality" class="pb">🧪 测试与质量</h2>
-  <p><strong>749 用例 · 0 失败 · 71 个测试文件 / 231 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
+  <p><strong>937 用例 · 0 失败 · 82 个测试文件 / 282 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
 
   <figure><img src="docs/diagrams/16-quality.png" alt="质量门禁体系"></figure>
 
@@ -603,7 +603,7 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
       <tr><td>市场机制（CompoundBrain/VCG/增长市场/相变）</td><td class="c">87</td><td>DSIC · 校准 · 定律验证 · 模拟器分离（08#11）· 守恒不变量（05#7）</td></tr>
       <tr><td>回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts）</td><td class="c">339</td><td>回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） · R12 并发余量/守卫回归（r12-scheduler-concurrency 3）</td></tr>
       <tr><td>tests/ 子目录（bench·mutation·sched-bench）</td><td class="c">46</td><td>基准诚实性 · 变异杀死 · 基准错误面负对照</td></tr>
-      <tr><td><strong>全套</strong></td><td class="c"><strong>749</strong></td><td><strong>71 个测试文件 / 231 个套件 · 0 失败</strong></td></tr>
+      <tr><td><strong>全套</strong></td><td class="c"><strong>937</strong></td><td><strong>82 个测试文件 / 282 个套件 · 0 失败</strong></td></tr>
     </tbody>
   </table>
   <p class="note">（表内计数为文档对账时点一次绿色全量运行的快照；以 <code>npm test</code> 实时输出为准。）</p>
@@ -615,7 +615,7 @@ npm run lint      <span class="c"># ESLint 0 错误（类型感知 strict 集：
                   <span class="c">#   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）</span>
 npm run coverage  <span class="c"># c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛</span>
 npm run knip      <span class="c"># 死代码/未用导出/未用依赖 0 发现</span>
-npm test          <span class="c"># 749 用例 · 0 失败 ✅</span>
+npm test          <span class="c"># 937 用例 · 0 失败 ✅</span>
 npm run format    <span class="c"># Prettier 统一格式</span>
 </code></pre>
 
@@ -661,7 +661,7 @@ npm run format    <span class="c"># Prettier 统一格式</span>
 │   ├── dsh/dsh-integration.ts        <span class="c"># DeepSeek Harness 集成</span>
 │   ├── proactive-intelligence/       <span class="c"># 主动智能规则引擎（三层）</span>
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            <span class="c"># 测试套件（71 文件 / 749 用例）</span>
+├── tests/                            <span class="c"># 测试套件（82 文件 / 937 用例）</span>
 ├── docs/diagrams/                    <span class="c"># 🎨 README 原理图集 + generate.py 生成器</span>
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  <span class="c"># 量子基准（7 部分）</span>

@@ -53,6 +53,7 @@ npm run repro   # 重生成 out/ 下全部 JSON+MD 报告（约 2 分钟，exp4 
 | CPU BP+OSD ×64 | 9 | 125 | backlog-grows |
 | FPGA 100µs ×32 | 4 | 15.6 | backlog-grows |
 | FPGA 100µs ×512 | 73 | 0.856 | **realtime** |
+| FPGA 100µs ×256 | 36 | 1.736 | backlog-grows |
 | ASIC 10µs ×32 | 4 | 1.56 | backlog-grows |
 | ASIC 1µs ×16 | 2 | 0.313 | **realtime** |
 
@@ -90,7 +91,7 @@ src/
   ft/       codes.ts(码目录+出处) synthesis.ts(T 计数) estimate.ts(资源估算，常数单源引用)
             constants.ts(假设常数审计表+出处门禁) decoder-scheduler.ts(离散事件解码调度+窗口策略)
   experiments/  exp1-monotonic / exp2-resources(+常数审计) / exp3-decoder(+窗口策略) / exp4-noise / run-all
-test/       50 项：每个数学声称配独立实现对照（对拍）；走私审判 16 项（伪造噪声单调序列 ×2、
+test/       57 项：每个数学声称配独立实现对照（对拍）；走私审判 16 项（伪造噪声单调序列 ×2、
             伪造常数出处 ×3、非法输入具名驳回 ×11）；单源常数无漂移断言 ×1
 docs/       theory.md — 定理、证明、模型假设、边界、文献
 ```
