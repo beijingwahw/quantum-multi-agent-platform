@@ -8,7 +8,7 @@
  * 市场清算）共享，两处此前各持有一份逐行相同的实现。
  */
 
-import { MechanismError } from '../utils/errors.js';
+import { MechanismError, StateError } from '../utils/errors.js';
 
 /**
  * 松弛容差（01#21）：SPFA 边松弛仅在改善量超过该阈值时更新，吸收
@@ -42,6 +42,13 @@ export interface FlowEdgeRef {
 
 export class MinCostFlow {
   private readonly graph: InternalEdge[][] = [];
+  // 增量变异守卫（R15-P2）：SPFA 只找 s→t 增广路，看不见新边诱发的
+  // 负费用改进环——「run 有流在途 → addEdge → 再 run」会静默停在次优
+  // （R14 证据：S→A(容1)/A→T0(−1) 解 {1,−1} 后加 A→T1(−5) 重跑得
+  // {0,0}，冷解 −5）。该场景具名拒绝；零流在途或无变异的重跑不受影响
+  // （零流残网 = 原图，SPFA 语义仍精确）。
+  private hasFlowInFlight = false;
+  private mutatedAfterRun = false;
 
   constructor(n: number) {
     for (let i = 0; i < n; i++) this.graph.push([]);
@@ -66,6 +73,8 @@ export class MinCostFlow {
     const toEdges = this.node(to);
     fromEdges.push({ to, rev: toEdges.length, cap, cost });
     toEdges.push({ to: from, rev: fromEdges.length - 1, cap: 0, cost: -cost });
+    // 越界在两侧 push 之前已抛（node()），到这里图已真实变异
+    this.mutatedAfterRun = true;
     const idx = fromEdges.length - 1;
     // 捕获 graph 引用而非 this 别名（no-this-alias）；edge() 的越界防护
     // 不进热路径——引用只在建边方持有，越界即编程错误
@@ -83,6 +92,17 @@ export class MinCostFlow {
 
   /** 返回 {flow, cost}；只推进总费用为负的增广路径 */
   run(s: number, t: number): { flow: number; cost: number } {
+    // 增量变异守卫：有流在途的网络被 addEdge 变异后重解，SPFA 会错过
+    // 负费用改进环而静默停在次优——具名拒绝并指向含环取消的增量实现
+    if (this.hasFlowInFlight && this.mutatedAfterRun) {
+      throw new StateError(
+        'MinCostFlow.run(): instance was mutated by addEdge() after a previous run() left flow in flight — ' +
+          'SPFA finds only s→t augmenting paths and silently misses negative-cost improvement cycles ' +
+          'introduced by the new edges. Rebuild the instance for a cold solve, or use ' +
+          'MinCostFlowPotentials (cycle-cancellation capable) for incremental re-solves.',
+      );
+    }
+    this.mutatedAfterRun = false;
     let flow = 0;
     let cost = 0;
     const n = this.graph.length;
@@ -151,6 +171,8 @@ export class MinCostFlow {
       // 回到相位头前清空队缓冲（head 游标随之作废）
       queue.length = 0;
     }
+    // 流一经推进即滞留网络（无出流 API）：后续变异重解进入守卫范围
+    this.hasFlowInFlight = this.hasFlowInFlight || flow > 0;
     return { flow, cost };
   }
 

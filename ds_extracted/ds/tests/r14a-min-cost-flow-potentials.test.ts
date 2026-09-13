@@ -10,9 +10,9 @@
  *    增量代数和 = 冷重建，零环取消，确定性松弛计数 ~4.8× 下降；
  * ④ 同实例增量·置换：高分到达诱发负环 → 环消除兜底，代数和 = 冷重建
  *    （正确性），计数如实记录（不设省功断言——实测更贵，见模块头注）；
- * ⑤ 最小置换案例 + 原版语义对照：SPFA 版「run→加边→run」静默停在
- *    次优（代数和 −1 ≠ 冷解 −5），本实现兑现改进（−5）——
- *    既有 MinCostFlow 重复 run 增量语义的陷阱证据（报告项，不修既有文件）；
+ * ⑤ 最小置换案例 + 原版语义对照：R14 时钉「SPFA 版『run→加边→run』
+ *    静默停在次优（代数和 −1 ≠ 冷解 −5）」为陷阱证据；R15-P2 修复后
+ *    该场景在原版具名拒绝（StateError，指向本实现），钉板随之翻转；
  * ⑥ 跨实例位势迁移（λ 变化 / pivot 删边）：启发式热启动——正确性与
  *    冷解/SPFA 三方一致（迁移可行性无构造性保证，只锚定正确性）；
  * ⑦ 负环具名拒绝（全新图）；⑧ 确定性重跑；⑨ 负对照具名拒绝；
@@ -23,7 +23,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MinCostFlow } from '../src/core/min-cost-flow.js';
 import { MinCostFlowPotentials } from '../src/core/min-cost-flow-potentials.js';
-import { MechanismError } from '../src/utils/errors.js';
+import { MechanismError, StateError } from '../src/utils/errors.js';
 import { mulberry32 } from '../src/utils/rng.js';
 import { comparePaired } from './bench/bench-kit.js';
 
@@ -300,7 +300,7 @@ describe('R14-A · 同实例增量重解：置换到达（环消除兜底，正�
     );
   });
 
-  it('最小置换案例 + 原版语义对照：SPFA 版加边重跑静默停在次优，本实现兑现改进', () => {
+  it('最小置换案例 + 原版语义对照：SPFA 版加边重跑具名拒绝（R15 起不再静默次优），本实现兑现改进', () => {
     // 图：S→A(容量1)；A→T0(−1)；到达 A→T1(−5)。扩图最优 = 弃 T0 上 T1（−5）。
     const addArrival = (f: MinCostFlow | MinCostFlowPotentials): void => {
       f.addEdge(1, 4, 1, -5);
@@ -320,17 +320,22 @@ describe('R14-A · 同实例增量重解：置换到达（环消除兜底，正�
     assert.equal(r1.cost + r2.cost, -5);
     assert.equal(ssp.metrics().cycleCancellations, 1);
 
-    // 原版（既有 MinCostFlow）同一场景：加边重跑返回 {0,0}，代数和 −1 ≠ 冷解 −5
-    // ——SPFA 只找 s-t 增广路，看不见改进环；增量复用语义的陷阱证据（报告项）
+    // 原版（既有 MinCostFlow）同一场景：R14 时此处钉「加边重跑返回 {0,0}，
+    // 代数和 −1 ≠ 冷解 −5」的静默次优为陷阱证据；R15-P2 修复后该场景
+    // 具名拒绝——SPFA 只找 s-t 增广路、看不见改进环，与其静默给次优数，
+    // 不如把增量重解指给含环取消的本实现（钉板翻转，非行为漂移）
     const spfaInc = new MinCostFlow(6);
     spfaInc.addEdge(0, 1, 1, 0);
     spfaInc.addEdge(1, 3, 1, -1);
     spfaInc.addEdge(3, 5, 1, 0);
     const s1 = spfaInc.run(0, 5);
-    addArrival(spfaInc);
-    const s2 = spfaInc.run(0, 5);
     assert.deepEqual(s1, { flow: 1, cost: -1 });
-    assert.deepEqual(s2, { flow: 0, cost: 0 }, 'SPFA 版错过置换改进（已定罪的现状语义）');
+    addArrival(spfaInc);
+    assert.throws(
+      () => spfaInc.run(0, 5),
+      (err: unknown) => err instanceof StateError && err.message.includes('MinCostFlowPotentials'),
+      '有流在途 + 变异后重 run 必须具名拒绝并指向 MinCostFlowPotentials',
+    );
 
     const spfaCold = new MinCostFlow(6);
     spfaCold.addEdge(0, 1, 1, 0);
@@ -339,8 +344,6 @@ describe('R14-A · 同实例增量重解：置换到达（环消除兜底，正�
     spfaCold.addEdge(1, 4, 1, -5);
     spfaCold.addEdge(4, 5, 1, 0);
     assert.deepEqual(spfaCold.run(0, 5), { flow: 1, cost: -5 });
-    // 定罪钉板：原版增量代数和 ≠ 冷解
-    assert.notEqual(s1.cost + s2.cost, -5);
   });
 });
 

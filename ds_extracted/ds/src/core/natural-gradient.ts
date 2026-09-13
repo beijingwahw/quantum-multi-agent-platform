@@ -6,9 +6,10 @@
  * 一阶方法（坐标下降 / 参数移位梯度）在 QAOA 损失面上收敛慢，主因之一是
  * 参数几何病态：不同角度方向的「真实距离」由量子态空间的度量决定，欧氏
  * 梯度对此视而不见。自然梯度以 Fubini–Study 度规预条件梯度，
- * 沿态空间真实几何走最陡方向（Stokes 等 2020《Quantum natural gradient》
- * 〔待双源〕；Fubini–Study 度量 / 量子几何张量的几何意义见量子几何
- * 相位文献〔待双源〕）：
+ * 沿态空间真实几何走最陡方向（J. Stokes, J. Izaac, N. Killoran,
+ * G. Carleo, "Quantum Natural Gradient", Quantum 4, 269 (2020), DOI
+ * 10.22331/q-2020-05-25-269, arXiv:1909.02108——R15 双源核实；Fubini–
+ * Study 度量 / 量子几何张量的几何意义见量子几何相位文献）：
  *
  *   θ ← θ − η·(g + λI)⁻¹·∇f，
  *   g_ij = Re(⟨∂_iψ|∂_jψ⟩ − ⟨∂_iψ|ψ⟩⟨ψ|∂_jψ⟩)

@@ -146,7 +146,8 @@ scheduler.getQuantumMetrics();  // { algorithm, singleDecisions, batchRuns, mean
 
 ### 调度器行为
 
-`scheduleBatchQuantum` **自动优先子空间引擎**（m ≤ n 且维度 ≤ `subspaceCap`，
+`scheduleBatchQuantum` **自动优先子空间引擎**（m ≤ n、空闲池 ≥2 个 agent
+（idlePool.length >= 2，engine-orchestrator.ts）且维度 ≤ `subspaceCap`，
 默认 2^20）：报告带 `representation: 'subspace'`、`subspace.dimension`、
 `subspace.equivalentQubits` 与精确最优对照（子空间枚举天然给出最优）。
 超维自动回退 v1.1 全空间分块路径。维度 > 2^16 时 QAOA 训练成本高，
@@ -189,6 +190,8 @@ v1.3 补上两条赛道的最强经典对手：
 **多轮调度**：任务多于空闲agent时，子空间逐轮联合分配（每轮 P(空闲数, k) ≤
 维度上限的最大 k 个任务），剩余任务在 agent 释放后由后续调用继续以子空间
 精度调度——不再退化到全空间小分块（测试覆盖 6任务×3agent 两轮场景）。
+跨轮任务对的纠缠耦合项不进入任何单轮哈密顿量（优先级切片的结构性丢弃）；
+opt-in 的纠缠感知组批恢复面是 `composeBatches`（`src/core/entanglement-batch-composer.ts`，R14 交付，对基线切片零遗憾）。
 
 ## 七、v1.4 真 QPU 后端层（`src/core/qpu/`）
 
@@ -324,7 +327,7 @@ regime（QAOA 真正困难的区间）上，α=0.1 温和而稳定地优于均�
    自动回退全空间分块或贪心。8×10 属质量模式而非热路径——v1.6 内核使其
    演化提速 23.5×（同机同状态，16 线程，逐位一致），见七½节。
 
-## 九、测试覆盖（248 个量子/基线/QPU 用例 / 全套 937 用例）
+## 九、测试覆盖（257 个量子/基线/QPU 用例 / 全套 961 用例）
 
 量子/基线/QPU 家族构成：quantum-optimizer 20 + subspace-optimizer 10 +
 subspace-parallel 11 + classical-baselines 5 + qpu-backend 12 +
@@ -359,7 +362,7 @@ QAOA 末态干涉集中、Born 坍缩分布合理性。
 
 ```bash
 npm run build           # TypeScript 严格模式零错误
-npm test                # 937 用例 · 0 失败（含 248 个量子/基线/QPU 用例）
+npm test                # 961 用例 · 0 失败（含 257 个量子/基线/QPU 用例）
 npm run example:quantum # 量子突破基准（七部分）
 npm run example:qpu     # 真 QPU 执行入口（自动检测凭据）
 ```

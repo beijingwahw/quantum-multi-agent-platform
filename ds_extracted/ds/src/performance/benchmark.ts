@@ -3,6 +3,7 @@ import { QuantumMultiAgentPlatform } from '../index.js';
 import { performance } from 'perf_hooks';
 import { pathToFileURL } from 'url';
 import { NumericDomainError } from '../utils/errors.js';
+import { Mulberry32, DEFAULT_SEED } from '../utils/rng.js';
 
 export interface BenchmarkResult {
   testName: string;
@@ -34,13 +35,19 @@ function startWindow(): WindowStart {
 
 class QuantumBenchmark {
   private platform: QuantumMultiAgentPlatform;
+  // 随机选择流（R15-P2）：此前 agent 位置与消息源/目用 Math.random()，
+  // 同机逐次不可复现——偏离全仓「所有随机性经由 utils/rng.ts」的种子化
+  // 纪律。注入 seed（缺省 DEFAULT_SEED）后，同 seed 两次运行的选择序列
+  // 逐位一致；语句序即抽取序（位置 x,y,z / 消息先 source 后 target）。
+  private readonly rng: Mulberry32;
   // 结果累加器（results/record/getResults）已按死代码清偿删除：
   // 全仓 grep 零读者——各基准方法直接返回自己的 BenchmarkResult，
   // runBenchmark 从 runFullBenchmark 的局部数组取全量结果。
 
-  constructor(config: DeepPartial<PlatformConfig> = {}) {
+  constructor(config: DeepPartial<PlatformConfig> = {}, seed: number = DEFAULT_SEED) {
     // 基准测试默认压制热路径日志，排除日志I/O对吞吐测量的干扰
     this.platform = new QuantumMultiAgentPlatform({ logLevel: 'warn', ...config });
+    this.rng = new Mulberry32(seed);
   }
 
   /** 暴露被测平台实例（测试注入故障用；运行语义由各基准方法保证） */
@@ -128,7 +135,7 @@ class QuantumBenchmark {
           name: `Test Agent ${i}`,
           type: 'developer',
           capabilities: ['testing', 'benchmarking'],
-          position: { x: Math.random(), y: Math.random(), z: Math.random() },
+          position: { x: this.rng.next(), y: this.rng.next(), z: this.rng.next() },
         });
         successCount++;
       } catch (error) {
@@ -250,8 +257,8 @@ class QuantumBenchmark {
 
     let sent = 0;
     for (let i = 0; i < count; i++) {
-      const sourceAgent = agents[Math.floor(Math.random() * agents.length)]!;
-      const targetAgent = agents[Math.floor(Math.random() * agents.length)]!;
+      const sourceAgent = agents[Math.floor(this.rng.next() * agents.length)]!;
+      const targetAgent = agents[Math.floor(this.rng.next() * agents.length)]!;
 
       try {
         // createMessage为同步调用：立即路由，目标不在线则进入离线队列
@@ -341,7 +348,7 @@ class QuantumBenchmark {
         name: `Bench Agent ${i}`,
         type: 'custom',
         capabilities: ['bench'],
-        position: { x: Math.random(), y: Math.random(), z: Math.random() },
+        position: { x: this.rng.next(), y: this.rng.next(), z: this.rng.next() },
       });
     }
 

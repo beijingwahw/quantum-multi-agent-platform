@@ -6,7 +6,7 @@ import { DSHIntegration } from './dsh/dsh-integration.js';
 import { EventEmitter } from 'events';
 import type { LogLevel } from './utils/logger.js';
 import { setLogLevel, logInfo, logWarn, logError } from './utils/logger.js';
-import { ConfigurationError } from './utils/errors.js';
+import { ConfigurationError, MessageValidationError } from './utils/errors.js';
 import type {
   Agent,
   AgentType,
@@ -433,6 +433,14 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
             // 与 submit_task 的 priority 校验同口径：畸形远程输入显式报错，
             // 而不是静默吞掉（调用方无法得知命令未生效）
             throw new ConfigurationError("complete_task requires a non-empty 'taskId'");
+          }
+          // success 严格布尔口径（R15-P2）：此前 `p.success !== false` 把任何
+          // 非 false 值（"no"、0）都按成功结算——远程输入的畸形标志静默变成
+          // 成功口径，与 submit_task 的严格校验不对称。镜像 priority 的校验
+          // 形状：undefined 放行（默认成功，合法载荷行为不变），其余非布尔
+          // 一律具名拒绝
+          if (p.success !== undefined && typeof p.success !== 'boolean') {
+            throw new MessageValidationError(`Invalid success flag '${JSON.stringify(p.success)}'`);
           }
           this.completeTask(p.taskId, p.success !== false);
           break;

@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 96;
-export const DECLARED_TOTAL_ERRORS = 785;
+export const DECLARED_TOTAL_BATCHES = 97;
+export const DECLARED_TOTAL_ERRORS = 799;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4872,6 +4872,86 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
       {
         wrong: "[wave-collective] eleven of twelve delivery agents converged lint, prettier, or typecheck on the second or third round — A (eslint 10, tsc 4, prettier), C (eslint 7, tsc 2, prettier 6), D (eslint 4, TS1484, prettier), I (eslint 88), J (eslint 5), L (eslint 1, tsc 4) — the rule faces were read after the writing",
         right: "the repo's rule face is read before the first line is written and the format gate runs before the first test — third consecutive wave running, the collective face is now booked as the wave's own",
+        category: "process",
+      },
+    ],
+  },
+  {
+    batch: 97,
+    repo: "burial-record",
+    date: "2026-09-14",
+    context:
+      "the R15 defect-retirement visit (visit ninety: executing the R14 dossier's named future candidates — seven platform defects red-test-first, the letter-audit ledger's stale prose, switch-sched's exp4 prose contradiction, and the dual-source verification of every pending-dual-source citation, four delivery agents plus the orchestrator): fourteen delivery errors — the identifier-grade citation family dominates (eight rows: recalled DOIs, search-summary author lists accepted then refuted, a conflated 1956 attribution, the orchestrator's own three citation slips corrected only by the second source), three more sanctioned-channel violations by the orchestrator on JSON edits, a red test whose first red was its own defect (re-proved against stashed original source), and the platform's version badge found stuck two waves behind; every one self-caught, source-caught, or tool-caught in the act, none shipped",
+    source: { file: "memory/2026-09-14.md", heading: "关键经验（第九十七批" },
+    errors: [
+      {
+        wrong: "[delivery agent P2] the benchmark seeding red test's communication case first recorded raw message UUIDs — cross-instance UUIDs differ by construction, so that red convicted the test's own recording choice, not Math.random; rebuilt as index projection and re-proved against the stashed original source (all three conviction points red on the old code)",
+        right: "a red test's recording layer is validated before its red is read as a conviction — when the first red is the harness's own defect, the stash-and-reproof against the original source is the evidence that the real defect exists",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent P2] a missing await on a benchmark result read errors off a pending Promise (TypeError before any assertion) — caught by the first run",
+        right: "async harnesses type their awaits before their assertions — the TypeError is the run telling you the harness is unfinished",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent P2] one edit on a just-written test file went through sed instead of the Edit tool (grep-verified after, no damage), and a git show baseline check used HEAD:src/... from the repo root producing an empty-stdin false pass before the fatal forced the correct HEAD:./src/ form",
+        right: "the Edit tool is the only channel even on one's own just-written files, and a baseline command that can silently succeed on empty input is verified against its expected output before it is believed",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent C1] Kruskal's DOI tail was recalled as -2 (404), Schweppe's book DOI was taken from a search summary (404 on both Crossref and Springer), and Iri's DOI was inferred from the journal's modern pattern (404 — the 1960 volume never registered one)",
+        right: "DOIs are queried from the registration library, never recalled or inferred from a journal's numbering pattern — all three closed on Crossref/S2/arXiv sources after the 404s",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent C1] two search summaries supplied author names that the sources contradicted (Alexander Simmons for Will Simmons; Alper Kazerouni for Abbas Kazerouni) — both initially accepted into the ledger draft",
+        right: "search summaries are leads, not sources — every identifier-grade datum is copied from the source page itself, and both were corrected at the arXiv/Crossref pages",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent C1] Klein's year showed a source disagreement (Semantic Scholar 1966 vs Crossref/INFORMS 1967) and two J-STAGE codenames were guessed (both wrong) before the legacy-volume route was abandoned",
+        right: "source disagreements are adjudicated to the registration library and noted in the ledger, and legacy archives are not guessed at — alternate indices close what the primary cannot",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent C2] the GYNI query first followed a task-implied author-year-venue shape that was wrong in all three fields (Ghosh-Kar-Pawlowski-Winter 2012 NJP), and a second false candidate (NJP 19 103026) was checked and found to be a flocking paper",
+        right: "the task's implied citation shape is itself unverified input — the real anchor (Almeida et al., PRL 104, 230404, 2010) was found only by searching the game's name, and false candidates are refuted at the source page before being discarded",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent C2] Bravyi's de-signing paper was first accepted at a search-summary venue (Acta Phys. Pol. A / a nearby arXiv number) that proved to be unrelated papers on verification",
+        right: "a venue+arXiv pair is verified against the paper's own abstract page before it enters the ledger — the journal-ref field closed it as QIC 15(13/14), 1122-1140",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent C2] the random-SAT threshold DOI was mis-carried as rsa.20098 (a caching paper) and Krawtchouk's title was assumed rather than read",
+        right: "DOIs resolve to their paper before they are cited, and titles are read at the source — the CR note's real title is Sur une généralisation des polynômes d'Hermite",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] three more sanctioned-channel violations — the switch-sched, platform, and census-description JSON edits went through python heredocs (assert-guarded, content correct), the very family enrolled as b96#1 one visit earlier",
+        right: "version-slot JSON edits are Edit-tool work like everything else — the repeat inside two visits is booked as the family's own recidivism face, not a new excuse",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] the platform README/README.en/README-print version badges still read 1.12.0 through the entire v1.13.0 wave — the count cluster was synced twice over the badge beside it while the version badge two lines above went untouched",
+        right: "the doc-cluster checklist enumerates badge TYPES (version AND tests), not just the cluster that fired — a neighboring badge on the same line range is checked whenever either changes",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] three citation slips in the orchestrator's own verification pass — Mitarai's volume guessed as 99 (real 98), Schuld's PRA number probed as 100, 032328 (real 99, 032331), and the Dantzig-Ford-Fulkerson-1956 attribution conflated the 1954 TSP duality paper with Ford-Fulkerson's max-flow work",
+        right: "the identifier-grade law binds the verifier too — every digit the orchestrator writes is second-sourced, and all three were corrected at the source pages before the ledger closed",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[orchestrator self-report, this batch] one Edit's old_string was guessed from memory of an HTML row's class layout instead of read from the file — the mismatch refusal was the guard doing its job",
+        right: "old_strings are copied from a fresh read, never reconstructed — the refusal cost one round-trip and prevented a blind replace",
+        category: "process",
+      },
+      {
+        wrong: "[wave-collective] both fix agents converged lint, prettier, or typecheck on the second round — P1 (tsc 2, eslint 3, prettier 2 files), P2 (prettier 4 files) — the rule faces read after the writing, the fourth consecutive wave",
+        right: "the rule face is read before the first line is written — the collective face is booked for the fourth wave running, a standing recurrence until the pre-flight checklist makes it structural",
         category: "process",
       },
     ],

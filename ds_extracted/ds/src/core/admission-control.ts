@@ -64,11 +64,19 @@
  * 既有文件 import（opt-in：调度编排者显式接线）。拒绝理由结构化：
  * 逐 agent 给出 score / 平滑租金 / 边际，缺哪个边际条件一目了然。
  *
- * 文献接地：LP 对偶与互补松弛（Dantzig-Ford-Fulkerson 1956 型线性
- * 规划对偶定理〔待双源〕）；影子价格术语（Koopmans 1951 activity
- * analysis / marginal value〔待双源〕）；EWMA 平滑（Roberts 1959
- * exponential weighting〔待双源〕）；定价/准入对偶视角与预算 pacing
- * 同构（Balseiro-Besbes 2019 budget pacing dual〔待双源〕）。
+ * 文献接地（R15 双源核实，台账 DELIVERY/r15-dual-source-citations-20260914.md）：
+ * LP 对偶证书与互补松弛（G.B. Dantzig, D.R. Fulkerson, S.M. Johnson,
+ * "Solution of a Large-Scale Traveling-Salesman Problem", Operations
+ * Research 2:393, 1954——LP 对偶作最优性证书的奠基用法；网络对偶的
+ * 最大流形态见 Ford-Fulkerson 1956）；
+ * 影子价格术语（T.C. Koopmans, "Analysis of Production as an Efficient
+ * Combination of Activities", 收于 Activity Analysis of Production and
+ * Allocation, Cowles Commission Monograph 13, Wiley 1951, Ch. III）；
+ * EWMA 平滑（S.W. Roberts, "Control Chart Tests Based on Geometric Moving
+ * Averages", Technometrics 1(3):239-250, 1959, DOI 10.1080/00401706.1959.10489860）；
+ * 预算 pacing 对偶（Balseiro-Besbes, "Budget-Management Strategies in
+ * Repeated Auctions", Operations Research 69(3):859-876, 2021；pacing-对偶
+ * 专文 Balseiro-Gur, Management Science, DOI 10.1287/mnsc.2018.3174）。
  */
 
 import { MechanismError } from '../utils/errors.js';

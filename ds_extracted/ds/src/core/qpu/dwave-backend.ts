@@ -50,8 +50,9 @@ const PENDING_STATUSES = new Set(['PENDING', 'IN_PROGRESS', 'SUBMITTED']);
 /**
  * Q3 自适应轮询节流：固定 500ms 对分钟级的混合求解是每分钟 ~120 次
  * 的无效轰炸。轮询间隔从 500ms 起几何翻倍至 5000ms 封顶；间隔是
- * solveIsing 的局部状态，每次提交（即每个终态）自然重置。总轮询
- * 仍受 timeoutMs 预算钳制（sleep 前取剩余预算的 min）。
+ * solveIsing 的局部状态，每次提交（即每个终态）自然重置。POST 与
+ * 轮询共享同一 timeoutMs 预算（deadline 在 POST 之前起算，sleep 前
+ * 取剩余预算的 min，POST 的 AbortSignal 也只拿剩余时间）。
  */
 const POLL_INTERVAL_BASE_MS = 500;
 const POLL_INTERVAL_GROWTH = 2;
@@ -137,10 +138,17 @@ export class DWaveBackend implements QuantumBackend {
     // 提交（异步任务可能返回 PENDING → 轮询直到 COMPLETED）。
     // 提交成功后的任何失败路径都会触发已付费问题的孤儿化——finally 兜底
     // best-effort 取消，不让它继续烧 QPU 配额。
-    const submitted = await this.post<DWaveProblemResponse>('problems/', body, timeoutMs);
+    // R15：deadline 在 POST **之前**起算，POST 与轮询共享同一 timeoutMs
+    // 预算（原实现 POST 独享整份 timeoutMs、完成后再起算 deadline，
+    // 总墙钟可逼近 2×timeoutMs）。
+    const deadline = Date.now() + timeoutMs;
+    const submitted = await this.post<DWaveProblemResponse>(
+      'problems/',
+      body,
+      Math.max(1, deadline - Date.now()),
+    );
     let problem = submitted;
     try {
-      const deadline = Date.now() + timeoutMs;
       // Q3：首次轮询等基础间隔，之后每轮仍在跑则几何退避（封顶 5000ms）；
       // 间隔随本次 solveIsing 调用重置——终态即出循环，无需显式复位
       let pollIntervalMs = POLL_INTERVAL_BASE_MS;
@@ -357,7 +365,10 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     return {
       solutions,
       energies: asNumberArray(answer.energies) ?? [],
-      occurrences: asNumberArray(answer.num_occurrences) ?? solutions.map(() => 1),
+      occurrences: occurrencesOrPerSample1(
+        validatedOccurrences(answer.num_occurrences),
+        solutions.length,
+      ),
     };
   }
 
@@ -391,7 +402,10 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     // 数组长度做次级信号——直接全长解码会把位对齐 padding 解成幻影样本，
     // 歪曲 invalidSamples 与频率统计
     const energiesLen = (asNumberArray(answer.energies) ?? []).length;
-    const occurrencesLen = (asNumberArray(answer.num_occurrences) ?? []).length;
+    // R15：num_occurrences 垃圾在推断前具名拒绝——放行会让垃圾先被 Q9 的
+    // 「无可用长度」口径吞掉（垃圾被误报为「信号缺席」，形态失真）
+    const occurrencesParsed = validatedOccurrences(answer.num_occurrences);
+    const occurrencesLen = occurrencesParsed?.length ?? 0;
     // num_solutions 是解数：非负整数。小数计数（1.5）此前作为循环上界
     // `s < numSolutions` 静默解出 ceil 个解——多出一个幻影样本，歪曲频率
     // 统计。与 vector 字校验同款「不盲信外部 JSON」。
@@ -430,11 +444,52 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     return {
       solutions,
       energies: asNumberArray(answer.energies) ?? [],
-      occurrences: asNumberArray(answer.num_occurrences) ?? solutions.map(() => 1),
+      occurrences: occurrencesOrPerSample1(occurrencesParsed, solutions.length),
     };
   }
 
   throw new BackendError(`DWave unknown answer format: ${JSON.stringify(Object.keys(answer))}`);
+}
+
+/**
+ * num_occurrences 形状校验（R15）：垃圾（非数组/含非有限数）此前经
+ * `?? solutions.map(() => 1)` 静默回退——频率分母被无痕改写为逐样本 1。
+ * 与 solutions/vector 同款「不盲信外部 JSON」：垃圾具名拒绝（消息点名
+ * 垃圾形态）。完全缺席（undefined）返回 undefined，由调用侧保留逐样本 1
+ * 的既有约定（缺席≠垃圾：Q9 已把「信号缺席」与「显式零值」区分对待，
+ * 逐样本 1 是不伪造数据的中性默认；经典分支无长度推断信号，不采推断）。
+ */
+function validatedOccurrences(raw: unknown): number[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new BackendError(
+      `DWave answer has a malformed num_occurrences: not an array (${typeof raw})`,
+    );
+  }
+  if (!raw.every(isFiniteNumber)) {
+    throw new BackendError(
+      `DWave answer num_occurrences contains non-finite values: ${JSON.stringify(
+        raw.filter((v) => !isFiniteNumber(v)).slice(0, 3),
+      ).slice(0, 120)}`,
+    );
+  }
+  return raw;
+}
+
+/**
+ * num_occurrences 长度对齐收口（R15）：合法数组必须与解数等长——失配的
+ * 频次会错位对到别的解上（频率统计歪曲）。缺席（undefined）→ 逐样本 1。
+ */
+function occurrencesOrPerSample1(parsed: number[] | undefined, solutionCount: number): number[] {
+  if (parsed === undefined) {
+    return new Array<number>(solutionCount).fill(1);
+  }
+  if (parsed.length !== solutionCount) {
+    throw new BackendError(
+      `DWave answer num_occurrences length ${parsed.length} does not match solution count ${solutionCount}`,
+    );
+  }
+  return parsed;
 }
 
 function asNumber(value: unknown): number | undefined {

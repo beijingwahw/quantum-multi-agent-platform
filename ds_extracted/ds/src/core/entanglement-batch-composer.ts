@@ -37,8 +37,11 @@
  * - capturedMass 是**可实现耦合福利的上界**（批内任务还须在分配时真的
  *   落在纠缠对上且不与容量冲突），不是 welfare 承诺；
  * - 划分问题（size-constrained graph partitioning）本身 NP-hard
- *   （Kernighan-Lin 型启发式的标准领地〔Kernighan-Lin 1970, partition
- *   heuristic〔待双源〕〕），局部搜索不保证全局最优——测试只钉
+ *   （Kernighan-Lin 型启发式的标准领地：B.W. Kernighan & S. Lin,
+ *   "An Efficient Heuristic Procedure for Partitioning Graphs", Bell
+ *   System Technical Journal 49(2):291-307, 1970, DOI
+ *   10.1002/j.1538-7305.1970.tb01770.x——R15 双源核实），局部搜索
+ *   不保证全局最优——测试只钉
  *   「≥ 基线 + 构造实例上的真实福利增益」，不宣称最优性。
  */
 

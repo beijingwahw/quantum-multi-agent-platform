@@ -61,8 +61,9 @@ inverted: order indefiniteness acts as a scaling on the incentive landscape.
 | 0.9167 | 1.508519 | -4.4e-16 | -0.491481 |
 | 1.0000 | 1.500000 | -4.4e-16 | -0.500000 |
 
-Coherent allocation keeps cross-branch coherences alive; the mixture law breaks by
-machine-measured amounts (see column 3). IC verdict under coherent allocation: **PRESERVED (max gain ≤ 0)**.
+Coherent allocation keeps cross-branch coherences alive, yet the mixture law survives
+EXACTLY here (column 3 maxdev < 1e-12): the coherences cancel out of the payoff marginal.
+IC verdict under coherent allocation: **PRESERVED (max gain ≤ 0)**.
 
 ## Verdict
 

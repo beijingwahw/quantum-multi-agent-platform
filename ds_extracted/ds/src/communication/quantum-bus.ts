@@ -101,6 +101,13 @@ const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
 const MAX_QUEUED_AGENTS = 4096;
 /** 单连接畸形消息熔断阈值（F07）：持续解析失败即断开，防日志洪泛 */
 const MAX_MALFORMED_PER_CONNECTION = 32;
+/**
+ * 单连接未知帧类型熔断阈值（R15，F09 姊妹）：与 F07 同一阈值语义——
+ * 未知帧的错误回帧+logWarn 在限速窗内可无限持续（1000/s 的帧/日志
+ * 放大面），偶发未知类型仍是协议协商问题（回错误帧、连接保持），
+ * 持续洪泛才升级为 1008 断开。
+ */
+const MAX_UNKNOWN_TYPE_PER_CONNECTION = MAX_MALFORMED_PER_CONNECTION;
 /** 单连接消息速率上限（条/秒，F06）：超速即断开 */
 const MAX_MESSAGES_PER_SECOND = 1000;
 /** 总线协议版本（F09）：随 connection_ack 广播，破坏性变更时递增 */
@@ -178,6 +185,10 @@ export interface QuantumBusMetrics {
     rateLimitDisconnects: number;
     /** 畸形消息熔断断开次数 */
     malformedDisconnects: number;
+    /** 未知帧类型熔断断开次数（R15：与畸形熔断同型阈值语义） */
+    unknownTypeDisconnects: number;
+    /** 连接数封顶（1013）拒绝次数（R15：连接洪水攻击面可观测） */
+    connectionLimitRejections: number;
     /** 离线队列桶数（基数攻击面的实时暴露面） */
     queuedAgentBuckets: number;
   };
@@ -284,6 +295,8 @@ export class QuantumBus extends EventEmitter {
     invalidChannelRejections: 0,
     rateLimitDisconnects: 0,
     malformedDisconnects: 0,
+    unknownTypeDisconnects: 0,
+    connectionLimitRejections: 0,
   };
   // 并发start()复用同一次监听Promise，防止创建两个WebSocketServer
   private startPromise: Promise<void> | null = null;
@@ -296,6 +309,12 @@ export class QuantumBus extends EventEmitter {
   /** 心跳定时器集中登记（F08）：shutdown 时确定性回收，不依赖连接
    * close 事件的终极到达 */
   private heartbeatTimers = new Set<NodeJS.Timeout>();
+  /**
+   * 单连接未知帧类型熔断计数（R15，F09 姊妹）：与 F07 的 malformedCount
+   * 同位语义（连续违规计数，可受理帧复位）——该计数跨 handleIncomingMessage
+   * 多次调用，以 connectionId 为键挂在总线上；连接移除时一并拆除。
+   */
+  private unknownTypeCounts = new Map<string, number>();
 
   constructor(config: QuantumBusConfig) {
     super();
@@ -394,6 +413,9 @@ export class QuantumBus extends EventEmitter {
     const cap = this.config.communication?.maxConnections ?? 256;
     if (this.connections.size >= cap) {
       logWarn('QuantumBus', `Connection limit ${cap} reached, rejecting new connection`);
+      // R15：封顶拒绝计入 security 计数面——「攻击面可观测」的设计注记
+      // 覆盖此路径（连接洪水是可告警的直接信号，仅 logWarn 不可绘图）
+      this.securityCounters.connectionLimitRejections++;
       ws.close(1013, 'connection limit reached');
       return;
     }
@@ -566,6 +588,7 @@ export class QuantumBus extends EventEmitter {
 
   /** 连接从连接表与 agent 索引移除（幂等）：close/error/心跳过期统一出口 */
   private removeConnection(connectionId: string): void {
+    this.unknownTypeCounts.delete(connectionId);
     const connection = this.connections.get(connectionId);
     if (!connection) return;
     this.connections.delete(connectionId);
@@ -587,6 +610,20 @@ export class QuantumBus extends EventEmitter {
   private handleIncomingMessage(connectionId: string, message: IncomingClientMessage): void {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
+
+    // R15：可受理帧（控制协议分支或已知消息类型）复位未知类型熔断——
+    // 与 F07「可解析即复位 malformedCount」同位语义：熔断计的是连续违规，
+    // 协议协商后转正的客户端不因历史未知帧累积被逐
+    if (
+      message.type === 'authenticate' ||
+      message.type === 'subscribe' ||
+      message.type === 'unsubscribe' ||
+      message.type === 'console_query' ||
+      message.type === 'console_command' ||
+      (typeof message.type === 'string' && KNOWN_MESSAGE_TYPES.has(message.type))
+    ) {
+      this.unknownTypeCounts.delete(connectionId);
+    }
 
     if (message.type === 'authenticate') {
       // 身份形状校验（F05 同口径）：agentId 是对端可控的任意 JSON 值——
@@ -773,14 +810,29 @@ export class QuantumBus extends EventEmitter {
       // 未知帧类型（09#F09 remainder）：此前的兜底分支不区分「MessageType
       // 域内的未知值」与合法消息——未知类型要么凑巧通过形状校验被照常
       // 路由（垃圾类型混入广播/离线队列），要么因其余字段不全被静默丢弃，
-      // 客户端无从得知协议不匹配。现在对该连接显式回错误帧（连接保持
-      // 打开——未知类型是协议协商问题，不是必须断连的安全判定）并计数。
+      // 客户端无从得知协议不匹配。现在对该连接显式回错误帧（偶发未知
+      // 类型是协议协商问题，不是必须断连的安全判定——连接保持打开）并
+      // 计数。R15：持续未知帧洪泛接上与 F07 同型的逐连接熔断（同一阈值
+      // 语义）——限速窗内 1000/s 的错误回帧+logWarn 仍是可无限持续的
+      // 帧/日志放大面。
       if (typeof message.type !== 'string' || !KNOWN_MESSAGE_TYPES.has(message.type)) {
         logWarn(
           'QuantumBus',
           `Unknown message type '${sanitizeForLog(message.type)}' from ${connectionId} rejected`,
         );
         this.securityCounters.unknownTypeRejections++;
+        const unknownCount = (this.unknownTypeCounts.get(connectionId) ?? 0) + 1;
+        this.unknownTypeCounts.set(connectionId, unknownCount);
+        if (unknownCount >= MAX_UNKNOWN_TYPE_PER_CONNECTION) {
+          logWarn(
+            'QuantumBus',
+            `Unknown message type circuit breaker tripped on ${connectionId}, closing`,
+          );
+          this.securityCounters.unknownTypeDisconnects++;
+          this.unknownTypeCounts.delete(connectionId);
+          connection.ws.close(1008, 'unknown message type flood');
+          return;
+        }
         this.sendErrorFrame(
           connectionId,
           'unknown_message_type',

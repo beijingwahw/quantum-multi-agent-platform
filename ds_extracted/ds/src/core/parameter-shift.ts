@@ -9,9 +9,12 @@
  *
  *   ∂f/∂θ = (Δ/2)·[ f(θ + π/(2Δ)) − f(θ − π/(2Δ)) ]
  *
- * （参数移位规则；Schuld–Bergholm–Gogolin–Killoran 2019《Evaluating
- * analytic gradients…》的一般谱隙形式〔待双源〕；单比特旋转的原始形式
- * 见 Mitarai–Negoro–Kitagawa–Fujii 2018〔待双源〕。）
+ * （参数移位规则；M. Schuld, V. Bergholm, C. Gogolin, J. Izaac,
+ * N. Killoran, "Evaluating analytic gradients on quantum hardware",
+ * Phys. Rev. A 99, 032331 (2019), arXiv:1811.11184 的一般谱隙形式
+ * ——R15 双源核实；单比特旋转的原始形式见 K. Mitarai, M. Negoro,
+ * M. Kitagawa, K. Fujii, "Quantum Circuit Learning", Phys. Rev. A 98,
+ * 032309 (2018), arXiv:1803.00745。）
  * 关键性质：**精确**——不是有限差分的 O(h²) 截断近似，浮点上只有求值
  * 本身的舍入；与中心差分对拍可在 ~1e-8 内一致（测试钉死）。
  *

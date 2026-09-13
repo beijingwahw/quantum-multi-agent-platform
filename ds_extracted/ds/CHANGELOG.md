@@ -1,7 +1,39 @@
 # Changelog
 
-本仓库遵循语义化版本。每轮变更前先全量回归（937 用例含位级数值基准），
+本仓库遵循语义化版本。每轮变更前先全量回归（961 用例含位级数值基准），
 覆盖率与死代码门禁随质量收益同步棘轮上调。
+
+## v1.14.0 — 缺陷清偿波：七项登记缺陷红测修复＋文献双源核实（2026-09-14）
+
+> R15（第 90 访，执行 R14 总册「命名未来候选」）。七项 R14 登记缺陷全部
+> **红测先行**修复（新测试先定罪后转绿，被定罪路径外默认行为字节不变，
+> bench 50 实例 regenerate 仍字节同一），测试 937→961（+24）。同访完成
+> letter-audit 账本陈旧散文清偿、switch-sched exp4 散文矛盾修复、
+> 设计稿文献双源核实 44 条（台账 DELIVERY/r15-dual-source-citations-20260914.md）。
+
+- **dwave-backend 超时预算 2×**：deadline 改在 POST 之前起算，POST 与轮询
+  共享同一预算（红测：POST 慢 350ms＋timeout 400ms，旧实现总墙钟 789ms 定罪）。
+- **dwave 经典格式 num_occurrences 垃圾静默回退**：形状校验具名拒绝
+  （非数组/非有限值/长度失配），完全缺席保留逐样本 1 约定（Q9「信号缺席≠
+  显式垃圾」哲学）；qp 分支校验提前到 Q9 推断之前，垃圾不再被误报口径吞掉。
+- **总线未知帧类型无熔断**：接上 F07 同型 32 条断路器（可受理帧复位），
+  security 计数新增 unknownTypeDisconnects。
+- **总线连接数封顶拒绝不入 security 账**：1013 拒绝计入
+  connectionLimitRejections（连接洪水攻击面可观测）。
+- **complete_task 宽松成功口径**：success 非布尔具名拒绝
+  （MessageValidationError），镜像 submit_task 的严格校验；合法载荷位级不变。
+- **benchmark 种子化**：三处 Math.random() → 构造器注入的 Mulberry32
+  （seed 参数为加法面），同 seed 选择序列逐位一致。
+- **min-cost-flow 增量负环陷阱**：流在途且 run 后有变异的重 run 具名拒绝
+  （StateError，指向 MinCostFlowPotentials）；既有调用面 grep 证明无人走
+  该路径，r14a 用例⑤钉板随缺陷面翻转。
+- **文档双披露**：跨轮纠缠耦合丢弃（README 诚实边界＋QUANTUM-SCHEDULING，
+  opt-in 恢复面 composeBatches）；QUANTUM-SCHEDULING 子空间触发条件补
+  idlePool≥2。
+- **文献接地清偿**：五个 R14 新模块注释的〔待双源〕标记全部以双源核实的
+  标识符数据改写（含三处作者序/卷号更正：Stokes-Izaac-Killoran-Carleo、
+  Egger-Mareček-Woerner 三人、Mitarai PRA 98、Schuld PRA 99,032331）。
+
 
 ## v1.13.0 — 创新波：11 个 opt-in 架构/算法模块（2026-09-14）
 

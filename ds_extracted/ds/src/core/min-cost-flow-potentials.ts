@@ -40,10 +40,14 @@
  * tests/r14a-min-cost-flow-potentials.test.ts 钉住——两个独立实现算出
  * 同一最优值，互相认证（本仓对照文化）。
  *
- * 文献接地：逐次最短增广与位势法（Tomizawa 1971 / Iri 1960 型
- * min-cost flow potential method〔待双源〕）；Johnson 1977 归约位势
- * 〔待双源〕；Dijkstra 1959 最短路；Ford-Bellman 松弛与负环检测；
- * Klein 型环取消（cycle-canceling，伪多项式）〔待双源〕。SSP 每次增广
+ * 文献接地（R15 双源核实，台账 DELIVERY/r15-dual-source-citations-20260914.md）：
+ * 逐次最短增广与位势法（N. Tomizawa, Networks 1(2):173-194, 1971, DOI
+ * 10.1002/net.3230010206；M. Iri, JORSJ 3:27-87, 1960）；归约位势
+ * （D.B. Johnson, "Efficient Algorithms for Shortest Paths in Sparse
+ * Networks", JACM 24(1):1-13, 1977, DOI 10.1145/321992.321993）；最短路
+ * （E.W. Dijkstra, Numerische Mathematik 1:269-271, 1959, DOI
+ * 10.1007/BF01386390）；Klein 型环取消（M. Klein, Management Science
+ * 14(3):205-220, 1967, DOI 10.1287/mnsc.14.3.205，伪多项式）。SSP 每次增广
  * 后位势更新 π[v] += min(d[v], d[t])（未达节点取 d[t]）维持残量网络
  * 归约费用非负——经典对偶可行性不变量。
  *

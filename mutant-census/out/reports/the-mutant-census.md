@@ -128,26 +128,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 785 errors across 96 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 799 errors across 97 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 344 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 324 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 338 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
 | anchor-blindspot | 0 | 17 | 2 |
 | bogus-comparison | 0 | 10 | 3 |
-| citation-drift | 0 | 32 | 6 |
+| citation-drift | 0 | 32 | 14 |
 | conjugation | 19 | 10 | 0 |
 | dimension-slot | 29 | 22 | 0 |
 | machine-overruled | 0 | 47 | 1 |
-| process | 0 | 69 | 197 |
+| process | 0 | 69 | 200 |
 | statistics | 25 | 33 | 10 |
-| toolchain | 0 | 66 | 83 |
-| wrong-object | 44 | 38 | 22 |
+| toolchain | 0 | 66 | 85 |
+| wrong-object | 44 | 38 | 23 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -347,7 +347,7 @@ The registry is imported LIVE on every run: 785 errors across 96 batches, each w
 | `switch-sched/src/experiments/exp3-sched-contact.ts :: system-register median drifted — rng stream perturbed?` | 1 | statistics |
 | `switch-sched/test/hardening.test.ts :: input state must be 2x2` | 1 | dimension-slot |
 | `switch-sched/src/switch/chanlib.ts :: assertStinespring` | 1 | process |
-| `switch-sched/package-lock.json :: 0.4.0` | 1 | citation-drift |
+| `switch-sched/package-lock.json :: 0.5.0` | 1 | citation-drift |
 | `wukong-crossval/package.json :: test` | 1 | statistics |
 | `wukong-crossval/package.json :: typecheck` | 1 | toolchain |
 | `wukong-crossval/test/xval.test.ts :: XVAL_SHELL_RANGE` | 1 | dimension-slot |
@@ -685,6 +685,20 @@ The registry is imported LIVE on every run: 785 errors across 96 batches, each w
 - b96#25 [wrong-object] — the showcase's first assertions violated the no-reuse capacity contract ([0,0] double-books) and two hand anchors missed reserve semantics (3 not 2; payment 8 not 7.5) — two exit-1 runs convicted them. Booked: the example face — example code obeys the domain contracts it demonstrates
 - b96#26 [process] — two boundary commands ran beyond the whitelist (a sibling repo's test suite; a live scanFamily import) — read-only and disclosed. Booked: the scope face — convenience is not a scope
 - b96#27 [process] — eleven of twelve delivery agents converged lint/prettier/typecheck on the second or third round — the rule faces read after the writing; third consecutive wave running. Booked: the rule face — read before the first line is written, format gate before the first test
+- b97#0 [wrong-object] — the benchmark seeding red test's communication case first recorded raw UUIDs — cross-instance UUIDs differ by construction, so the first red convicted the harness's own recording choice, not Math.random; rebuilt as index projection and re-proved against the stashed original source. Booked: the red-test face — the recording layer is validated before a red is read as a conviction
+- b97#1 [process] — a missing await read errors off a pending Promise before any assertion ran. Booked: the harness face — async harnesses type their awaits before their assertions
+- b97#2 [toolchain] — one edit on a just-written test file went through sed, and a git show baseline produced an empty-stdin false pass before the fatal forced the correct form. Booked: the channel+baseline face — Edit is the only channel even on one's own files, and a command that can succeed on empty input is output-verified
+- b97#3 [citation-drift] — three DOIs were recalled or inferred (Kruskal's tail digit, Schweppe's book from a search summary, Iri's from the journal's modern pattern — the 1960 volume never registered one) and all 404'd. Booked: the DOI face — DOIs are queried from the registration library, never recalled or inferred
+- b97#4 [citation-drift] — two search summaries supplied author names the sources contradicted (Alexander for Will Simmons; Alper for Abbas Kazerouni), both initially accepted into a ledger draft. Booked: the summary face — search summaries are leads, not sources; identifier data is copied from the source page
+- b97#5 [citation-drift] — Klein's year showed a source disagreement (S2 1966 vs Crossref/INFORMS 1967) and two J-STAGE codenames were guessed wrong. Booked: the adjudication face — disagreements resolve to the registration library with the split noted, legacy archives are not guessed at
+- b97#6 [citation-drift] — the GYNI query first followed a task-implied author-year-venue shape wrong in all three fields, and a second false candidate proved to be a flocking paper. Booked: the implied-shape face — the task's own citation shape is unverified input; the game's name found the real anchor (Almeida et al., PRL 104, 230404, 2010)
+- b97#7 [citation-drift] — Bravyi's de-signing paper was first accepted at a search-summary venue that proved unrelated on verification. Booked: the venue face — venue+arXiv pairs are verified at the paper's own abstract page (closed as QIC 15(13/14), 1122-1140)
+- b97#8 [citation-drift] — the random-SAT DOI was mis-carried as rsa.20098 (a caching paper) and Krawtchouk's title was assumed rather than read. Booked: the resolve face — DOIs resolve to their paper before citation, titles are read at the source
+- b97#9 [toolchain] — two more sanctioned-channel violations by the orchestrator — version-slot JSON edits through python heredocs, the very family enrolled one visit earlier as b96#1. Booked: the recidivism face — version-slot JSON is Edit-tool work; the repeat inside two visits is the family's own
+- b97#10 [citation-drift] — the platform's version badges read 1.12.0 through the entire v1.13.0 wave — the tests cluster was synced twice over the badge beside it while the version badge two lines above went untouched. Booked: the neighboring-badge face — the checklist enumerates badge TYPES, and a neighboring badge is checked whenever either changes
+- b97#11 [citation-drift] — three citation slips in the orchestrator's own verification pass — Mitarai's volume (99 vs 98), Schuld's PRA number (100,032328 vs 99,032331), and the Dantzig-Ford-Fulkerson-1956 attribution conflating the 1954 TSP duality paper with Ford-Fulkerson's max-flow. Booked: the verifier face — the identifier-grade law binds the verifier too; every digit is second-sourced
+- b97#12 [process] — one Edit's old_string was guessed from memory of an HTML row's class layout — the mismatch refusal was the guard doing its job. Booked: the old_string face — copied from a fresh read, never reconstructed
+- b97#13 [process] — both fix agents converged lint/prettier/typecheck on the second round — the fourth consecutive wave. Booked: the rule face — read before the first line is written; a standing recurrence until the pre-flight checklist makes it structural
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -824,7 +838,7 @@ E3 proves the needle is on disk; the A-board proves the guard can FIRE or is RES
 - **FIRING-INJECT** — `switch-sched/src/experiments/exp3-sched-contact.ts :: system-register median drifted — rng stream perturbed?` — the seed-pinned regression anchor (the wave's one TRUE NUMERICAL conviction): Table 3's sample is seed-pinned — the four statistics asserted exactly (median −0.149905, joint median +0.147796, 0/40 system positives, 34/40 joint positives) — so any future perturbation of the rng stream (the extra draw the double-draw bug burned, welding the seed stream to the defect and producing the retired −0.160158/36/40 numbers) moves them and dies at the assertion instead of silently re-rolling the reported statistics; the anchor sits in the repro's own body, firing on every render (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
 - **FIRING-INJECT** — `switch-sched/test/hardening.test.ts :: input state must be 2x2` — the input-shape guard: firstPartyProcess refuses a non-2×2 input state by name where v0.3.0 indexed past its rows and produced a NaN process silently — the rejection trial fires on every suite run (demo: switch-sched/test/hardening.test.ts, "definite-order process guard names a malformed input state")
 - **FIRING-INJECT** — `switch-sched/src/switch/chanlib.ts :: assertStinespring` — the certificate-truth guard: assertStinespring now EXECUTES before the dilation leaves the module where v0.3.0's comment claimed the isometry certificate was checked while the call stood unreached — a recurrence that removes the call removes the needle and E3 convicts the claim-code drift on every census run (the b76#17 fake-claims face, needle-held at the call site itself) (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
-- **FIRING-INJECT** — `switch-sched/package-lock.json :: 0.4.0` — the lockfile-sync guard: both of switch-sched's package-lock.json version slots are pinned to the live 0.4.0 — the 0.1.0 residual survived the whole 0.2.0 version (the lockfile family's wave-6 face; the needle followed the 0.3.0->0.4.0 bump at the R12 wave's sweep); a recurrence removes the needle and E3 convicts on every census run (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
+- **FIRING-INJECT** — `switch-sched/package-lock.json :: 0.5.0` — the lockfile-sync guard: both of switch-sched's package-lock.json version slots are pinned to the live 0.5.0 — the 0.1.0 residual survived the whole 0.2.0 version (the lockfile family's wave-6 face; the needle followed the 0.3.0->0.4.0 bump at the R12 wave's sweep and the 0.4.0->0.5.0 bump at the R15 exp4 prose repair); a recurrence removes the needle and E3 convicts on every census run (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
 - **FIRING-INJECT** — `wukong-crossval/test/xval.test.ts :: XVAL_SHELL_RANGE` — the shell-range guard: exactShellMass and depolShellMass refuse shell indices past the mass vector by name where v0.3.0 read undefined into silent NaN (the dimension-slot family's next hole); the trial fires on every suite run (demo: wukong-crossval/test/xval.test.ts, "the shell kernels reject shell indices beyond the mass vector")
 - **FIRING-INJECT** — `wukong-crossval/package-lock.json :: 0.3.0` — the lockfile-sync guard: both of wukong-crossval's package-lock.json version slots are pinned to the live 0.3.0 — the 0.1.0 residual survived the whole 0.2.0 version (the lockfile family's wave-6 face, third repo of the batch); a recurrence removes the needle and E3 convicts on every census run (demo: mutant-census/test/enrollment.test.ts, "smuggle E3")
 - **FIRING-INJECT** — `wukong-crossval/test/xval.test.ts :: applyRX's sign convention is pinned by hand` — the convention-disclosure guard (the doc-code mismatch convicted WITHOUT a sign flip, the freeze discipline honored): the hand anchor pins amp(|1>) = +i at θ = π — the implementation's true convention e^{+i(θ/2)X} = RX(−θ) where the comment claimed textbook RX — with theory.md's mixer-sign section and the X4 export contract naming the conjugated beta axis for the hardware day; a doc revert or a silent sign flip both die at the hand value on every suite run (demo: wukong-crossval/test/xval.test.ts, "applyRX's sign convention is pinned by hand: e^{+i (theta/2) X}, the conjugate of textbook RX")
@@ -904,24 +918,24 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 234 | b1 | b96#27 | BOOKED-UNENFORCEABLE |
+| cat:process | 237 | b1 | b97#13 | BOOKED-UNENFORCEABLE |
 | cat:toolchain | 116 | b1 | b96#13 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 92 | b2 | b96#25 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 93 | b2 | b97#0 | BOOKED-UNENFORCEABLE |
 | cat:statistics | 65 | b3 | b95#17 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
+| cat:citation-drift | 44 | b6 | b97#11 | BOOKED-UNENFORCEABLE |
 | cat:machine-overruled | 44 | b4 | b96#5 | BOOKED-UNENFORCEABLE |
-| cat:citation-drift | 36 | b6 | b93#0 | GATE-ENFORCED |
-| shell-template-heredoc | 34 | b10 | b96#1 | BOOKED-UNENFORCEABLE |
+| shell-template-heredoc | 35 | b10 | b97#9 | BOOKED-UNENFORCEABLE |
 | runner-path | 30 | b14 | b96#23 | BOOKED-UNENFORCEABLE |
 | cat:conjugation | 28 | b4 | b79#3 | GATE-ENFORCED |
-| edit-anchor | 17 | b22 | b96#20 | BOOKED-UNENFORCEABLE |
+| edit-anchor | 18 | b22 | b97#2 | BOOKED-UNENFORCEABLE |
 | cat:anchor-blindspot | 16 | b9 | b87#18 | GATE-ENFORCED |
 | cat:bogus-comparison | 11 | b2 | b87#13 | GATE-ENFORCED |
 | count-drift | 9 | b36 | b90#0 | GATE-ENFORCED |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 | tautological-witness | 2 | b79 | b96#9 | BOOKED-UNENFORCEABLE |
 
-The catch census: gate 138 / author 598 / numbers 48 / visitor 1 over 785 errors — the gate fraction rose from 1% (batches 1-22) to 25% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 140 / author 610 / numbers 48 / visitor 1 over 799 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -1057,7 +1071,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 262 | the reason is true as written; the basis states the ungated face |
+| HELD | 276 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1398,6 +1412,20 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b96#25 — example face: the capacity contract violation and both reserve-semantics anchors were convicted by exit-1 runs and re-derived from the code
 - **HELD** b96#26 — scope face: the two beyond-whitelist commands were read-only and disclosed — convenience is not a scope
 - **HELD** b96#27 — rule face: eleven agents' second-round convergence — third consecutive wave; the rule surface read first remains the booked right column
+- **HELD** b97#0 — red-test face: the harness's own recording layer convicted itself before the defect did — the stash-and-reproof against the original source closed the conviction
+- **HELD** b97#1 — harness face: the await was added and the suite run that exposed it completed
+- **HELD** b97#2 — channel+baseline face: the sed edit was grep-verified and the baseline re-issued in fatal-on-empty form
+- **HELD** b97#3 — DOI face: all three closed on Crossref/S2/arXiv sources after the 404s — queried, not recalled
+- **HELD** b97#4 — summary face: both names corrected at the arXiv/Crossref pages before the ledger closed
+- **HELD** b97#5 — adjudication face: the year was adjudicated to the registration library with the split noted in the ledger
+- **HELD** b97#6 — implied-shape face: the false shapes were refuted at source pages and the real anchor found by the game's name
+- **HELD** b97#7 — venue face: closed at the paper's own journal-ref (QIC 15(13/14), 1122-1140)
+- **HELD** b97#8 — resolve face: the DOI was resolved and the title read at the source before the ledger entry stood
+- **HELD** b97#9 — recidivism face: the edits were assert-guarded and content-correct; the channel violation stands where clean does not absolve — second visit running
+- **HELD** b97#10 — neighboring-badge face: all three version badges synced to 1.14.0 in the same edit that found them
+- **HELD** b97#11 — verifier face: all three slips corrected at the source pages; the law that caught them is the one it enforces
+- **HELD** b97#12 — old_string face: the refusal prevented a blind replace; the row was read fresh and re-edited
+- **HELD** b97#13 — rule face: fourth consecutive wave — booked as a standing recurrence with the pre-flight checklist as the named structural fix
 
 ## T-board — the total gate
 
@@ -1410,11 +1438,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 28/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (785 errors enrolled LIVE against a registry of 96 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 324, every booked row printed on the report)
+- PASS — W-F enrollment census (799 errors enrolled LIVE against a registry of 97 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 338, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 785 errors (16 recurring, all resolved); catch census gate 138 / author 598 / numbers 48 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 799 errors (16 recurring, all resolved); catch census gate 140 / author 610 / numbers 48 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (337 booked-population rows audited LIVE (of the 324 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 262 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (351 booked-population rows audited LIVE (of the 338 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 276 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries

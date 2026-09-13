@@ -473,6 +473,20 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b96#25", verdict: "HELD", basis: "example face: the capacity contract violation and both reserve-semantics anchors were convicted by exit-1 runs and re-derived from the code" },
   { key: "b96#26", verdict: "HELD", basis: "scope face: the two beyond-whitelist commands were read-only and disclosed — convenience is not a scope" },
   { key: "b96#27", verdict: "HELD", basis: "rule face: eleven agents' second-round convergence — third consecutive wave; the rule surface read first remains the booked right column" },
+  { key: "b97#0", verdict: "HELD", basis: "red-test face: the harness's own recording layer convicted itself before the defect did — the stash-and-reproof against the original source closed the conviction" },
+  { key: "b97#1", verdict: "HELD", basis: "harness face: the await was added and the suite run that exposed it completed" },
+  { key: "b97#2", verdict: "HELD", basis: "channel+baseline face: the sed edit was grep-verified and the baseline re-issued in fatal-on-empty form" },
+  { key: "b97#3", verdict: "HELD", basis: "DOI face: all three closed on Crossref/S2/arXiv sources after the 404s — queried, not recalled" },
+  { key: "b97#4", verdict: "HELD", basis: "summary face: both names corrected at the arXiv/Crossref pages before the ledger closed" },
+  { key: "b97#5", verdict: "HELD", basis: "adjudication face: the year was adjudicated to the registration library with the split noted in the ledger" },
+  { key: "b97#6", verdict: "HELD", basis: "implied-shape face: the false shapes were refuted at source pages and the real anchor found by the game's name" },
+  { key: "b97#7", verdict: "HELD", basis: "venue face: closed at the paper's own journal-ref (QIC 15(13/14), 1122-1140)" },
+  { key: "b97#8", verdict: "HELD", basis: "resolve face: the DOI was resolved and the title read at the source before the ledger entry stood" },
+  { key: "b97#9", verdict: "HELD", basis: "recidivism face: the edits were assert-guarded and content-correct; the channel violation stands where clean does not absolve — second visit running" },
+  { key: "b97#10", verdict: "HELD", basis: "neighboring-badge face: all three version badges synced to 1.14.0 in the same edit that found them" },
+  { key: "b97#11", verdict: "HELD", basis: "verifier face: all three slips corrected at the source pages; the law that caught them is the one it enforces" },
+  { key: "b97#12", verdict: "HELD", basis: "old_string face: the refusal prevented a blind replace; the row was read fresh and re-edited" },
+  { key: "b97#13", verdict: "HELD", basis: "rule face: fourth consecutive wave — booked as a standing recurrence with the pre-flight checklist as the named structural fix" },
 ];
 
 export interface RepairViolation {

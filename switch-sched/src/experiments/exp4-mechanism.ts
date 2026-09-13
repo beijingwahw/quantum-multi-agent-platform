@@ -129,8 +129,9 @@ export function main(): void {
   }
   lines.push('');
   const icVerdict = maxGainCoh <= 1e-12 ? 'PRESERVED (max gain ≤ 0)' : `VIOLATED (max gain ${maxGainCoh.toFixed(6)} > 0)`;
-  lines.push(`Coherent allocation keeps cross-branch coherences alive; the mixture law breaks by`);
-  lines.push(`machine-measured amounts (see column 3). IC verdict under coherent allocation: **${icVerdict}**.\n`);
+  lines.push(`Coherent allocation keeps cross-branch coherences alive, yet the mixture law survives`);
+  lines.push(`EXACTLY here (column 3 maxdev < 1e-12): the coherences cancel out of the payoff marginal.`);
+  lines.push(`IC verdict under coherent allocation: **${icVerdict}**.\n`);
   lines.push('## Verdict\n');
   lines.push('- Measurement-style mechanisms (the realistic case — outcomes are classical): incentive');
   lines.push('  constraints survive order indefiniteness with gains exactly halved. DSIC\'s direction');
