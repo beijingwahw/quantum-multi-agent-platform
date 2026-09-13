@@ -491,6 +491,17 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b98#1", verdict: "HELD", basis: "convergence face: typecheck and format closed on the second round, probes iterated outside the repo" },
   { key: "b98#2", verdict: "HELD", basis: "prompt-input face: the digit was corrected at the source page before any artifact carried it — the law caught its own author's input" },
   { key: "b98#3", verdict: "HELD", basis: "read-state face: the refusal prevented a stale-context replace at the cost of one round-trip" },
+  { key: "b99#0", verdict: "HELD", basis: "dispatch-hypothesis face: the counterexample rides in the module header as the permanent record of the deviation from the prompt's formula" },
+  { key: "b99#1", verdict: "HELD", basis: "channel face: the heredoc act and its missed call form both caught before ship — clean does not absolve, the confession stands" },
+  { key: "b99#2", verdict: "HELD", basis: "verdict face: the cross-seed gate and out-of-hot-path counting landed as the structural fix in the same wave" },
+  { key: "b99#3", verdict: "HELD", basis: "transcription face: all transcribed digits re-verified from the metric printouts after the catch" },
+  { key: "b99#4", verdict: "HELD", basis: "rule face: the convergence closed before any test run executed the residues" },
+  { key: "b99#5", verdict: "HELD", basis: "expectation face: the accidentally-convicted domain guard kept as evidence the validation order holds" },
+  { key: "b99#6", verdict: "HELD", basis: "construction face: margins measured before assertion, titles made ASCII-safe" },
+  { key: "b99#7", verdict: "HELD", basis: "quoted-digit face: caught by the delivery agent's fresh run, erratum in the CHANGELOG, no workspace file ever held the wrong digit" },
+  { key: "b99#8", verdict: "HELD", basis: "latitude face: disclosed at delivery and accepted — booked as process, not granted as permission" },
+  { key: "b99#9", verdict: "HELD", basis: "append-anchor face: three visits running, each restored in the same breath — the lineage is the record" },
+  { key: "b99#10", verdict: "HELD", basis: "future-key face: the demo now derives its forged key from the live registry — the expiry-prone literal is gone and A3 fired on the conviction again" },
 ];
 
 export interface RepairViolation {

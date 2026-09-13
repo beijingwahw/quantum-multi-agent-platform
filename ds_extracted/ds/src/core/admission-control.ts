@@ -46,16 +46,58 @@
  *   增广图：新边归约费用 (π_a − π_sink) − s_a ≥ 0 与 0 ≥ 0，旧边不动，
  *   返回边不动 ⟹ 当前流在增广图上仍最优——拒绝零福利损失（LP 证书）。
  * 【P2 的边界】SSP 提前停机常留下 π_sink < π_source（证书条件不满足，
- *   报告 certificate = 'conservative'）：此时 ρ 是「当前流值下的」拥堵
+ *   报告为 certificate = 'conservative'）：此时 ρ 是「当前流值下的」拥堵
  *   租金，拒绝可能错失**依赖换道**的正改进。最小反例（测试钉住）：
  *   2 agent 容量各 1，任务 t1（score 5，双资格）被平手裁决分给 a1，
  *   a2 空闲；新任务 t2（score 3，仅 a1 资格）：ρ_{a1} = 5 ⟹ 拒绝，
  *   而增广图最优是 t1→a2 + t2→a1（福利 8 > 5，改进 3）。租金读数
  *   是对偶的一个极端端点（容量侧吃全部剩余），换道空间在终态位势里
- *   不可见——这是启发式边界的实锤，不是理论缺陷的遮掩。
+ *   不可见——这是启发式边界的实锤，不是理论缺陷的遮掩。（R17-B 起，
+ *   verify='exact' ＋反事实回调把该反例从「披露的代价」变成「被测量
+ *   的放行」——见下节。）
  * 【未被证明】准入策略整体的最优性/福利定理。EWMA 跨批平滑是**设计
  *   选择**：影子价格是「当前流值下」的边际，批结构变化后未必延续，
  *   α 越小越保守（惯性大）、α=1 退化为当批即值。不主张任何跨批定理。
+ *
+ * ============ R17-B 升级：精确拒绝（verify: 'dual' | 'exact'，缺省 exact） ============
+ *
+ * R14-I 的已披露代价面在拒绝侧：conservative 证书可 over-reject（上面的
+ * 最小反例——仅饱和 a1 资格的 score-3 任务被拒，而增广重解最优 8 > 5、
+ * 真实改进 3）。本升级把「条件性正向」升格为**严格正向**：verify='exact'
+ * （缺省）下，凡边际测试想拒且对偶证书条件不成立（borderline）的判定，
+ * 若调用方接入了反事实求解回调，决策即交给测量：
+ *   admitWelfare（把候选并入当前批重解的最优福利）> rejectWelfare
+ *   （拒绝现状的福利）⟹ 放行；否则拒绝。两者都带 certificate='exact'。
+ *
+ * 拒绝的完备分划（接了回调 ⟹ 构造上零错拒）：
+ *   ① no-candidate-agents——结构拒绝：无资格 = 任何重解都装不下该任务
+ *      （admitWelfare 与 rejectWelfare 只能相等），零错；
+ *   ② dual-certified（P2 证书条件成立）——LP 对偶证书证明拒绝零福利
+ *      损失（见 P2），不必花钱测——回调不触发；
+ *   ③ exact（borderline ＋回调）——测得 admitWelfare ≤ rejectWelfare，
+ *      并入重解的真实改进非正；
+ *   ④ unverified-conservative（borderline ＋无回调）——**不在零错保证
+ *      内**：保持 conservative 语义，但 reason 具名披露
+ *      'unverified-conservative'（不冒充已验证）。
+ *   no-history 的拒绝不触发回调：无对偶历史时价格恒 0，边际 = score −
+ *   reserve ≤ 0 意味着唯一动过的闸是调用方自己的保留价——那是政策
+ *   拒绝，不是影子价格 over-rejection（证书 'no-history' 已如实分型）。
+ *
+ * 回调契约（counterfactual?: (candidate) => { admitWelfare, rejectWelfare }，
+ * config 级接线，闭包持有调用方的当前批状态）：
+ *   - 只在 verify='exact' 且 borderline（边际测试想拒 ＋证书条件不成立）
+ *     时触发——放行判定与对偶强拒零成本（成本账见 getMetrics()）；
+ *   - 返回的两个福利值必须是有限数，垃圾返回（NaN/缺字段/非对象）
+ *     具名 MechanismError 拒绝；
+ *   - 回调自身抛错**原样透传**（不包装——错误语义归求解器所有）；
+ *     控制器状态（EWMA/证书位）零残留；
+ *   - 测量只与回调同样诚实：回调解错 ⟹ 决策跟着错——本升级把「对偶
+ *     端点的盲区」换成「调用方求解器的正确性」，不宣称免除；
+ *   - admitWelfare < rejectWelfare 不设守卫：WDP 自由处置口径下数学上
+ *     不可能（增广可行域 ⊇ 现状），但调用方福利口径可含切换成本等
+ *     其他分量——测量说了算。
+ * verify='dual' 逐字保留 R14-I 语义（兼容模式：历史披露面的钉板模式）。
+ * 放行侧证明不变：margin > 0 的放行仍走 P1 路径，不触发回调、不换证书。
  *
  * ============ 形制 ============
  *
@@ -131,6 +173,34 @@ function assertAgentId(id: string, what: string): void {
   if (typeof id !== 'string' || id.length === 0) {
     throw new MechanismError(`${what} must be a non-empty string, got ${String(id)}`);
   }
+}
+
+/**
+ * 反事实回调返回值的域校验（R17-B）：必须是有 admitWelfare/rejectWelfare
+ * 两个有限数的对象。垃圾返回具名拒绝（字段名 + taskId 指名来源）。
+ */
+function assertCounterfactualResult(
+  result: CounterfactualWelfare,
+  taskId: string,
+): CounterfactualWelfare {
+  // 声明类型是对象——null/数组/标量等垃圾形状只能从运行时侧进来；先落
+  // unknown 再判形（字面量/类型收窄会把「声明类型的恒真检查」报成恒假）。
+  const shape: unknown = result;
+  if (typeof shape !== 'object' || shape === null || Array.isArray(shape)) {
+    throw new MechanismError(
+      `counterfactual result for task ${taskId} must be an object { admitWelfare, rejectWelfare }, got ${typeof shape}`,
+    );
+  }
+  const rec = shape as Record<string, unknown>;
+  for (const field of ['admitWelfare', 'rejectWelfare'] as const) {
+    const v = rec[field];
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new MechanismError(
+        `counterfactual result for task ${taskId}: ${field} must be a finite number, got ${String(v)} (typeof ${typeof v})`,
+      );
+    }
+  }
+  return result;
 }
 
 /**
@@ -226,7 +296,48 @@ export function extractCapacityDuals(
 // 第二层：影子价格准入控制器（EWMA 平滑 + 保留价判定）
 // ---------------------------------------------------------------------------
 
-/** 控制器配置（全部必填，显式 opt-in） */
+/** 验证模式：'dual' = R14-I 对偶判定（兼容模式）；'exact'（缺省）= borderline 拒绝交反事实测量 */
+export type AdmissionVerifyMode = 'dual' | 'exact';
+
+/** 反事实求解回调的返回：两个口径下的最优福利（都须有限） */
+export interface CounterfactualWelfare {
+  /** 把候选并入当前批重解后的最优福利 */
+  readonly admitWelfare: number;
+  /** 拒绝候选（维持现状）的福利 */
+  readonly rejectWelfare: number;
+}
+
+/** exact 验证的测量明细（certificate = 'exact' 的决策非 null） */
+export interface CounterfactualMeasurement {
+  readonly admitWelfare: number;
+  readonly rejectWelfare: number;
+  /** admitWelfare − rejectWelfare（决策依据：admitWelfare > rejectWelfare ⟹ 放行） */
+  readonly welfareDelta: number;
+}
+
+/**
+ * 反事实求解回调（config 级接线）：调用方用自己的批状态把候选并入重解
+ * vs 拒绝现状，测两个福利值。仅在 verify='exact' 的 borderline（边际
+ * 测试想拒 ＋对偶证书条件不成立）触发；抛错原样透传，垃圾返回具名拒绝。
+ */
+export type CounterfactualSolver = (candidate: AdmissionCandidate) => CounterfactualWelfare;
+
+/** 观测指标（成本账快照，getMetrics() 返回冻结副本） */
+export interface AdmissionMetrics {
+  /** decide() 产出的决策总数（抛错的调用不产决策、不计） */
+  readonly decisions: number;
+  readonly admissions: number;
+  readonly rejections: number;
+  /**
+   * 反事实求解调用次数——每个 borderline 恰好一次（对偶强拒与放行
+   * 零成本）。含抛错/结果被具名拒绝的尝试：求解成本已付，如实计数。
+   */
+  readonly exactVerifications: number;
+  /** reason = 'unverified-conservative' 的拒绝数（零错保证的缺口面，可监控） */
+  readonly unverifiedConservativeRejections: number;
+}
+
+/** 控制器配置（ewmaAlpha/reservePrice 必填；verify/counterfactual 可选，显式 opt-in） */
 export interface AdmissionControlConfig {
   /**
    * EWMA 平滑系数 α ∈ (0,1]：ρ̄ ← ρ̄ + α·(ρ − ρ̄)。α=1 = 不平滑
@@ -236,6 +347,19 @@ export interface AdmissionControlConfig {
   readonly ewmaAlpha: number;
   /** 平台保留价 r（有限，≥ 0）：margin > r 才准入；并列（= r）拒绝 */
   readonly reservePrice: number;
+  /**
+   * 验证模式（R17-B）：'exact'（缺省）= borderline 拒绝交反事实测量
+   * （接了回调即「拒绝零错」；未接则保守拒绝以 reason =
+   * 'unverified-conservative' 具名披露）；'dual' = R14-I 对偶判定
+   * 逐字保留（兼容模式）。
+   */
+  readonly verify?: AdmissionVerifyMode;
+  /**
+   * 反事实求解回调（仅 verify='exact' 的 borderline 触发）。返回
+   * { admitWelfare, rejectWelfare }（两个有限数）；垃圾返回具名
+   * MechanismError，回调抛错原样透传。契约详见模块头注 R17-B 节。
+   */
+  readonly counterfactual?: CounterfactualSolver;
 }
 
 /** 候选任务的逐 agent 边际分（score 语言 = allocateAffineBatch：v − λ − μ·b） */
@@ -263,10 +387,16 @@ export interface AdmissionEvaluation {
   readonly hasHistory: boolean;
 }
 
-/** 决策证书：'dual-certified' = P2 证书条件成立；'conservative' = 不成立 */
-export type AdmissionCertificate = 'dual-certified' | 'conservative' | 'no-history';
+/**
+ * 决策证书（R17-B 四元）：'dual-certified' = P2 证书条件成立（拒绝带
+ * LP 证书）；'exact' = borderline 交反事实测量裁决（放行/拒绝都带测量）；
+ * 'conservative' = 证书条件不成立（exact 模式未接回调时的退化语义，
+ * 拒绝以 reason='unverified-conservative' 具名披露）；'no-history' = 冷启动。
+ */
+export type AdmissionCertificate = 'dual-certified' | 'exact' | 'conservative' | 'no-history';
 
-export type AdmissionReason = 'admitted' | 'below-reserve-price' | 'no-candidate-agents';
+export type AdmissionReason =
+  'admitted' | 'below-reserve-price' | 'no-candidate-agents' | 'unverified-conservative';
 
 export interface AdmissionDecision {
   readonly taskId: string;
@@ -280,6 +410,12 @@ export interface AdmissionDecision {
   readonly best: AdmissionEvaluation | null;
   /** 全部评估明细（按输入序） */
   readonly evaluated: readonly AdmissionEvaluation[];
+  /**
+   * exact 验证的测量明细（certificate = 'exact' 的决策非 null；其余
+   * 决策 null）。effectiveMargin 仍是对偶侧读数（结构面），本字段是
+   * 真正治理决策的原始测量值。
+   */
+  readonly counterfactual: CounterfactualMeasurement | null;
 }
 
 interface EwmaState {
@@ -296,13 +432,22 @@ interface EwmaState {
 export class ShadowPriceAdmissionController {
   private readonly ewmaAlpha: number;
   private readonly reservePrice: number;
+  private readonly verifyMode: AdmissionVerifyMode;
+  private readonly counterfactualSolver: CounterfactualSolver | undefined;
   private readonly ewma = new Map<string, EwmaState>();
   private lastDualCertified: boolean | null = null;
+  private readonly metrics = {
+    decisions: 0,
+    admissions: 0,
+    rejections: 0,
+    exactVerifications: 0,
+    unverifiedConservativeRejections: 0,
+  };
 
   constructor(config: AdmissionControlConfig) {
     // 入口只校验值域；类型外垃圾（null/字符串等）由下方字段级 typeof 检查
     // 具名拒绝（对 null 解构直接 TypeError——typed 契约外的输入不做面子工程）
-    const { ewmaAlpha, reservePrice } = config;
+    const { ewmaAlpha, reservePrice, verify, counterfactual } = config;
     // NaN/越界 α 会把 EWMA 状态一次性打成不可逆 NaN（NaN 比较恒 false
     // 击穿一切惰性守卫），下游只能看到不指名来源的垃圾决策——入口点名。
     if (
@@ -320,8 +465,34 @@ export class ShadowPriceAdmissionController {
         `ShadowPriceAdmissionController: reservePrice must be a finite number ≥ 0, got ${String(reservePrice)}`,
       );
     }
+    // verify 域（R17-B）：省缺 = 'exact'（严格正向缺省）；非法值点名。
+    // 先落 unknown 再集合判定——直接对声明类型比字面量会被流分析收窄成
+    // 「恒假」（与 assertCounterfactualResult 同一手法）。
+    const verifyRaw: unknown = verify;
+    if (verifyRaw !== undefined && verifyRaw !== 'dual' && verifyRaw !== 'exact') {
+      // 只对安全可字符串化的原语走 String()；object/function 退化成
+      // '[object Object]'——点名 typeof
+      const shown: string =
+        typeof verifyRaw === 'string' ||
+        typeof verifyRaw === 'number' ||
+        typeof verifyRaw === 'bigint' ||
+        typeof verifyRaw === 'boolean' ||
+        typeof verifyRaw === 'symbol'
+          ? String(verifyRaw)
+          : `[${typeof verifyRaw}]`;
+      throw new MechanismError(
+        `ShadowPriceAdmissionController: verify must be 'dual' or 'exact', got ${shown} (typeof ${typeof verifyRaw})`,
+      );
+    }
+    if (counterfactual !== undefined && typeof counterfactual !== 'function') {
+      throw new MechanismError(
+        `ShadowPriceAdmissionController: counterfactual must be a function, got ${typeof counterfactual}`,
+      );
+    }
     this.ewmaAlpha = ewmaAlpha;
     this.reservePrice = reservePrice;
+    this.verifyMode = verify ?? 'exact';
+    this.counterfactualSolver = counterfactual;
   }
 
   /**
@@ -377,6 +548,13 @@ export class ShadowPriceAdmissionController {
    * 并列拒绝——边界确定）。无候选 agent 时拒绝且 margin = null。
    * scores 引用从未报告过的 agent：按冷启动口径价格 0 评估并标记
    * hasHistory = false（新 agent 无拥堵记录，不惩罚）。
+   *
+   * R17-B（verify='exact'，缺省）：边际测试想拒且证书条件不成立
+   * （borderline）时——接了回调：决策交给反事实测量
+   * （admitWelfare > rejectWelfare ⟹ 放行），certificate='exact'；
+   * 未接回调：保持保守拒绝，reason='unverified-conservative' 具名
+   * 披露。放行判定与 dual-certified 拒绝不触发回调（P1/P2 各自有
+   * 证明，不必花钱测）。verify='dual'：R14-I 语义逐字保留。
    */
   decide(candidate: AdmissionCandidate): AdmissionDecision {
     assertAgentId(candidate.taskId, 'ShadowPriceAdmissionController.decide: taskId');
@@ -426,7 +604,7 @@ export class ShadowPriceAdmissionController {
       if (best === null || e.marginal > best.marginal) best = e;
     }
     if (best === null) {
-      return {
+      return this.finish({
         taskId: candidate.taskId,
         admitted: false,
         reason: 'no-candidate-agents',
@@ -435,20 +613,92 @@ export class ShadowPriceAdmissionController {
         reservePrice: this.reservePrice,
         best: null,
         evaluated,
-      };
+        counterfactual: null,
+      });
     }
     const effectiveMargin = best.marginal - this.reservePrice;
-    const admitted = effectiveMargin > 0;
-    return {
+    if (effectiveMargin > 0) {
+      // 放行侧（P1 路径）：证明不依赖测量，不触发回调、不换证书。
+      return this.finish({
+        taskId: candidate.taskId,
+        admitted: true,
+        reason: 'admitted',
+        certificate,
+        effectiveMargin,
+        reservePrice: this.reservePrice,
+        best,
+        evaluated,
+        counterfactual: null,
+      });
+    }
+    // 边际测试想拒。dual-certified（P2 证书）/no-history（纯保留价政策
+    // 拒绝）各自有零错据，不必测量；conservative 是 borderline：
+    if (this.verifyMode === 'exact' && certificate === 'conservative') {
+      if (this.counterfactualSolver) {
+        // 成本账先记（尝试即成本：回调抛错/结果被具名拒绝都已付求解）。
+        this.metrics.exactVerifications += 1;
+        const measured = this.counterfactualSolver(candidate); // 抛错原样透传
+        const { admitWelfare, rejectWelfare } = assertCounterfactualResult(
+          measured,
+          candidate.taskId,
+        );
+        const admitted = admitWelfare > rejectWelfare; // 并列拒——与模块严格大于约定一致
+        return this.finish({
+          taskId: candidate.taskId,
+          admitted,
+          reason: admitted ? 'admitted' : 'below-reserve-price',
+          certificate: 'exact',
+          effectiveMargin,
+          reservePrice: this.reservePrice,
+          best,
+          evaluated,
+          counterfactual: {
+            admitWelfare,
+            rejectWelfare,
+            welfareDelta: admitWelfare - rejectWelfare,
+          },
+        });
+      }
+      // 无回调的退化语义：决策与 conservative 相同，但具名披露未验证。
+      return this.finish({
+        taskId: candidate.taskId,
+        admitted: false,
+        reason: 'unverified-conservative',
+        certificate: 'conservative',
+        effectiveMargin,
+        reservePrice: this.reservePrice,
+        best,
+        evaluated,
+        counterfactual: null,
+      });
+    }
+    return this.finish({
       taskId: candidate.taskId,
-      admitted,
-      reason: admitted ? 'admitted' : 'below-reserve-price',
+      admitted: false,
+      reason: 'below-reserve-price',
       certificate,
       effectiveMargin,
       reservePrice: this.reservePrice,
       best,
       evaluated,
-    };
+      counterfactual: null,
+    });
+  }
+
+  /** 记账后原样返回（decisions = admissions + rejections 恒等式在此成立） */
+  private finish(d: AdmissionDecision): AdmissionDecision {
+    this.metrics.decisions += 1;
+    if (d.admitted) this.metrics.admissions += 1;
+    else this.metrics.rejections += 1;
+    if (d.reason === 'unverified-conservative') {
+      this.metrics.unverifiedConservativeRejections += 1;
+    }
+    return d;
+  }
+
+  /** 观测指标快照（冻结副本——调用方改不动内部账） */
+  getMetrics(): AdmissionMetrics {
+    return Object.freeze({ ...this.metrics });
   }
 
   /** 某 agent 当前的平滑影子价格（从未报告过为 null——观测面，判定不依赖它） */

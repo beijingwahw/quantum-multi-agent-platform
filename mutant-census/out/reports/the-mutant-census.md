@@ -128,26 +128,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 803 errors across 98 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 814 errors across 99 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 344 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 342 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 353 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
-| anchor-blindspot | 0 | 17 | 2 |
+| anchor-blindspot | 0 | 17 | 3 |
 | bogus-comparison | 0 | 10 | 3 |
 | citation-drift | 0 | 32 | 15 |
 | conjugation | 19 | 10 | 0 |
 | dimension-slot | 29 | 22 | 0 |
-| machine-overruled | 0 | 47 | 1 |
-| process | 0 | 69 | 202 |
+| machine-overruled | 0 | 47 | 2 |
+| process | 0 | 69 | 208 |
 | statistics | 25 | 33 | 10 |
-| toolchain | 0 | 66 | 85 |
-| wrong-object | 44 | 38 | 24 |
+| toolchain | 0 | 66 | 86 |
+| wrong-object | 44 | 38 | 26 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -703,6 +703,17 @@ The registry is imported LIVE on every run: 803 errors across 98 batches, each w
 - b98#1 [process] — readonly array passed into a closure (typecheck red), first-check prettier, four probe drafts — none touching shipped code. Booked: the convergence face, with the collective history
 - b98#2 [citation-drift] — the Rotosolve arXiv identifier recalled as 1905.10945 in the dispatch prompt — the source page returned 1905.09692, corrected before any artifact carried the wrong digit. Booked: the prompt-input face — identifier data is written from the source page, never from recall; the second-source law caught the verifier's own input
 - b98#3 [process] — a barrel-export Edit refused by the read-state guard — a formatting pass had touched the file after its last read. Booked: the read-state face — after any formatting pass the read state is refreshed before the next Edit
+- b99#0 [machine-overruled] — the dispatch's literal potential-update formula convicted by the implementing agent's own counterexample (raw-distance update leaves a reduced cost at -3) — the invariant-preserving back-substitution implemented instead, the counterexample in the module header. Booked: the dispatch-hypothesis face — a prompt formula is validated against its invariant before it is typed
+- b99#1 [toolchain] — a python heredoc batch-edited a test file in a wave whose constitution carried the no-heredoc law verbatim; the patch also missed a call form that typecheck caught. Booked: the channel face — the confession rides with the act
+- b99#2 [process] — a single-seed parity verdict fired under sibling load before the cross-seed gate existed, and once the failure's digits were swallowed by the agent's own grep filter. Booked: the verdict face — single seeds under hostile load are not convictions, diagnostics flow unfiltered
+- b99#3 [process] — one unnecessary assertion and a header digit retyped as 31771 against the metric's 31740. Booked: the transcription face — digits are copied from the printout
+- b99#4 [process] — the convergence round (two typecheck casts, four eslint including a three-attempt no-base-to-string, two draft residues at self-review). Booked: the rule face — none reached a test run
+- b99#5 [wrong-object] — four test-side first reds against a correct implementation — eligibility patterns and expected dispatches derived after the fixtures instead of before. Booked: the expectation face — dispatches derive from the routing rule before the fixture is typed
+- b99#6 [process] — a syntax red on an apostrophe in a title and a construction whose margins produced a tie where a strict optimum was asserted. Booked: the construction face — margins are measured before they are asserted strict
+- b99#7 [wrong-object] — the orchestrator quoted a sibling report's 'ucb1 1' into the user-facing ledger where the machine prints 61 — the digit traveled one report to the next without a re-run. Booked: the quoted-digit face — a performance digit quoted into a ledger is re-measured at the machine it describes
+- b99#8 [process] — disclosed scope latitude: one adjacent catalog line edited to keep a new fact doc-true beyond the literal grant. Booked: the latitude face — disclosed, accepted by the orchestrator as the alternative to a one-line lie
+- b99#9 [process] — the daily-memory insertion replaced the previous visit's verification section instead of appending — the THIRD consecutive visit with the identical mistake, each caught and restored in the same breath. Booked: the append-anchor face — the full section is read to its terminator before the Edit, the recurrence booked with its lineage
+- b99#10 [anchor-blindspot] — the E1 firing demo hardcoded its forged error at the future key b99#9 — the day batch 99 enrolled a real b99#9 the premise expired and A3 convicted the anchor itself. Booked: the future-key face — demo fixtures are derived one past the live registry so they can never collide with real growth
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -922,24 +933,24 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 239 | b1 | b98#3 | BOOKED-UNENFORCEABLE |
+| cat:process | 245 | b1 | b99#9 | BOOKED-UNENFORCEABLE |
 | cat:toolchain | 116 | b1 | b96#13 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 94 | b2 | b98#0 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 95 | b2 | b99#7 | BOOKED-UNENFORCEABLE |
 | cat:statistics | 65 | b3 | b95#17 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
 | cat:citation-drift | 45 | b6 | b98#2 | BOOKED-UNENFORCEABLE |
-| cat:machine-overruled | 44 | b4 | b96#5 | BOOKED-UNENFORCEABLE |
-| shell-template-heredoc | 35 | b10 | b97#9 | BOOKED-UNENFORCEABLE |
-| runner-path | 30 | b14 | b96#23 | BOOKED-UNENFORCEABLE |
+| cat:machine-overruled | 45 | b4 | b99#0 | BOOKED-UNENFORCEABLE |
+| shell-template-heredoc | 36 | b10 | b99#1 | BOOKED-UNENFORCEABLE |
+| runner-path | 31 | b14 | b99#5 | BOOKED-UNENFORCEABLE |
 | cat:conjugation | 28 | b4 | b79#3 | GATE-ENFORCED |
 | edit-anchor | 18 | b22 | b97#2 | BOOKED-UNENFORCEABLE |
-| cat:anchor-blindspot | 16 | b9 | b87#18 | GATE-ENFORCED |
+| cat:anchor-blindspot | 17 | b9 | b99#10 | BOOKED-UNENFORCEABLE |
 | cat:bogus-comparison | 11 | b2 | b87#13 | GATE-ENFORCED |
 | count-drift | 9 | b36 | b90#0 | GATE-ENFORCED |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 | tautological-witness | 2 | b79 | b96#9 | BOOKED-UNENFORCEABLE |
 
-The catch census: gate 141 / author 613 / numbers 48 / visitor 1 over 803 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 145 / author 619 / numbers 49 / visitor 1 over 814 errors — the gate fraction rose from 1% (batches 1-22) to 25% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -1075,7 +1086,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 280 | the reason is true as written; the basis states the ungated face |
+| HELD | 291 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1434,6 +1445,17 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b98#1 — convergence face: typecheck and format closed on the second round, probes iterated outside the repo
 - **HELD** b98#2 — prompt-input face: the digit was corrected at the source page before any artifact carried it — the law caught its own author's input
 - **HELD** b98#3 — read-state face: the refusal prevented a stale-context replace at the cost of one round-trip
+- **HELD** b99#0 — dispatch-hypothesis face: the counterexample rides in the module header as the permanent record of the deviation from the prompt's formula
+- **HELD** b99#1 — channel face: the heredoc act and its missed call form both caught before ship — clean does not absolve, the confession stands
+- **HELD** b99#2 — verdict face: the cross-seed gate and out-of-hot-path counting landed as the structural fix in the same wave
+- **HELD** b99#3 — transcription face: all transcribed digits re-verified from the metric printouts after the catch
+- **HELD** b99#4 — rule face: the convergence closed before any test run executed the residues
+- **HELD** b99#5 — expectation face: the accidentally-convicted domain guard kept as evidence the validation order holds
+- **HELD** b99#6 — construction face: margins measured before assertion, titles made ASCII-safe
+- **HELD** b99#7 — quoted-digit face: caught by the delivery agent's fresh run, erratum in the CHANGELOG, no workspace file ever held the wrong digit
+- **HELD** b99#8 — latitude face: disclosed at delivery and accepted — booked as process, not granted as permission
+- **HELD** b99#9 — append-anchor face: three visits running, each restored in the same breath — the lineage is the record
+- **HELD** b99#10 — future-key face: the demo now derives its forged key from the live registry — the expiry-prone literal is gone and A3 fired on the conviction again
 
 ## T-board — the total gate
 
@@ -1446,11 +1468,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 28/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (803 errors enrolled LIVE against a registry of 98 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 342, every booked row printed on the report)
+- PASS — W-F enrollment census (814 errors enrolled LIVE against a registry of 99 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 353, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 803 errors (16 recurring, all resolved); catch census gate 141 / author 613 / numbers 48 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 814 errors (16 recurring, all resolved); catch census gate 145 / author 619 / numbers 49 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (355 booked-population rows audited LIVE (of the 342 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 280 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (366 booked-population rows audited LIVE (of the 353 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 291 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries

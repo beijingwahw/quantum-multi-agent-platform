@@ -22,15 +22,17 @@ test("W-F: the live enrollment witness passes", async () => {
 test("smuggle E1a: a newly buried error without enrollment is convicted by name", async () => {
   // the smuggler buries a new batch and even fixes the declared totals — the
   // registry is internally consistent; the missing enrollment is the crime.
-  // (batch 99, never a real key: a smuggling fixture that hardcodes a
-  // "future" batch number becomes a live-key collision two deliveries later —
-  // batch 35's fifth error, convicted by this very suite)
+  // (R17: the fixture key is DERIVED one past the live batchCount — the prior
+  // hardcoded b99#0 expired the day batch 99 enrolled a real b99#0 and the
+  // duplicate triggered E6 instead of E1, the b99#10 family face in census)
   const live = await loadLiveRegistry();
+  const forgedBatch = live.batchCount + 1;
+  const forgedKey = `b${forgedBatch}#0`;
   const grown: LiveRegistry = {
     ...live,
     errors: [
       ...live.errors,
-      { key: "b99#0", batch: 99, index: 0, repo: "mutant-census", category: "process", wrong: "a new error buried without enrollment", right: "enroll it the same visit" },
+      { key: forgedKey, batch: forgedBatch, index: 0, repo: "mutant-census", category: "process", wrong: "a new error buried without enrollment", right: "enroll it the same visit" },
     ],
     batchCount: live.batchCount + 1,
     declaredBatches: live.batchCount + 1,
@@ -39,15 +41,16 @@ test("smuggle E1a: a newly buried error without enrollment is convicted by name"
   const v = checkEnrollment(ENROLLMENT, grown);
   assert.equal(v.length, 1);
   assert.equal(v[0]?.law, "E1");
-  assert.match(v[0]?.detail ?? "", /b99#0/);
+  assert.match(v[0]?.detail ?? "", new RegExp(forgedKey));
   assert.match(v[0]?.detail ?? "", /cannot be buried/);
 });
 
 test("smuggle E1b: enrolling an error the registry does not carry is convicted", async () => {
   const live = await loadLiveRegistry();
+  const ghostKey = `b${live.batchCount + 1}#1`;
   const rows: readonly EnrollmentRow[] = [
     ...ENROLLMENT,
-    { key: "b99#0", category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "a ghost error" },
+    { key: ghostKey, category: "process", tier: "BOOKED-UNENFORCEABLE", anchor: "", reason: "a ghost error" },
   ];
   const v = checkEnrollment(rows, live);
   assert.equal(v.length, 1);

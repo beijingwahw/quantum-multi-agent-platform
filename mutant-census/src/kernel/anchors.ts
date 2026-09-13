@@ -430,8 +430,14 @@ export async function fireLive(reg: AnchorRegistration): Promise<{ ok: boolean; 
       }
     }
     case "mutant-census/src/kernel/audit.ts :: E1": {
-      const grown = { ...registry, errors: [...registry.errors, { key: "b99#9", batch: 99, index: 9, repo: "mutant-census", category: "process", wrong: "forged", right: "the forged fixture carries both columns" }] };
-      const hit = checkEnrollment(ENROLLMENT, grown).find((v) => v.law === "E1" && v.row === "b99#9");
+      // R17: the forged key is DERIVED one past the live registry's last batch —
+      // a hardcoded future key (the pre-fix b99#9) expires the day the registry
+      // reaches it, and the demo silently stops convicting (anchor-blindspot,
+      // caught when batch 99 actually enrolled a real b99#9).
+      const nextBatch = registry.batchCount + 1;
+      const forgedKey = `b${nextBatch}#0`;
+      const grown = { ...registry, errors: [...registry.errors, { key: forgedKey, batch: nextBatch, index: 0, repo: "mutant-census", category: "process", wrong: "forged", right: "the forged fixture carries both columns" }] };
+      const hit = checkEnrollment(ENROLLMENT, grown).find((v) => v.law === "E1" && v.row === forgedKey);
       return hit ? { ok: true, detail: `convicted: ${hit.row}` } : { ok: false, detail: "the forged un-enrolled error was NOT convicted" };
     }
     case "mutant-census/src/kernel/audit.ts :: E2": {

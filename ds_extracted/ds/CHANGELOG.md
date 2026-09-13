@@ -1,7 +1,41 @@
 # Changelog
 
-本仓库遵循语义化版本。每轮变更前先全量回归（982 用例含位级数值基准），
+本仓库遵循语义化版本。每轮变更前先全量回归（1033 用例含位级数值基准），
 覆盖率与死代码门禁随质量收益同步棘轮上调。
+
+## v1.16.0 — 严格正向升格：四个「条件性正向」的代价面逐一消除（2026-09-14）
+
+> R17（第 92 访）。四个 R14 创新各自披露的代价面，本版逐一用机器测量
+> 证明消除——「用错场景就是负收益」的四个场景不再存在。测试
+> 982→1033（+51），bench regenerate 仍字节同一（全部 opt-in 模块内改造，
+> 默认路径零触碰）。
+
+- **位势流引擎 SPFA 化**（min-cost-flow-potentials）：求解循环改用与原版
+  min-cost-flow 逐位同形的 SPFA，位势以 O(V)/相位旁路累积（经不变量回代
+  形——字面 π[v]+=min(d,d[t]) 套原始距离会破坏对偶可行性，反例在册）；
+  **单解墙钟从比 SPFA 慢 122% 改为平价**（140×160 与小实例族共 18 组
+  交错 A/B，9+9 组 CI 全含 1.0，中位比率 0.981/1.057）；增量收益按新引擎
+  重测 **4.93×**（旧 4.76×）；150 实例对拍构造性逐位一致。
+- **准入精确拒绝**（admission-control）：verify 缺省 exact——borderline
+  拒绝经反事实求解回调实测（admitWelfare vs rejectWelfare），证书四元
+  （dual-certified/exact/conservative/no-history）构造性分划，**接回调时
+  拒绝零错**；R14 钉板的 over-rejection 反例翻转为 exact 放行（8>5）；
+  dual-certified 强拒不触发回调（零成本）。
+- **批组成零成本快速路径**（entanglement-batch-composer）：O(T+E+P) 探测
+  ——无正质量任务对直接返回基线（massEvaluations=0、零搜索）；有耦合但
+  全批内只算批内对；有跨批耦合的行为逐字节不变（233 条语料对拍）。
+  无收益场景从纯开销降为探测成本。
+- **Hedge 策略组合**（bayesian-hire-brain 新增 'portfolio' 策略）：三成员
+  （greedy/thompson/ucb1）共享后验＋全信息乘性权重，**对所携任意固定
+  成员策略的后悔界 ≤ ln K/η + ηT/2**（Freund-Schapire JCSS 55(1):119-139
+  (1997)；对抗带族背景 Auer-Cesa-Bianchi-Freund-Schapire SIAM J. Comput.
+  32(1):48-77 (2002)——本实现为全信息版，界更紧）；三条对抗流＋展演流
+  全部落在界内（探索必需流上 portfolio 反超最优单策略 +50）；thompson
+  流独立派生、未选中零消耗，确定性逐位可重放。
+- **勘误**：R14 展演流数字「ucb1 1」为交付报告转录笔误，机器值 61
+  （展演与测试现在打印四策略对照：greedy 90 / ucb1 61 / thompson 66 /
+  portfolio 71 ≥ greedy − 界）。
+
 
 ## v1.15.0 — ECCM：精确余弦坐标极小化（两值谱单余弦定理，双轴占优）（2026-09-14）
 

@@ -346,7 +346,7 @@ function settles(id: string, round: number): boolean {
 }
 
 function runHire(
-  policy: 'greedy' | 'ucb1' | 'thompson',
+  policy: 'greedy' | 'ucb1' | 'thompson' | 'portfolio',
   seed: number,
 ): { netWelfare: number; settled: number; topSkill: string } {
   const brain = new BayesianHireBrain({ taskValue: 10, priorWeight: 3, policy, seed });
@@ -392,7 +392,7 @@ function runHire(
 }
 
 function demoBayesianHireBrain(): void {
-  hr('演示 5／Bayesian 雇佣大脑：技能后验区间 + 三策略对照（同结算流）');
+  hr('演示 5／Bayesian 雇佣大脑：技能后验区间 + 三策略与 Hedge 组合对照（同结算流）');
   const greedy = runHire('greedy', 42);
   const ucb1 = runHire('ucb1', 42);
   const thompson = runHire('thompson', 42);
@@ -403,11 +403,24 @@ function demoBayesianHireBrain(): void {
   console.log(
     `thompson ：netWelfare = ${fmt(thompson.netWelfare, 2)}，结算 ${thompson.settled}/${ROUNDS}`,
   );
+  // R17-D：portfolio = 对三成员跑 Hedge（乘性权重，缺省 η=0.1，奖励规范化
+  // 到 [0,1]）——「处处近最优」的展演证据：同一构造下不劣于最优单策略
+  // 超过经典界 (ln K/η + ηT/2)·taskValue（Freund-Schapire 1997）
+  const portfolio = runHire('portfolio', 42);
+  const hedgeBudget = (Math.log(3) / 0.1 + (0.1 * portfolio.settled) / 2) * 10; // K=3, η=0.1, T=结算数, V=10
+  console.log(
+    `portfolio：netWelfare = ${fmt(portfolio.netWelfare, 2)}，结算 ${portfolio.settled}/${ROUNDS}` +
+      `（≥ greedy − Hedge 界 ${fmt(hedgeBudget, 2)}）`,
+  );
   console.log(greedy.topSkill);
   assert(greedy.settled === ROUNDS && ucb1.settled === ROUNDS, '确定性策略 20 轮全部成交');
   assert(
     greedy.netWelfare >= ucb1.netWelfare - 1e-9,
     '本实例贪心后验均值 ≥ UCB1（exploit 占优的设定）',
+  );
+  assert(
+    portfolio.netWelfare >= greedy.netWelfare - hedgeBudget - 1e-9,
+    'portfolio（Hedge 组合）≥ greedy − 界：处处近最优',
   );
 
   // beta-distribution 内核对拍（第 9 个模块的独立锚点）
@@ -633,7 +646,7 @@ function printModuleList(): void {
     [
       '6',
       'src/proactive-intelligence/bayesian-hire-brain.ts',
-      'Bayesian 雇佣大脑：技能后验区间 + 三策略对照（演示 5）',
+      'Bayesian 雇佣大脑：技能后验区间 + 三策略与 Hedge 组合对照（演示 5）',
     ],
     [
       '7',

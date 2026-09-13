@@ -16,11 +16,20 @@
  *    与容量租金在同一对偶尺度上扣减；
  * ⑤ 诚实边界钉板：文档化的 over-rejection 反例（空闲替补 agent 对终态
  *    位势不可见）：margin = −2 拒绝，而增广重解改进 +3——模块头注
- *    P2 边界的代码实锤（certificate = 'conservative'）；
+ *    P2 边界的代码实锤（certificate = 'conservative'）。**R17-B 翻转**：
+ *    本访起 verify 缺省 'exact'——同一反例在 exact 模式＋反事实回调下
+ *    **放行**（admitWelfare 8 > rejectWelfare 5，certificate='exact'），
+ *    代价面按设计移除；dual 模式的原钉板保留（兼容模式的披露面仍在）；
  * ⑥ 确定性重放：同一 (updates, candidates) 序列两次执行逐字段一致；
  * ⑦ 冷启动与结构化拒绝理由：no-history 证书、未知 agent 按 0 计价、
  *    below-reserve-price / no-candidate-agents 理由与明细字段；
  * ⑧ 负对照：非法配置/非法报告/非法候选/非法位势逐条具名拒绝（8 组）。
+ *
+ * R17-B 注记：verify 现有 'dual' | 'exact' 两模式（缺省 exact）。本文件
+ * 的 R14-I 历史钉板经 freshController 显式钉 **dual 模式**（它们钉的是
+ * R14-I 交付的对偶判定语义）；exact 模式的完整账（拒绝零错分划、成本
+ * 账、回调契约负对照）在 tests/r17b-admission-exact-verify.test.ts，
+ * 本文件只保留 ⑤ 里的翻转用例作为两代语义的交接锚。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -115,13 +124,18 @@ const INSTANCE_C = () =>
     ],
   );
 
-/** α=1（不平滑）+ 保留价 0 的控制器：判定只反映当批对偶 */
+/**
+ * α=1（不平滑）+ 保留价 0 的控制器：判定只反映当批对偶。
+ * R17-B 起 verify 缺省 'exact'；本文件的 R14-I 历史钉板显式钉 **dual
+ * 模式**（兼容模式），只有 ⑤ 的翻转用例覆写为 exact。
+ */
 function freshController(
   overrides: Partial<AdmissionControlConfig> = {},
 ): ShadowPriceAdmissionController {
   return new ShadowPriceAdmissionController({
     ewmaAlpha: 1,
     reservePrice: 0,
+    verify: 'dual',
     ...overrides,
   });
 }
@@ -418,19 +432,65 @@ describe('R14-I · BudgetPacer 乘子组合口径（μ 与 ρ 同尺度扣减）
   });
 });
 
-describe('R14-I · 诚实边界钉板（over-rejection 反例——文档化行为，非缺陷）', () => {
-  it('空闲替补不可见：margin = −2 拒绝，但增广重解真实改进 +3', () => {
+describe('R14-I→R17-B · over-rejection 反例钉板（dual 披露面 + exact 翻转）', () => {
+  it('R17-B 翻转：exact 模式＋反事实回调下，钉板反例从拒绝翻转为放行（8 > 5）', () => {
     // 实例 B：t1(5) 平手裁决给 a1，a2 空闲。新任务 t2(3) 仅 a1 资格：
-    // ρ_{a1} = 5 ⟹ margin = 3 − 5 = −2 ⟹ 拒绝。
-    const ctl = freshController();
+    // ρ_{a1} = 5 ⟹ margin = 3 − 5 = −2——对偶测试想拒。
+    //
+    // 【翻转理由（R17-B 任务书）】R14-I 在此钉的是 dual 模式的已披露
+    // 代价面：终态位势看不见换道空间（t1 移交 a2），margin=−2 错拒了
+    // 真实改进 +3 的任务。R17-B 起缺省 verify='exact'：borderline 拒绝
+    // 交给反事实重解测量——本用例的回调**真的重解**增广 WDP（复用本
+    // 文件的 solveWdp 脚手架；生产接线中编排者的回调闭包持有当前批
+    // 状态与此同构）。admitWelfare 8 > rejectWelfare 5 ⟹ 放行，
+    // certificate='exact'。代价面按设计移除：这个曾经的对拍证据
+    // （拒绝 ⟺ 零改进）在 exact 模式下升格为决策依据本身。
+    const base = INSTANCE_B();
+    const baseAgents = [
+      { id: 'a1', capacity: 1 },
+      { id: 'a2', capacity: 1 },
+    ];
+    let calls = 0;
+    const ctl = new ShadowPriceAdmissionController({
+      ewmaAlpha: 1,
+      reservePrice: 0,
+      verify: 'exact',
+      counterfactual: (candidate) => {
+        calls += 1;
+        // 真实反事实：并入 t2 重解 vs 拒绝现状（t2 的资格结构在编排者
+        // 状态里——此处按本反例如实写死「仅 a1 资格」）
+        const admit = solveWdp(baseAgents, [
+          { id: 't1', score: 5, eligible: ['a1', 'a2'] },
+          { id: candidate.taskId, score: candidate.scores[0]!.score, eligible: ['a1'] },
+        ]);
+        return { admitWelfare: admit.welfare, rejectWelfare: base.welfare };
+      },
+    });
+    ctl.update(base.duals);
+    const d = ctl.decide({ taskId: 't2', scores: [{ agentId: 'a1', score: 3 }] });
+    assert.equal(calls, 1); // borderline 恰好一次反事实求解
+    assert.equal(d.admitted, true); // 8 > 5：放行——R14-I 的错拒在此翻正
+    assert.equal(d.reason, 'admitted');
+    assert.equal(d.certificate, 'exact');
+    assert.deepEqual(d.counterfactual, { admitWelfare: 8, rejectWelfare: 5, welfareDelta: 3 });
+    assert.equal(d.effectiveMargin, -2); // 对偶侧读数如实保留（结构面）
+    assert.equal(d.best!.marginal, -2); // 逐 agent 明细仍是对偶语言
+    assert.equal(ctl.getMetrics().exactVerifications, 1); // 成本账：恰一次
+  });
+
+  it('dual 模式（R14-I 披露面保留）：margin = −2 拒绝，但增广重解真实改进 +3', () => {
+    // 同一反例在 dual 模式下维持 R14-I 钉板行为：conservative 拒绝仍可能
+    // 错失换道改进——兼容模式的代价面没有消失，只是 exact 模式不再用它。
+    const ctl = freshController(); // verify: 'dual'
     ctl.update(INSTANCE_B().duals);
     const d = ctl.decide({ taskId: 't2', scores: [{ agentId: 'a1', score: 3 }] });
     assert.equal(d.admitted, false);
     assert.equal(d.effectiveMargin, -2);
     assert.equal(d.certificate, 'conservative'); // π_sink < π_S：证书不成立
+    assert.equal(d.reason, 'below-reserve-price'); // dual 模式原语义（无披露后缀）
     // 但原始对拍：并入 t2 重解，最优 = t1→a2 + t2→a1，福利 8 > 5（改进 3）。
     // 换道机会（t1 移交 a2）对终态位势不可见——这正是模块头注「P2 的边界」
-    // 的最小反例：conservative 模式下拒绝可能错失依赖换道的正改进。
+    // 的最小反例：conservative 判定可能错失依赖换道的正改进。
     const augmented = solveWdp(
       [
         { id: 'a1', capacity: 1 },

@@ -301,7 +301,7 @@ describe('BayesianHireBrain · 负对照（走私审判）', () => {
     );
     assert.throws(
       () => new BayesianHireBrain({ policy: 'epsilon-greedy' as never }),
-      /policy must be one of: thompson, greedy, ucb1/,
+      /policy must be one of: thompson, greedy, ucb1, portfolio/,
     );
     assert.throws(
       () => new BayesianHireBrain({ ucbExploration: -0.1 }),

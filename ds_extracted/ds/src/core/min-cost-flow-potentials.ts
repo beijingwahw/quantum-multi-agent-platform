@@ -1,5 +1,6 @@
 /**
- * min-cost-flow-potentials —— 位势驱动的最小费用流（R14-A 创新 2，opt-in）。
+ * min-cost-flow-potentials —— 位势驱动的最小费用流（R14-A 创新 2，opt-in；
+ * R17-A 引擎改造：求解循环换装 SPFA，Dijkstra/二叉堆退役）。
  *
  * ============ 动机（读完 min-cost-flow.ts / batch-vcg-scheduler.ts 后确认） ============
  *
@@ -9,9 +10,16 @@
  * solveWithPayments × (1+赢家数) 次 solveWDP 重解——同一拓扑、边费用只随
  * λ/μ 平移或减边（pivot）——每次都从零开始，对偶变量（节点位势）全部丢弃。
  *
+ * R14 版本用「Dijkstra(归约费用)+二叉堆」实现 SSP，单解墙钟实测比 SPFA
+ * 原版慢 87–122%（bench-kit A/B，本机）——小/中图上堆与节点排序的开销
+ * 吃掉渐近优势，模块价值只剩对偶面与增量重解。R17 把求解引擎换回与
+ * min-cost-flow.ts 同款的 SPFA（原始费用、FIFO 队列、相位级缓冲复用、
+ * 逐位相同的松弛条件与回放次序），位势改为**零成本旁路累积**（见下），
+ * 对偶面/增量面全部保留，单解墙钟与原版平价（r17a 钉板）。
+ *
  * ============ 本模块 ============
  *
- * 逐次最短增广（SSP）+ Johnson 位势 + 负环消除（Klein 型环取消兜底），
+ * SPFA 连续最短增广 + Johnson 位势旁路 + 负环消除（Klein 型环取消兜底），
  * 相对既有实现的四个增量能力：
  *
  * 1. **对偶面（getPotentials/injectPotentials）**：节点位势可读出、可注入。
@@ -25,41 +33,63 @@
  *    链提取负环、瓶颈量消除），恢复「极值流 + 可行位势」后续跑 SSP。
  *    一次到达只付 O(环数) 次取消 + 少量增广，不重解全图；正确性由
  *    「增量终态 = 冷重建终态」对拍钉住（测试）。
- * 3. **确定性操作计数**（metrics()：dijkstraRuns/bellmanFordPasses/
- *    edgeRelaxations/feasibilityScans/potentialRepairs/
+ * 3. **确定性操作计数**（metrics()：spfaPhases/dijkstraRuns(退役钉子)/
+ *    bellmanFordPasses/edgeRelaxations/feasibilityScans/potentialRepairs/
  *    cycleCancellations/augmentations）：性能口径环境无关、重跑逐位一致。
  * 4. **全新图负环具名拒绝**：初始图（调用方直接给出含负环的费用结构）
  *    的 s-t 自由处置最优没有良定义，BF 不稳定即抛 MechanismError——
- *    SPFA 版此场景无终止保证。
+ *    求解循环此场景同样无终止保证，故先拒绝再进循环。
+ *
+ * ============ 位势零成本旁路（R17 核心） ============
+ *
+ * 求解循环完全不接触位势：SPFA 在**原始费用**上跑（与 min-cost-flow.ts
+ * 逐位同形的内环），位势只在每相位收敛后做一次 O(V) 旁路累积。经典 SSP
+ * 对偶不变量是 π'[v] = π[v] + min(d_π[v], d_π[t])（d_π = 归约费用距离，
+ * 未达节点取 d_π[t]）；由恒等式 d_π[v] = d_raw[v] − π[v] + π[s]（路费的
+ * telescoping），用 SPFA 的原始距离直接代数回代：
+ *
+ *   π'[v] = min(d_raw[v] + π[s], π[v] + d_raw[t] − π[t] + π[s])
+ *          （未达节点 d_raw[v]=∞，自然落到第二支）
+ *
+ * **不能**按字面把原始距离塞进 min(d,d[t])：π 非常数时该式破坏对偶可行
+ * 性（反例形状：π=[0,0,3,3] 对边集 s→u(1)/u→v(5)/v→t(1)/s→t(8) 可行，
+ * d_raw=[0,1,6,7] 全近侧，字面更新后 u→v 归约费用 = 5+1−9 = −3 < 0）。
+ * WDP 初值化 BF 产出的位势 [0,…,0,−s_t,…,−M] 从第一相位起就非常数，
+ * 所以回代式是必要的，不是锦上添花。回代式与 R14 的 Dijkstra 引擎逐
+ * 相位维持同一不变量、产出同一位势值（浮点舍入序不同）。
  *
  * 语义对齐 min-cost-flow.ts：自由处置（只推进总费用 < −TERM_EPS 的增广
  * 路）、RELAX_EPS/TERM_EPS 同值同义、addEdge/edgeOccupied 同形、
  * {flow,cost} 返回同构（cost = 本次调用的流成本增量，含环取消的成本
- * 增量——增量重解下多次 run() 的 cost 之和 = 冷重建总成本）。
- * 最优性对拍（与 SPFA 版在随机图上 {flow,cost} 一致）由
- * tests/r14a-min-cost-flow-potentials.test.ts 钉住——两个独立实现算出
- * 同一最优值，互相认证（本仓对照文化）。
+ * 增量——增量重解下多次 run() 的 cost 之和 = 冷重建总成本）。求解循环
+ * 的内环形态与 min-cost-flow.ts 逐位相同（松弛条件、边序、队列序、回放
+ * 次序），同一残量网络上两引擎选出相同的增广路——{flow,cost} 不仅语义
+ * 一致，算术上逐位一致。最优性对拍（与 SPFA 版在随机图上 {flow,cost}
+ * 一致）由 tests/r14a-min-cost-flow-potentials.test.ts 钉住——两个独立
+ * 实现算出同一最优值，互相认证（本仓对照文化）。
  *
  * 文献接地（R15 双源核实，台账 DELIVERY/r15-dual-source-citations-20260914.md）：
  * 逐次最短增广与位势法（N. Tomizawa, Networks 1(2):173-194, 1971, DOI
  * 10.1002/net.3230010206；M. Iri, JORSJ 3:27-87, 1960）；归约位势
  * （D.B. Johnson, "Efficient Algorithms for Shortest Paths in Sparse
- * Networks", JACM 24(1):1-13, 1977, DOI 10.1145/321992.321993）；最短路
+ * Networks", JACM 24(1):1-13, 1977, DOI 10.1145/321992.321993）；
+ * Klein 型环取消（M. Klein, Management Science 14(3):205-220, 1967,
+ * DOI 10.1287/mnsc.14.3.205，伪多项式）。R14 引擎曾用 Dijkstra 最短路
  * （E.W. Dijkstra, Numerische Mathematik 1:269-271, 1959, DOI
- * 10.1007/BF01386390）；Klein 型环取消（M. Klein, Management Science
- * 14(3):205-220, 1967, DOI 10.1287/mnsc.14.3.205，伪多项式）。SSP 每次增广
- * 后位势更新 π[v] += min(d[v], d[t])（未达节点取 d[t]）维持残量网络
- * 归约费用非负——经典对偶可行性不变量。
+ * 10.1007/BF01386390）——R17 求解引擎退役该路径，引用留档。
  *
  * 诚实边界：
  * - eps-可行性（归约费用 ≥ −RELAX_EPS 而非 ≥ 0）与 SPFA 版同一容差级；
- * - 实测墙钟（bench-kit A/B，本机）：140×160 WDP 上 SSP+二叉堆比 SPFA
- *   慢（判决见测试输出）——小图上堆开销吃掉渐近优势，**墙钟收益不宣称**；
- *   模块价值是对偶面、增量重解、负环安全与确定性计数；
+ * - 单解墙钟与原版 SPFA 的平价由 tests/r17a 钉板（bench-kit 交错 A/B，
+ *   140×160 WDP 族 + 小实例族）；旁路累积的 O(V)/相位与可行化 BF 是
+ *   残余开销，判决以测量为准；
  * - 环取消是伪多项式兜底（每次消除严格降本，整数容量下必然终止），
  *   只在增量/迁移触发的脏修复路径上运行；
- * - 浮点费用下并列最短路的路径分解可与 SPFA 版不同（数学等价的最优
- *   流），总费用在浮点求和序意义下可有 ULP 级差异——对拍容差锚定。
+ * - 浮点费用下并列最短路的路径分解与旧 Dijkstra 引擎可不同（数学等价
+ *   的最优流）；与 min-cost-flow.ts 的 SPFA 则是同内环同选路，逐位一致；
+ * - metrics().dijkstraRuns 是退役钉子（恒 0）：字段名保留是只读消费者
+ *   examples/quantum-innovation-showcase.ts 的编译锁定，真实相位计数在
+ *   spfaPhases。
  */
 
 import { MechanismError } from '../utils/errors.js';
@@ -81,9 +111,13 @@ interface InternalEdge {
 
 /** 确定性操作计数（性能口径：环境无关，重跑逐位一致） */
 export interface SspMetrics {
+  /** Dijkstra 引擎退役钉子（R17）：恒 0。字段保留是只读消费者 examples/quantum-innovation-showcase.ts 的编译锁定；真实相位计数在 spfaPhases */
   readonly dijkstraRuns: number;
+  /** 求解循环的 SPFA 最短路相位数（含最终停止相位） */
+  readonly spfaPhases: number;
+  /** 可行化/环消除的 Bellman-Ford 扫描轮数（全新图初值化 + 脏修复） */
   readonly bellmanFordPasses: number;
-  /** Dijkstra 与 Bellman-Ford 的残边扫描总数 */
+  /** SPFA 与 Bellman-Ford 的残边扫描总数 */
   readonly edgeRelaxations: number;
   /** 残量网络位势可行性扫描次数（O(E)） */
   readonly feasibilityScans: number;
@@ -113,7 +147,8 @@ interface BellmanFordResult {
 /**
  * 位势驱动的最小费用流（自由处置变体）。
  * API 子集与 min-cost-flow.MinCostFlow 兼容（addEdge/run/edgeOccupied），
- * 另有位势读写与确定性操作计数。
+ * 另有位势读写与确定性操作计数。求解引擎与 min-cost-flow.ts 同款 SPFA
+ * （原始费用），位势每相位 O(V) 旁路累积、不进求解内环。
  */
 export class MinCostFlowPotentials {
   private readonly graph: InternalEdge[][] = [];
@@ -122,6 +157,7 @@ export class MinCostFlowPotentials {
   private dirty = false;
   private readonly counters = {
     dijkstraRuns: 0,
+    spfaPhases: 0,
     bellmanFordPasses: 0,
     edgeRelaxations: 0,
     feasibilityScans: 0,
@@ -315,85 +351,15 @@ export class MinCostFlowPotentials {
   }
 
   /**
-   * Dijkstra（归约费用、二叉小根堆、(距离,节点) 字典序决胜——确定性）。
-   * 返回 s 出发的归约距离与前驱；不可达节点距离为 Infinity。
-   */
-  private dijkstra(s: number): { d: Float64Array; prevNode: Int32Array; prevEdge: Int32Array } {
-    const n = this.graph.length;
-    const pi = this.potentials!;
-    const d = new Float64Array(n).fill(Infinity);
-    const prevNode = new Int32Array(n).fill(-1);
-    const prevEdge = new Int32Array(n).fill(-1);
-    const done = new Uint8Array(n);
-    d[s] = 0;
-
-    // 二叉小根堆（[归约距离, 节点]，懒惰删除）
-    const heap: Array<[number, number]> = [[0, s]];
-    const less = (a: readonly [number, number], b: readonly [number, number]): boolean =>
-      a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
-    const swap = (i: number, j: number): void => {
-      const tmp = heap[i]!;
-      heap[i] = heap[j]!;
-      heap[j] = tmp;
-    };
-    const push = (entry: readonly [number, number]): void => {
-      heap.push(entry as [number, number]);
-      let i = heap.length - 1;
-      while (i > 0) {
-        const parent = (i - 1) >> 1;
-        if (less(heap[i]!, heap[parent]!)) {
-          swap(i, parent);
-          i = parent;
-        } else break;
-      }
-    };
-    const pop = (): [number, number] => {
-      const top = heap[0]!;
-      const last = heap.pop()!;
-      if (heap.length > 0) {
-        heap[0] = last;
-        let i = 0;
-        for (;;) {
-          const l = 2 * i + 1;
-          const r = l + 1;
-          let m = i;
-          if (l < heap.length && less(heap[l]!, heap[m]!)) m = l;
-          if (r < heap.length && less(heap[r]!, heap[m]!)) m = r;
-          if (m === i) break;
-          swap(i, m);
-          i = m;
-        }
-      }
-      return top;
-    };
-
-    while (heap.length > 0) {
-      const [du, u] = pop();
-      if (done[u]!) continue;
-      done[u] = 1;
-      const dU = d[u]!;
-      if (du > dU) continue; // 懒惰删除的过期条目
-      const edges = this.graph[u]!;
-      for (let i = 0; i < edges.length; i++) {
-        const e = edges[i]!;
-        if (e.cap <= 0) continue;
-        this.counters.edgeRelaxations++;
-        const reduced = e.cost + pi[u]! - pi[e.to]!;
-        const nd = dU + reduced;
-        if (nd < d[e.to]! - RELAX_EPS) {
-          d[e.to] = nd;
-          prevNode[e.to] = u;
-          prevEdge[e.to] = i;
-          push([nd, e.to]);
-        }
-      }
-    }
-    this.counters.dijkstraRuns++;
-    return { d, prevNode, prevEdge };
-  }
-
-  /**
-   * 自由处置求解：只推进总费用 < −TERM_EPS 的增广路。
+   * 自由处置求解：SPFA 连续最短增广（原始费用，与 min-cost-flow.ts 同形
+   * 引擎），只推进总费用 < −TERM_EPS 的增广路。
+   *
+   * 每相位收敛后做位势零成本旁路累积（O(V)，不进 SPFA 内环）：
+   * π'[v] = π[v] + min(d_π[v], d_π[t])，用原始距离代数回代成
+   * π'[v] = min(d_raw[v] + π[s], π[v] + d_raw[t] − π[t] + π[s])
+   * （未达节点 d_raw=∞ 落到第二支）——维持残量网络归约费用非负的经典
+   * 对偶可行性不变量（字面套原始距离会破坏不变量，见模块头注反例）。
+   *
    * 返回 {flow, cost}：flow = 本次推进的流量；cost = 本次流成本增量
    * （含增量/迁移修复中的环取消成本增量）。语义与 MinCostFlow.run 的
    * 「每次调用返回增量」口径一致，增量的代数和 = 冷重建总账。
@@ -430,20 +396,65 @@ export class MinCostFlowPotentials {
       this.dirty = false;
     }
 
+    const n = this.graph.length;
+    // 相位级缓冲复用（与 min-cost-flow.ts 同形）：dist/inQueue/prevNode/
+    // prevEdge 在每个增广相位开头全量重置，跨相位共用同一块内存；队列
+    // 用索引头出队（shift() 每次搬移整个数组，O(n)）。
+    const dist = new Array<number>(n);
+    const inQueue = new Array<boolean>(n);
+    const prevNode = new Int32Array(n);
+    const prevEdge = new Int32Array(n);
+    const queue: number[] = [];
+    // 相位计数走 run() 级局部变量、返回前一次性入账：热路径上零属性写
+    // （探针实测：每相位两次 counters 属性写占整轮 ~3%，比位势旁路本身还贵）
+    let phases = 0;
+    let scanned = 0;
+    let augs = 0;
     let flow = 0;
     let cost = 0;
     for (;;) {
-      const { d, prevNode, prevEdge } = this.dijkstra(s);
-      const dT = d[t]!;
-      if (!Number.isFinite(dT)) break; // 无增广路
-      const pi = this.potentials;
-      const realDist = dT + pi[t]! - pi[s]!;
-      if (realDist >= -TERM_EPS) break; // 自由处置：边际费用非负则停
+      dist.fill(Infinity);
+      inQueue.fill(false);
+      prevNode.fill(-1);
+      prevEdge.fill(-1);
+      dist[s] = 0;
+      let head = 0;
+      queue.push(s);
+      while (head < queue.length) {
+        const u = queue[head++]!;
+        inQueue[u] = false;
+        const edges = this.node(u);
+        // distU 在 u 的整条出边扫描中不变（dist[u] 只会被指向 u 的边
+        // 松弛改写，而本扫描不重入）
+        const distU = dist[u]!;
+        for (let i = 0; i < edges.length; i++) {
+          const e = edges[i]!;
+          if (e.cap <= 0) continue;
+          scanned++;
+          if (distU + e.cost < dist[e.to]! - RELAX_EPS) {
+            dist[e.to] = distU + e.cost;
+            prevNode[e.to] = u;
+            prevEdge[e.to] = i;
+            if (!inQueue[e.to]) {
+              queue.push(e.to);
+              inQueue[e.to] = true;
+            }
+          }
+        }
+      }
+      phases++;
+      // 无增广路，或边际费用非负（再分配只会降福利）→ 停止
+      const dT = dist[t]!;
+      if (dT === Infinity || dT >= -TERM_EPS) break;
 
-      // 位势更新：π[v] += min(d[v], d[t])，未达节点取 d[t]——SSP 经典不变量
-      for (let v = 0; v < pi.length; v++) {
-        const dv = Number.isFinite(d[v]!) ? d[v]! : dT;
-        pi[v] = pi[v]! + Math.min(dv, dT);
+      // 位势旁路累积（O(V)）：π' = π + min(d_π, d_π[t]) 的原始距离回代形
+      const pi = this.potentials;
+      const piS = pi[s]!;
+      const shift = dT - pi[t]! + piS; // = 归约距离 d_π[t]（< −TERM_EPS）
+      for (let v = 0; v < n; v++) {
+        const viaDist = dist[v]! + piS; // = π[v] + d_π[v]（未达为 ∞）
+        const viaPi = pi[v]! + shift; // = π[v] + d_π[t]
+        pi[v] = viaDist < viaPi ? viaDist : viaPi;
       }
 
       // 沿最短路增广（回放次序与 MinCostFlow.run 一致）
@@ -462,8 +473,13 @@ export class MinCostFlowPotentials {
         v = pn;
       }
       flow += aug;
-      this.counters.augmentations++;
+      augs++;
+      // 回到相位头前清空队缓冲（head 游标随之作废）
+      queue.length = 0;
     }
+    this.counters.spfaPhases += phases;
+    this.counters.edgeRelaxations += scanned;
+    this.counters.augmentations += augs;
     return { flow, cost: cost + cancelCost };
   }
 

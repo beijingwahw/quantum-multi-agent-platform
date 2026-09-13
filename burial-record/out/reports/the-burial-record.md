@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 98
-- errors: 803
+- batches: 99
+- errors: 814
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 23 | 374 |
+| burial-record | 24 | 385 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 14 | 64 |
 | ds_extracted/ds | 6 | 44 |
@@ -43,15 +43,15 @@
 
 | category | errors |
 | --- | --- |
-| process | 271 |
-| toolchain | 151 |
-| wrong-object | 106 |
+| process | 277 |
+| toolchain | 152 |
+| wrong-object | 108 |
 | statistics | 68 |
 | dimension-slot | 51 |
-| machine-overruled | 48 |
+| machine-overruled | 49 |
 | citation-drift | 47 |
 | conjugation | 29 |
-| anchor-blindspot | 19 |
+| anchor-blindspot | 20 |
 | bogus-comparison | 13 |
 
 ## The batches
@@ -1643,15 +1643,34 @@
 | [orchestrator self-report, this batch] the Rotosolve arXiv identifier was recalled as 1905.10945 in the dispatch prompt's citation text — the source page returned 1905.09692, the correction made before any code or comment carried the wrong digit | identifier-grade data is written from the source page, never from the recall that filled the prompt — the second-source law caught the verifier's own input this time, one visit after the same law was enrolled against the verifier | citation-drift |
 | [orchestrator self-report, this batch] the ECCM barrel export Edit was refused by the read-state guard — the previous visit's formatting pass had touched src/index.ts after its last read, and the Edit was attempted without re-reading | after any formatting pass the edited file's read state is refreshed before the next Edit — the refusal cost one round-trip and prevented a stale-context replace | process |
 
+### Batch 99 — burial-record (2026-09-14)
+
+- context: the R17 strict-positivity visit (visit ninety-two: retiring the four disclosed cost faces one by one — the potentials flow re-engined to SPFA parity, admission's rejection made exact by counterfactual verification, the composer's no-coupling case made near-free, the hire brain given a Hedge portfolio with a regret bound, four delivery agents plus the orchestrator): eleven delivery errors — the orchestrator's dispatch formula for the potential update convicted by the delivery agent's own counterexample, a heredoc violation in one agent's batch edit, single-seed benchmark gates firing before their cross-seed hardening, four test-side first reds against correct implementations, the orchestrator quoting a sibling agent's unverified performance digit ('ucb1 1') into the user-facing ledger where the machine says 61, the daily-memory insertion replacing the previous visit's section for the THIRD consecutive visit, and the census E1 firing demo's hardcoded future-key expiring the day the registry reached it; every one self-caught, tool-caught, or machine-caught in the act, none shipped
+- source: `memory/2026-09-14.md` @ "关键经验（第九十九批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| [orchestrator self-report, this batch] the R17-A dispatch specified the potential update literally as pi[v] += min(d[v], d[t]) on RAW distances — the delivery agent's counterexample (pi=[0,0,3,3], d_raw=[0,1,6,7] leaving u->v at reduced cost -3) convicted the literal form as dual-infeasibility, implementing the invariant-preserving back-substitution pi'[v] = min(d_raw[v]+pi[s], pi[v]+d_raw[t]-pi[t]+pi[s]) instead | a formula in a dispatch prompt is a design hypothesis, not a law — the implementing agent validates it against the invariant it must preserve before typing it, and the counterexample rides in the module header as the permanent record of the deviation | machine-overruled |
+| [delivery agent R17-A] a python heredoc batch-edited the r17a test file — the banned channel, in a wave whose dispatch constitution carried the no-heredoc law verbatim; the same patch also missed a single-line call form that would have failed typecheck had it shipped | the Edit tool is the only channel and the heredoc patch is re-verified by typecheck before it is believed — both caught in the act, the confession rides with the act | toolchain |
+| [delivery agent R17-A] the small-family parity gate fired twice before hardening — a single-seed 1.068 CI above 1 under a sibling agent's parallel load, and once the failure's diagnostic digits were swallowed by the agent's own grep filter (the exit code survived via PIPESTATUS; the details did not) | single-seed verdicts under hostile load are not convictions — the cross-seed reproduction gate (3/3 before red) and counting-out-of-the-hot-path were the structural fixes, and diagnostics flow unfiltered to the log the verdict is read from | process |
+| [delivery agent R17-A] one eslint unnecessary-assertion and a header digit transcribed as 31771 where the engine's own metric read 31740 | digits are copied from the metric's printout, not retyped — re-verified across all transcribed numbers after the catch | process |
+| [delivery agent R17-B] the convergence round: two typecheck errors on an indexed-access type cast, four eslint errors including a String(verifyRaw) no-base-to-string that took three attempts to satisfy, and two draft residues (a dead spy and a one-admit-one-reject title over a fixed spy) caught at self-review | the rule face is read before the first line and drafts die at self-review — none reached a test run | process |
+| [delivery agent R17-C] four test-side first reds against a correct implementation — an eligibility pattern that still formed positive-mass pairs, an improve:false construction with an accidental cross-batch pair, an agentCount left at 2 where the case needed 3, and an expected dispatch that ignored single-batch inputs taking the legacy path | expected dispatches are derived from the mechanism's own routing rule before the fixture is typed, and the accidentally-convicted domain guard (the agentCount case) is kept as evidence the validation order still holds | wrong-object |
+| [delivery agent R17-D] a syntax red (an apostrophe inside a test title) and a stream-G construction whose margins produced a thompson-greedy tie rather than the strict optimum the assertion demanded | titles are ASCII-safe and construction margins are measured before they are asserted strict — the tie was the construction's fault, not the mechanism's | process |
+| [orchestrator self-report, this batch] the user-facing gain ledger quoted the R14 showcase's hire comparison as 'greedy 90 / thompson 66 / ucb1 1' from a sibling agent's delivery report — the machine prints 61; the digit traveled one report to the next without anyone re-running the showcase it described | a performance digit quoted into a ledger is re-measured at the machine it describes — the R17-D agent's fresh run caught it, the CHANGELOG carries the erratum, and no workspace file ever held the wrong digit | wrong-object |
+| [delivery agent R17-D] disclosed scope latitude: beyond the hire-demo section, one line of the showcase's closing module catalog was edited to keep the new portfolio fact consistent with the doc — beyond the literal ownership grant, disclosed for the orchestrator's judgment | doc-truth sync of adjacent lines is disclosed rather than assumed — the orchestrator accepts the edit (the alternative was a one-line doc-code lie) and books the latitude as process, not as permission | process |
+| [orchestrator self-report, this batch] the daily-memory insertion for this visit replaced the previous visit's verification section instead of appending after it — the THIRD consecutive visit with the identical mistake (b97's and b98's twin face), each caught and restored in the same breath by re-reading the section boundary | before an append-Edit, the full anchor section is read to its end and the old_string includes the terminator — three visits running, the recurrence is now booked with its lineage rather than as an isolated slip | process |
+| [wave latent, convicted this batch] the census E1 firing demo hardcoded its forged un-enrolled error at the FUTURE key b99#9 — the day batch 99 actually enrolled a real b99#9 the demo's premise expired and the forged row stopped being un-enrolled, A3 convicting the anchor itself ('did not fire') on the wave's own render | firing-demo fixtures are DERIVED from the live registry (one past its last batch) so they can never collide with real growth — the expiry-prone literal is the anchor-blindspot family's future-key face, caught by the machinery it was supposed to demonstrate | anchor-blindspot |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..98 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (803 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 803 = repo sum 803)
-- PASS — W-4 declared totals 98 batches / 803 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (80 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (73 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..99 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (814 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 814 = repo sum 814)
+- PASS — W-4 declared totals 99 batches / 814 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (81 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (74 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 803 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 814 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

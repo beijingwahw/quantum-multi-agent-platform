@@ -4,8 +4,8 @@
 
 > 🇬🇧 **English version**: [README.en.md](./README.en.md)（图内文字为中文，图注附英文关键词）
 
-![version](https://img.shields.io/badge/version-1.15.0-blue)
-![tests](https://img.shields.io/badge/tests-982-brightgreen)
+![version](https://img.shields.io/badge/version-1.16.0-blue)
+![tests](https://img.shields.io/badge/tests-1033-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -29,9 +29,9 @@
 | 🧠 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
 | 📊 | [基准与性能](#-基准与性能) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | 🚀 | [快速开始](#-快速开始) | 十条命令 + 代码示例 |
-| 🧪 | [测试与质量](#-测试与质量) | 982 用例 · 六门禁 · 覆盖率棘轮 |
+| 🧪 | [测试与质量](#-测试与质量) | 1033 用例 · 六门禁 · 覆盖率棘轮 |
 | 📁 | [目录结构](#-目录结构) | 含图集生成器 |
-| 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.15 |
+| 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.16 |
 | ⚠️ | [诚实的边界](#️-诚实的边界) | 等效≠真机 · 组合爆炸 · 热路径 |
 
 ---
@@ -254,7 +254,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 982 用例 · 0 失败
+npm test                # 1033 用例 · 0 失败
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/DSH 工具调用）
@@ -298,7 +298,7 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 ## 🧪 测试与质量
 
-**982 用例 · 0 失败 · 87 个测试文件 / 294 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
+**1033 用例 · 0 失败 · 91 个测试文件 / 309 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](docs/diagrams/16-quality.png)
 
@@ -324,7 +324,8 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | R14 QPU/智能创新（r14b/c） | 67 | 跨后端共识 tau-b/Wilson/TVD · 读出 MAP 缓解闭式 · Beta 数值内核解析锚 · 贝叶斯雇佣三策略 · 能力策略 default-deny |
 | R15 缺陷清偿（r15p1/p2，红测先行） | 24 | dwave 超时预算共享·occurrences 垃圾具名拒绝 · 总线未知帧熔断·连接封顶入 security 账 · complete_task 严格布尔 · benchmark 种子化 RNG · min-cost-flow 增量陷阱具名拒绝 |
 | R16 ECCM（r16，两值谱单余弦定理） | 21 | 定理钉 ≤1e-12 · 闭式全局极小 vs 稠密 argmin ≤1e-9 · 双轴对拍 11/12 实例质量≤CD 且评估数 −99~−326 · 帕累托点四构形钉死 · 负对照 11 组 |
-| **全套** | **982** | **87 个测试文件 / 294 个套件 · 0 失败** |
+| R17 严格正向升格（r17a-d：位势流 SPFA 平价·准入精确拒绝·批组成零成本路径·Hedge 组合） | 51 | 单解墙钟 9/9 CI 含 1.0（旧 +122%）· 增量收益 4.93× 重测 · 拒绝证书四元构造性零错 · 无耦合 O(T+E+P) 零搜索 · 后悔界 ln3/η+ηT/2 三对抗流验证（一流反超 +50） |
+| **全套** | **1033** | **91 个测试文件 / 309 个套件 · 0 失败** |
 
 （表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
@@ -336,7 +337,7 @@ npm run lint      # ESLint 0 错误（类型感知 strict 集：no-floating-prom
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
 npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖（唯一既定发现：index.ts 的同名 named+default 双导出，为兼容 import X from 的刻意 API）
-npm test          # 982 用例 · 0 失败 ✅
+npm test          # 1033 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -387,7 +388,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            # 测试套件（87 文件 / 982 用例）
+├── tests/                            # 测试套件（91 文件 / 1033 用例）
 ├── docs/diagrams/                    # 🎨 README 原理图集 + generate.py 生成器
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）
@@ -419,6 +420,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 - **v1.13 创新波**——11 个 opt-in 新模块（纠缠批组成 · 位势增量流 · 影子价格准入 · 参数移位/自然梯度 · 保留价 VCG · 跨后端共识 · 读出缓解 · 贝叶斯雇佣 · 能力策略），默认路径字节不变
 - **v1.14 缺陷清偿波**——七项登记缺陷红测修复（dwave 超时预算 2×/occurrences 静默回退 · 总线未知帧熔断/连接封顶计数 · complete_task 严格口径 · benchmark 种子化 · min-cost-flow 增量陷阱具名拒绝）＋文档双披露
 - **v1.15 ECCM**——两值谱混合器的单余弦定理：三点定弦、闭式全局极小、零步长超参（Rotosolve 面的仓内精确化）；4×5 基准族 11/12 实例对坐标下降**双轴同时占优**（质量≤CD 且评估数 −99~−326），帕累托点如实入账
+- **v1.16 严格正向升格**——四个「条件性正向」的代价面逐一消除：位势流引擎 SPFA 化（单解墙钟 9/9 CI 含 1.0，旧 +122%）、准入拒绝 exact 反事实验证（证书四元构造性零错）、批组成无耦合 O(T+E+P) 快速路径、Hedge 策略组合（对所携任意固定策略的后悔界保证，一流反超 +50）
 
 ---
 

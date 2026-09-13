@@ -5,9 +5,12 @@
  * ① 语义镜像：与 MinCostFlow 同款单元场景（单负费用路 / 自由处置 /
  *    多路排序 / 容量竞争 / 幂等重跑 / 越界拒绝）；
  * ② 对照认证：与 SPFA 实现在随机 DAG 上 {flow, cost} 一致（150 实例，
- *    整数费用逐位相等、浮点费用容差一致）——两个独立实现算出同一最优；
+ *    整数费用逐位相等、浮点费用容差一致）——两个独立实现算出同一最优
+ *    （R17 引擎 SPFA 化后内环与原版同形，同图同选路、算术逐位一致）；
  * ③ 同实例增量重解（构造性省功）：单调递减分数的任务到达序列，
- *    增量代数和 = 冷重建，零环取消，确定性松弛计数 ~4.8× 下降；
+ *    增量代数和 = 冷重建，零环取消，确定性松弛计数 ~4.9× 下降
+ *    （R17 SPFA 引擎重测：增量 36771 vs 冷系列 181428；R14 Dijkstra
+ *    引擎旧数 31740 vs 151124 ≈ 4.8×——数字随引擎如实重钉）；
  * ④ 同实例增量·置换：高分到达诱发负环 → 环消除兜底，代数和 = 冷重建
  *    （正确性），计数如实记录（不设省功断言——实测更贵，见模块头注）；
  * ⑤ 最小置换案例 + 原版语义对照：R14 时钉「SPFA 版『run→加边→run』
@@ -15,9 +18,11 @@
  *    该场景在原版具名拒绝（StateError，指向本实现），钉板随之翻转；
  * ⑥ 跨实例位势迁移（λ 变化 / pivot 删边）：启发式热启动——正确性与
  *    冷解/SPFA 三方一致（迁移可行性无构造性保证，只锚定正确性）；
- * ⑦ 负环具名拒绝（全新图）；⑧ 确定性重跑；⑨ 负对照具名拒绝；
- * ⑩ 可选 bench-kit A/B：墙钟判决只记录不预设（已实测 SSP+堆在 140×160
- *    WDP 上慢于 SPFA——诚实边界，见模块头注）。
+ * ⑦ 负环具名拒绝（全新图）；⑧ 确定性重跑 + 引擎退役钉（dijkstraRuns
+ *    恒 0、spfaPhases = augmentations + 1——R17 SPFA 引擎结构不变量）；
+ * ⑨ 负对照具名拒绝；
+ * ⑩ 可选 bench-kit A/B：墙钟判决只记录不预设（R14 引擎实测 SSP+堆慢
+ *    87–122%；R17 SPFA 化后判决翻转——平价验收钉板移交 r17a）。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -156,7 +161,7 @@ describe('R14-A · 对照认证：与 SPFA 实现的随机对拍', () => {
     }
   });
 
-  it('确定性：同输入重跑，SSP 结果与操作计数逐字段一致', () => {
+  it('确定性：同输入重跑，SSP 结果与操作计数逐字段一致；R17 引擎结构不变量', () => {
     const rng = mulberry32(99);
     const spec = randomDag(rng, false);
     const runOnce = (): unknown => {
@@ -164,7 +169,19 @@ describe('R14-A · 对照认证：与 SPFA 实现的随机对拍', () => {
       for (const [u, v, cap, cost] of spec.edges) ssp.addEdge(u, v, cap, cost);
       return { result: ssp.run(spec.s, spec.t), metrics: ssp.metrics() };
     };
-    assert.deepEqual(runOnce(), runOnce());
+    const first = runOnce() as {
+      result: { flow: number };
+      metrics: ReturnType<MinCostFlowPotentials['metrics']>;
+    };
+    assert.deepEqual(first, runOnce());
+    // R17 引擎退役钉：Dijkstra 路径不再存在（恒 0，字段名保留是只读示例的
+    // 编译锁定）；SPFA 相位数 = 增广次数 + 1（每个相位要么增广要么停止）
+    assert.equal(first.metrics.dijkstraRuns, 0, 'Dijkstra 引擎已退役');
+    assert.equal(
+      first.metrics.spfaPhases,
+      first.metrics.augmentations + 1,
+      '每相位要么增广要么终止：spfaPhases = augmentations + 1',
+    );
   });
 });
 
@@ -220,7 +237,7 @@ function coldSolve(
 }
 
 describe('R14-A · 同实例增量重解：单调递减到达（构造性省功）', () => {
-  it('增量代数和 = 冷解终态；零环取消；确定性松弛计数 ~4.8× 下降', () => {
+  it('增量代数和 = 冷解终态；零环取消；确定性松弛计数 ~4.9× 下降（SPFA 引擎重测）', () => {
     const decreasing = (t: number): number => 0.09 - (t - BASE_TASKS) * 0.01; // 0.09→0.04
 
     const inc = new MinCostFlowPotentials(2 + AGENTS + TOTAL_TASKS);
@@ -524,7 +541,7 @@ describe('R14-A · 负环与负对照', () => {
 });
 
 describe('R14-A · 可选墙钟 A/B（bench-kit，判决只记录不预设）', () => {
-  it('大 WDP 单解：SSP(位势) vs SPFA——A/A 效度守卫不满足则 skip', (t) => {
+  it('大 WDP 单解：位势流(SPFA 引擎) vs 原版 SPFA——A/A 效度守卫不满足则 skip', (t) => {
     const buildOnce = (Impl: typeof MinCostFlow | typeof MinCostFlowPotentials): (() => void) => {
       return () => {
         const agents = 140;
@@ -547,27 +564,37 @@ describe('R14-A · 可选墙钟 A/B（bench-kit，判决只记录不预设）', 
       };
     };
 
-    const aa = comparePaired(
-      { name: 'ssp-1', run: buildOnce(MinCostFlowPotentials) },
-      { name: 'ssp-2', run: buildOnce(MinCostFlowPotentials) },
-      { rounds: 12, warmupRounds: 4, seed: 4141 },
-    );
-    if (aa.verdict === 'inconclusive') {
-      t.skip(`A/A 控制遇敌对环境：${aa.note}`);
-      return;
+    // A/A 效度：bench-harness ① 跨种子复现纪律——敌对窗口单种子误判不定性
+    // （2026-09-09 windows runner 实测 17% 误判率），换独立种子复现 3/3 才红
+    const misjudged: string[] = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const aa = comparePaired(
+        { name: 'pot-1', run: buildOnce(MinCostFlowPotentials) },
+        { name: 'pot-2', run: buildOnce(MinCostFlowPotentials) },
+        { rounds: 12, warmupRounds: 4, seed: 4141 + attempt * 7919 },
+      );
+      if (aa.verdict === 'inconclusive') {
+        t.skip(`A/A 控制遇敌对环境：${aa.note}`);
+        return;
+      }
+      if (aa.verdict === 'no-difference') break;
+      misjudged.push(`种子 ${4141 + attempt * 7919} 判 ${aa.verdict}：${aa.note}`);
+      if (misjudged.length === 3) {
+        assert.fail(`A/A 误判跨 3 个独立种子复现：${misjudged.join('；')}`);
+      }
     }
-    assert.equal(aa.verdict, 'no-difference', aa.note);
 
     const report = comparePaired(
       { name: 'spfa', run: buildOnce(MinCostFlow) },
-      { name: 'ssp-potentials', run: buildOnce(MinCostFlowPotentials) },
+      { name: 'potentials-spfa', run: buildOnce(MinCostFlowPotentials) },
       { rounds: 12, warmupRounds: 4, seed: 4242 },
     );
     if (report.verdict === 'inconclusive') {
       t.skip(`测量环境敌对，本轮不判：${report.note}`);
       return;
     }
-    // 墙钟判决如实入档（实测本机 140×160 WDP 上 SSP+堆慢于 SPFA——不预设方向）
+    // 墙钟判决如实入档（R14 引擎：B 慢 122.1%；R17 SPFA 化后实测判决翻转
+    // 为 no-difference——平价验收的正式钉板在 r17a，此处只记录不预设方向）
     assert.ok(
       report.verdict === 'b-faster' ||
         report.verdict === 'b-slower' ||

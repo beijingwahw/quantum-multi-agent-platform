@@ -11,6 +11,9 @@
  * ⑥ 端到端：用真实子空间引擎按批求解，组批后的福利和 > 切片切片的
  *    福利和，差额恰为被找回的耦合加成——缺口在求解层面可兑现；
  * ⑦ 负对照：非法输入逐项具名拒绝。
+ * R17-C 追加：无耦合快速路径基础钉板（strategy/massEvaluations/零搜索），
+ * 完整验收套件（含 200 实例零遗憾钉板与独立 oracle 交叉核对）见
+ * tests/r17c-entanglement-batch-composer-fast-path.test.ts。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -264,6 +267,73 @@ describe('R14-A · 构造实例：找回基线丢弃的跨批耦合', () => {
       Math.abs(welfareComposed - welfareSliced - 0.35 * 0.25) < 1e-9,
       '福利差额必须恰为被找回的耦合加成',
     );
+  });
+});
+
+describe('R14-A · R17-C 无耦合快速路径（基础钉板）', () => {
+  it('空纠缠对集：strategy=no-coupling，零质量求值零移动，批=手工基线切片', () => {
+    const tasks = [
+      task('a', 1, [0]),
+      task('b', 0.5, [1]),
+      task('c', 0.25, [0, 1]),
+      task('d', 0.75, [1]),
+    ];
+    const r = composeBatches(tasks, {
+      entangledAgentPairs: [],
+      agentCount: 2,
+      maxBatchSize: 2,
+    });
+    assert.deepEqual(r.batches, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    assert.equal(r.strategy, 'no-coupling');
+    assert.equal(r.capturedMass, 0);
+    assert.equal(r.totalMass, 0);
+    assert.equal(r.movesApplied, 0);
+    assert.equal(r.massEvaluations, 0, '无耦合：纯切片成本，零任务对质量求值');
+  });
+
+  it('纠缠对可达任务全部同批：strategy=no-cross-batch-coupling，只算批内对', () => {
+    // 前半任务可上 (a0,a1)（全落批 0），后半只上 a2 → 正质量对全部批内
+    const tasks = [
+      task('h0', 1, [0, 1]),
+      task('h1', 0.75, [0, 1]),
+      task('h2', 0.5, [0, 1]),
+      task('h3', 0.25, [0, 1]),
+      task('h4', 1, [2]),
+      task('h5', 1, [2]),
+    ];
+    const r = composeBatches(tasks, {
+      entangledAgentPairs: PAIR_01,
+      agentCount: 3,
+      maxBatchSize: 4,
+      entanglementBonus: 0.35,
+    });
+    assert.deepEqual(r.batches, [
+      ['h0', 'h1', 'h2', 'h3'],
+      ['h4', 'h5'],
+    ]);
+    assert.equal(r.strategy, 'no-cross-batch-coupling');
+    assert.equal(r.movesApplied, 0);
+    // 手算：批 0 内 C(4,2)=6 对全部有势 0.35·min(pw)，批 1 内无势
+    assert.ok(Math.abs(r.capturedMass - 0.35 * (0.75 + 0.5 + 0.25 + 0.5 + 0.25 + 0.25)) < 1e-12);
+    assert.equal(r.totalMass, r.capturedMass, '全同批：totalMass ≡ capturedMass');
+    assert.equal(r.massEvaluations, 6 + 1, '只求值批内对 Σ C(|β|,2) = 6+1');
+  });
+
+  it('improve:false 优先保持 strategy=baseline（即便命中快速路径）', () => {
+    const tasks = [task('x', 1, [0]), task('y', 1, [2])];
+    const r = composeBatches(tasks, {
+      entangledAgentPairs: PAIR_01,
+      agentCount: 3,
+      maxBatchSize: 1,
+      improve: false,
+    });
+    assert.equal(r.strategy, 'baseline');
+    assert.equal(r.capturedMass, 0);
+    assert.equal(r.totalMass, 0);
+    assert.equal(r.massEvaluations, 0);
   });
 });
 

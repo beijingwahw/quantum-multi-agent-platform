@@ -33,6 +33,31 @@
  * 接线（编排者收口）：prepareSubspaceRound/runFullspaceChunks 的切片处
  * 改调 composeBatches 即可，任务出批后的其余语义不变。
  *
+ * ============ R17-C 无耦合快速路径（严格正向化：消掉已披露代价面） ============
+ *
+ * R14-A 的代价披露：无跨批耦合的实例上是纯开销——全量预处理要为每个任务
+ * 对扫全部纠缠 agent 对（O(P·T²)），局部搜索再空转一整轮。R17-C 的修复：
+ *
+ * 1. O(T+E+P) 结构探测（E=资格条目总数，先于一切质量计算）：基线批是输
+ *    入序连续切片 ⟹ 任务→批索引随输入序单调不减，每 agent 只需记首/末
+ *    任务与首/末批四个数。对每个纠缠 agent 对 (a,b)：
+ *    - 存在正质量任务对 ⟺ S_a、S_b 均非空且（|S_a|≥2 ∨ |S_b|≥2 ∨ 两者
+ *      唯一任务不同）——结构性判定，与 bonus 数值无关；
+ *    - 存在**跨批**正质量对 ⟺ S_a 触达 ≥2 批，或 S_b 触达 ≥2 批，或两
+ *      者各自单批且批号不同。
+ * 2. 无跨批正质量对 ⟹ 直接返回基线切片，零局部搜索。正确性：此时任意
+ *    任务 t 的一切正质量邻居都在 t 自己的批内，任何移动的 Δ = 0 − 正数
+ *    ≤ 0 < eps，首改进扫描必然空转——快速路径返回的就是局部搜索本会
+ *    返回的原样切分（movesApplied = 0）。
+ * 3. 数值口径逐位不变：基线批是连续切片 ⟹ 批内对按批主序 (x<y) 求和
+ *    的次序与全量路径按全局 (i<j) 求和的次序相同（跨批对在两处都贡献
+ *    0），故快速路径的 capturedMass/totalMass 与全量路径逐位一致；
+ *    「正质量对全同批」时 totalMass ≡ capturedMass（同一和的两次书写）。
+ * 4. 成本披露面：新增 massEvaluations（任务对质量求值次数）——
+ *    no-coupling = 0（纯切片成本）；no-cross-batch-coupling = 批内对数
+ *    Σ C(|β|,2)，固定 maxBatchSize 下线性于 T；有跨批耦合仍走全量路径
+ *    C(n,2) 次求值 + 局部搜索（那是换已证增益的收益场景，不是代价面）。
+ *
  * 诚实边界：
  * - capturedMass 是**可实现耦合福利的上界**（批内任务还须在分配时真的
  *   落在纠缠对上且不与容量冲突），不是 welfare 承诺；
@@ -70,8 +95,19 @@ export interface BatchComposition {
   readonly totalMass: number;
   /** 局部搜索实际接受的单任务移动数 */
   readonly movesApplied: number;
-  /** baseline = 纯切片；improved = 切片 + 局部搜索 */
-  readonly strategy: 'baseline' | 'improved';
+  /**
+   * 任务对质量求值（pairMass 调用）次数——成本披露面（R17-C）：
+   * no-coupling = 0；no-cross-batch-coupling = 批内对数 Σ C(|β|,2)；
+   * 走全量路径（有跨批耦合，或 improve:false/单批等既有口径）= C(n,2)。
+   */
+  readonly massEvaluations: number;
+  /**
+   * baseline = improve:false 的纯切片；improved = 切片 + 局部搜索；
+   * no-coupling = 探测证实无任何正质量对（零求值零搜索）；
+   * no-cross-batch-coupling = 有正质量对但全部批内（只算批内对，零搜索）。
+   * improve:false 优先保持 'baseline' 语义（未尝试搜索）。
+   */
+  readonly strategy: 'baseline' | 'improved' | 'no-coupling' | 'no-cross-batch-coupling';
 }
 
 export interface ComposerOptions {
@@ -214,7 +250,105 @@ export function composeBatches(
 
   const n = ids.length;
 
-  // 耦合势邻接表（只存正质量边）：mass[i][j] = c(t_i, t_j)，i < j
+  // 基线切片：引擎现行语义（输入序连续切块）——快速路径与全量路径共用
+  const batches: string[][] = [];
+  for (let i = 0; i < n; i += options.maxBatchSize) {
+    batches.push(ids.slice(i, i + options.maxBatchSize));
+  }
+
+  // ---- R17-C 无耦合快速路径：O(T+E+P) 结构探测，先于一切质量计算 ----
+  // 只统计出现在纠缠对里的 agent；任务按输入序扫，批号 floor(i/k) 随 i
+  // 单调不减 ⟹ 每 agent 的首/末批即其触达批的最小/最大值，首任务≠末任务
+  // ⟺ |S_a| ≥ 2。探测正确性论证见模块头「R17-C」节。
+  if (n >= 2 && batches.length >= 2) {
+    let anyPositivePair = false; // 存在任何正质量可达任务对（结构性，与 bonus 无关）
+    let anyCrossBatchPair = false; // 其中存在被基线切到不同批的
+    if (pairs.length > 0) {
+      const pairAgents = new Set<number>();
+      for (const { a, b } of pairs) {
+        pairAgents.add(a);
+        pairAgents.add(b);
+      }
+      interface AgentStat {
+        firstTask: number;
+        lastTask: number;
+        firstBatch: number;
+        lastBatch: number;
+      }
+      const stat = new Map<number, AgentStat>();
+      for (let i = 0; i < n; i++) {
+        const batch = Math.floor(i / options.maxBatchSize);
+        for (const ag of eligSets[i]!) {
+          if (!pairAgents.has(ag)) continue;
+          let s = stat.get(ag);
+          if (s === undefined) {
+            s = { firstTask: i, lastTask: i, firstBatch: batch, lastBatch: batch };
+            stat.set(ag, s);
+          } else {
+            s.lastTask = i;
+            s.lastBatch = batch;
+          }
+        }
+      }
+      for (const { a, b } of pairs) {
+        const sa = stat.get(a);
+        const sb = stat.get(b);
+        if (sa === undefined || sb === undefined) continue; // 某侧无任何资格任务
+        const twoA = sa.lastTask !== sa.firstTask; // |S_a| ≥ 2
+        const twoB = sb.lastTask !== sb.firstTask; // |S_b| ≥ 2
+        if (!twoA && !twoB && sa.firstTask === sb.firstTask) continue; // S_a = S_b = {同一任务}
+        anyPositivePair = true;
+        // 跨批 ⟺ S_a 触达 ≥2 批，或 S_b 触达 ≥2 批，或两者各自单批且不同批
+        if (
+          sa.firstBatch !== sa.lastBatch ||
+          sb.firstBatch !== sb.lastBatch ||
+          sa.firstBatch !== sb.firstBatch
+        ) {
+          anyCrossBatchPair = true;
+        }
+      }
+    }
+    if (!anyCrossBatchPair) {
+      if (!anyPositivePair) {
+        // 全图零耦合势：两个和都是空和，capturedMass = totalMass = 0，
+        // 零质量求值、零搜索——纯切片成本。
+        return {
+          batches,
+          capturedMass: 0,
+          totalMass: 0,
+          movesApplied: 0,
+          massEvaluations: 0,
+          strategy: options.improve === false ? 'baseline' : 'no-coupling',
+        };
+      }
+      // 正质量对全部批内 ⇒ totalMass ≡ capturedMass；只算批内对
+      // （连续切片 ⇒ 批主序求和与全量路径的全局 i<j 序逐位同口径，见模块头）。
+      let captured = 0;
+      let evaluations = 0;
+      for (let start = 0; start < n; start += options.maxBatchSize) {
+        const stop = Math.min(n, start + options.maxBatchSize);
+        for (let i = start; i < stop; i++) {
+          for (let j = i + 1; j < stop; j++) {
+            evaluations++;
+            const m = pairMass(eligSets[i]!, pw[i]!, eligSets[j]!, pw[j]!, pairs, bonus);
+            if (m > 0) captured += m;
+          }
+        }
+      }
+      return {
+        batches,
+        capturedMass: captured,
+        totalMass: captured,
+        movesApplied: 0,
+        massEvaluations: evaluations,
+        strategy: options.improve === false ? 'baseline' : 'no-cross-batch-coupling',
+      };
+    }
+    // 有跨批正质量对：即便 improvementEps 大到搜索必然空转，也走全量路径
+    // （探测只证「结构上无改进空间」，不猜「数值上不会改进」）。
+  }
+
+  // ---- 全量路径：耦合势邻接表（只存正质量边）mass[i][j] = c(t_i, t_j)，i < j ----
   const mass = new Map<number, Map<number, number>>();
   const adjacency = (i: number): Map<number, number> => {
     let m = mass.get(i);
@@ -225,8 +359,10 @@ export function composeBatches(
     return m;
   };
   let totalMass = 0;
+  let massEvaluations = 0;
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
+      massEvaluations++;
       const m = pairMass(eligSets[i]!, pw[i]!, eligSets[j]!, pw[j]!, pairs, bonus);
       if (m > 0) {
         adjacency(i).set(j, m);
@@ -234,12 +370,6 @@ export function composeBatches(
         totalMass += m;
       }
     }
-  }
-
-  // 基线切片：引擎现行语义（输入序连续切块）
-  const batches: string[][] = [];
-  for (let i = 0; i < n; i += options.maxBatchSize) {
-    batches.push(ids.slice(i, i + options.maxBatchSize));
   }
 
   const index = new Map<string, number>(ids.map((id, i) => [id, i]));
@@ -264,6 +394,7 @@ export function composeBatches(
       capturedMass,
       totalMass,
       movesApplied: 0,
+      massEvaluations,
       strategy: options.improve === false ? 'baseline' : 'improved',
     };
   }
@@ -315,6 +446,7 @@ export function composeBatches(
     capturedMass: capturedOf(batches),
     totalMass,
     movesApplied,
+    massEvaluations,
     strategy: 'improved',
   };
 }
