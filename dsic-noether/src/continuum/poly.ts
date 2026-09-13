@@ -246,6 +246,23 @@ export function pSubst(p: Poly, idx: number, q: Poly): Poly {
   pAssertSame(p, q, "pSubst");
   let out = pZero(p.vars);
   const arity = p.vars.length;
+  // per-invocation factor cache: monomials repeat (variable, degree) pairs,
+  // and the substituted variable repeats its own powers — the same factor
+  // polynomials (same objects, same coefficients) are simply handed out again
+  const monoPowers = new Map<string, Poly>();
+  const qPowers = new Map<number, Poly>();
+  const factorFor = (i: number, ei: number): Poly =>
+    i === idx
+      ? (qPowers.get(ei) ?? (() => {
+          const f = polyPower(q, ei);
+          qPowers.set(ei, f);
+          return f;
+        })())
+      : (monoPowers.get(`${i}:${ei}`) ?? (() => {
+          const f = pMonoPower(p.vars, i, ei);
+          monoPowers.set(`${i}:${ei}`, f);
+          return f;
+        })());
   for (const [k, c] of p.mono) {
     const e = k.split(",").map(Number);
     let term = pConst(p.vars, c);
@@ -256,8 +273,7 @@ export function pSubst(p: Poly, idx: number, q: Poly): Poly {
       // draft multiplied q once regardless of degree and every diagonal
       // identity quietly passed for the wrong reason; the charge's closed
       // form caught it)
-      const factor = i === idx ? polyPower(q, ei) : pMonoPower(p.vars, i, ei);
-      term = pMul(term, factor);
+      term = pMul(term, factorFor(i, ei));
     }
     out = pAdd(out, term);
   }
@@ -278,15 +294,35 @@ export function pSubstAll(p: Poly, idxs: readonly number[], qs: readonly Poly[])
   for (const q of qs) pAssertSame(p, q, "pSubstAll");
   let out = pZero(p.vars);
   const arity = p.vars.length;
+  // per-invocation factor caches, same contract as pSubst's — the substituted
+  // powers key by (slot, degree): each slot holds its OWN polynomial, and a
+  // degree-only key would collide across slots
+  const monoPowers = new Map<string, Poly>();
+  const qPowers = new Map<string, Poly>();
+  const factorFor = (i: number, ei: number): Poly => {
+    const slot = idxs.indexOf(i);
+    if (slot < 0) {
+      const mk = `${i}:${ei}`;
+      return monoPowers.get(mk) ?? (() => {
+        const f = pMonoPower(p.vars, i, ei);
+        monoPowers.set(mk, f);
+        return f;
+      })();
+    }
+    const qk = `${slot}:${ei}`;
+    return qPowers.get(qk) ?? (() => {
+      const f = polyPower(qs[slot] as Poly, ei);
+      qPowers.set(qk, f);
+      return f;
+    })();
+  };
   for (const [k, c] of p.mono) {
     const e = k.split(",").map(Number);
     let term = pConst(p.vars, c);
     for (let i = 0; i < arity; i++) {
       const ei = e[i] as number;
       if (ei === 0) continue;
-      const slot = idxs.indexOf(i);
-      const factor = slot >= 0 ? polyPower(qs[slot] as Poly, ei) : pMonoPower(p.vars, i, ei);
-      term = pMul(term, factor);
+      term = pMul(term, factorFor(i, ei));
     }
     out = pAdd(out, term);
   }

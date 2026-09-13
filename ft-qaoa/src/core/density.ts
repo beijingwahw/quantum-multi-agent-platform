@@ -123,24 +123,29 @@ export class DensityMatrix {
   private mixQubitLeft(j: number, c: number, si: number): void {
     const { re, im, dim } = this;
     const bit = 1 << j;
-    for (let s0 = 0; s0 < dim; s0++) {
-      if (s0 & bit) continue;
-      const s1 = s0 | bit;
-      const r0 = s0 * dim;
-      const r1 = s1 * dim;
-      for (let t = 0; t < dim; t++) {
-        const a = r0 + t;
-        const b = r1 + t;
-        const re0 = re[a]!;
-        const im0 = im[a]!;
-        const re1 = re[b]!;
-        const im1 = im[b]!;
-        // (M rho)[s0,t] = c*rho[s0,t] - i*si*rho[s1,t]
-        re[a] = c * re0 + si * im1;
-        im[a] = c * im0 - si * re1;
-        // (M rho)[s1,t] = -i*si*rho[s0,t] + c*rho[s1,t]
-        re[b] = c * re1 + si * im0;
-        im[b] = c * im1 - si * re0;
+    // enumerate exactly the row pairs (s0 = s with bit cleared, s1 = s|bit) in
+    // ascending s0 order — the same updates in the same sequence as the
+    // masked scan, without visiting the skipped half of the range
+    for (let base = 0; base < dim; base += bit << 1) {
+      for (let off = 0; off < bit; off++) {
+        const s0 = base + off;
+        const s1 = s0 | bit;
+        const r0 = s0 * dim;
+        const r1 = s1 * dim;
+        for (let t = 0; t < dim; t++) {
+          const a = r0 + t;
+          const b = r1 + t;
+          const re0 = re[a]!;
+          const im0 = im[a]!;
+          const re1 = re[b]!;
+          const im1 = im[b]!;
+          // (M rho)[s0,t] = c*rho[s0,t] - i*si*rho[s1,t]
+          re[a] = c * re0 + si * im1;
+          im[a] = c * im0 - si * re1;
+          // (M rho)[s1,t] = -i*si*rho[s0,t] + c*rho[s1,t]
+          re[b] = c * re1 + si * im0;
+          im[b] = c * im1 - si * re0;
+        }
       }
     }
   }
@@ -150,21 +155,24 @@ export class DensityMatrix {
     const bit = 1 << j;
     for (let s = 0; s < dim; s++) {
       const row = s * dim;
-      for (let t0 = 0; t0 < dim; t0++) {
-        if (t0 & bit) continue;
-        const t1 = t0 | bit;
-        const a = row + t0;
-        const b = row + t1;
-        const re0 = re[a]!;
-        const im0 = im[a]!;
-        const re1 = re[b]!;
-        const im1 = im[b]!;
-        // (rho M†)[s,t0] = c*rho[s,t0] + i*si*rho[s,t1]
-        re[a] = c * re0 - si * im1;
-        im[a] = c * im0 + si * re1;
-        // (rho M†)[s,t1] = -i*si*rho[s,t0] + c*rho[s,t1]
-        re[b] = c * re1 - si * im0;
-        im[b] = c * im1 + si * re0;
+      // same pair enumeration as mixQubitLeft, on the column index
+      for (let base = 0; base < dim; base += bit << 1) {
+        for (let off = 0; off < bit; off++) {
+          const t0 = base + off;
+          const t1 = t0 | bit;
+          const a = row + t0;
+          const b = row + t1;
+          const re0 = re[a]!;
+          const im0 = im[a]!;
+          const re1 = re[b]!;
+          const im1 = im[b]!;
+          // (rho M†)[s,t0] = c*rho[s,t0] + i*si*rho[s,t1]
+          re[a] = c * re0 - si * im1;
+          im[a] = c * im0 + si * re1;
+          // (rho M†)[s,t1] = -i*si*rho[s,t0] + c*rho[s,t1]
+          re[b] = c * re1 - si * im0;
+          im[b] = c * im1 + si * re0;
+        }
       }
     }
   }
@@ -202,34 +210,41 @@ export class DensityMatrix {
     // Exactly one of {s, s^bit} carries bit j, so the s-without-bit member is
     // the canonical representative and each pair is written exactly once.
     // (The diagonal s === t is the classical bit-flip mixing of Pass 1.)
-    for (let s = 0; s < dim; s++) {
-      if (s & bit) continue;
-      const row = s * dim;
-      const partnerRow = (s | bit) * dim;
-      for (let t = 0; t < dim; t++) {
-        if (t & bit) continue;
-        const a = row + t;
-        const b = partnerRow + (t | bit);
-        const ra = re[a]!;
-        const ia = im[a]!;
-        const rb = re[b]!;
-        const ib = im[b]!;
-        re[a] = keepSame * ra + mixSame * rb;
-        im[a] = keepSame * ia + mixSame * ib;
-        re[b] = mixSame * ra + keepSame * rb;
-        im[b] = mixSame * ia + keepSame * ib;
+    for (let sBase = 0; sBase < dim; sBase += bit << 1) {
+      for (let sOff = 0; sOff < bit; sOff++) {
+        const s = sBase + sOff;
+        const row = s * dim;
+        const partnerRow = (s | bit) * dim;
+        for (let tBase = 0; tBase < dim; tBase += bit << 1) {
+          for (let tOff = 0; tOff < bit; tOff++) {
+            const t = tBase + tOff;
+            const a = row + t;
+            const b = partnerRow + (t | bit);
+            const ra = re[a]!;
+            const ia = im[a]!;
+            const rb = re[b]!;
+            const ib = im[b]!;
+            re[a] = keepSame * ra + mixSame * rb;
+            im[a] = keepSame * ia + mixSame * ib;
+            re[b] = mixSame * ra + keepSame * rb;
+            im[b] = mixSame * ia + keepSame * ib;
+          }
+        }
       }
     }
 
     // Pass 2 — entries differing on bit j: plain coherence decay, no mixing.
+    // Same (s, t) visit order as the masked scan (s ascending, t ascending),
+    // enumerated without stepping over the skipped half of each row.
     for (let s = 0; s < dim; s++) {
       const row = s * dim;
       const sHasBit = (s & bit) !== 0;
-      for (let t = 0; t < dim; t++) {
-        if (((t & bit) !== 0) === sHasBit) continue;
-        const idx = row + t;
-        re[idx] = keepDiff * re[idx]!;
-        im[idx] = keepDiff * im[idx]!;
+      for (let tBase = 0; tBase < dim; tBase += bit << 1) {
+        for (let tOff = 0; tOff < bit; tOff++) {
+          const idx = row + (sHasBit ? tBase + tOff : (tBase + tOff) | bit);
+          re[idx] = keepDiff * re[idx]!;
+          im[idx] = keepDiff * im[idx]!;
+        }
       }
     }
   }

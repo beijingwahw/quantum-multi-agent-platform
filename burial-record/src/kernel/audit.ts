@@ -61,6 +61,23 @@ import {
 
 const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
+/** The cited notes' text, read once per path per process. checkBurial runs
+ * per smuggling trial and every batch re-reads its anchor file, so one
+ * suite re-reads each daily note dozens of times; the notes are static for
+ * the duration of a run, and every reader (B4/B5/B8, B9, W-6) receives the
+ * same bytes the uncached road returned — only the I/O is shared, never a
+ * verdict. */
+const anchorTextCache = new Map<string, string>();
+
+function readAnchorText(path: string): string {
+  let text = anchorTextCache.get(path);
+  if (text === undefined) {
+    text = readFileSync(path, "utf8");
+    anchorTextCache.set(path, text);
+  }
+  return text;
+}
+
 /** the bookkeeping laws as the checker names them in its convictions. B6 is
  * absent by founding: the date-vs-anchor-file check it once described was
  * folded into B5 at the record's first draft, and no conviction ever carries
@@ -231,7 +248,7 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
     if (!existsSync(anchorPath)) {
       violations.push({ batch: b.batch, law: "B4", detail: `source anchor file missing: ${b.source.file}` });
     } else {
-      const anchorText = readFileSync(anchorPath, "utf8");
+      const anchorText = readAnchorText(anchorPath);
       const headingLine = headingLineOf(anchorText, b.source.heading);
       if (headingLine === null) {
         violations.push({ batch: b.batch, law: "B4", detail: `heading "${b.source.heading}" not found in ${b.source.file}` });
@@ -295,7 +312,7 @@ export function checkBurial(batches: readonly BurialBatch[] = BURIAL_RECORD): Vi
   for (const file of citedFiles) {
     const notePath = resolve(WORKSPACE_ROOT, file);
     if (!existsSync(notePath)) continue; // B4 already convicted the missing file
-    for (const m of memoryStructureViolations(readFileSync(notePath, "utf8"))) {
+    for (const m of memoryStructureViolations(readAnchorText(notePath))) {
       violations.push({ batch: 0, law: m.law, detail: `${file}: ${m.detail}` });
     }
   }
@@ -468,7 +485,7 @@ function witnessHeadingCounts(): WitnessResult {
   for (const b of BURIAL_RECORD) {
     const p = resolve(WORKSPACE_ROOT, b.source.file);
     if (!existsSync(p)) continue; // B4 owns the missing-file case
-    const text = readFileSync(p, "utf8");
+    const text = readAnchorText(p);
     const line = headingLineOf(text, b.source.heading);
     if (line === null) continue; // B4 owns the missing-heading case
     const d = statedDeliveryCounts(line);

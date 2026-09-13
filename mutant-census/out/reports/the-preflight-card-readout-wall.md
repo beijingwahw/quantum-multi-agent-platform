@@ -12,4 +12,4 @@
 | cat:dimension-slot | 1 | b23#1 (b23) | GATE-ENFORCED | drafts do not reach the machine dirty — cleaned in review before the run; the draft's errors still book |
 | cat:process | 1 | b23#3 (b23) | BOOKED-UNENFORCEABLE | the source repo's writeReport returns void and writes reports/, not out/reports/ — the render printed 'rendered -> undefined' until caught. Read the contract before wiring a reused file; same idiom is not same signature |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T21:12:11.259Z; src tree newest 2026-09-11T21:00:41.965Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T01:41:12.285Z; src tree newest 2026-09-13T01:40:06.717Z — FRESH (the newest render postdates every source)

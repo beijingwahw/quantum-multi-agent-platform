@@ -170,27 +170,54 @@ export function gridPoints(): Frac[] {
   return pts;
 }
 
+/**
+ * Per-path memo for the chi families: pure functions of (lambda, path), and
+ * expensive — each evaluation runs two ln-series enclosures per entropy term
+ * over exact BigInt rationals. The witnesses, the certificates, and the tests
+ * all ask for the same (grid point, path) pairs, so the second ask returns the
+ * first ask's interval object — same value, same exact representation.
+ */
+const chiMemo = new Map<LnPath, Map<string, Ivl>>();
+
+function memoizedChi(family: string, lambda: Frac, path: LnPath, compute: () => Ivl): Ivl {
+  let perPath = chiMemo.get(path);
+  if (perPath === undefined) {
+    perPath = new Map<string, Ivl>();
+    chiMemo.set(path, perPath);
+  }
+  const key = `${family}|${lambda.n}/${lambda.d}`;
+  const hit = perPath.get(key);
+  if (hit !== undefined) return hit;
+  const iv = compute();
+  perPath.set(key, iv);
+  return iv;
+}
+
 /** F1: chi(lambda) for the ESC18 weak-readout family, exact enclosure. */
 export function esc18Chi(lambda: Frac, path: LnPath = PATH_T): Ivl {
-  const l = lambda;
-  const avgEntropy = iAdd(
-    iScaleNonneg(fTerm(fDiv(fSub(fr(5), l), fr(16)), path), fr(2)),
-    iScaleNonneg(fTerm(fDiv(fAdd(fr(3), l), fr(16)), path), fr(2)),
-  );
-  const memberEntropy = iAdd(
-    fTerm(fDiv(fSub(fr(3), l), fr(8)), path),
-    iAdd(fTerm(fDiv(fAdd(fr(1), l), fr(8)), path), iScaleNonneg(fTerm(F_HALF, path), fr(2))),
-  );
-  return iSub(avgEntropy, memberEntropy);
+  return memoizedChi("esc18", lambda, path, () => {
+    const l = lambda;
+    const avgEntropy = iAdd(
+      iScaleNonneg(fTerm(fDiv(fSub(fr(5), l), fr(16)), path), fr(2)),
+      iScaleNonneg(fTerm(fDiv(fAdd(fr(3), l), fr(16)), path), fr(2)),
+    );
+    const memberEntropy = iAdd(
+      fTerm(fDiv(fSub(fr(3), l), fr(8)), path),
+      iAdd(fTerm(fDiv(fAdd(fr(1), l), fr(8)), path), iScaleNonneg(fTerm(F_HALF, path), fr(2))),
+    );
+    return iSub(avgEntropy, memberEntropy);
+  });
 }
 
 /** F2: control-ensemble chi(lambda) for the replacer family, exact enclosure. */
 export function replacerChi(lambda: Frac, path: LnPath = PATH_T): Ivl {
-  const l = lambda;
-  const avg = iAdd(fTerm(fDiv(fSub(fr(3), l), fr(4)), path), fTerm(fDiv(fAdd(fr(1), l), fr(4)), path));
-  const memberU = iAdd(fTerm(fDiv(l, fr(2)), path), fTerm(fDiv(fSub(fr(2), l), fr(2)), path));
-  const memberOrth = iAdd(fTerm(F_HALF, path), fTerm(F_HALF, path));
-  return iSub(avg, iScaleNonneg(iAdd(memberU, memberOrth), F_HALF));
+  return memoizedChi("replacer", lambda, path, () => {
+    const l = lambda;
+    const avg = iAdd(fTerm(fDiv(fSub(fr(3), l), fr(4)), path), fTerm(fDiv(fAdd(fr(1), l), fr(4)), path));
+    const memberU = iAdd(fTerm(fDiv(l, fr(2)), path), fTerm(fDiv(fSub(fr(2), l), fr(2)), path));
+    const memberOrth = iAdd(fTerm(F_HALF, path), fTerm(F_HALF, path));
+    return iSub(avg, iScaleNonneg(iAdd(memberU, memberOrth), F_HALF));
+  });
 }
 
 /** F3 member eigenvalue numerators over 48 (multiplicity in the list). */
@@ -205,19 +232,21 @@ const K3_AVG_BASE: readonly Frac[] = (() => {
 
 /** F3: chi(lambda) (coherence c = 1 - lambda) for the six-order family. */
 export function k3Chi(lambda: Frac, path: LnPath = PATH_T): Ivl {
-  const c = fSub(F_ONE, lambda);
-  const uniform = fr(1, 12);
-  let member = iOf(F_ZERO);
-  for (const n of K3_MEMBER_N) {
-    const eig = fAdd(fMul(c, fr(n, 48)), fMul(fSub(F_ONE, c), uniform));
-    member = iAdd(member, fTerm(eig, path));
-  }
-  let avg = iOf(F_ZERO);
-  for (const base of K3_AVG_BASE) {
-    const eig = fAdd(fMul(c, base), fMul(fSub(F_ONE, c), uniform));
-    avg = iAdd(avg, fTerm(eig, path));
-  }
-  return iSub(avg, member);
+  return memoizedChi("k3", lambda, path, () => {
+    const c = fSub(F_ONE, lambda);
+    const uniform = fr(1, 12);
+    let member = iOf(F_ZERO);
+    for (const n of K3_MEMBER_N) {
+      const eig = fAdd(fMul(c, fr(n, 48)), fMul(fSub(F_ONE, c), uniform));
+      member = iAdd(member, fTerm(eig, path));
+    }
+    let avg = iOf(F_ZERO);
+    for (const base of K3_AVG_BASE) {
+      const eig = fAdd(fMul(c, base), fMul(fSub(F_ONE, c), uniform));
+      avg = iAdd(avg, fTerm(eig, path));
+    }
+    return iSub(avg, member);
+  });
 }
 
 // --- the certificates (memoized — pure and expensive) ----------------------------------------

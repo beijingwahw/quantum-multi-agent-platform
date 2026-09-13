@@ -21,7 +21,7 @@ The noise model is synthetic (symmetric flips) and says so — real readout conf
 
 ```bash
 npm ci
-npm test        # 45/45 — instances, kernel machinery, power engine, tables, smuggling trials, discriminator, entry guard, the named error surface, hand-checkable gate anchors, same-seed determinism
+npm test        # 50/50 — instances, kernel machinery, power engine, tables, smuggling trials, discriminator, entry guard, the named error surface, hand-checkable gate anchors, same-seed determinism
 npm run repro   # renders out/reports/the-xval-package.md (~2–4 min: full allocation table + census, every row re-checked)
 ```
 

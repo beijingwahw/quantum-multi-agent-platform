@@ -2,7 +2,10 @@ import { Rng } from "../core/rng.js";
 import { bruteForce, energies, maxcut3Reg, randomIsing } from "../core/ising.js";
 import type { IsingModel } from "../core/ising.js";
 import type { DriverSpec } from "../anneal/driver.js";
+import { xBasisEnergies } from "../anneal/driver.js";
 import { anneal } from "../anneal/anneal.js";
+import { projectGroundState } from "../anneal/project.js";
+import { zeroSpectrum } from "../core/spectra.js";
 import { fmt, writeReport } from "./common.js";
 import { pathToFileURL } from "node:url";
 
@@ -45,8 +48,19 @@ export function main(): void {
         gamma: 1,
         couplings: inst.model.couplings.map((c) => ({ j: c.j, k: c.k, w: kappa })),
       };
+      // The driver-ground preparation depends only on (n, driver) — identical
+      // for every T of this kappa — so project once and hand the same state to
+      // each anneal (anneal clones it). Same deterministic projection as the
+      // previous per-call preparation, bit for bit.
+      const initial = projectGroundState(
+        inst.model.n,
+        zeroSpectrum(inst.model.n),
+        xBasisEnergies(inst.model.n, driver),
+        0,
+        { dtau: 0.08, maxSteps: 4000, tolerance: 1e-12 },
+      ).state;
       for (const T of TIMES) {
-        const result = anneal(inst.model, E, optimum, driver, { time: T, slices: SLICES });
+        const result = anneal(inst.model, E, optimum, driver, { time: T, slices: SLICES, initial });
         rows.push({
           instance: inst.id,
           kappa,

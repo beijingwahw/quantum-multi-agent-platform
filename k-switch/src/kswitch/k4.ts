@@ -247,6 +247,23 @@ export interface QuadCensus {
   readonly mixed: number;
 }
 
+/** The pairwise commute signs of the 15 non-identity two-qubit Paulis,
+ * computed once: the quad census visits C(15,2)·C(13,2)/… pairs ~78× over
+ * its 1365 quadruples, and the sign of a given pair is a pure function of
+ * the two Paulis — the table holds exactly the values the per-quadruple
+ * recomputation produced (the same function on the same matrices). */
+const PAIRWISE_SIGNS: ReadonlyArray<readonly number[]> = (() => {
+  const table: number[][] = [];
+  for (let i = 0; i < 15; i++) {
+    const row: number[] = [];
+    for (let j = 0; j < 15; j++) {
+      row.push(i === j ? 1 : pauliCommuteSign(PAULIS4[i + 1]!.mat, PAULIS4[j + 1]!.mat));
+    }
+    table.push(row);
+  }
+  return table;
+})();
+
 /**
  * Exhaustive census over the C(15,4) = 1365 quadruples of non-identity
  * two-qubit Paulis: classify pairwise-commuting vs pairwise-anticommuting vs
@@ -265,7 +282,7 @@ export function pauliQuadCensus(): QuadCensus {
           const indices: [number, number, number, number] = [i + 1, j + 1, k + 1, l + 1]; // skip index 0 (I⊗I)
           const boxes: Quad = [PAULIS4[indices[0]]!.mat, PAULIS4[indices[1]]!.mat, PAULIS4[indices[2]]!.mat, PAULIS4[indices[3]]!.mat];
           const pairs: ReadonlyArray<[number, number]> = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
-          const signs = pairs.map(([a, b]) => pauliCommuteSign(boxes[a]!, boxes[b]!));
+          const signs = pairs.map(([a, b]) => PAIRWISE_SIGNS[indices[a]! - 1]![indices[b]! - 1]!);
           if (signs.includes(0)) throw new KSwitchError("CENSUS-NON-PAULI-PAIR", `a census pair at ${indices.toString()} neither commutes nor anticommutes — the PAULIS4 table is corrupt`);
           const allC = signs.every((s) => s === 1);
           const allA = signs.every((s) => s === -1);

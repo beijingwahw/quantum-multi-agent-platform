@@ -48,17 +48,28 @@ export function bbbvCheck(N: number, q: number, tol = 1e-12): BbbvCheck {
   const ref = evolve(N, -1, q); // oracle-free reference
   const hybridBound = (2 * q) / Math.sqrt(N);
   const corollaryBound = (2 * q + 1) ** 2 / N;
+  // the per-x evolutions run the same float ops into a reused buffer — bbbvCheck
+  // fully consumes each state before the next evolve, so the scratch is safe
+  // and the arithmetic (hence every reported number) is unchanged
+  const scratch = new Float64Array(N);
   let maxDist = 0;
   let maxSuccess = 0;
   for (let x = 0; x < N; x++) {
-    const psi = evolve(N, x, q);
+    scratch.fill(1 / Math.sqrt(N));
+    for (let iter = 0; iter < q; iter++) {
+      scratch[x] = -scratch[x]!;
+      let mean = 0;
+      for (let i = 0; i < N; i++) mean += scratch[i] as number;
+      mean /= N;
+      for (let i = 0; i < N; i++) scratch[i] = 2 * mean - (scratch[i] as number);
+    }
     let d2 = 0;
     for (let i = 0; i < N; i++) {
-      const d = (psi[i] as number) - (ref[i] as number);
+      const d = (scratch[i] as number) - (ref[i] as number);
       d2 += d * d;
     }
     maxDist = Math.max(maxDist, Math.sqrt(d2));
-    maxSuccess = Math.max(maxSuccess, (psi[x] as number) ** 2);
+    maxSuccess = Math.max(maxSuccess, (scratch[x] as number) ** 2);
   }
   return {
     N,

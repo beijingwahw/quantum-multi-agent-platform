@@ -136,8 +136,29 @@ export const CENSUS_DELTAS: readonly number[] = [0.01, 0.05, 0.1, 0.25];
 /** The degradation band edges: symmetric flip probability range. */
 export const CENSUS_BAND: readonly [number, number] = [0.01, 0.05];
 
-/** Census for one probe (instance, depth): every angle x every delta. */
+/** Census for one probe (instance, depth): every angle x every delta.
+ *  Memoized per probe object and delta grid: the render pipeline, its X7
+ *  checker, and the summary/specimen tables all evaluate the SAME (probe,
+ *  deltas) census — a pure deterministic function of immutable inputs, so a
+ *  hit returns the exact object the first walk produced (every row value
+ *  bit-identical; the checker's recompute-compare still runs on every row).
+ */
+const perturbCensusMemo = new WeakMap<ExactProbe, Map<string, PerturbCensus>>();
 export function perturbCensus(probe: ExactProbe, deltas: readonly number[]): PerturbCensus {
+  const deltaKey = deltas.join(",");
+  let perProbe = perturbCensusMemo.get(probe);
+  if (perProbe === undefined) {
+    perProbe = new Map<string, PerturbCensus>();
+    perturbCensusMemo.set(probe, perProbe);
+  }
+  const hit = perProbe.get(deltaKey);
+  if (hit !== undefined) return hit;
+  const census = perturbCensusWalk(probe, deltas);
+  perProbe.set(deltaKey, census);
+  return census;
+}
+
+function perturbCensusWalk(probe: ExactProbe, deltas: readonly number[]): PerturbCensus {
   const { inst, depth, params, costs, eStar } = probe;
   const rows: PerturbRow[] = [];
   for (let l = 0; l < depth; l++) {

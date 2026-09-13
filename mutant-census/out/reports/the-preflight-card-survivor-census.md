@@ -12,6 +12,6 @@
 | cat:process | 1 | b29#5 (b29) | BOOKED-UNENFORCEABLE | tsc named all three before any test ran — drafts do not reach the machine dirty, and every draft's errors book |
 | cat:statistics | 1 | b29#1 (b29) | BOOKED-UNENFORCEABLE | float drift 4.4e-5, far past the tolerance — the second path became the closed-form partial sum (1-(K+1)q^K+Kq^{K+1})/p with analytic tail < 1e-12 of the mean, and the loop referee stays only at moderate P where K is small. A second path must be independent AND numerically stable, not the same sum in another accent |
 | cat:toolchain | 1 | b29#3 (b29) | BOOKED-UNENFORCEABLE | test/ sits TWO levels below the workspace — G3 misreported every live anchor as dead (postselect-sched, retro-cache all 'not on disk'). The climb depth belongs to the file's own position; count your own directories before copying a neighbor's relative root |
-| cat:wrong-object | 1 | b29#2 (b29) | GATE-ENFORCED | the normalized weight sum is 1+2.2e-16 — degenerate assertions over float sums take tolerances; the same eps pushed waitingPrice's domain check to throw on p=1+eps |
+| cat:wrong-object | 1 | b29#2 (b29) | BOOKED-UNENFORCEABLE | the normalized weight sum is 1+2.2e-16 — degenerate assertions over float sums take tolerances; the same eps pushed waitingPrice's domain check to throw on p=1+eps |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T21:10:38.897Z; src tree newest 2026-09-11T19:20:33.069Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T02:16:25.150Z; src tree newest 2026-09-11T19:20:33.069Z — FRESH (the newest render postdates every source)

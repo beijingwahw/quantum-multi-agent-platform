@@ -107,8 +107,27 @@ describe('QuantumBus 攻击面可观测性回归', () => {
           quantumState: { id: 'qs', amplitude: 1, phase: 0, collapsed: true },
         }),
       );
-      // 静默拒绝无事件可等（设计如此），按时间窗吸收 CI 负载
-      await new Promise((r) => setTimeout(r, 200));
+      // 静默拒绝无事件可等（设计如此）。S1（R13 测试网）：原 sleep(200)
+      // 时间窗改为同连接有序定罪——以真实身份发往离线 agent 的后续帧的
+      // message_queued 事件到达时，冒用帧必然已被处理
+      const legitQueued = waitForEvent<{ agentId: string }>(
+        bus,
+        'message_queued',
+        (e) => e.agentId === 'ag-offline-3',
+      );
+      ws.send(
+        JSON.stringify({
+          id: 'legit-1',
+          type: 'request',
+          sourceAgentId: 'ag1',
+          targetAgentId: 'ag-offline-3',
+          content: {},
+          timestamp: new Date().toISOString(),
+          priority: 'medium',
+          quantumState: { id: 'qs', amplitude: 1, phase: 0, collapsed: true },
+        }),
+      );
+      await legitQueued;
 
       assert.equal(
         bus.getMetrics().security.identitySpoofRejections,
@@ -130,8 +149,22 @@ describe('QuantumBus 攻击面可观测性回归', () => {
       // 未认证即查询快照 / 下发远程命令：两者都只 warn 不计数（缺陷）
       ws.send(JSON.stringify({ type: 'console_query' }));
       ws.send(JSON.stringify({ type: 'console_command', action: 'submit_task', payload: {} }));
-      // 快照响应只发给已认证连接的事件不适用——这里等一小窗让总线吸收两帧
-      await new Promise((r) => setTimeout(r, 200));
+      // S1（R13 测试网）：原 sleep(200) 时间窗改为同连接有序定罪——
+      // 认证后再发 console_query，bus 的 console_query 事件（仅认证路径
+      // 发出）到达时，前两帧必然已被处理
+      ws.send(JSON.stringify({ type: 'authenticate', agentId: 'ag1', token: 't0k3n' }));
+      await waitForEvent<{ agentId: string }>(
+        bus,
+        'agent_authenticated',
+        (e) => e.agentId === 'ag1',
+      );
+      const querySeen = waitForEvent<{ agentId: string }>(
+        bus,
+        'console_query',
+        (e) => e.agentId === 'ag1',
+      );
+      ws.send(JSON.stringify({ type: 'console_query' }));
+      await querySeen;
 
       assert.equal(
         bus.getMetrics().security.unauthenticatedRejections,

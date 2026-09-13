@@ -803,21 +803,25 @@ export class QuantumEngineOrchestrator {
     }
 
     // 纠缠耦合：任意两任务落在纠缠agent对上 → 福利加成（哈密顿量的物理耦合项）
+    // R13（P3 循环不变量外提）： ineligible[t1][a1] 与纠缠数组引用对 a2
+    // 不变——外提为 a2 循环前的守卫与一次引用读取。条件是纯谓词 &&
+    // 短路重排不改变任何 (t1,t2,a1,a2) 组合的判定结果；couplings 的
+    // 插入序与键值逐项不变（原序 = 通过判定的组合的 (t1,t2,a1,a2)
+    // 字典序，被跳过的 a1 本就不产生任何插入）。
     let couplingCount = 0;
     for (let t1 = 0; t1 < chunk.length; t1++) {
       for (let t2 = t1 + 1; t2 < chunk.length; t2++) {
         const pwMin =
           Math.min(PRIORITY_WEIGHT[chunk[t1]!.priority], PRIORITY_WEIGHT[chunk[t2]!.priority]) / 4;
         for (let a1 = 0; a1 < idlePool.length; a1++) {
+          if (problem.ineligible[t1]![a1]!) continue;
+          const entanglementOfA1 = idlePool[a1]!.quantumEntanglement;
+          const key1 = t1 * idlePool.length + a1;
           for (let a2 = 0; a2 < idlePool.length; a2++) {
             if (a1 === a2) continue;
-            if (
-              idlePool[a1]!.quantumEntanglement.includes(idlePool[a2]!.id) &&
-              !problem.ineligible[t1]![a1]! &&
-              !problem.ineligible[t2]![a2]!
-            ) {
+            if (entanglementOfA1.includes(idlePool[a2]!.id) && !problem.ineligible[t2]![a2]!) {
               problem.couplings.set(
-                couplingKey(t1 * idlePool.length + a1, t2 * idlePool.length + a2, nqubits),
+                couplingKey(key1, t2 * idlePool.length + a2, nqubits),
                 entanglementBonus * pwMin,
               );
               couplingCount++;

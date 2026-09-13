@@ -64,15 +64,19 @@ export function groverFindBetter<T>(
 ): { index: number; reads: number } {
   if (!Number.isInteger(n) || n < 1) reject("GROVER_N_RANGE", "n >= 1 items to search");
   const kMax = bbhtKMax(n);
+  // The marked set is attempt-invariant (threshold, table and comparator are
+  // fixed for this call) — enumerate once instead of once per retry. The
+  // enumeration consumes no randomness, so the rng draw order (k before the
+  // empty-set check, as before) is untouched.
+  const marked: number[] = [];
+  for (let i = 0; i < n; i++) if (less(value(i), thresholdValue)) marked.push(i);
+  const t = marked.length;
   for (let attempt = 0; attempt < GROVER_ATTEMPTS; attempt++) {
     const k = rng.int(kMax + 1);
     const reads = sweepReads(k);
     // Exact Grover outcome: we need the marked set to sample uniformly. The
-    // full-table enumeration below is the simulator's referee privilege (see
+    // full-table enumeration above is the simulator's referee privilege (see
     // groverFindMarked) — the reads ledger charges only the Grover iterations.
-    const marked: number[] = [];
-    for (let i = 0; i < n; i++) if (less(value(i), thresholdValue)) marked.push(i);
-    const t = marked.length;
     if (t === 0) return { index: -1, reads };
     const success = groverSuccessClosedForm(t / n, k);
     if (rng.next() < success) {

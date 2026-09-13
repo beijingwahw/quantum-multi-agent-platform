@@ -324,7 +324,7 @@ regime（QAOA 真正困难的区间）上，α=0.1 温和而稳定地优于均�
    自动回退全空间分块或贪心。8×10 属质量模式而非热路径——v1.6 内核使其
    演化提速 23.5×（同机同状态，16 线程，逐位一致），见七½节。
 
-## 九、测试覆盖（124 个量子/基线/QPU 用例 / 全套 695 用例）
+## 九、测试覆盖（124 个量子/基线/QPU 用例 / 全套 749 用例）
 
 量子/基线/QPU 家族构成：quantum-optimizer 20 + subspace-optimizer 10 +
 subspace-parallel 11 + classical-baselines 5 + qpu-backend 12 +
@@ -359,7 +359,7 @@ QAOA 末态干涉集中、Born 坍缩分布合理性。
 
 ```bash
 npm run build           # TypeScript 严格模式零错误
-npm test                # 695 用例 · 0 失败（含 124 个量子/基线/QPU 用例）
+npm test                # 749 用例 · 0 失败（含 124 个量子/基线/QPU 用例）
 npm run example:quantum # 量子突破基准（七部分）
 npm run example:qpu     # 真 QPU 执行入口（自动检测凭据）
 ```

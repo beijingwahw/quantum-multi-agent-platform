@@ -11,4 +11,4 @@
 | cat:conjugation | 1 | b28#2 (b28) | GATE-ENFORCED | an incomplete complex-product real part (batch 10's conjugate-side class, third appearance this session) — caught by the NaN-energy probe before any number was written |
 | cat:process | 1 | b28#3 (b28) | BOOKED-UNENFORCEABLE | 4 linear + 16 coupled against the spec's 5 + 15 — count the construction before truncating it |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T21:12:02.971Z; src tree newest 2026-09-11T14:58:59.803Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T02:32:03.188Z; src tree newest 2026-09-13T02:26:55.393Z — FRESH (the newest render postdates every source)

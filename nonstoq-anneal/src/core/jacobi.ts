@@ -16,6 +16,17 @@ export function jacobiEigenWithVectors(matrix: number[][]): {
   eigenvalues: number[];
   eigenvectors: number[][];
 } {
+  return jacobiCore(matrix, true);
+}
+
+/**
+ * 值路径与向量路径共享同一旋转核心（wantVectors 只跳过 V 的累积——V 的
+ * 写入从不回流进 A 的旋转算术，故特征值逐位不变；纯性能分叉，非第二核心）。
+ */
+function jacobiCore(matrix: number[][], wantVectors: boolean): {
+  eigenvalues: number[];
+  eigenvectors: number[][];
+} {
   const m = matrix.length;
   const a = matrix.map((r) => [...r]);
   const V: number[][] = Array.from({ length: m }, (_, i) =>
@@ -44,11 +55,13 @@ export function jacobiEigenWithVectors(matrix: number[][]): {
           a[p]![i] = c * api - s * aqi;
           a[q]![i] = s * api + c * aqi;
         }
-        for (let i = 0; i < m; i++) {
-          const vip = V[i]![p]!;
-          const viq = V[i]![q]!;
-          V[i]![p] = c * vip - s * viq;
-          V[i]![q] = s * vip + c * viq;
+        if (wantVectors) {
+          for (let i = 0; i < m; i++) {
+            const vip = V[i]![p]!;
+            const viq = V[i]![q]!;
+            V[i]![p] = c * vip - s * viq;
+            V[i]![q] = s * vip + c * viq;
+          }
         }
       }
     }
@@ -62,7 +75,7 @@ export function jacobiEigenWithVectors(matrix: number[][]): {
 
 /** 稠密对称矩阵 Jacobi 特征值（升序；测试裁判与 Lanczos T 矩阵共用）。 */
 export function jacobiEigenvalues(matrix: number[][]): number[] {
-  const { eigenvalues } = jacobiEigenWithVectors(matrix);
+  const { eigenvalues } = jacobiCore(matrix, false);
   eigenvalues.sort((x, y) => x - y);
   return eigenvalues;
 }

@@ -38,7 +38,25 @@ export const PAULI: readonly CMat[] = [
   { dim: 2, re: [[1, 0], [0, -1]], im: [[0, 0], [0, 0]] }, // 3: Z
 ];
 
+// The 256 four-fold Pauli tensor products are constants of the frozen PAULI
+// table: pauliCoefficients asks for all of them per call (and the certificate
+// chain asks for pauliCoefficients hundreds of times per report), so the
+// products are built once, lazily, and shared. The memo holds exactly what
+// cmatKron4 would recompute — every consumer treats them as read-only kron /
+// trace operands, none mutates its inputs.
+const pauliProducts: (CMat | undefined)[] = new Array<CMat | undefined>(4 ** 4).fill(undefined);
+
 export function pauliProduct(j: number, k: number, l: number, m: number): CMat {
+  if (j >= 0 && j < 4 && k >= 0 && k < 4 && l >= 0 && l < 4 && m >= 0 && m < 4) {
+    const idx = ((j * 4 + k) * 4 + l) * 4 + m;
+    const cached = pauliProducts[idx] as CMat | undefined;
+    if (cached !== undefined) return cached;
+    const prod = cmatKron4(PAULI[j] as CMat, PAULI[k] as CMat, PAULI[l] as CMat, PAULI[m] as CMat);
+    pauliProducts[idx] = prod;
+    return prod;
+  }
+  // out of the Pauli table: identical to the unmemoized path (PAULI[j] reads
+  // undefined and the shape guard names it), never cached
   return cmatKron4(PAULI[j] as CMat, PAULI[k] as CMat, PAULI[l] as CMat, PAULI[m] as CMat);
 }
 

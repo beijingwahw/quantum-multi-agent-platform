@@ -8,7 +8,7 @@
 | family | sightings | latest | held by | the rule (the latest correction) |
 | --- | --- | --- | --- | --- |
 | cat:conjugation | 2 | b20#4 (b20) | GATE-ENFORCED | two easy misses: T_zz = +1 (the Z(x)Z diagonal (-1)(-1) = +1 — both-side signs MULTIPLY) and T_xy = T_yx = sin(theta) (coherent off-diagonal) — hand-derive the full tensor closed form before coding |
-| cat:wrong-object | 2 | b20#3 (b20) | GATE-ENFORCED | non-unitary CPTP legitimately biases B's own coin (E(I/2) != I/2) — the invariant is 'independent of A'; write the physical object first |
+| cat:wrong-object | 2 | b20#3 (b20) | BOOKED-UNENFORCEABLE | non-unitary CPTP legitimately biases B's own coin (E(I/2) != I/2) — the invariant is 'independent of A'; write the physical object first |
 | cat:dimension-slot | 1 | b20#1 (b20) | GATE-ENFORCED | the Stinespring dilation is constructed on the FULL (A) (x) (B (x) env) space with the control straddling A — the A-dependence test alarmed maxdiff 190-scale at once; dimension accounts before matrix multiplies |
 
-Reports freshness (the repro-no-op face, v0.22.0): 6 reports on disk; newest render 2026-09-11T21:02:38.791Z; src tree newest 2026-09-11T16:00:51.839Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 6 reports on disk; newest render 2026-09-13T02:31:35.352Z; src tree newest 2026-09-13T02:29:25.290Z — FRESH (the newest render postdates every source)

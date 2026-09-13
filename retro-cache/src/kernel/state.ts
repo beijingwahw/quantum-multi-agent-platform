@@ -202,14 +202,27 @@ export function jointTable(rho: CMat, a: readonly number[], b: readonly number[]
     [0, 0],
     [0, 0],
   ];
-  const signs: Array<[1 | -1, 1 | -1]> = [
-    [1, 1],
-    [1, -1],
-    [-1, 1],
-    [-1, -1],
+  // each sign pair's projector kron was built twice per iteration (once per
+  // side of the expectation) and each axis projector four times over the
+  // sign loop; every copy was an equal-valued matrix feeding the same
+  // multiplies, so the four krons are hoisted and reused — same values,
+  // same multiply order, one construction each
+  const pa1 = projector(a, 1);
+  const pa2 = projector(a, -1);
+  const pb1 = projector(b, 1);
+  const pb2 = projector(b, -1);
+  const p11 = kron2(pa1, pb1);
+  const p1m = kron2(pa1, pb2);
+  const pm1 = kron2(pa2, pb1);
+  const pmm = kron2(pa2, pb2);
+  const signs: Array<[1 | -1, 1 | -1, CMat]> = [
+    [1, 1, p11],
+    [1, -1, p1m],
+    [-1, 1, pm1],
+    [-1, -1, pmm],
   ];
-  for (const [xs, ys] of signs) {
-    const m = cmatMul(cmatMul(kron2(projector(a, xs), projector(b, ys)), rho), kron2(projector(a, xs), projector(b, ys)));
+  for (const [xs, ys, p] of signs) {
+    const m = cmatMul(cmatMul(p, rho), p);
     const tr = trace(m);
     out[xs === 1 ? 0 : 1][ys === 1 ? 0 : 1] = tr.re;
   }
@@ -332,7 +345,14 @@ export function mutualInfoBits(table: ReadonlyArray<readonly number[]>): number 
   if (table.length === 0) throw new RcError("RC_EMPTY_TABLE", "mutualInfoBits: table must have at least one row");
   const n = table.length;
   const m = table[0]!.length;
-  const total = table.flat().reduce((a, b) => a + b, 0);
+  // single row-major pass for the total — the same left-to-right accumulation
+  // over the same elements (each row's actual length, like flat()) that the
+  // previous `table.flat().reduce((a, b) => a + b, 0)` performed, without the
+  // two flat/map copies (W5 measures this on 256x256 tables, hundreds of times)
+  let total = 0;
+  for (const rowI of table) {
+    for (const v of rowI) total += v;
+  }
   // an all-zero (or non-finite) table is not a distribution: normalizing by
   // total would silently yield NaN entropies and MI = 0
   if (!(total > 0)) throw new RcError("RC_ZERO_TABLE", `mutualInfoBits: table entries must sum to a positive finite total (got ${total})`);
@@ -350,7 +370,19 @@ export function mutualInfoBits(table: ReadonlyArray<readonly number[]>): number 
   }
   const hx = entropyBits(row.map((x) => x / total));
   const hy = entropyBits(col.map((x) => x / total));
-  const hxy = entropyBits(table.flat().map((x) => x / total));
+  // the joint entropy, inlined over the same row-major element order and the
+  // same per-element operations (normalize, reject non-finite/negative, then
+  // h -= p*log2(p)) that entropyBits over the flattened normalized table
+  // performed — same adds, same order, same message, no 65k-element copies
+  let hxy = 0;
+  for (let i = 0; i < n; i++) {
+    const rowI = table[i]!;
+    for (const raw of rowI) {
+      const p = raw / total;
+      if (!Number.isFinite(p) || p < 0) throw new RcError("RC_NEG_PROB", `entropyBits: negative or non-finite weight ${p}`);
+      if (p > 0) hxy -= p * Math.log2(p);
+    }
+  }
   return hx + hy - hxy;
 }
 

@@ -136,17 +136,26 @@ function newestMtime(dir: string): number | null {
 
 /** The live freshness of one repo's reports, gathered from disk. */
 export function reportsFreshness(repo: string, root = resolve(process.cwd(), "..")): ReportsFreshness {
+  // R13: the collection face is the UNION of the three render layouts the epoch
+  // actually uses — out/reports/*.md (the canon), out/*.md flat (qverify,
+  // nonstoq-anneal, quantum-mech, ent-sched, ft-qaoa), and repo-root reports/*.md
+  // (switch-sched). Scanning only out/reports made those six read as NO-REPORTS
+  // while their renders silently went stale — the exact repro-no-op face this
+  // signal exists to catch. The flat scans are non-recursive and disjoint from
+  // out/reports, so nothing is double-counted; mtime-max semantics unchanged.
   let reportCount = 0;
   let newestReportMs: number | null = null;
-  const reportDir = resolve(root, repo, "out", "reports");
-  if (existsSync(reportDir)) {
-    const names = readdirSync(reportDir).filter((f) => f.endsWith(".md"));
-    reportCount = names.length;
-    for (const n of names) {
-      const ms = statSync(resolve(reportDir, n)).mtimeMs;
+  const gather = (dir: string): void => {
+    if (!existsSync(dir)) return;
+    for (const n of readdirSync(dir).filter((f) => f.endsWith(".md"))) {
+      reportCount += 1;
+      const ms = statSync(resolve(dir, n)).mtimeMs;
       if (newestReportMs === null || ms > newestReportMs) newestReportMs = ms;
     }
-  }
+  };
+  gather(resolve(root, repo, "out", "reports"));
+  gather(resolve(root, repo, "out"));
+  gather(resolve(root, repo, "reports"));
   const newestSrcMs = newestMtime(resolve(root, repo, "src"));
   return { repo, reportCount, newestReportMs, newestSrcMs, verdict: freshnessVerdict(newestSrcMs, newestReportMs) };
 }

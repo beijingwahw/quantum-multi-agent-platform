@@ -8,6 +8,16 @@ import { ToolError } from '../utils/errors.js';
  * WebSocket 控制台协议之后，不可信任调用方输入）。
  */
 let sandboxRoot: string = process.cwd();
+// 前缀比对串与 win32 小写形态随 sandboxRoot 一同维护（R13）：此前每次
+// 路径校验都重新拼接分隔符后缀并 toLowerCase——纯不变量，外提到与
+// sandboxRoot 相同的赋值点，热路径零字符串构造。
+let sandboxRootWithSep: string = sandboxRoot.endsWith(sep) ? sandboxRoot : sandboxRoot + sep;
+let sandboxRootWithSepLower: string = sandboxRootWithSep.toLowerCase();
+
+function refreshSandboxPrefixes(): void {
+  sandboxRootWithSep = sandboxRoot.endsWith(sep) ? sandboxRoot : sandboxRoot + sep;
+  sandboxRootWithSepLower = sandboxRootWithSep.toLowerCase();
+}
 
 /** 收紧/调整沙箱根目录（仅接受已存在的目录路径） */
 export async function setFsSandboxRoot(root: string): Promise<void> {
@@ -17,6 +27,7 @@ export async function setFsSandboxRoot(root: string): Promise<void> {
     throw new ToolError(`Sandbox root '${root}' must be an existing directory`);
   }
   sandboxRoot = await realpath(absolute);
+  refreshSandboxPrefixes();
 }
 
 const MAX_LINK_DEPTH = 40;
@@ -50,11 +61,10 @@ async function resolveReal(pathStr: string): Promise<string> {
 async function resolveWithinSandbox(path: string): Promise<string> {
   const absolute = resolve(sandboxRoot, path);
   const real = await resolveReal(absolute);
-  const rootWithSep = sandboxRoot.endsWith(sep) ? sandboxRoot : sandboxRoot + sep;
   const isInside =
     process.platform === 'win32'
-      ? real.toLowerCase().startsWith(rootWithSep.toLowerCase())
-      : real.startsWith(rootWithSep);
+      ? real.toLowerCase().startsWith(sandboxRootWithSepLower)
+      : real.startsWith(sandboxRootWithSep);
   if (!isInside && real !== sandboxRoot) {
     throw new ToolError(`Path '${path}' escapes the filesystem sandbox (root: ${sandboxRoot})`);
   }

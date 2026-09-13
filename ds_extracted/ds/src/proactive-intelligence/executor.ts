@@ -399,6 +399,15 @@ export class ActionExecutor extends EventEmitter {
     return history;
   }
 
+  /**
+   * 历史条目数（R13 性能）：监控路径只需长度时避免 getExecutionHistory()
+   * 的全量数组拷贝（历史上限 10000 条——为取一个数字拷一万份引用纯属
+   * 搅动）。与 getExecutionHistory().length 恒等。
+   */
+  getExecutionHistorySize(): number {
+    return this.executionHistory.length;
+  }
+
   /** 取消执行（标记失败并写入历史——修复此前取消的执行不进历史） */
   cancelExecution(executionId: string): boolean {
     const execution = this.runningExecutions.get(executionId);

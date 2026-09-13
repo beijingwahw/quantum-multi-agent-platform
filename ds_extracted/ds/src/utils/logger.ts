@@ -100,53 +100,39 @@ function emit(
   stream(`[${ts}] [${level}] [${tag}]`, ...args);
 }
 
+// 输出流适配器（模块常量，R13）：此前每条放行的日志行都在调用点新建
+// 一个闭包适配 console.*——日志是文档化的吞吐瓶颈（文件头注释），
+// 热路径上纯属分配搅动。console.* 在调用时解析：测试对 console 的
+// monkey-patch 语义与逐调用新建闭包完全一致。
+const writeOut = (line: string, ...rest: unknown[]): void => {
+  console.log(line, ...rest);
+};
+const writeWarn = (line: string, ...rest: unknown[]): void => {
+  console.warn(line, ...rest);
+};
+const writeErr = (line: string, ...rest: unknown[]): void => {
+  console.error(line, ...rest);
+};
+
 export function logDebug(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.debug) {
-    emit(
-      (line, ...rest) => {
-        console.log(line, ...rest);
-      },
-      'debug',
-      tag,
-      args,
-    );
+    emit(writeOut, 'debug', tag, args);
   }
 }
 
 export function logInfo(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.info) {
-    emit(
-      (line, ...rest) => {
-        console.log(line, ...rest);
-      },
-      'info',
-      tag,
-      args,
-    );
+    emit(writeOut, 'info', tag, args);
   }
 }
 
 export function logWarn(tag: string, ...args: unknown[]): void {
   if (currentLevel >= LEVEL_ORDER.warn) {
-    emit(
-      (line, ...rest) => {
-        console.warn(line, ...rest);
-      },
-      'warn',
-      tag,
-      args,
-    );
+    emit(writeWarn, 'warn', tag, args);
   }
 }
 
 export function logError(tag: string, ...args: unknown[]): void {
   // 错误永远输出：silent 只应压制噪音，不应吞掉故障信号
-  emit(
-    (line, ...rest) => {
-      console.error(line, ...rest);
-    },
-    'error',
-    tag,
-    args,
-  );
+  emit(writeErr, 'error', tag, args);
 }

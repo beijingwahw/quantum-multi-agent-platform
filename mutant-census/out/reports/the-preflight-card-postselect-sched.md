@@ -8,8 +8,8 @@
 | family | sightings | latest | held by | the rule (the latest correction) |
 | --- | --- | --- | --- | --- |
 | cat:statistics | 2 | b19#4 (b19) | BOOKED-UNENFORCEABLE | birthday collisions decouple t from the array length — dedup at entry |
-| cat:wrong-object | 2 | b19#2 (b19) | GATE-ENFORCED | (1/2)cond(mix) + (1/2)cond(rho2) does not equal cond(rho1)/2 + cond(rho2)/2 — the second computational path is audited too |
+| cat:wrong-object | 2 | b19#2 (b19) | BOOKED-UNENFORCEABLE | (1/2)cond(mix) + (1/2)cond(rho2) does not equal cond(rho1)/2 + cond(rho2)/2 — the second computational path is audited too |
 | cat:citation-drift | 1 | b19#0 (b19) | GATE-ENFORCED | the transcription violated the paper's own lambda <= L lemma — the exhaustive judge returned 19.999 for enumerated strategies against the transcribed 'lambda* = 42.07'; correct semantics lambda(t) = E[min(T,t)]/q(t), hand-checked on {1,5} before rewriting |
 | cat:process | 1 | b19#5 (b19) | BOOKED-UNENFORCEABLE | finite-N thresholds approach from ABOVE (0.3984 -> 0.396484) — wording follows the data, not the expectation |
 
-Reports freshness (the repro-no-op face, v0.22.0): 6 reports on disk; newest render 2026-09-11T21:09:14.430Z; src tree newest 2026-09-11T21:08:50.439Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 6 reports on disk; newest render 2026-09-13T01:46:35.953Z; src tree newest 2026-09-11T21:08:50.439Z — FRESH (the newest render postdates every source)

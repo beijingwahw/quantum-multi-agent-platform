@@ -406,7 +406,42 @@ export interface ClimbResult {
   readonly evals: number;
 }
 
-/** Deterministic coordinate hill-climb: per coordinate, try +/- step in place, keep the better. */
+/** One sanitized strategy slot (axis, sharpness, prep pair) — the slot-level
+ *  pieces vectorToParams assembles parties from. */
+interface SlotMemo {
+  readonly input: readonly number[];
+  readonly axis: Axis;
+  readonly sharp: number;
+  readonly prep: readonly Axis[];
+}
+
+// slot layout: Alice 2 slots + Bob 4 slots, NUMS_PER_SLOT numbers each — the
+// sanitize math is vectorToParams's buildParty, verbatim, so a memo hit yields
+// bit-identical params values
+function sanitizeSlot(v: readonly number[], slot: number): SlotMemo {
+  const o = slot * NUMS_PER_SLOT;
+  const ax: Axis = [(v[o] as number), (v[o + 1] as number), (v[o + 2] as number)];
+  const s = Math.max(-1, Math.min(1, v[o + 3] as number)); // |s| <= 1 …
+  const nAx = Math.hypot(...ax);
+  // … and s * |n| <= 1 so the POVM element (1 + s n.sigma)/2 stays PSD
+  const sharp = s / Math.max(1, Math.abs(s) * nAx);
+  const clamp = (o2: number): Axis => {
+    const r: Axis = [(v[o2] as number), (v[o2 + 1] as number), (v[o2 + 2] as number)];
+    const nr = Math.hypot(...r);
+    const scale = nr > 1 ? 1 / nr : 1;
+    return [r[0] * scale, r[1] * scale, r[2] * scale];
+  };
+  return { input: v.slice(o, o + NUMS_PER_SLOT), axis: ax, sharp, prep: [clamp(o + 4), clamp(o + 7)] };
+}
+
+/**
+ * Deterministic coordinate hill-climb: per coordinate, try +/- step in place, keep the better.
+ * Between consecutive evaluations only ONE slot of the strategy vector changes,
+ * so the sanitizer is memoized per slot (5 of 6 slots reuse their sanitized
+ * axis/sharpness/preps; a hit yields the exact values vectorToParams would
+ * recompute, so the payoff stream — and hence the whole climb trajectory — is
+ * bit-identical). The returned params come from a fresh vectorToParams call.
+ */
 export function hillClimb(
   payoff: (p: StrategyParams) => number,
   start: readonly number[],
@@ -416,7 +451,38 @@ export function hillClimb(
   shrink = 0.8,
 ): ClimbResult {
   const v = [...start];
-  let value = payoff(vectorToParams(v));
+  if (v.length !== STRATEGY_VECTOR_LENGTH) {
+    // delegate the named rejection to the canonical constructor
+    vectorToParams(v);
+  }
+  const memo: SlotMemo[] = new Array<SlotMemo>(6);
+  const cachedParams = (): StrategyParams => {
+    for (let slot = 0; slot < 6; slot++) {
+      const o = slot * NUMS_PER_SLOT;
+      const m = memo[slot] as SlotMemo | undefined;
+      if (
+        m === undefined ||
+        m.input[0] !== (v[o] as number) ||
+        m.input[1] !== (v[o + 1] as number) ||
+        m.input[2] !== (v[o + 2] as number) ||
+        m.input[3] !== (v[o + 3] as number) ||
+        m.input[4] !== (v[o + 4] as number) ||
+        m.input[5] !== (v[o + 5] as number) ||
+        m.input[6] !== (v[o + 6] as number) ||
+        m.input[7] !== (v[o + 7] as number) ||
+        m.input[8] !== (v[o + 8] as number) ||
+        m.input[9] !== (v[o + 9] as number)
+      ) {
+        memo[slot] = sanitizeSlot(v, slot);
+      }
+    }
+    const s = memo as SlotMemo[];
+    return {
+      alice: { axis: [s[0]!.axis, s[1]!.axis], sharp: [s[0]!.sharp, s[1]!.sharp], prep: [s[0]!.prep, s[1]!.prep] },
+      bob: { axis: [s[2]!.axis, s[3]!.axis, s[4]!.axis, s[5]!.axis], sharp: [s[2]!.sharp, s[3]!.sharp, s[4]!.sharp, s[5]!.sharp], prep: [s[2]!.prep, s[3]!.prep, s[4]!.prep, s[5]!.prep] },
+    };
+  };
+  let value = payoff(cachedParams());
   let evals = 1;
   let step = step0;
   for (let pass = 0; pass < passes; pass++) {
@@ -424,10 +490,10 @@ export function hillClimb(
       const old = v[i] as number;
       const mag = step * (0.25 + 0.75 * rng());
       v[i] = old + mag;
-      const vp = payoff(vectorToParams(v));
+      const vp = payoff(cachedParams());
       evals++;
       v[i] = old - mag;
-      const vm = payoff(vectorToParams(v));
+      const vm = payoff(cachedParams());
       evals++;
       if (vp > value || vm > value) {
         if (vp >= vm) {

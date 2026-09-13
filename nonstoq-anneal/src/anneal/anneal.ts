@@ -16,6 +16,14 @@ export interface AnnealOptions {
    * XX-driver ground is NOT |+>^n; 'plus' keeps the textbook uniform start.
    */
   readonly initialState?: "driver-ground" | "plus";
+  /**
+   * Precomputed initial state, used verbatim when given (takes precedence over
+   * initialState). The driver-ground projection is deterministic in
+   * (model.n, driver), so a caller sweeping `time` over one fixed driver can
+   * project once and reuse — identical states, identical results, no per-call
+   * 4000-step projection.
+   */
+  readonly initial?: StateVector;
 }
 
 export interface AnnealResult {
@@ -51,11 +59,17 @@ export function anneal(
   // 基态带符号结构，从 |+>^n 起跳违背绝热前提——这是非 stoq 路线的
   // 真实工程约束：退火机必须能制备自身驱动的基态。（零表基无关，
   // zeroSpectrum 同时携带 Z/X 品牌。）
-  const zeroEnergies = zeroSpectrum(model.n);
-  const state =
-    options.initialState === "plus"
-      ? StateVector.plusState(model.n)
-      : projectGroundState(model.n, zeroEnergies, xEnergies, 0, { dtau: 0.08, maxSteps: 4000, tolerance: 1e-12 }).state;
+  let state: StateVector;
+  if (options.initial !== undefined) {
+    // clone: the anneal below evolves the state in place, so the caller's
+    // preparation must survive reuse across a sweep (identical doubles)
+    state = options.initial.clone();
+  } else if (options.initialState === "plus") {
+    state = StateVector.plusState(model.n);
+  } else {
+    const zeroEnergies = zeroSpectrum(model.n);
+    state = projectGroundState(model.n, zeroEnergies, xEnergies, 0, { dtau: 0.08, maxSteps: 4000, tolerance: 1e-12 }).state;
+  }
   for (let m = 1; m <= M; m++) {
     const s = m / M;
     // H_P = −C：applyPhase(γ) 实现 e^{−iγC}，故 γ 取负即得 e^{+idt·s·C}
@@ -71,7 +85,12 @@ export function anneal(
   for (let t = 0; t < probs.length; t++) {
     if (energies[t]! === optimum) success += probs[t]!;
   }
-  const meanEnergy = state.expectation(energies);
+  // ⟨C⟩ 直接在已算出的概率表上求和（与 expectation() 同一加法序列，
+  // 省去第二次全表 probabilities() 扫描——逐位相同）
+  let meanEnergy = 0;
+  for (let t = 0; t < probs.length; t++) {
+    meanEnergy += probs[t]! * energies[t]!;
+  }
   return {
     successProbability: success,
     energyRatio: meanEnergy / optimum,

@@ -93,6 +93,23 @@ export function simulate(m: TMachine, bound: number): SimResult {
     throw new AuditError("EA:MACHINE", `simulate: step bound must be a non-negative integer, got ${bound}`);
   }
   const span = 2 * (m.n + 1);
+  // The per-entry transition (write/move/next) is a pure integer decode of a
+  // fixed entry digit — precomputed once per machine instead of once per step
+  // (the census simulates whole universes through here; the decode is a
+  // loop invariant). Value-identical by construction: same digits, same
+  // integer arithmetic, same stepping order.
+  const count = 2 * m.n;
+  const writes = new Int32Array(count);
+  const moves = new Int32Array(count);
+  const nexts = new Int32Array(count);
+  for (let i = 0; i < count; i++) {
+    const d = m.entries[i]!;
+    writes[i] = Math.floor(d / span);
+    const rest = d % span;
+    moves[i] = Math.floor(rest / (m.n + 1)) === 0 ? -1 : 1;
+    const nextRaw = rest % (m.n + 1);
+    nexts[i] = nextRaw === m.n ? HALT : nextRaw;
+  }
   let state = 0;
   let pos = 0;
   let steps = 0;
@@ -100,17 +117,15 @@ export function simulate(m: TMachine, bound: number): SimResult {
   const tape = new Map<number, number>();
   while (state !== HALT && steps < bound) {
     const sym = tape.get(pos) ?? 0;
-    const d = m.entries[state * 2 + sym]!; // checkMachine proved the table total
-    const write = Math.floor(d / span);
-    const rest = d % span;
-    const move = Math.floor(rest / (m.n + 1)) === 0 ? -1 : 1;
-    const nextRaw = rest % (m.n + 1);
-    const next = nextRaw === m.n ? HALT : nextRaw;
-    if (write === 1 && (tape.get(pos) ?? 0) === 0) ones++;
-    if (write === 0 && (tape.get(pos) ?? 0) === 1) ones--;
+    const idx = state * 2 + sym; // checkMachine proved the table total
+    const write = writes[idx]!;
+    // the ones bookkeeping reads the same cell the symbol read just did (the
+    // tape is untouched in between), so sym IS that cell's value
+    if (write === 1 && sym === 0) ones++;
+    if (write === 0 && sym === 1) ones--;
     tape.set(pos, write);
-    pos += move;
-    state = next;
+    pos += moves[idx]!;
+    state = nexts[idx]!;
     steps++;
   }
   return { halted: state === HALT, steps, ones };

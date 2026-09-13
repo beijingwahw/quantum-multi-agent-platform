@@ -255,6 +255,14 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
     return Math.sqrt(2 * s);
   };
   const scale = Math.sqrt(m.reduce((s, x) => s + x * x, 0)) || 1;
+  // rotation scratch, allocated once per call and reused across every
+  // rotation: each buffer is fully overwritten by its copy loop before the
+  // write loop reads it, so the rotated values are bit-identical to a
+  // per-rotation allocation (the arithmetic itself is untouched)
+  const colP = new Float64Array(n);
+  const colQ = new Float64Array(n);
+  const rowP = new Float64Array(n);
+  const rowQ = new Float64Array(n);
   for (let sweep = 0; sweep < 100 && offDiag() > 1e-15 * scale; sweep++) {
     for (let p = 0; p < n - 1; p++) {
       for (let q = p + 1; q < n; q++) {
@@ -267,8 +275,6 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
         const s = t * c;
         // rotate columns p,q then rows p,q — always from copies of the
         // pre-rotation values so the two steps compose exactly as Jᵀ A J
-        const colP = new Float64Array(n);
-        const colQ = new Float64Array(n);
         for (let k = 0; k < n; k++) {
           colP[k] = m[k * n + p]!;
           colQ[k] = m[k * n + q]!;
@@ -277,8 +283,6 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
           m[k * n + p] = c * colP[k]! - s * colQ[k]!;
           m[k * n + q] = s * colP[k]! + c * colQ[k]!;
         }
-        const rowP = new Float64Array(n);
-        const rowQ = new Float64Array(n);
         for (let k = 0; k < n; k++) {
           rowP[k] = m[p * n + k]!;
           rowQ[k] = m[q * n + k]!;
@@ -407,9 +411,13 @@ export function eigVecsFromValues(
       });
       block = orthonormalize(block, n);
     }
+    // the shifted matrix (A − (λ+ε)I) is invariant across the iteration —
+    // built once per cluster instead of once per iteration; the per-column LU
+    // copies below still slice it fresh because solveLinear destroys its
+    // input. Bit-identical: same values, same arithmetic.
+    const shifted = emb.slice();
+    for (let i = 0; i < n; i++) shifted[i * n + i] = shifted[i * n + i]! - (lam + eps);
     for (let iter = 0; iter < 12; iter++) {
-      const shifted = emb.slice();
-      for (let i = 0; i < n; i++) shifted[i * n + i] = shifted[i * n + i]! - (lam + eps);
       const next: Float64Array[] = [];
       for (const col of block) {
         const lu = shifted.slice();

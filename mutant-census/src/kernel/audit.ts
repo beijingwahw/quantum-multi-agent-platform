@@ -256,6 +256,10 @@ export function checkEnrollment(
   const liveByKey = new Map(registry.errors.map((e) => [e.key, e] as const));
   const classesById = new Map(MUTANTS.map((m) => [m.id, m.classes] as const));
   const seen = new Set<string>();
+  // many GATE-ENFORCED rows point their needle at the SAME file; one read per
+  // file per invocation answers them all (the cache lives inside this call:
+  // a later invocation re-reads the disk, keeping the check live)
+  const anchorText = new Map<string, string>();
   for (const r of rows) {
     if (!TIERS.includes(r.tier)) {
       v.push({ row: r.key, law: "E6", detail: `illegal tier "${r.tier}" — the vocabulary is closed` });
@@ -287,8 +291,15 @@ export function checkEnrollment(
       } else {
         const full = resolve(WORKSPACE_ROOT, path);
         if (!existsSync(full)) v.push({ row: r.key, law: "E3", detail: `anchor file missing: ${path}` });
-        else if (!readFileSync(full, "utf8").includes(needle)) {
-          v.push({ row: r.key, law: "E3", detail: `needle "${needle}" not found in ${path} — the guard is not on disk` });
+        else {
+          let text = anchorText.get(full);
+          if (text === undefined) {
+            text = readFileSync(full, "utf8");
+            anchorText.set(full, text);
+          }
+          if (!text.includes(needle)) {
+            v.push({ row: r.key, law: "E3", detail: `needle "${needle}" not found in ${path} — the guard is not on disk` });
+          }
         }
       }
     } else if (r.reason.trim() === "") {

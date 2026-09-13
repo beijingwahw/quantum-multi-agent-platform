@@ -11,4 +11,4 @@
 | cat:process | 1 | b27#0 (b27) | BOOKED-UNENFORCEABLE | the third draft defined the clean self-encoding (4(n+1) options per entry) on paper first — encodings are designed before they are typed |
 | cat:statistics | 1 | b27#1 (b27) | BOOKED-UNENFORCEABLE | precedence: that is 4*((n+1)^(2n)) = 324, not (4(n+1))^(2n) = 20736 — the enumeration ran on a truncated universe and returned BB=3 against the expected 6. Hand-evaluate formulas on a concrete case before they enter code |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-12T18:43:48.740Z; src tree newest 2026-09-12T18:38:49.461Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T02:40:28.708Z; src tree newest 2026-09-13T01:18:49.407Z — FRESH (the newest render postdates every source)

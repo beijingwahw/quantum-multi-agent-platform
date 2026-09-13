@@ -53,10 +53,13 @@ export function minMakespanPm(nums: readonly number[], m: number): PmSolution {
   const state = { best: Infinity, nodes: 0 };
   const seen = new Set<string>();
 
+  // the dedup key sorts a reusable copy of the loads — same key strings, one
+  // array per solve instead of one per explored node
+  const tailScratch = new Array<number>(m);
   const key = (i: number): string => {
-    const tail = loads.slice();
-    tail.sort((a, b) => b - a);
-    return `${i}|${tail.join(",")}`;
+    for (let k = 0; k < m; k++) tailScratch[k] = loads[k] as number;
+    tailScratch.sort((a, b) => b - a);
+    return `${i}|${tailScratch.join(",")}`;
   };
 
   const dfs = (i: number, runningMax: number): void => {

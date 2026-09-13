@@ -69,6 +69,9 @@ const POLICY_PROGRAM_NOT_ALLOWED = 'POLICY_PROGRAM_NOT_ALLOWED';
 // token 值内禁止出现的字符：引号会破坏重建命令行时的包裹，
 // % 在 cmd.exe 的双引号内仍会发生变量展开，反引号在 POSIX shell 内是命令替换。
 const FORBIDDEN_TOKEN_CHARS = /["'`%]/;
+// 分词空白探测（R13 外提）：循环内的正则字面量每次求值都会新建
+// RegExp 对象——长命令逐字符扫描时的分配搅动
+const WHITESPACE = /\s/;
 // Windows 重建命令行时需要双引号包裹的字符（空白与 cmd 元字符）
 const CMD_SPECIALS = /[\s&|<>(){},^!;]/;
 
@@ -93,15 +96,26 @@ const INLINE_EXEC_FLAGS: Record<string, readonly string[]> = {
   git: ['-c', '--config'],
 };
 
+// 等号前缀形态（`--eval=<code>` 与裸旗标同语义）随旗标表一次性派生：
+// 此前每次校验都 `flag + '='` 现拼——每条命令 × 每参数 × 每旗标的
+// 字符串分配，外提为常量表（R13）
+const INLINE_EXEC_FLAG_PREFIXES: Record<string, readonly string[]> = Object.fromEntries(
+  Object.entries(INLINE_EXEC_FLAGS).map(([prog, flags]) => [prog, flags.map((f) => f + '=')]),
+);
+
 function validateEvalFlags(program: string, args: readonly string[]): void {
-  const banned = INLINE_EXEC_FLAGS[program.toLowerCase()];
+  const key = program.toLowerCase();
+  const banned = INLINE_EXEC_FLAGS[key];
   if (!banned) return;
+  const prefixes = INLINE_EXEC_FLAG_PREFIXES[key]!;
   for (const arg of args) {
-    if (banned.some((flag) => arg === flag || arg.startsWith(flag + '='))) {
-      throw new ToolError(
-        `Inline-code flag '${arg}' is not allowed for program '${program}' ` +
-          `(it bypasses all command-line auditing). Put the code in a script file instead.`,
-      );
+    for (let i = 0; i < banned.length; i++) {
+      if (arg === banned[i] || arg.startsWith(prefixes[i]!)) {
+        throw new ToolError(
+          `Inline-code flag '${arg}' is not allowed for program '${program}' ` +
+            `(it bypasses all command-line auditing). Put the code in a script file instead.`,
+        );
+      }
     }
   }
 }
@@ -145,7 +159,7 @@ function tokenizeCommand(command: string): string[] {
         POLICY_METACHAR,
       );
     }
-    if (/\s/.test(ch)) {
+    if (WHITESPACE.test(ch)) {
       if (hasToken || current.length > 0) {
         tokens.push(current);
         current = '';
@@ -165,7 +179,9 @@ function validateProgram(program: string): void {
   if (/[\\/:]/.test(program)) {
     throw new ToolError('Command program must be a bare name, not a path');
   }
-  const allowed = policy.allowedPrograms.some((p) => p.toLowerCase() === program.toLowerCase());
+  // toLowerCase 外提到循环外（R13）：白名单扫描不再逐项重算同一小写形
+  const programLower = program.toLowerCase();
+  const allowed = policy.allowedPrograms.some((p) => p.toLowerCase() === programLower);
   if (!allowed) {
     throw new SecurityViolationError(
       `Command program '${program}' is not in the allowed list ` +
@@ -226,10 +242,14 @@ interface ProcessResult {
  * - Windows：npm/npx 等是 .cmd 脚本，须借道 cmd.exe（/d 禁 autorun），
  *   命令行由已验证 token 重建，含特殊字符的参数以双引号包裹。
  */
+// 结尾反斜杠匹配（R13 外提）：非全局正则无 lastIndex 状态，模块常量
+// 与循环内字面量语义逐点一致
+const TRAILING_BACKSLASHES = /\\+$/;
+
 function quoteForCmd(arg: string): string {
   if (!CMD_SPECIALS.test(arg)) return arg;
   // 结尾反斜杠会把收尾双引号转义出 cmd 解析，成对补齐
-  const safe = arg.replace(/\\+$/, (m) => m + m);
+  const safe = arg.replace(TRAILING_BACKSLASHES, (m) => m + m);
   return `"${safe}"`;
 }
 
@@ -250,7 +270,10 @@ function runProcess(
 ): Promise<ProcessResult> {
   return new Promise<ProcessResult>((resolvePromise, rejectPromise) => {
     let command = program;
-    let spawnArgs: string[] = [...args];
+    // POSIX 路径零拷贝直传（R13）：args 由调用方新建、spawn 只读，
+    // 此前的防御性 [...args] 在非 Windows 路径上纯属浪费；win32 分支
+    // 整体重建 spawnArgs，不受影响
+    let spawnArgs: string[] = args;
     if (process.platform === 'win32') {
       const comspec = process.env.ComSpec ?? 'cmd.exe';
       const quoted = [program, ...args].map(quoteForCmd);

@@ -341,11 +341,17 @@ export function scanWorkspace(): readonly WorkspaceScanRow[] {
     }
     const unguarded = unguardedEntryFiles(repo);
     const guardRegistered = LEGACY_REPOS.some((l) => l.repo === repo);
-    let reportCount: number;
-    try {
-      reportCount = readdirSync(resolve(root, "out", "reports")).filter((f) => f.endsWith(".md")).length;
-    } catch {
-      reportCount = 0;
+    // R13: same union-of-layouts face as preflight's reportsFreshness —
+    // out/reports/*.md ∪ out/*.md (flat) ∪ repo-root reports/*.md — so the
+    // W-board's "reports on disk" cell stops undercounting the six repos that
+    // render outside out/reports (the freshness blind-spot fix's twin face).
+    let reportCount = 0;
+    for (const dir of [resolve(root, "out", "reports"), resolve(root, "out"), resolve(root, "reports")]) {
+      try {
+        reportCount += readdirSync(dir).filter((f) => f.endsWith(".md")).length;
+      } catch {
+        // layout absent on this repo — nothing to count
+      }
     }
     return { repo, scriptsOk, strictOk, unguardedEntries: unguarded, guardRegistered, reportCount, isPlatform };
   };

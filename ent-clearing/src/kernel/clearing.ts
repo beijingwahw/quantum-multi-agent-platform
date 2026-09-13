@@ -47,26 +47,39 @@ import { holevo, traceReal, vonNeumannEntropy, type EnsembleItem } from "../core
 /* ------------------------------------------------------------------ */
 
 /** The Bell basis in pairing order: [Phi+, Phi-, Psi+, Psi-]. The 4-tuple
- * type makes literal indexing exact (no casts, no undefined). */
+ * type makes literal indexing exact (no casts, no undefined).
+ * Memoized: pure, deterministic, and rebuilt by every Bell-basis consumer on
+ * each call (projectors, weights, fidelities) — the cached quartet is the
+ * same objects with the same bits, handed out again. */
 export function bellBasis(): readonly [CVec, CVec, CVec, CVec] {
-  const k00 = vKron(KET0, KET0);
-  const k01 = vKron(KET0, KET1);
-  const k10 = vKron(KET1, KET0);
-  const k11 = vKron(KET1, KET1);
-  const inv = 1 / Math.SQRT2;
-  return [
-    vScale(vAdd(k00, k11), inv),
-    vScale(vAdd(k00, vScale(k11, -1)), inv),
-    vScale(vAdd(k01, k10), inv),
-    vScale(vAdd(k01, vScale(k10, -1)), inv),
-  ];
+  cachedBellBasis ??= (() => {
+    const k00 = vKron(KET0, KET0);
+    const k01 = vKron(KET0, KET1);
+    const k10 = vKron(KET1, KET0);
+    const k11 = vKron(KET1, KET1);
+    const inv = 1 / Math.SQRT2;
+    return [
+      vScale(vAdd(k00, k11), inv),
+      vScale(vAdd(k00, vScale(k11, -1)), inv),
+      vScale(vAdd(k01, k10), inv),
+      vScale(vAdd(k01, vScale(k10, -1)), inv),
+    ];
+  })();
+  return cachedBellBasis;
 }
 
-/** Bell-basis projectors on two qubits. */
+let cachedBellBasis: readonly [CVec, CVec, CVec, CVec] | undefined;
+
+/** Bell-basis projectors on two qubits (memoized with the basis itself). */
 export function bellProjectors(): readonly [CMat, CMat, CMat, CMat] {
-  const [b0, b1, b2, b3] = bellBasis();
-  return [outer(b0, b0), outer(b1, b1), outer(b2, b2), outer(b3, b3)];
+  cachedBellProjectors ??= (() => {
+    const [b0, b1, b2, b3] = bellBasis();
+    return [outer(b0, b0), outer(b1, b1), outer(b2, b2), outer(b3, b3)];
+  })();
+  return cachedBellProjectors;
 }
+
+let cachedBellProjectors: readonly [CMat, CMat, CMat, CMat] | undefined;
 
 /** Corrections paired with [Phi+, Phi-, Psi+, Psi-]: I, Z, X, XZ. */
 export function corrections(): readonly [CMat, CMat, CMat, CMat] {

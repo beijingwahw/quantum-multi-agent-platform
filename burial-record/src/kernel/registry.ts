@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 94;
-export const DECLARED_TOTAL_ERRORS = 736;
+export const DECLARED_TOTAL_BATCHES = 95;
+export const DECLARED_TOTAL_ERRORS = 757;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -4608,6 +4608,121 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[delivery agent H2] a diagnostic command's head-pipe slipped into a background execution and returned a truncated frame — no verdict was taken from it",
         right: "the re-run wrote output to a log file and read it whole — diagnostics follow the same pipeless law as gates when their output is evidence, and evidence is read whole or not at all",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 95,
+    repo: "burial-record",
+    date: "2026-09-13",
+    context:
+      "the R13 optimization wave (visit eighty-eight: three batches of four agents over every line of the workspace under performance-first lenses with bit-identity as the acceptance bar, orchestrator-wired): twenty-one delivery errors from twelve delivery agents and the orchestrator — the exit-code family struck the orchestrator again at the wave's very first closeout gate, an unidentified concurrent out-of-territory write poisoned one reader's baseline, two sanctioned-channel violations, cache-key and index-identity collisions caught by frozen pins and statistics gates, and the measurement-hygiene class in force (single-sample medians, JIT-dead metrics, uncaptured baselines); every one self-caught, tool-caught, or pin-caught in the act, none shipped",
+    source: { file: "memory/2026-09-13.md", heading: "关键经验（第九十五批" },
+    errors: [
+      {
+        wrong: "[orchestrator self-report, this batch] the closeout's first static gate ran `npm run lint 2>&1 | tail -4; echo LINT_EXIT=$?` — tail printed the ✖ summary while eating the verdict, and LINT_EXIT=0 stood over a one-error run; the exit-code-masking family's twenty-ninth sighting, committed by the orchestrator one wave after being the family's own twenty-eighth, at the gate that opens every closeout",
+        right: "the re-run wrote output to a log file and read the true exit code from the shell — the no-pipe law is restated where it binds first: the orchestrator's own gate commands never wear a pipe, not even for a tidy four-line summary",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent A] the first acceptance round ran the new pin tests before typecheck — four TS2532s (assertion-then-increment does not narrow; missing ! on indexed access) surfaced only at the later gate, tsx having happily run the untyped shape green",
+        right: "gates before tests in every acceptance round — tsx's runtime silence on type shape is exactly why the typecheck gate exists, and it is cheaper before the green looks done",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent B] the pin test's first draft invented a `paymentShareOf` method that does not exist and guessed two numeric expectations from memory — the test asserted its imagination of the API and of the digits",
+        right: "every expectation re-derived from the captured golden snapshot before trusting the green — a test's expected values come from captures and reads, never from recall (the wrong-object family's expectation face)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent B] the first performance verdicts were taken from single samples — brain and hungarian showed false regressions that were machine noise, invertible on re-run",
+        right: "seven-trial medians with interleaved before/after ordering and an order-control — an optimization claim at this workspace's digit sensitivity is a median with a counter-order, never a sample",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent C] the new bus test attached one nextMessage listener per awaited frame — three frames arriving in the same ws tick were partly heard by dead listeners, a self-inflicted flake blamed first on the code under test",
+        right: "a single long-lived collector listener with buffered assertions — multi-frame assertions buffer from one listener, because per-frame listeners are closed before the frames they await",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent C] a plugin-priority test case conditioned on `state 'go'` — a field CurrentSystemState does not carry, so the rule could never fire and the case asserted nothing about the priority path it named",
+        right: "the condition rewritten against the state's real shape (an event condition reading the payload) — a rule test's condition fields are read from the type definition first, the same read-before-assert law the expectation face learned",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent D] measurement hygiene trinity: `node --test tests/bench/` in directory form ran the directory itself as a file and produced a false failure blamed on own edits; a timing harness's dead code was JIT-eliminated and printed 0.00ns nonsense; a canary triad's first-run assertion failure was correctly quarantined as concurrent-interference transient — but only after re-runs, not before doubt had spread",
+        right: "directory globs spelled as globs, timing harnesses built with sink accumulators and millisecond rollups before any number is believed, and transients re-run to stability before attribution — the platform's full-suite closeout (749/0) later confirmed the transient reading",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent E] the first hoist plan for repairedStationary lifted the whole probability product out of the loop — pi[w]*(A*B*p1*p2) reassociates the multiplication, and the frozen digits would have moved; caught at design review before any edit, downgraded to hoisting only the pow subexpressions",
+        right: "an expression's evaluation count may change; its associativity may not — hoisting a product changes its parenthesization, and the bit-identity bar reads the parentheses (the frozen-digits discipline's own central hazard, caught in the design phase where it is cheapest)",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent E] the render-face baseline was never captured — `npm run repro` wall-clock before the edits existed only in imagination, so the optimization's largest claimed beneficiary (cross-call memoization in the render process) shipped unquantified",
+        right: "baselines are captured for every face a claim will be made about, before the first edit touches it — an unmeasured beneficiary is reported as unmeasured, not as improved",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent F] a line-level edit in family.ts went through `node -e fs.writeFileSync` in a one-shot bash script — the sanctioned-channel family (b82#7/b85#20): the content was correct and every later edit rode the Edit tool, but the channel violation stands where clean does not absolve",
+        right: "batch line edits ride the Edit tool one edit at a time with context visible — the channel is the discipline, not the diff",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent F] converting family.ts's switch from return statements to assignment left the first case without a break — the original returns had doubled as breaks, and MU1 would have fallen through into MU98's construction; the memoization smoke test passed on object identity alone and did not catch it",
+        right: "a control-flow conversion re-reads every implicit contract the old form carried (return's break being the classic) — and a cache smoke test asserts construction correctness, not just object identity, or the mutation-kill census is its only backstop",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent F] chshGame's first draft mapped the four correlator corners in the wrong index order — the physics of the CHSH bound depends on which corner is which, and the inequality test was about to inherit a scrambled game",
+        right: "the T3 statistics gate fired on the first run — index algebra is written against the definition and checked by the invariant it must satisfy, the corner order being exactly such an invariant",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent G] the dense-ground-state double-buffer swap assigned only `cur = nxt` without swapping `nxt` back — both names aliased one buffer, the iteration overwrote itself into NaN, and the existing pin `P(rotated)=1 exactly` failed on the spot",
+        right: "a double-buffer swap exchanges both names in one breath, and an isolation diff (old vs new on the same matrix: old 1, new NaN, fixed 1/1) precedes the full suite — bit-identity arguments must trace buffer aliasing across the swap, not just inside one loop body",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent G] the baseline `npm test` was still running in the background while the first edits landed — the baseline partly measured the edited tree; harmless only because every edit was bit-identical (both runs 68/68), which is an accident of the wave's discipline, not of the process",
+        right: "the baseline completes before the first edit of the tree it certifies — a baseline that overlaps its own mutations certifies nothing",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent H] the first Read of ft-qaoa/src/core/density.ts carried an uncommitted sign defect (`+` where the derivation demands `−`) left in the working tree by an unidentified concurrent out-of-territory write — the refactor faithfully preserved the intruder, three tests fell, and the stash-diff against HEAD plus a hand derivation were needed to locate which sign was whose",
+        right: "in a concurrent wave the first act on any file is `git diff HEAD -- <file>`: Read shows the working tree, not the committed truth, and a reader who cannot name every diff line in the file they are about to refactor is refactoring someone else's half-edit — rebuilt from HEAD with the correct sign, 57/57",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent H] three chi families shared one memo Map keyed only by λ — k3's lookups hit esc18's cached value, the W-E witness convicted at maxdev 4.9e-2, and the collision had silently stretched the test wall (the wrong cache made it look fixed)",
+        right: "a shared cache encodes the family identity into the key — when one Map serves many families, the family name rides the key or the families collide (the wrong-object family's cache face)",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent H] two in-file replacements went through a python heredoc and a node script — the no-sed/no-echo law quoted in the wave's own dispatch prompts, violated on mechanical renames of freshly written text",
+        right: "mechanical renames of one's own just-written text still ride the Edit tool — convenience is not a sanctioned channel, and the discipline's value is exactly where the edit feels safest",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent I] the integer common-denominator rewrite of h2Series placed `powN *= N` after the accumulation — the k-th term consumed N^(k-1), h2(1/4) drifted at the sixth decimal, and the 30-digit frozen pin failed on the first run",
+        right: "an algebraic-identity rewrite writes each term's exponent down before the loop is typed, and the frozen pin is checked before the artifact — the pin caught it exactly as designed, one off-by-one from shipping a confidently wrong constant",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent I] the per-term-gcd reduction plan was kept on paper-complexity reasoning (fewer limbs per step) — on V8's BigInt the Euclid gcd on 170-limb intermediates was slower than the naive accumulation it replaced, and only an A/B on the real hotspot exposed it",
+        right: "BigInt complexity is measured, not estimated — limb-count arithmetic on paper does not price V8's gcd, and a performance rewrite is A/B'd on the hotspot it claims before it lands",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent L] the audit's own census probe chained a pipe that masked an exit code — the same family the orchestrator booked at entry #1 of this batch, self-caught in the read-only lane before any verdict was taken from it",
+        right: "the re-run read the code from the shell's own status — even read-only investigations follow the pipeless law when their output is evidence",
+        category: "toolchain",
+      },
+      {
+        wrong: "[wave-collective] five delivery agents (A/D/E/J/K) each converged lint or prettier on the second or third round — rules read after the writing instead of before — and J's bscBlockInfo rewrite briefly referenced a deleted scope's bindings in the fallback branch, caught by pre-commit self-review",
+        right: "the repo's rule face is read before the first line is written and the format gate runs before the first test — and a refactor of a function with a fallback re-checks both branches' dependencies before it is called done",
+        category: "process",
       },
     ],
   },

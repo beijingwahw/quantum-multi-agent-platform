@@ -166,15 +166,23 @@ function entropyBits(eig: Iterable<number>): number {
 
 function miFromConditional(cond: ReadonlyArray<readonly number[]>, d: number): number {
   // uniform prior 1/d over v (rows), outcomes y (cols)
+  // the marginal of outcome y is invariant across v: computed once per y
+  // (O(d²) total) with the same accumulation order the in-loop recomputation
+  // used, instead of inside the (v, y) double loop (O(d³))
+  const marg: number[] = [];
+  for (let y = 0; y < d; y++) {
+    let m = 0;
+    for (let w = 0; w < d; w++) m += cond[w]![y]! / d;
+    marg.push(m);
+  }
   let mi = 0;
   for (let v = 0; v < d; v++) {
     for (let y = 0; y < d; y++) {
       const p = cond[v]![y]!;
       if (p <= 1e-15) continue;
-      let marg = 0;
-      for (let w = 0; w < d; w++) marg += cond[w]![y]! / d;
-      if (marg <= 1e-15) continue;
-      mi += (p / d) * Math.log2(p / marg);
+      const m = marg[y]!;
+      if (m <= 1e-15) continue;
+      mi += (p / d) * Math.log2(p / m);
     }
   }
   return mi;

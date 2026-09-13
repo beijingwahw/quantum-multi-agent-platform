@@ -313,6 +313,25 @@ export function popcountShadow(
 ): ShadowResult {
   const binom = binomials(n);
   const width = 2 * periods + 1; // drift D in [-periods, periods]
+  // The noise transition law w -> w+a-b with prob C(n-w,a)C(w,b) p^{a+b}
+  // (1-p)^{n-a-b} is period-INDEPENDENT — precomputed once per call instead
+  // of once per period (the pow products dominated the DP's per-period cost).
+  // Same (w, a, b) enumeration order, same probability expression evaluated
+  // with the same associativity, same zero-skips: the per-period accumulation
+  // below consumes identical values in identical order.
+  const trans: Array<Array<{ to: number; prob: number }>> = [];
+  for (let w = 0; w <= n; w++) {
+    const row: Array<{ to: number; prob: number }> = [];
+    for (let a = 0; a <= n - w; a++) {
+      for (let b = 0; b <= w; b++) {
+        const prob =
+          binom[n - w]![a]! * binom[w]![b]! * Math.pow(p, a + b) * Math.pow(1 - p, n - a - b);
+        if (prob === 0) continue;
+        row.push({ to: w + a - b, prob });
+      }
+    }
+    trans.push(row);
+  }
   let dist = new Float64Array((n + 1) * width); // [w * width + (D + periods)]
   dist[periods] = 1; // w = 0, D = 0
   // the pure chain: popcount only, absorbing at w >= n/2 (the strict armor)
@@ -328,22 +347,18 @@ export function popcountShadow(
     const nextPure = new Float64Array(n + 1);
     for (let w = 0; w <= n; w++) {
       // independent-bit noise: w -> w + a - b with the binomial pair law
-      for (let a = 0; a <= n - w; a++) {
-        for (let b = 0; b <= w; b++) {
-          const wNext = w + a - b;
-          const prob =
-            binom[n - w]![a]! * binom[w]![b]! * Math.pow(p, a + b) * Math.pow(1 - p, n - a - b);
-          if (prob === 0) continue;
-          const fired = fire(w, t);
-          const shift = (fired ? 1 : 0) - (t % 2 === 0 ? 1 : 0);
-          for (let dd = 0; dd < width; dd++) {
-            const mass = dist[w * width + dd]!;
-            if (mass === 0) continue;
-            const idx = wNext * width + dd + shift;
-            next[idx] = next[idx]! + mass * prob;
-          }
-          nextPure[wNext] = nextPure[wNext]! + pure[w]! * prob;
+      for (const tr of trans[w]!) {
+        const wNext = tr.to;
+        const prob = tr.prob;
+        const fired = fire(w, t);
+        const shift = (fired ? 1 : 0) - (t % 2 === 0 ? 1 : 0);
+        for (let dd = 0; dd < width; dd++) {
+          const mass = dist[w * width + dd]!;
+          if (mass === 0) continue;
+          const idx = wNext * width + dd + shift;
+          next[idx] = next[idx]! + mass * prob;
         }
+        nextPure[wNext] = nextPure[wNext]! + pure[w]! * prob;
       }
     }
     dist = next;
@@ -730,17 +745,30 @@ export function binomialPmfClosed(n: number, q: number): Float64Array {
 /** The machine road: the passive w-marginal after t periods (no repair). */
 export function maskPopcountMarginal(n: number, p: number, t: number): Float64Array {
   const binom = binomials(n);
+  // the transition law is period-independent (popcountShadow's own hoist):
+  // same (w, a, b) order, same probability expression and associativity,
+  // same zero-skips — the per-period accumulation consumes identical values
+  const trans: Array<Array<{ to: number; prob: number }>> = [];
+  for (let w = 0; w <= n; w++) {
+    const row: Array<{ to: number; prob: number }> = [];
+    for (let a = 0; a <= n - w; a++) {
+      for (let b = 0; b <= w; b++) {
+        const prob =
+          binom[n - w]![a]! * binom[w]![b]! * Math.pow(p, a + b) * Math.pow(1 - p, n - a - b);
+        if (prob === 0) continue;
+        row.push({ to: w + a - b, prob });
+      }
+    }
+    trans.push(row);
+  }
   let m = new Float64Array(n + 1);
   m[0] = 1;
   for (let s = 0; s < t; s++) {
     const next = new Float64Array(n + 1);
     for (let w = 0; w <= n; w++) {
       if (m[w]! === 0) continue;
-      for (let a = 0; a <= n - w; a++) {
-        for (let b = 0; b <= w; b++) {
-          const pr = binom[n - w]![a]! * binom[w]![b]! * Math.pow(p, a + b) * Math.pow(1 - p, n - a - b);
-          next[w + a - b] = next[w + a - b]! + m[w]! * pr;
-        }
+      for (const tr of trans[w]!) {
+        next[tr.to] = next[tr.to]! + m[w]! * tr.prob;
       }
     }
     m = next;
@@ -807,8 +835,24 @@ export interface SpectralArmor {
   survivalSeries(periods: number): readonly number[];
 }
 
-/** The spectral decomposition of the strict armor's survival. */
+/** The spectral decomposition of the strict armor's survival. Pure in (n, p);
+ * the render's fit-face rows and the witnesses' Richardson probes re-ask the
+ * same pairs (the eigen-solve itself is cheap; the repeat is pure waste), so
+ * the decomposition is memoized per (n, p) — survivalSeries on the cached
+ * object still allocates a fresh array per call, values identical. */
+const spectralArmorCache = new Map<string, SpectralArmor>();
+
 export function spectralArmor(n: number, p: number): SpectralArmor {
+  const key = `${n}:${p}`;
+  let cached = spectralArmorCache.get(key);
+  if (cached === undefined) {
+    cached = spectralArmorCompute(n, p);
+    spectralArmorCache.set(key, cached);
+  }
+  return cached;
+}
+
+function spectralArmorCompute(n: number, p: number): SpectralArmor {
   const { q, m } = buildAbsorbingQ(n, p);
   const dim = q.length;
   const sm = mat(dim, dim);
@@ -855,6 +899,17 @@ export function repairedStationary(n: number, p: number, iterations = 2000): Rep
   const binom = binomials(n);
   // log2 C(n, n/2), 0 at odd n — hoisted: the same constant every iteration
   const tariff = n % 2 === 0 ? Math.log2(binom[n]![n / 2]!) : 0;
+  // Math.pow(p, ·) and Math.pow(1-p, ·) over the exponents the loop can reach,
+  // hoisted out of 2000 iterations. The multiplication CHAIN is untouched
+  // (pi[w] * binom * binom * pow * pow, same associativity): only the pow
+  // subexpressions are looked up instead of recomputed, each with exactly the
+  // arguments it had — the iterated faces are value-identical.
+  const powP = new Float64Array(n + 1);
+  const powQ = new Float64Array(n + 1);
+  for (let e = 0; e <= n; e++) {
+    powP[e] = Math.pow(p, e);
+    powQ[e] = Math.pow(1 - p, e);
+  }
   let pi = new Float64Array(n + 1);
   pi[0] = 1;
   let faces = { pTie: 0, syndromeMeter: 0, tieMeter: 0 };
@@ -866,7 +921,7 @@ export function repairedStationary(n: number, p: number, iterations = 2000): Rep
       if (pi[w]! === 0) continue;
       for (let a = 0; a <= n - w; a++) {
         for (let b = 0; b <= w; b++) {
-          next[w + a - b]! += pi[w]! * binom[n - w]![a]! * binom[w]![b]! * Math.pow(p, a + b) * Math.pow(1 - p, n - a - b);
+          next[w + a - b]! += pi[w]! * binom[n - w]![a]! * binom[w]![b]! * powP[a + b]! * powQ[n - a - b]!;
         }
       }
     }
@@ -1371,8 +1426,22 @@ export function modeRatioFactorResidue(n: number, k: number): bigint {
 
 /** The share 9r/(2(n-2)c2) as a float by pure substitution of the closed
  * forms (no matrices; log-space). Spot-checked against the exact BigInt
- * rationals at n=6/24 to all digits. */
+ * rationals at n=6/24 to all digits. Pure in n; the Richardson grids and the
+ * transfer road ask for the same n repeatedly (each call rebuilds a 2n-entry
+ * log-factorial table), so the value is memoized per n — the cached float IS
+ * the float the recomputed road returns. */
+const shareFloatCache = new Map<number, number>();
+
 export function shareFloat(n: number): number {
+  let v = shareFloatCache.get(n);
+  if (v === undefined) {
+    v = shareFloatCompute(n);
+    shareFloatCache.set(n, v);
+  }
+  return v;
+}
+
+function shareFloatCompute(n: number): number {
   const dim = n / 2;
   const m = (n - 2) / 2;
   const lf: number[] = [0];
@@ -1398,9 +1467,23 @@ export function correctionConstant(n: number): number {
 
 /** The chain identity's pieces: S(n) = sum_k (1/k) C(dim-1,k)^2/C(n,2k+1),
  * A(n) = C(n-2,m)/2^(n-2), P(n) = 9n(n-1)/(2(n-2)) — with
- * share(n) = P(n)·A(n)·S(n)/4 EXACTLY (algebraic in the TC40 forms). */
+ * share(n) = P(n)·A(n)·S(n)/4 EXACTLY (algebraic in the TC40 forms).
+ * Pure in n and asked repeatedly for the same n (the transfer road, the
+ * arcsine law, kappaFace's grid): memoized per n, the returned record's four
+ * numbers identical to a fresh computation's. */
+const shareChainPiecesCache = new Map<number, { S: number; A: number; P: number; chainShare: number }>();
+
 export function shareChainPieces(n: number): { S: number; A: number; P: number; chainShare: number } {
   if (n < 4 || n % 2 !== 0) throw new DtcError("E/DOMAIN", "shareChainPieces: even n >= 4 required");
+  let cached = shareChainPiecesCache.get(n);
+  if (cached === undefined) {
+    cached = shareChainPiecesCompute(n);
+    shareChainPiecesCache.set(n, cached);
+  }
+  return cached;
+}
+
+function shareChainPiecesCompute(n: number): { S: number; A: number; P: number; chainShare: number } {
   const dim = n / 2;
   const m = (n - 2) / 2;
   const lf: number[] = [0];

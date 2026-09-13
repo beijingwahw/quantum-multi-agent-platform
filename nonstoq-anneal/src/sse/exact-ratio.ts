@@ -9,20 +9,31 @@
 import type { ZSpectrum, XSpectrum } from "../core/spectra.js";
 
 function hadamardBasisMatrix(dim: number, xEnergies: XSpectrum, driverCoef: number): Float64Array {
-  // B[a][b] = (1/dim)·Σ_t (−1)^{popcount(a&t)}·(−1)^{popcount(b&t)}·e^{−driverCoef·E_x(t)}
   const B = new Float64Array(dim * dim);
   const signs = new Float64Array(dim);
   for (let t = 0; t < dim; t++) {
     signs[t] = Math.exp(-driverCoef * xEnergies[t]!);
   }
+  // Bit-identical O(dim^2) form of the original O(dim^3) triple loop: for
+  // every (a, b, t) the sign factor (−1)^{popcount(a&t)}·(−1)^{popcount(b&t)}
+  // equals (−1)^{popcount((a^b)&t)} EXACTLY as an integer (±1), because
+  // popcount(a&t)+popcount(b&t) ≡ popcount((a&t)⊕(b&t)) (mod 2) and
+  // (a&t)⊕(b&t) = (a^b)&t. Hence B[a][b] = f[a^b]/dim with
+  // f[c] = Σ_t (−1)^{popcount(c&t)}·signs[t] — same per-element sums over the
+  // same t order, so every double is unchanged; only the redundancy of
+  // recomputing the same row for all (a, b) with equal a^b is removed.
+  const f = new Float64Array(dim);
+  for (let c = 0; c < dim; c++) {
+    let acc = 0;
+    for (let t = 0; t < dim; t++) {
+      acc += popcountParity(c & t) * signs[t]!;
+    }
+    f[c] = acc;
+  }
   for (let a = 0; a < dim; a++) {
+    const row = a * dim;
     for (let b = 0; b < dim; b++) {
-      let acc = 0;
-      for (let t = 0; t < dim; t++) {
-        const parity = popcountParity(a & t) * popcountParity(b & t);
-        acc += parity * signs[t]!;
-      }
-      B[a * dim + b] = acc / dim;
+      B[row + b] = f[a ^ b]! / dim;
     }
   }
   return B;

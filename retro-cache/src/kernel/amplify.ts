@@ -44,6 +44,60 @@ export function gfMul(a: number, b: number, m: number): number {
   return acc;
 }
 
+// ---------------------------------------------------------------------------
+// Hot-path caches (pure-function memoization; the W5 experiment evaluates the
+// same exact enumerations dozens of times per render). Every cache stores a
+// value that is a deterministic pure function of its key: a hit returns the
+// very number the uncached path recomputed, so all tables are bit-identical
+// by construction. Only the toy scales the machine actually runs (m <= 8,
+// 256x256) take the cached fast path; larger m keeps the direct path with its
+// original failure mode.
+// ---------------------------------------------------------------------------
+
+/** full multiplication table MT[a][x] = gfMul(a, x, m), 1 <= a < 2^m — an
+ *  exhaustive, exact enumeration, so every lookup equals the gfMul call it
+ *  replaces (the hot loops each made ~2^2m of those per render). */
+const mulTables = new Map<number, number[][]>();
+function mulTable(m: number): number[][] | undefined {
+  if (m > 8) return undefined; // 2^m x 2^m tables beyond toy scale: direct path
+  let t = mulTables.get(m);
+  if (t === undefined) {
+    const n = 1 << m;
+    t = [];
+    for (let a = 1; a < n; a++) {
+      const row = new Array<number>(n);
+      for (let x = 0; x < n; x++) row[x] = gfMul(a, x, m);
+      t.push(row);
+    }
+    mulTables.set(m, t);
+  }
+  return t;
+}
+
+/** the BSC(d) joint weight structure G[x][z] = w[popcount(x ^ z)] — the exact
+ *  matrix both bscBlockInfo's joint table and paMeasure's per-map fill read;
+ *  shared model infrastructure (like bscWeights), not a second verification
+ *  path: every entry is the same expression over the same w and popcounts. */
+const gMatrices = new Map<string, number[][]>();
+function gMatrix(m: number, eps: number): number[][] | undefined {
+  if (m > 8) return undefined;
+  const key = `${m}|${eps}`;
+  let g = gMatrices.get(key);
+  if (g === undefined) {
+    const n = 1 << m;
+    const pc = popcounts(n);
+    const w = bscWeights(m, eps);
+    g = [];
+    for (let x = 0; x < n; x++) {
+      const row = new Array<number>(n);
+      for (let z = 0; z < n; z++) row[z] = w[pc[x ^ z]!]!;
+      g.push(row);
+    }
+    gMatrices.set(key, g);
+  }
+  return g;
+}
+
 export interface InverseCensus {
   readonly m: number;
   readonly nonzero: number;
@@ -58,18 +112,35 @@ export function inverseCensus(m: number): InverseCensus {
   // gate never fires, and a vacuous {0, 0} certificate ships silently —
   // refused at the field gate instead, the same code gfMul would raise
   if (FIELD_POLY[m] === undefined) throw new RcError("RC_NO_FIELD", `inverseCensus: no toy field GF(2^${m}) on file`);
+  const hit = inverseCensusMemo.get(m);
+  if (hit !== undefined) return hit;
   const n = 1 << m;
+  const mt = mulTable(m);
   let invertible = 0;
   for (let a = 1; a < n; a++) {
-    for (let b = 1; b < n; b++) {
-      if (gfMul(a, b, m) === 1) {
-        invertible++;
-        break;
+    if (mt !== undefined) {
+      const row = mt[a - 1]!;
+      for (let b = 1; b < n; b++) {
+        if (row[b] === 1) {
+          invertible++;
+          break;
+        }
+      }
+    } else {
+      for (let b = 1; b < n; b++) {
+        if (gfMul(a, b, m) === 1) {
+          invertible++;
+          break;
+        }
       }
     }
   }
-  return { m, nonzero: n - 1, invertible };
+  const out = { m, nonzero: n - 1, invertible };
+  inverseCensusMemo.set(m, out);
+  return out;
 }
+
+const inverseCensusMemo = new Map<number, InverseCensus>();
 
 // ---------------------------------------------------------------------------
 // The explicit hash family: F_{m,k} = { x -> trunc_k(a (x) x) : a in GF(2^m)* }.
@@ -97,20 +168,27 @@ export function collisionCensus(m: number, k: number): CollisionCensus {
   // family count goes non-positive, and the census would return universal2:
   // true over zero evidence (or a negative family) without ever multiplying
   if (FIELD_POLY[m] === undefined) throw new RcError("RC_NO_FIELD", `collisionCensus: no toy field GF(2^${m}) on file`);
+  const memoKey = `${m}|${k}`;
+  const hit = collisionCensusMemo.get(memoKey);
+  if (hit !== undefined) return hit;
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const fam = n - 1;
+  const mt = mulTable(m);
   let collisionsPerDelta = -1;
   for (let delta = 1; delta < n; delta++) {
     let count = 0;
-    for (let a = 1; a < n; a++) if ((gfMul(a, delta, m) & mask) === 0) count++;
+    for (let a = 1; a < n; a++) {
+      const prod = mt !== undefined ? mt[a - 1]![delta]! : gfMul(a, delta, m);
+      if ((prod & mask) === 0) count++;
+    }
     if (collisionsPerDelta === -1) collisionsPerDelta = count;
     else if (count !== collisionsPerDelta)
       throw new RcError("RC_DELTA_DEPENDENCE", `collisionCensus: delta-dependence at delta=${delta} (${count} vs ${collisionsPerDelta}) — family analysis broken`);
   }
   const maxCollisionProb = collisionsPerDelta / fam;
   const uniform2Bound = 2 ** -k;
-  return {
+  const out = {
     m,
     k,
     family: fam,
@@ -119,7 +197,11 @@ export function collisionCensus(m: number, k: number): CollisionCensus {
     uniform2Bound,
     universal2: maxCollisionProb <= uniform2Bound + 1e-15,
   };
+  collisionCensusMemo.set(memoKey, out);
+  return out;
 }
+
+const collisionCensusMemo = new Map<string, CollisionCensus>();
 
 // ---------------------------------------------------------------------------
 // The smoothed adversary: Z^m = X^m through a per-bit BSC(eps), X uniform.
@@ -153,13 +235,28 @@ function bscWeights(m: number, eps: number): number[] {
 export function bscBlockInfo(m: number, eps: number): { readonly closed: number; readonly table: number } {
   if (!(m >= 1 && m <= 16)) throw new RcError("RC_M_RANGE", `bscBlockInfo: m must lie in [1, 16] for exact enumeration (got m=${m})`);
   if (!(eps >= 0 && eps <= 0.5)) throw new RcError("RC_EPS_RANGE", `bscBlockInfo: BSC crossover eps must lie in [0, 1/2] (got ${eps})`);
+  const memoKey = `${m}|${eps}`;
+  const hit = bscBlockInfoMemo.get(memoKey);
+  if (hit !== undefined) return hit;
   const n = 1 << m;
-  const pc = popcounts(n);
-  const w = bscWeights(m, eps);
-  const joint: number[][] = Array.from({ length: n }, () => new Array<number>(n).fill(0));
-  for (let x = 0; x < n; x++) for (let z = 0; z < n; z++) joint[x]![z] = w[pc[x ^ z]!]!;
-  return { closed: m * (1 - h2(eps)), table: mutualInfoBits(joint) };
+  // the joint table IS the shared BSC weight structure G[x][z] = w[pc[x^z]]
+  // (same expression the inline build evaluated); at toy scale it comes from
+  // the per-(m, eps) cache, beyond it the direct build stands
+  const g = gMatrix(m, eps);
+  let joint: number[][];
+  if (g !== undefined) {
+    joint = g;
+  } else {
+    const pc = popcounts(n);
+    const w = bscWeights(m, eps);
+    joint = Array.from({ length: n }, (_, x) => Array.from({ length: n }, (_, z) => w[pc[x ^ z]!]!));
+  }
+  const out = { closed: m * (1 - h2(eps)), table: mutualInfoBits(joint) };
+  bscBlockInfoMemo.set(memoKey, out);
+  return out;
 }
+
+const bscBlockInfoMemo = new Map<string, { readonly closed: number; readonly table: number }>();
 
 export interface PaMeasure {
   readonly m: number;
@@ -186,11 +283,19 @@ export function paMeasure(m: number, k: number, eps: number): PaMeasure {
   if (!(m >= 1 && m <= 16)) throw new RcError("RC_M_RANGE", `paMeasure: m must lie in [1, 16] for exact enumeration (got m=${m})`);
   if (k < 1 || k > m) throw new RcError("RC_K_RANGE", `paMeasure: need 1 <= k <= m (got m=${m}, k=${k})`);
   if (!(eps >= 0 && eps <= 0.5)) throw new RcError("RC_EPS_RANGE", `paMeasure: BSC crossover eps must lie in [0, 1/2] (got ${eps})`);
+  const memoKey = `${m}|${k}|${eps}`;
+  const hit = paMeasureMemo.get(memoKey);
+  if (hit !== undefined) return hit;
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const fam = n - 1;
   const pc = popcounts(n);
   const w = bscWeights(m, eps);
+  // toy-scale fast path: the full multiplication table (one gfMul-identical
+  // lookup per (a, x)) and the shared BSC weight rows G[x][z] = w[pc[x^z]]
+  // (the exact value the inner loop's expression produced for that cell)
+  const mt = mulTable(m);
+  const g = gMatrix(m, eps);
 
   const before = bscBlockInfo(m, eps);
 
@@ -201,9 +306,17 @@ export function paMeasure(m: number, k: number, eps: number): PaMeasure {
   const fAvg: number[][] = Array.from({ length: 1 << k }, () => new Array<number>(n).fill(0));
   for (let a = 1; a < n; a++) {
     const table: number[][] = Array.from({ length: 1 << k }, () => new Array<number>(n).fill(0));
+    const mtRow = mt !== undefined ? mt[a - 1]! : undefined;
     for (let x = 0; x < n; x++) {
-      const c = gfMul(a, x, m) & mask;
-      for (let z = 0; z < n; z++) table[c]![z]! += w[pc[x ^ z]!]!;
+      const c = mtRow !== undefined ? mtRow[x]! & mask : gfMul(a, x, m) & mask;
+      if (g !== undefined) {
+        const row = table[c]!;
+        const gx = g[x]!;
+        for (let z = 0; z < n; z++) row[z] = row[z]! + gx[z]!;
+      } else {
+        const row = table[c]!;
+        for (let z = 0; z < n; z++) row[z] = row[z]! + w[pc[x ^ z]!]!;
+      }
     }
     const info = mutualInfoBits(table);
     sum += info;
@@ -226,7 +339,7 @@ export function paMeasure(m: number, k: number, eps: number): PaMeasure {
   const hInf = -m * Math.log2(Math.max(eps, 1 - eps));
   const lhlBound = 0.5 * 2 ** ((k - hInf) / 2);
 
-  return {
+  const out = {
     m,
     k,
     eps,
@@ -240,7 +353,11 @@ export function paMeasure(m: number, k: number, eps: number): PaMeasure {
     hInf,
     lhlBound,
   };
+  paMeasureMemo.set(memoKey, out);
+  return out;
 }
+
+const paMeasureMemo = new Map<string, PaMeasure>();
 
 // ---------------------------------------------------------------------------
 // The sparse adversary (intercept-resend profile): Eve knows a subset S of
@@ -301,6 +418,7 @@ export function sparseAdversaryInfo(m: number, k: number, knownBits: number): Sp
   const n = 1 << m;
   const mask = (1 << k) - 1;
   const sets = combinations(m, knownBits);
+  const mt = mulTable(m);
   let sum = 0;
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -308,7 +426,10 @@ export function sparseAdversaryInfo(m: number, k: number, knownBits: number): Sp
     const free: number[] = [];
     for (let i = 0; i < m; i++) if ((s & (1 << i)) === 0) free.push(1 << i);
     for (let a = 1; a < n; a++) {
-      const cols = free.map((e) => gfMul(a, e, m) & mask);
+      const mtRow = mt !== undefined ? mt[a - 1]! : undefined;
+      // the truncated products trunc_k(a (x) e) as one table lookup each —
+      // every lookup equals the gfMul(a, e, m) it replaces (exact enumeration)
+      const cols = free.map((e) => (mtRow !== undefined ? mtRow[e]! : gfMul(a, e, m)) & mask);
       const rank = gf2Rank(cols);
       const info = k - rank;
       sum += info;

@@ -10,4 +10,4 @@
 | cat:conjugation | 1 | b26#0 (b26) | GATE-ENFORCED | real states were immune; the identity sweep caught 1.5e-1 in the complex quadrant — closed forms go through the kernel (mMul + mTrace), never through the fingers (batch 10's expPauli recurring) |
 | shell-template-heredoc | 1 | b26#1 (b26) | BOOKED-UNENFORCEABLE | truncated a second time in the same session (batch 25's lesson re-offended on the spot) — code files go through the Write tool, promoted to a hard rule |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-11T21:11:38.978Z; src tree newest 2026-09-11T21:00:26.825Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T01:27:15.664Z; src tree newest 2026-09-13T01:21:06.853Z — FRESH (the newest render postdates every source)

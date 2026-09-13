@@ -229,19 +229,22 @@ export function decompositionIdentity(w: CMat, builder: InstrumentBuilder, fullP
  * to the Born rule) by sampling — the certificate chain stays unbroken.
  */
 export function closedFormProductPayoff(coeff: WStarCoefficients, params: StrategyParams): FunctionalPayoff {
-  const bA = (a: number, x: number): number => (params.alice.sharp[a] as number) * (x === 0 ? 1 : -1) * ((params.alice.axis[a] as Axis)[2]);
-  const alpha = (a: number): number => (((params.alice.prep[a] as readonly Axis[])[0] as Axis)[2]) + (((params.alice.prep[a] as readonly Axis[])[1] as Axis)[2]);
-  const gB = (k: number, y: number): number => (params.bob.sharp[k] as number) * (y === 0 ? 1 : -1) * ((params.bob.axis[k] as Axis)[2]);
-  const dB = (k: number): number =>
-    (params.bob.sharp[k] as number) *
-    ((params.bob.axis[k] as Axis)[0]) *
-    ((((params.bob.prep[k] as readonly Axis[])[0] as Axis)[2]) - (((params.bob.prep[k] as readonly Axis[])[1] as Axis)[2]));
+  // closure-free form (the multistart sweep calls this millions of times): the
+  // expression trees and their evaluation order are the former bA / alpha / gB
+  // / dB closures verbatim — beta_x(a) = s_A (±1) n_z^A, alpha(a) = r_z^a(0) +
+  // r_z^a(1), gamma_y(b,1) = s_B (±1) n_z^B, delta(b,0) = s_B n_x^B (r_z(0) -
+  // r_z(1)) — only the closures themselves stopped being allocated per call.
+  const alice = params.alice;
+  const bob = params.bob;
   let pA = 0;
   let pB = 0;
   for (let a = 0; a < 2; a++) {
+    const sharpA = alice.sharp[a] as number;
+    const axisZA = (alice.axis[a] as Axis)[2] as number;
+    const alphaA = (((alice.prep[a] as readonly Axis[])[0] as Axis)[2] as number) + (((alice.prep[a] as readonly Axis[])[1] as Axis)[2] as number);
     for (let b = 0; b < 2; b++) {
-      pA += 2 + coeff.c2 * bA(a, b) * dB(2 * b); // slot 2b = (b, b'=0); m_x = 1 in this family
-      pB += 2 + coeff.c1 * alpha(a) * gB(2 * b + 1, a); // slot 2b+1 = (b, b'=1)
+      pA += 2 + coeff.c2 * (sharpA * (b === 0 ? 1 : -1) * axisZA) * ((bob.sharp[2 * b] as number) * ((bob.axis[2 * b] as Axis)[0] as number) * ((((bob.prep[2 * b] as readonly Axis[])[0] as Axis)[2] as number) - (((bob.prep[2 * b] as readonly Axis[])[1] as Axis)[2] as number))); // slot 2b = (b, b'=0); m_x = 1 in this family
+      pB += 2 + coeff.c1 * alphaA * ((bob.sharp[2 * b + 1] as number) * (a === 0 ? 1 : -1) * ((bob.axis[2 * b + 1] as Axis)[2] as number)); // slot 2b+1 = (b, b'=1)
     }
   }
   const pAlice = pA / 16;

@@ -73,6 +73,15 @@ export class SseSampler {
   private readonly ops: Int32Array;
   private readonly spins: Int8Array; // z ∈ {+1,−1}，底部传播态
   private readonly zRun: Int8Array;
+  /** 复用缓冲（分配搅动治理）：双世界传播/全权重/三元组槽表每 sweep
+   *  重建内容，逐 call 入口 .set(spins) 或 length=0 复位——数值序列不变，
+   *  只是同一对象重复使用，消除每键/每步的短命数组分配。 */
+  private readonly zOldBuf: Int8Array;
+  private readonly zNewBuf: Int8Array;
+  private readonly zWeightBuf: Int8Array;
+  private readonly edgeSlotsBuf: number[] = [];
+  private readonly slotsIBuf: number[] = [];
+  private readonly slotsJBuf: number[] = [];
   private nOps = 0;
   private nXx = 0;
   private readonly rng: Rng;
@@ -83,6 +92,9 @@ export class SseSampler {
     this.ops = new Int32Array(this.M);
     this.spins = new Int8Array(cfg.n).fill(1);
     this.zRun = new Int8Array(cfg.n);
+    this.zOldBuf = new Int8Array(cfg.n);
+    this.zNewBuf = new Int8Array(cfg.n);
+    this.zWeightBuf = new Int8Array(cfg.n);
     this.rng = new Rng(options.seed ?? 0x5ee);
   }
 
@@ -173,8 +185,10 @@ export class SseSampler {
     if (count % 2 === 1) return;
 
     // 双世界：old 从现初态出发；new 从翻转后的初态出发（初态翻转进入权重比）
-    const zOld = new Int8Array(this.spins);
-    const zNew = new Int8Array(this.spins);
+    const zOld = this.zOldBuf;
+    zOld.set(this.spins);
+    const zNew = this.zNewBuf;
+    zNew.set(this.spins);
     if (this.isEdge(bond)) {
       const e = cfg.edges[bond - cfg.n]!;
       zNew[e.i] = -zNew[e.i]!;
@@ -265,7 +279,8 @@ export class SseSampler {
 
   /** 构型全权重（|W| 系综）：逐槽传播求元素连乘；不一致或零元素 → 0。 */
   fullWeight(): number {
-    const z = new Int8Array(this.spins);
+    const z = this.zWeightBuf;
+    z.set(this.spins);
     let w = 1;
     for (let m = 0; m < this.M; m++) {
       const op = this.ops[m]!;
@@ -303,7 +318,8 @@ export class SseSampler {
    */
   private tripleToggle(): void {
     const { ops, M, cfg } = this;
-    const edgeSlots: number[] = [];
+    const edgeSlots = this.edgeSlotsBuf;
+    edgeSlots.length = 0;
     for (let m = 0; m < M; m++) {
       const op = ops[m]!;
       if (op === 0) continue;
@@ -314,8 +330,10 @@ export class SseSampler {
     const m = edgeSlots[this.rng.int(edgeSlots.length)]!;
     const edgeOp = ops[m]!;
     const e = cfg.edges[(edgeOp % 2 === 1 ? edgeOp - 1 : edgeOp - 2) / 2 - cfg.n]!;
-    const slotsI: number[] = [];
-    const slotsJ: number[] = [];
+    const slotsI = this.slotsIBuf;
+    const slotsJ = this.slotsJBuf;
+    slotsI.length = 0;
+    slotsJ.length = 0;
     for (let s = 0; s < M; s++) {
       const op = ops[s]!;
       if (op === 0) continue;

@@ -101,11 +101,33 @@ function sitePauli(n: number, k: number, p: CMat): CMat {
   return kronAll(factors);
 }
 
+// The site operators are pure functions of (n, i) — each one a cascade of
+// Kronecker builds at 2^n x 2^n that the strobe loops used to rebuild on
+// EVERY call (magnetization alone asks for n of them per strobe per census).
+// Memoized per operator: the cached matrix is bit-for-bit the matrix the
+// uncached road returned, and every consumer (magnetization, clockOrder,
+// tiHamiltonian, the witnesses, the tests) reads it through mMul/mAdd/maxAbs
+// — never a write — so sharing the object cannot move a digit.
+const siteZCache = new Map<string, CMat>();
+const siteXCache = new Map<string, CMat>();
+
 export function siteZ(n: number, i: number): CMat {
-  return sitePauli(n, i, PAULI_Z);
+  const key = `${n}:${i}`;
+  let m = siteZCache.get(key);
+  if (m === undefined) {
+    m = sitePauli(n, i, PAULI_Z);
+    siteZCache.set(key, m);
+  }
+  return m;
 }
 export function siteX(n: number, i: number): CMat {
-  return sitePauli(n, i, PAULI_X);
+  const key = `${n}:${i}`;
+  let m = siteXCache.get(key);
+  if (m === undefined) {
+    m = sitePauli(n, i, PAULI_X);
+    siteXCache.set(key, m);
+  }
+  return m;
 }
 
 /** Max |entry| of a matrix — the deviation metric used across this repo. */
@@ -571,12 +593,16 @@ export function dephasedEchoSample(rng: Rng, delta: number, k: number): number {
 export function dephasedEchoExpectationExact(delta: number, k: number): number {
   if (k < 1 || k > 16) throw new DtcError("E/DOMAIN", "dephasedEchoExpectationExact: 1 <= k <= 16 (the ensemble is exponential)");
   const seq = 1 << k;
-  const signs = new Float64Array(k);
+  // only two distinct kicks exist on the whole ensemble (theta = pi/2 ± delta):
+  // built once instead of 2^k · k times. The matrices are the very ones the
+  // per-step road produced, applied in the same per-bit order — every
+  // trajectory, and hence the exhaustive sum, is value-identical.
+  const kickPlus = kickStroke(Math.PI / 2 + delta, 1);
+  const kickMinus = kickStroke(Math.PI / 2 - delta, 1);
   let sum = 0;
   for (let mask = 0; mask < seq; mask++) {
-    for (let j = 0; j < k; j++) signs[j] = (mask >> j) & 1 ? delta : -delta;
     let rho = polarizedRho(1);
-    for (let j = 0; j < k; j++) rho = applyUnitary(rho, kickStroke(Math.PI / 2 + signs[j]!, 1));
+    for (let j = 0; j < k; j++) rho = applyUnitary(rho, (mask >> j) & 1 ? kickPlus : kickMinus);
     const m = magnetization(rho, 1);
     sum += k % 2 === 0 ? m : -m;
   }

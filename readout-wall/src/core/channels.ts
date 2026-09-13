@@ -42,33 +42,43 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
   const dIn = rho.rows;
-  for (let row = 0; row < dIn; row++) {
-    // decompose row index into per-subsystem digits
+  // Per-index decompositions computed once — the same integer arithmetic the
+  // per-cell loop used to redo for every (row, col) pair: the kept-subsystem
+  // output index of an index (rows and columns share the formula), and its
+  // digits on the traced-out subsystems (the match predicate).
+  const outIndexOf: number[] = new Array<number>(dIn);
+  const traceDigitsOf: number[][] = new Array<number[]>(dIn);
+  for (let idx = 0; idx < dIn; idx++) {
     const digits: number[] = new Array<number>(m);
-    let r = row;
+    let r = idx;
     for (let i = 0; i < m; i++) {
       digits[i] = Math.floor(r / strides[i]!);
       r %= strides[i]!;
     }
-    const keepRow = keep.reduce((acc, sys, idx) => acc + digits[sys]! * keptStrides[idx]!, 0);
+    let outIdx = 0;
+    for (let j = 0; j < keep.length; j++) outIdx += digits[keep[j]!]! * keptStrides[j]!;
+    outIndexOf[idx] = outIdx;
+    const td: number[] = new Array<number>(traceOut.length);
+    for (let j = 0; j < traceOut.length; j++) td[j] = digits[traceOut[j]!]!;
+    traceDigitsOf[idx] = td;
+  }
+  for (let row = 0; row < dIn; row++) {
+    const keepRow = outIndexOf[row]!;
+    const rowTrace = traceDigitsOf[row]!;
+    const rowBase = row * dIn;
     for (let col = 0; col < dIn; col++) {
-      let c = col;
-      const cdigits: number[] = new Array<number>(m);
-      for (let i = 0; i < m; i++) {
-        cdigits[i] = Math.floor(c / strides[i]!);
-        c %= strides[i]!;
-      }
+      const colTrace = traceDigitsOf[col]!;
       let matches = true;
-      for (const t of traceOut) {
-        if (cdigits[t]! !== digits[t]!) {
+      for (let j = 0; j < rowTrace.length; j++) {
+        if (colTrace[j]! !== rowTrace[j]!) {
           matches = false;
           break;
         }
       }
       if (!matches) continue;
-      const keepCol = keep.reduce((acc, sys, idx) => acc + cdigits[sys]! * keptStrides[idx]!, 0);
-      out.re[keepRow * dOut + keepCol] = out.re[keepRow * dOut + keepCol]! + rho.re[row * dIn + col]!;
-      out.im[keepRow * dOut + keepCol] = out.im[keepRow * dOut + keepCol]! + rho.im[row * dIn + col]!;
+      const keepCol = outIndexOf[col]!;
+      out.re[keepRow * dOut + keepCol] = out.re[keepRow * dOut + keepCol]! + rho.re[rowBase + col]!;
+      out.im[keepRow * dOut + keepCol] = out.im[keepRow * dOut + keepCol]! + rho.im[rowBase + col]!;
     }
   }
   return out;

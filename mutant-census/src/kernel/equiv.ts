@@ -209,10 +209,31 @@ function mAddRaw(a: CMat, b: CMat): CMat {
 /** The per-error constructions, machine-verified before the table was written
  * (the scratch census): each is the faithful family-level re-enactment of that
  * error's own defect text. The builder's case list is the ground truth of
- * buildability — a row declared buildable that has no case refuses, live (J2). */
+ * buildability — a row declared buildable that has no case refuses, live (J2).
+ *
+ * Constructions are pure in (key, base). The default-base construction for
+ * each key is cached: the J-board's census re-runs against the same table
+ * many times over (the suite's full-table trials, the render, the artifact
+ * gate), and a keyed cache — keyed by the ERROR KEY the construction is
+ * derived from, never by the table row's mutable fields — serves each one.
+ * A forged table flips verdict/reason/built fields, none of which the
+ * construction reads; a row with an unknown key still takes the builder's
+ * refusal path live. */
+const perErrorFamilyCache = new Map<string, Family>();
+
 export function perErrorFamily(key: string, base: Family = canonicalFamily()): Family {
   const p1 = mat(2, 2);
   p1.re[3] = 1; // |1><1|
+  const build = (): Family => buildPerErrorFamily(key, base, p1);
+  if (base !== canonicalFamily()) return build();
+  const cached = perErrorFamilyCache.get(key);
+  if (cached !== undefined) return cached;
+  const fam = build();
+  perErrorFamilyCache.set(key, fam);
+  return fam;
+}
+
+function buildPerErrorFamily(key: string, base: Family, p1: CMat): Family {
   switch (key) {
     case "b10#4": // the closed-form element conjugates the wrong side
       return {
@@ -452,12 +473,21 @@ export interface PerErrorCensusRow {
   readonly detail: string;
 }
 
+/** The prototype prints, cached by mutant id: the prototypes are the module's
+ * own constant register, so each mutant's battery print is derived once and
+ * reused by every census call (an unknown id still refuses live). */
+const protoPrintCache = new Map<string, BatteryPrint>();
+
 function protoPrint(id: string): BatteryPrint {
   const spec = MUTANTS.find((m) => m.id === id);
   if (spec === undefined) {
     throw new Error(`protoPrint: unknown prototype id "${id}" — a PER_ERROR row's prototype must name a declared mutant (b84#21's law: the filing follows the machine's table, never the intent)`);
   }
-  return batteryPrint(mutantFamily(spec));
+  const cached = protoPrintCache.get(id);
+  if (cached !== undefined) return cached;
+  const fresh = batteryPrint(mutantFamily(spec));
+  protoPrintCache.set(id, fresh);
+  return fresh;
 }
 
 /** The census: every buildable row's construction against the full battery,
@@ -465,14 +495,6 @@ function protoPrint(id: string): BatteryPrint {
  * own prototype). */
 export function runPerErrorCensus(specs: readonly PerErrorSpec[] = PER_ERROR): PerErrorCensusRow[] {
   const rows: PerErrorCensusRow[] = [];
-  const prints = new Map<string, BatteryPrint>();
-  const printOf = (id: string): BatteryPrint => {
-    const cached = prints.get(id);
-    if (cached !== undefined) return cached;
-    const fresh = protoPrint(id);
-    prints.set(id, fresh);
-    return fresh;
-  };
   for (const spec of specs) {
     if (spec.verdict === "UNBUILDABLE") {
       rows.push({ key: spec.key, computed: "UNBUILDABLE", onto: "", killers: [], worst: 0, detail: "no construction exists at the family layer — booked" });
@@ -491,7 +513,7 @@ export function runPerErrorCensus(specs: readonly PerErrorSpec[] = PER_ERROR): P
       continue;
     }
     const print: BatteryPrint = { passing: props.map((p) => p.pass), worst: props.map((p) => p.worst) };
-    const onto = printsEqual(print, printOf(spec.prototype)) ? spec.prototype : "";
+    const onto = printsEqual(print, protoPrint(spec.prototype)) ? spec.prototype : "";
     if (onto !== "") {
       const worst = Math.max(...failing.map((p) => p.worst));
       rows.push({ key: spec.key, computed: "COLLAPSES", onto, killers: [], worst, detail: `bit-exact with ${onto} on all ten properties — the class tie is the fixed point` });

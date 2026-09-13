@@ -44,13 +44,17 @@ export function applyReadoutFlips(probs: Float64Array, n: number, q: number): Fl
   );
   for (let j = 0; j < n; j++) {
     const bit = 1 << j;
-    for (let s0 = 0; s0 < dim; s0++) {
-      if (s0 & bit) continue;
-      const s1 = s0 | bit;
-      const a = out[s0]!;
-      const b = out[s1]!;
-      out[s0] = (1 - q) * a + q * b;
-      out[s1] = q * a + (1 - q) * b;
+    // enumerate exactly the (s0, s1 = s0 | bit) pairs in ascending s0 order —
+    // the same updates in the same sequence as the masked scan
+    for (let base = 0; base < dim; base += bit << 1) {
+      for (let off = 0; off < bit; off++) {
+        const s0 = base + off;
+        const s1 = s0 | bit;
+        const a = out[s0]!;
+        const b = out[s1]!;
+        out[s0] = (1 - q) * a + q * b;
+        out[s1] = q * a + (1 - q) * b;
+      }
     }
   }
   return out;

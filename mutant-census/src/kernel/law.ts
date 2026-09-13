@@ -12,13 +12,25 @@ export const FULL_DIM = 4;
 export const DATA_DIM = 2;
 
 /** Kraus pair of the law: damping INTO the world bit, identity on the cargo. */
+// The Kraus pair is a pure function of gamma, and every consumer reads the
+// matrices without mutating them (applyKraus and mScale both copy-on-write) —
+// so one construction per gamma value serves the whole process. The battery
+// calls applyLaw tens of thousands of times per census run (P6/P7 evolve the
+// law step by step); rebuilding the pair per call was pure allocation churn
+// with bit-identical results.
+const lawKrausCache = new Map<number, CMat[]>();
+
 export function lawKraus(gamma: number = GAMMA): CMat[] {
+  const cached = lawKrausCache.get(gamma);
+  if (cached !== undefined) return cached;
   const k0w = mat(2, 2);
   k0w.re[0 * 2 + 0] = Math.sqrt(1 - gamma);
   k0w.re[1 * 2 + 1] = 1;
   const k1w = mat(2, 2);
   k1w.re[1 * 2 + 0] = Math.sqrt(gamma); // row 1, col 0: |1><0| carries |0> into the world
-  return [kron(k0w, identity(DATA_DIM)), kron(k1w, identity(DATA_DIM))];
+  const out = [kron(k0w, identity(DATA_DIM)), kron(k1w, identity(DATA_DIM))];
+  lawKrausCache.set(gamma, out);
+  return out;
 }
 
 export function applyLaw(rho: CMat, gamma: number = GAMMA): CMat {

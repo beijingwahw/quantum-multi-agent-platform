@@ -86,28 +86,44 @@ export class MinCostFlow {
     let flow = 0;
     let cost = 0;
     const n = this.graph.length;
+    // 相位级缓冲复用：dist/inQueue/prevNode/prevEdge 在每个增广相位开头
+    // 全量重置（fill 覆盖旧值，任何读前必先写），跨相位共用同一块内存。
+    // 旧实现每相位分配 4 个 n 维数组（含 n 个 {node, edgeIdx} 对象的
+    // prev 数组——每次松弛还 new 一个配对对象），批量 VCG 的 λ 二分一次
+    // allocateBatch 就要重建几十个流网络、每个网络多次增广，分配/GC
+    // 噪音与松弛热路径的对象头开销在此全部摊平。prev 拆成两个
+    // Int32Array 编码同一数据（最后写入者胜出语义不变），回放路径的
+    // 读序与数值逐位一致。
+    const dist = new Array<number>(n);
+    const inQueue = new Array<boolean>(n);
+    const prevNode = new Int32Array(n);
+    const prevEdge = new Int32Array(n);
+    const queue: number[] = [];
     for (;;) {
-      const dist = Array<number>(n).fill(Infinity);
-      const inQueue = Array<boolean>(n).fill(false);
-      const prev: Array<{ node: number; edgeIdx: number } | null> = Array<{
-        node: number;
-        edgeIdx: number;
-      } | null>(n).fill(null);
+      dist.fill(Infinity);
+      inQueue.fill(false);
+      prevNode.fill(-1);
+      prevEdge.fill(-1);
       dist[s] = 0;
-      const queue: number[] = [s];
       // 索引头出队：shift() 每次搬移整个数组（O(n)），SPFA 的每次最短路
-      // 相位因此从 O(V·E) 退化到 O(V²·E)；head 前移语义等价、均摊 O(1)
+      // 相位因此从 O(V·E) 退化到 O(V²·E）；head 前移语义等价、均摊 O(1)
       let head = 0;
+      queue.push(s);
       while (head < queue.length) {
         const u = queue[head++]!;
         inQueue[u] = false;
         const edges = this.node(u);
+        // distU 在 u 的整条出边扫描中不变（dist[u] 只会被指向 u 的边
+        // 松弛改写，而本扫描不重入）；edges[i] 直取——旧写法每条边再经
+        // edge(u,i) 重做一次 node(u) 边界检查，SPFA 最内层 O(V·E) 次的
+        // 纯开销
+        const distU = dist[u]!;
         for (let i = 0; i < edges.length; i++) {
-          const e = this.edge(u, i);
-          const distU = dist[u]!;
+          const e = edges[i]!;
           if (e.cap > 0 && distU + e.cost < dist[e.to]! - RELAX_EPS) {
             dist[e.to] = distU + e.cost;
-            prev[e.to] = { node: u, edgeIdx: i };
+            prevNode[e.to] = u;
+            prevEdge[e.to] = i;
             if (!inQueue[e.to]) {
               queue.push(e.to);
               inQueue[e.to] = true;
@@ -119,19 +135,21 @@ export class MinCostFlow {
       if (dist[t] === Infinity || dist[t]! >= -TERM_EPS) break;
       let aug = Infinity;
       for (let v = t; v !== s;) {
-        const p = prev[v]!;
-        aug = Math.min(aug, this.edge(p.node, p.edgeIdx).cap);
-        v = p.node;
+        const pn = prevNode[v]!;
+        aug = Math.min(aug, this.edge(pn, prevEdge[v]!).cap);
+        v = pn;
       }
       for (let v = t; v !== s;) {
-        const p = prev[v]!;
-        const e = this.edge(p.node, p.edgeIdx);
+        const pn = prevNode[v]!;
+        const e = this.edge(pn, prevEdge[v]!);
         e.cap -= aug;
         this.edge(e.to, e.rev).cap += aug;
         cost += aug * e.cost;
-        v = p.node;
+        v = pn;
       }
       flow += aug;
+      // 回到相位头前清空队缓冲（head 游标随之作废）
+      queue.length = 0;
     }
     return { flow, cost };
   }

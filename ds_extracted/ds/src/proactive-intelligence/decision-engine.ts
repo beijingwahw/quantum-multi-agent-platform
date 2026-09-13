@@ -82,6 +82,16 @@ function toNumber(value: unknown): number | null {
 }
 
 /**
+ * 字符串形式 matches 模式的编译缓存（R13 性能）：以条件对象为弱键——
+ * 条件随规则入库克隆而生、随规则移除而死，缓存生命周期与规则存储
+ * 对齐。此前字符串模式在**每次条件求值**（每事件批 × 每规则）都
+ * new RegExp 重编译。仅缓存成功编译的模式；非法模式保持逐次抛错
+ * → false 的原路径。无 /g 旗标的 RegExp 无 lastIndex 状态，跨求值
+ * 复用是纯函数语义。
+ */
+const compiledPatternCache = new WeakMap<object, RegExp>();
+
+/**
  * 条件侧（规则作者书写的比较目标/边界）数值化：与字段侧 toNumber 的
  * 严格有限性不同，±Infinity 在这里是合法的规则语义——`between [5, Infinity]`
  * 表达「≥5」（预设规则 highCpuUsageRule 即此形态），若按 toNumber 拒绝，
@@ -388,7 +398,13 @@ export class DecisionEngine extends EventEmitter {
         // 规则值约定为字符串或 RegExp；非法模式按条件不成立处理而非抛错
         try {
           const pattern = condition.value;
-          const re = pattern instanceof RegExp ? pattern : new RegExp(pattern);
+          if (pattern instanceof RegExp) return pattern.test(String(value));
+          // 字符串模式：按条件对象弱缓存编译产物（见 compiledPatternCache）
+          let re = compiledPatternCache.get(condition);
+          if (re === undefined) {
+            re = new RegExp(pattern);
+            compiledPatternCache.set(condition, re);
+          }
           return re.test(String(value));
         } catch {
           return false;
@@ -410,12 +426,18 @@ export class DecisionEngine extends EventEmitter {
 
     const [eventType, ...path] = field.split('.');
 
-    // 过滤匹配的事件
-    const matchingEvents = events.filter((e) => e.type === eventType);
-    if (matchingEvents.length === 0) return null;
+    // 尾部反向扫描取该类型的最新事件（R13 性能：原 filter 分配整份匹配
+    // 数组只为取末元素——这是每事件批 × 每事件条件的最高频求值面。
+    // 反向首个命中 == filter 序的末位，选中事件逐点一致）
+    let latestEvent: MonitorEvent | undefined;
+    for (let i = events.length - 1; i >= 0; i--) {
+      if (events[i]!.type === eventType) {
+        latestEvent = events[i]!;
+        break;
+      }
+    }
+    if (latestEvent === undefined) return null;
 
-    // 从最新的事件中提取值
-    const latestEvent = matchingEvents[matchingEvents.length - 1]!;
     const fromRoot = this.extractNestedValue(latestEvent, path);
     if (fromRoot !== undefined) return fromRoot;
     return this.extractNestedValue(latestEvent.data, path);

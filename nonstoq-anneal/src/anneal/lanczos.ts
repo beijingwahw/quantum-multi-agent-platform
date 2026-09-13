@@ -47,18 +47,23 @@ export function applyHamiltonian(
 
 /**
  * Walsh-Hadamard 原位变换（除以 √2 归一）——applyHamiltonian 与测试共用。
+ * 块嵌套枚举与经典 `if (a & stride) continue` 扫描完全相同的 (a,b) 对集合
+ * 与顺序，算术逐位不变（只丢弃被 continue 的迭代）。
  */
 export function hadamardInPlace(v: Float64Array, n: number): void {
   const dim = 1 << n;
   for (let j = 0; j < n; j++) {
     const stride = 1 << j;
-    for (let a = 0; a < dim; a++) {
-      if (a & stride) continue;
-      const b = a | stride;
-      const x = v[a]!;
-      const y = v[b]!;
-      v[a] = (x + y) / Math.SQRT2;
-      v[b] = (x - y) / Math.SQRT2;
+    const doubleStride = stride << 1;
+    for (let base = 0; base < dim; base += doubleStride) {
+      const blockEnd = base + stride;
+      for (let a = base; a < blockEnd; a++) {
+        const b = a | stride;
+        const x = v[a]!;
+        const y = v[b]!;
+        v[a] = (x + y) / Math.SQRT2;
+        v[b] = (x - y) / Math.SQRT2;
+      }
     }
   }
 }

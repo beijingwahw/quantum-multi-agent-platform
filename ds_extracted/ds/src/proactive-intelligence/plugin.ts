@@ -89,6 +89,13 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
   private inFlightBatches = 0;
   /** 待执行动作队列深度（背压可观测：事件风暴下的堆积量） */
   private actionBacklog = 0;
+  /**
+   * ruleId → priority 查表缓存（R13 性能）：原每决策批从 getAllRules()
+   * 深拷贝重建 Map——优先级在规则生命周期内不可变（唯一变更途径是
+   * addRule 同 id 覆盖，届时引擎发 rule_added），缓存随 rule_added/
+   * rule_removed 失效即与实时值恒等。
+   */
+  private rulePriorityCache: Map<string, number> | null = null;
 
   constructor(config: ProactiveIntelligencePluginConfig = {}) {
     super();
@@ -145,6 +152,14 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     for (const name of ['rule_added', 'rule_removed', 'rule_triggered', 'decision_made'] as const) {
       this.engine.on(name, (...args: unknown[]) => this.emit(name, ...args));
     }
+    // 优先级查表缓存失效：规则增删（含同 id 覆盖改优先级）后重建。
+    // toggleRule 只改 enabled 不改 priority，无需失效
+    this.engine.on('rule_added', () => {
+      this.rulePriorityCache = null;
+    });
+    this.engine.on('rule_removed', () => {
+      this.rulePriorityCache = null;
+    });
     for (const name of [
       'action_started',
       'action_completed',
@@ -213,7 +228,11 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
     try {
       try {
         const rules = this.engine.getAllRules();
-        const rulePriorityById = new Map(rules.map((r) => [r.id, r.priority]));
+        // R13：优先级查表走缓存（规则增删时失效重建），首批用同一份
+        // 快照建表——值与逐批重建恒等
+        const rulePriorityById = (this.rulePriorityCache ??= new Map(
+          rules.map((r) => [r.id, r.priority]),
+        ));
         const context: DecisionContext = {
           // 02#23 remainder：有界尾部窗口，不再全量拷贝活跃缓冲
           events: this.monitor.getRecentEvents(STATE_EVENT_WINDOW),
@@ -437,7 +456,9 @@ export class ProactiveIntelligencePlugin extends EventEmitter {
       engine: this.engine.getMetrics(),
       executor: {
         running: this.executor.getRunningExecutions().length,
-        history: this.executor.getExecutionHistory().length,
+        // R13：长度查询走专用计数（原为 getExecutionHistory().length，
+        // 每次统计全量拷贝万级历史数组）
+        history: this.executor.getExecutionHistorySize(),
         backlog: this.actionBacklog,
       },
       running: this.running,

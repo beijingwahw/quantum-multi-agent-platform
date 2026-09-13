@@ -44,31 +44,32 @@ export function arrayValuation(vals: readonly number[]): Valuation {
 }
 
 /** Sample an index from |psi|^2 given the raw amplitudes. */
-function bornSample(amps: readonly number[], rng: Rng): number {
+function bornSample(amps: Float64Array, rng: Rng): number {
   let total = 0;
-  for (const a of amps) total += a * a;
+  for (let i = 0; i < amps.length; i++) total += amps[i]! * amps[i]!;
   let r = rng.next() * total;
   for (let i = 0; i < amps.length; i++) {
-    r -= (amps[i] as number) ** 2;
+    r -= amps[i]! ** 2;
     if (r <= 0) return i;
   }
   return amps.length - 1;
 }
 
-/** Run j Grover iterations (oracle: value < threshold) from the uniform state; return final amps. */
-function groverAmps(val: Valuation, thresholdValue: number, j: number): number[] {
+/** Run j Grover iterations (oracle: value < threshold) from the uniform state
+ * into the caller's buffer — one allocation per dhMin run, not one per inner
+ * attempt; the values written are identical. */
+function groverAmps(val: Valuation, thresholdValue: number, j: number, amps: Float64Array): void {
   const N = val.N;
-  const amps = new Array<number>(N).fill(1 / Math.sqrt(N));
+  amps.fill(1 / Math.sqrt(N));
   for (let iter = 0; iter < j; iter++) {
     for (let x = 0; x < N; x++) {
-      if (val.valueAt(x) < thresholdValue) amps[x] = -(amps[x] as number);
+      if (val.valueAt(x) < thresholdValue) amps[x] = -amps[x]!;
     }
     let mean = 0;
-    for (const a of amps) mean += a;
+    for (let i = 0; i < N; i++) mean += amps[i]!;
     mean /= N;
-    for (let i = 0; i < N; i++) amps[i] = 2 * mean - (amps[i] as number);
+    for (let i = 0; i < N; i++) amps[i] = 2 * mean - amps[i]!;
   }
-  return amps;
 }
 
 /** One DH run with per-query accounting; `optimal` compares against the exhaustive minimum of toArray(). */
@@ -77,6 +78,7 @@ export function dhMin(val: Valuation, rng: Rng): DhResult {
   if (N <= 0) throw new Error(`dhMin: valuation must be non-empty (got N=${N})`);
   const cap = Math.ceil(Math.sqrt(N)); // BBHT ladder ceiling
   let queries = 0;
+  const amps = new Float64Array(N); // reused by every inner attempt
 
   let thresholdIndex = rng.int(N);
   let thresholdValue = val.valueAt(thresholdIndex);
@@ -91,7 +93,7 @@ export function dhMin(val: Valuation, rng: Rng): DhResult {
     let found = false;
     while (m <= cap) {
       const j = rng.int(m) + (m >= 2 ? rng.int(m) : 0); // j in [0, 2m) once m >= 2
-      const amps = groverAmps(val, thresholdValue, j);
+      groverAmps(val, thresholdValue, j, amps);
       queries += j; // j oracle queries for the j iterations
       const sampled = bornSample(amps, rng);
       queries += 1; // compare sampled value against threshold
@@ -109,7 +111,7 @@ export function dhMin(val: Valuation, rng: Rng): DhResult {
     let late = false;
     for (let r = 0; r < 8; r++) {
       const j = Math.floor(cap / 2) + rng.int(Math.max(1, cap - Math.floor(cap / 2)));
-      const amps = groverAmps(val, thresholdValue, j);
+      groverAmps(val, thresholdValue, j, amps);
       queries += j;
       const sampled = bornSample(amps, rng);
       queries += 1;

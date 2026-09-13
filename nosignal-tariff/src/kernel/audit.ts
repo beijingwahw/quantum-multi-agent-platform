@@ -122,10 +122,14 @@ function witnessCacheLeak(): WitnessResult {
   let withU = 0;
   let withC = 0;
   for (const a of AXES) {
+    // the local maps depend on the axis only — built once per a, not once per
+    // (a, b) pair (each is a fresh seeded closure; same seed, same map)
+    const uOnB = randomBUnitary(a[0] * 97 + 5);
+    const cOnB = randomBCPTP(a[1] * 131 + 9, 2);
     for (const b of AXES) {
       plain = Math.max(plain, cacheLeakage(SINGLET, a, b));
-      withU = Math.max(withU, cacheLeakage(SINGLET, a, b, randomBUnitary(a[0] * 97 + 5)));
-      withC = Math.max(withC, cacheLeakage(SINGLET, a, b, randomBCPTP(a[1] * 131 + 9, 2)));
+      withU = Math.max(withU, cacheLeakage(SINGLET, a, b, uOnB));
+      withC = Math.max(withC, cacheLeakage(SINGLET, a, b, cOnB));
     }
   }
   const worst = Math.max(plain, withU, withC);
@@ -271,10 +275,13 @@ function witnessSicCensus(): WitnessResult {
   let withU = 0;
   let withC = 0;
   for (const a of TETRAHEDRAL_AXES) {
+    // same hoist as W-A: the local maps are per-axis, not per-pair
+    const uOnB = randomBUnitary(a[0] * 89 + 7);
+    const cOnB = randomBCPTP(a[1] * 113 + 3, 2);
     for (const b of TETRAHEDRAL_AXES) {
       plain = Math.max(plain, cacheLeakage(SINGLET, a, b));
-      withU = Math.max(withU, cacheLeakage(SINGLET, a, b, randomBUnitary(a[0] * 89 + 7)));
-      withC = Math.max(withC, cacheLeakage(SINGLET, a, b, randomBCPTP(a[1] * 113 + 3, 2)));
+      withU = Math.max(withU, cacheLeakage(SINGLET, a, b, uOnB));
+      withC = Math.max(withC, cacheLeakage(SINGLET, a, b, cOnB));
     }
   }
   const structure = tetraStructureDeviation();

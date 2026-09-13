@@ -95,23 +95,36 @@ export class StateVector {
    * In-place Walsh-Hadamard transform (apply H to every qubit, with the
    * 1/sqrt(2) per-qubit normalization). Maps the Z basis to the X basis and
    * back; applying twice is the identity.
+   *
+   * Single core: the per-qubit pass visits exactly the indices with bit j
+   * clear, ascending — the block-nested loops below enumerate that same set in
+   * the same order without the discarded masked iterations, so every double
+   * written is bit-identical to the classic `if (s0 & stride) continue` scan.
    */
   applyHadamardAll(): void {
-    const { re, im, dim, n } = this;
+    StateVector.hadamardArrays(this.re, this.im, this.n);
+  }
+
+  /** Walsh-Hadamard in place on raw buffers — shared core (see above). */
+  static hadamardArrays(re: Float64Array, im: Float64Array, n: number): void {
+    const dim = 1 << n;
     const invSqrt2 = 1 / Math.SQRT2;
     for (let j = 0; j < n; j++) {
       const stride = 1 << j;
-      for (let s0 = 0; s0 < dim; s0++) {
-        if (s0 & stride) continue;
-        const s1 = s0 | stride;
-        const re0 = re[s0]!;
-        const re1 = re[s1]!;
-        const im0 = im[s0]!;
-        const im1 = im[s1]!;
-        re[s0] = (re0 + re1) * invSqrt2;
-        im[s0] = (im0 + im1) * invSqrt2;
-        re[s1] = (re0 - re1) * invSqrt2;
-        im[s1] = (im0 - im1) * invSqrt2;
+      const doubleStride = stride << 1;
+      for (let base = 0; base < dim; base += doubleStride) {
+        const blockEnd = base + stride;
+        for (let s0 = base; s0 < blockEnd; s0++) {
+          const s1 = s0 | stride;
+          const re0 = re[s0]!;
+          const re1 = re[s1]!;
+          const im0 = im[s0]!;
+          const im1 = im[s1]!;
+          re[s0] = (re0 + re1) * invSqrt2;
+          im[s0] = (im0 + im1) * invSqrt2;
+          re[s1] = (re0 - re1) * invSqrt2;
+          im[s1] = (im0 - im1) * invSqrt2;
+        }
       }
     }
   }

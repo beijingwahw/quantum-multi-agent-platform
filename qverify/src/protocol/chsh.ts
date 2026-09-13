@@ -143,13 +143,22 @@ export function chshGame(
   if (chshValue(t, dirs[0]!, dirs[1]!, dirs[2]!, dirs[3]!) < 0) {
     dirs = [dirs[0]!, [-dirs[1]![0]!, -dirs[1]![1]!, -dirs[1]![2]!], dirs[2]!, dirs[3]!];
   }
+  // the four (a,b) direction pairs are fixed for the whole run, so their
+  // joint outcome probabilities are loop invariants: computed once here, not
+  // rebuilt per trial (the per-trial variation is the rng draw alone — the
+  // draw order and every value are untouched). Index 2x+y: a = dirs[x],
+  // b = dirs[2+y].
+  const probsByXY = [
+    jointProbs(rho, dirs[0]!, dirs[2]!),
+    jointProbs(rho, dirs[0]!, dirs[3]!),
+    jointProbs(rho, dirs[1]!, dirs[2]!),
+    jointProbs(rho, dirs[1]!, dirs[3]!),
+  ];
   let wins = 0;
   for (let trial = 0; trial < trials; trial++) {
     const x = rng.int(2);
     const y = rng.int(2);
-    const a = dirs[x]!;
-    const b = dirs[2 + y]!;
-    const { aOut, bOut } = sampleProjectiveOutcomes(rho, a, b, rng);
+    const { aOut, bOut } = sampleFromProbs(probsByXY[2 * x + y]!, rng);
     const win = (aOut ^ bOut) === (x & y);
     if (win) wins++;
   }
@@ -157,14 +166,10 @@ export function chshGame(
   return { winRate: wins / trials, sFromAngles: sFrom };
 }
 
-/** Sample a joint projective measurement outcome (±1, ±1) on a two-qubit state. */
-export function sampleProjectiveOutcomes(
-  rho: CMat,
-  a: readonly number[],
-  b: readonly number[],
-  rng: Rng,
-): { aOut: number; bOut: number } {
-  // P(m,n) = Tr ρ Π_m^a ⊗ Π_n^b, Π± = (I ± d·σ)/2
+/** Joint outcome probabilities P(m,n) = Tr ρ Π_m^a ⊗ Π_n^b for fixed
+ * directions — the loop-invariant part of the sampling below. */
+function jointProbs(rho: CMat, a: readonly number[], b: readonly number[]): number[] {
+  // Π± = (I ± d·σ)/2
   const probs: number[] = [];
   const pa = projector(a);
   const pb = projector(b);
@@ -175,6 +180,11 @@ export function sampleProjectiveOutcomes(
       probs.push(prod.re[0]! + prod.re[5]! + prod.re[10]! + prod.re[15]!);
     }
   }
+  return probs;
+}
+
+/** Sample an outcome (±1, ±1) from precomputed joint probabilities. */
+function sampleFromProbs(probs: readonly number[], rng: Rng): { aOut: number; bOut: number } {
   const r = rng();
   let acc = 0;
   let pick = 0;
@@ -186,6 +196,16 @@ export function sampleProjectiveOutcomes(
     }
   }
   return { aOut: pick < 2 ? 0 : 1, bOut: pick % 2 === 0 ? 0 : 1 };
+}
+
+/** Sample a joint projective measurement outcome (±1, ±1) on a two-qubit state. */
+export function sampleProjectiveOutcomes(
+  rho: CMat,
+  a: readonly number[],
+  b: readonly number[],
+  rng: Rng,
+): { aOut: number; bOut: number } {
+  return sampleFromProbs(jointProbs(rho, a, b), rng);
 }
 
 function projector(d: readonly number[]): { plus: CMat; minus: CMat } {

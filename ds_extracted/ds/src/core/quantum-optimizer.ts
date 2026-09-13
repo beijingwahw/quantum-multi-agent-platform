@@ -257,19 +257,25 @@ export class QuantumStateVector extends ComplexAmplitudes {
     const s = Math.sin(beta);
     for (let j = 0; j < nqubits; j++) {
       const mask = 1 << j;
-      for (let k = 0; k < dim; k++) {
-        if (k & mask) continue;
-        const p = k | mask;
-        const re0 = re[k]!,
-          im0 = im[k]!;
-        const re1 = re[p]!,
-          im1 = im[p]!;
-        // new_a0 = c·a0 - i·s·a1
-        re[k] = c * re0 + s * im1;
-        im[k] = c * im0 - s * re1;
-        // new_a1 = c·a1 - i·s·a0
-        re[p] = c * re1 + s * im0;
-        im[p] = c * im1 - s * re0;
+      // R13（P1 循环重构）：按 [base, base+mask) 块只访问 bit j 为 0 的
+      // dim/2 个下标——块序列升序 ⇒ 与「k 全升序 + if (k & mask) continue」
+      // 严格同一访问序；每对的算术逐字不变，位级同一。此前对每个置位
+      // 下标白付一次循环条件+分支（退火 1200 步 × nq 比特全程如此）。
+      const mask2 = mask << 1;
+      for (let base = 0; base < dim; base += mask2) {
+        for (let k = base; k < base + mask; k++) {
+          const p = k | mask;
+          const re0 = re[k]!,
+            im0 = im[k]!;
+          const re1 = re[p]!,
+            im1 = im[p]!;
+          // new_a0 = c·a0 - i·s·a1
+          re[k] = c * re0 + s * im1;
+          im[k] = c * im0 - s * re1;
+          // new_a1 = c·a1 - i·s·a0
+          re[p] = c * re1 + s * im0;
+          im[p] = c * im1 - s * re0;
+        }
       }
     }
   }
@@ -285,17 +291,20 @@ export class QuantumStateVector extends ComplexAmplitudes {
       const c = Math.cos(betas[j]!);
       const s = Math.sin(betas[j]!);
       const mask = 1 << j;
-      for (let k = 0; k < dim; k++) {
-        if (k & mask) continue;
-        const p = k | mask;
-        const re0 = re[k]!,
-          im0 = im[k]!;
-        const re1 = re[p]!,
-          im1 = im[p]!;
-        re[k] = c * re0 + s * im1;
-        im[k] = c * im0 - s * re1;
-        re[p] = c * re1 + s * im0;
-        im[p] = c * im1 - s * re0;
+      // R13（P1）：同 applyMixer 的块遍历重构（访问序严格不变，位级同一）
+      const mask2 = mask << 1;
+      for (let base = 0; base < dim; base += mask2) {
+        for (let k = base; k < base + mask; k++) {
+          const p = k | mask;
+          const re0 = re[k]!,
+            im0 = im[k]!;
+          const re1 = re[p]!,
+            im1 = im[p]!;
+          re[k] = c * re0 + s * im1;
+          im[k] = c * im0 - s * re1;
+          re[p] = c * re1 + s * im0;
+          im[p] = c * im1 - s * re0;
+        }
       }
     }
   }
@@ -500,25 +509,51 @@ function computeEnergiesUncached(problem: AssignmentProblem): ProblemEnergies {
   let min = Infinity;
   let max = -Infinity;
 
+  // R13（P1/P3 循环不变量外提）：bit 掩码、展平权重与解码后的耦合参数
+  // 与基态 k 无关，曾随每个基态重算（含每耦合一次 decodeCouplingKey 的
+  // 小对象分配：dim×C 次构造噪音）。外提后内层只剩读/判/加：
+  // - 福利累加序保持 t 升序 × a 升序（weightsFlat 平铺不改访问序）；
+  // - 耦合累加序保持 Map 插入序（展平数组按同一迭代序填充）；
+  // - q1<q2 是 validateAssignmentProblem 在本函数入口保证的常真条件
+  //   （键校验 0 ≤ q1 < q2 < nqubits），外提不改变任何判定结果；
+  // - (k & mask) === mask 与 (k & (1<<q1))!==0 && (k & (1<<q2))!==0
+  //   在恰含 q1/q2 两比特的 mask 上逐点等价。
+  // 加法序列逐位不变 ⇒ energies/min/max 逐位一致。
+  const bitMask = new Int32Array(m * n);
+  const weightsFlat = new Float64Array(m * n);
+  for (let q = 0; q < m * n; q++) {
+    bitMask[q] = 1 << q;
+    weightsFlat[q] = problem.weights[(q / n) | 0]![q % n]!;
+  }
+  const couplingLen = couplings.size;
+  const cplMask = new Int32Array(couplingLen);
+  const cplJ = new Float64Array(couplingLen);
+  {
+    let ci = 0;
+    for (const [key, j] of couplings) {
+      const { q1, q2 } = decodeCouplingKey(key, nqubits);
+      cplMask[ci] = (1 << q1) | (1 << q2);
+      cplJ[ci] = j;
+      ci++;
+    }
+  }
+
   for (let k = 0; k < dim; k++) {
     // 统计每个任务/agent 的选中比特数
     perTask.fill(0);
     perAgent.fill(0);
     let welfare = 0;
-    for (let t = 0; t < m; t++) {
-      for (let a = 0; a < n; a++) {
-        if (k & (1 << (t * n + a))) {
-          perTask[t]!++;
-          perAgent[a]!++;
-          welfare += problem.weights[t]![a]!;
-        }
+    for (let q = 0; q < m * n; q++) {
+      if (k & bitMask[q]!) {
+        perTask[(q / n) | 0] = perTask[(q / n) | 0]! + 1;
+        perAgent[q % n] = perAgent[q % n]! + 1;
+        welfare += weightsFlat[q]!;
       }
     }
     // 二次耦合（纠缠加成）
-    for (const [key, j] of couplings) {
-      const { q1, q2 } = decodeCouplingKey(key, nqubits);
-      if (q1 < q2 && (k & (1 << q1)) !== 0 && (k & (1 << q2)) !== 0) {
-        welfare += j;
+    for (let c = 0; c < couplingLen; c++) {
+      if ((k & cplMask[c]!) === cplMask[c]!) {
+        welfare += cplJ[c]!;
       }
     }
     let penalty = 0;
@@ -718,8 +753,13 @@ function runQaoaCircuit(
   layers: number,
   nqubits: number,
   energies: Float64Array,
+  scratch?: QuantumStateVector,
 ): QuantumStateVector {
-  const state = new QuantumStateVector(nqubits);
+  // R13（P2 分配搅动）：坐标下降每次评估曾 new 一块 2×dim 的态矢量
+  //（1090 次评估 × 512KB @15 qubit ≈ 560MB/s 的分配+清零噪音）。同一
+  // 求解内维度不变，复用调用方传入的 scratch：setUniformSuperposition
+  // 先覆写全部 re/im 再被读，数值轨迹与逐次新建逐位一致。
+  const state = scratch?.dim === 1 << nqubits ? scratch : new QuantumStateVector(nqubits);
   state.setUniformSuperposition();
   for (let p = 0; p < layers; p++) {
     state.applyCostPhase(angles[p]!, energies);
@@ -745,17 +785,23 @@ function optimizeQaoaAngles(
   rng: () => number,
   cvarAlpha = 1,
   descentOpts: DescentOptions = {},
+  // R13（P2）：求解级态矢量 scratch——每次评估的电路在同一块寄存器上重建
+  //（初态覆写全部元素，见 runQaoaCircuit 注记）
+  stateScratch?: QuantumStateVector,
 ): { angles: number[]; expectation: number; evaluations: number } {
-  // 目标闭包的 scratch 概率缓冲（01#18）：坐标下降每次评估物化一块
-  // dim 维 Float64Array——同一求解内 energies/维度不变，一块缓冲反复
-  // 覆写即可；逐位结果与逐次新建完全一致
-  const scratch = new Float64Array(energies.length);
   if (cvarAlpha < 1) {
+    // 目标闭包的 scratch 概率缓冲（01#18）：坐标下降每次评估物化一块
+    // dim 维 Float64Array——同一求解内 energies/维度不变，一块缓冲反复
+    // 覆写即可；逐位结果与逐次新建完全一致。R13：仅 CVaR 分支需要，
+    // 均值分支不再为它付分配
+    const scratch = new Float64Array(energies.length);
     const order = cvarOrder(energies);
     return optimizeAnglesByCoordinateDescent(
       (angles) =>
         cvarExpectationOrdered(
-          runQaoaCircuit(angles, layers, nqubits, energies).probabilitiesInto(scratch),
+          runQaoaCircuit(angles, layers, nqubits, energies, stateScratch).probabilitiesInto(
+            scratch,
+          ),
           energies,
           order,
           cvarAlpha,
@@ -767,7 +813,11 @@ function optimizeQaoaAngles(
     );
   }
   return optimizeAnglesByCoordinateDescent(
-    (angles) => expectationValueInto(runQaoaCircuit(angles, layers, nqubits, energies), energies),
+    (angles) =>
+      expectationValueInto(
+        runQaoaCircuit(angles, layers, nqubits, energies, stateScratch),
+        energies,
+      ),
     layers,
     restarts,
     rng,
@@ -788,8 +838,10 @@ function runQaoaCircuitMulti(
   layers: number,
   nqubits: number,
   energies: Float64Array,
+  scratch?: QuantumStateVector,
 ): QuantumStateVector {
-  const state = new QuantumStateVector(nqubits);
+  // R13（P2）：同 runQaoaCircuit 的求解级 scratch 复用（位级同一论证同上）
+  const state = scratch?.dim === 1 << nqubits ? scratch : new QuantumStateVector(nqubits);
   state.setUniformSuperposition();
   const betas: number[] = new Array<number>(nqubits);
   for (let p = 0; p < layers; p++) {
@@ -815,29 +867,40 @@ function refineQaoaAnglesMulti(
   layerAngles: number[],
   layerEvaluations: number,
   descentOpts: DescentOptions = {},
+  // R13（P2）：求解级态矢量 scratch（同 optimizeQaoaAngles）
+  stateScratch?: QuantumStateVector,
 ): { angles: number[]; expectation: number; evaluations: number } {
   const seed = expandLayerAnglesToMulti(layerAngles, layers, nqubits);
   const angleCount = layers + layers * nqubits;
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
   );
-  // scratch 复用同 optimizeQaoaAngles（01#18）：ma-QAOA 的角度维数更大，
-  // 评估次数只多不少，分配噪音收益更显著
-  const scratch = new Float64Array(energies.length);
   const evaluate =
     cvarAlpha < 1
       ? (() => {
+          // scratch 复用同 optimizeQaoaAngles（01#18）：ma-QAOA 的角度维数更大，
+          // 评估次数只多不少，分配噪音收益更显著。R13：仅 CVaR 分支需要
+          const scratch = new Float64Array(energies.length);
           const order = cvarOrder(energies); // 预排序跨全部评估复用
           return (angles: number[]): number =>
             cvarExpectationOrdered(
-              runQaoaCircuitMulti(angles, layers, nqubits, energies).probabilitiesInto(scratch),
+              runQaoaCircuitMulti(
+                angles,
+                layers,
+                nqubits,
+                energies,
+                stateScratch,
+              ).probabilitiesInto(scratch),
               energies,
               order,
               cvarAlpha,
             );
         })()
       : (angles: number[]): number =>
-          expectationValueInto(runQaoaCircuitMulti(angles, layers, nqubits, energies), energies);
+          expectationValueInto(
+            runQaoaCircuitMulti(angles, layers, nqubits, energies, stateScratch),
+            energies,
+          );
   const result = optimizeAnglesByCoordinateDescentSeeded(
     evaluate,
     angleCount,
@@ -911,15 +974,48 @@ function selectSolution(
   // 零概率基态（r=0 且前导累计为 0 的角落），掩码必须与原逐次
   // isValidAssignment(decode(k)) 谓词对所有 k 逐点等价，否则该角落
   // 的接受判定会分叉。mask[k] 存的就是原谓词的布尔值——严格等价。
+  //
+  // R13（P2 分配搅动）：此前的等价实现是「每基态 decodeAssignment 分配
+  // 一个 Array(m) + isValidAssignment 分配一个 Set」——dim=2^20 的坍缩
+  // 扫描一次分配 2M 个小对象。改为位级内联：单块 bit 掩码/used 标志
+  // 复用，逐点等价论证——
+  // - decodeAssignment 对任务 t 产出 -1 ⟺ 该行选中比特数 ≠ 1（0 或 ≥2，
+  //   原实现遇第二比特 break 置 -1）；isValidAssignment 对 -1 判非法
+  //   ⟺ 内联的 count !== 1 判非法；
+  // - 行内恰一比特时两者得到同一 agent 索引 a，随后按同序检查
+  //   ineligible[t][a] 与「a 是否已被先前任务占用」（Set.has ⟺ 标志位）；
+  // - 全部检查为纯谓词，求值序不影响布尔结果。
   let validMass = 0;
   let bestValidProb = 0;
   const validStates: number[] = [];
   const validity = new Uint8Array(probs.length);
+  const bitMask = new Int32Array(m * n);
+  for (let q = 0; q < m * n; q++) bitMask[q] = 1 << q;
+  const usedMask = new Uint8Array(n);
   for (let k = 0; k < probs.length; k++) {
     const p = probs[k]!;
     if (p <= 0) continue;
-    const assignment = decodeAssignment(k, m, n);
-    if (isValidAssignment(problem, assignment)) {
+    usedMask.fill(0);
+    let ok = true;
+    for (let t = 0; t < m; t++) {
+      const row = t * n;
+      let chosen = -1;
+      for (let a = 0; a < n; a++) {
+        if (k & bitMask[row + a]!) {
+          if (chosen >= 0) {
+            chosen = -1; // one-hot 违约（第二比特）
+            break;
+          }
+          chosen = a;
+        }
+      }
+      if (chosen < 0 || problem.ineligible[t]![chosen]! || usedMask[chosen]) {
+        ok = false;
+        break;
+      }
+      usedMask[chosen] = 1;
+    }
+    if (ok) {
       validity[k] = 1;
       validMass += p;
       validStates.push(k);
@@ -1150,6 +1246,9 @@ export function qaoaSolve(
   const energiesInfo = computeEnergies(problem);
   const normalized = normalizedEnergies(energiesInfo);
 
+  // R13（P2）：整求解一块态矢量 scratch，layer/multi 变分与末态重建共用
+  //（末态读出 probabilities/expectation 均同步完成，不跨求解存活）
+  const stateScratch = new QuantumStateVector(energiesInfo.nqubits);
   // layer 基线先行；multi 模式以基线最优角的展开为种子精修
   //（支配性：种子在 multi 电路下的态与基线逐位相同 + 坐标下降单调不劣）
   const layer = optimizeQaoaAngles(
@@ -1160,6 +1259,7 @@ export function qaoaSolve(
     rng,
     cvarAlpha,
     descentOpts,
+    stateScratch,
   );
   const { angles, evaluations } =
     angleMode === 'multi'
@@ -1173,12 +1273,13 @@ export function qaoaSolve(
           layer.angles,
           layer.evaluations,
           descentOpts,
+          stateScratch,
         )
       : layer;
   const finalState =
     angleMode === 'multi'
-      ? runQaoaCircuitMulti(angles, layers, energiesInfo.nqubits, normalized)
-      : runQaoaCircuit(angles, layers, energiesInfo.nqubits, normalized);
+      ? runQaoaCircuitMulti(angles, layers, energiesInfo.nqubits, normalized, stateScratch)
+      : runQaoaCircuit(angles, layers, energiesInfo.nqubits, normalized, stateScratch);
   const probs = finalState.probabilities();
 
   const selection = selectSolution(problem, energiesInfo, probs, select, shots, rng, topK);

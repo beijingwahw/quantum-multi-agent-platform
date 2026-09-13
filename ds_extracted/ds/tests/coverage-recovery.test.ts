@@ -357,15 +357,21 @@ describe('分支钉板 · 总线安全拒绝分类计数', () => {
         (e) => e.agentId === 'ag1',
       );
 
-      // 非字符串频道（JSON 数字）
+      // 两帧非法频道（非字符串 / 超长）先发——静默拒绝无事件可等（设计如此）。
+      // S1（R13 测试网）：原写法 await 一个谓词恒假的 waitForEvent（伪装的
+      // 3s 全额超时等待）再补 200ms sleep；同连接消息严格有序，紧随其后的
+      // 合法订阅的 agent_subscribed 事件到达时，前两帧必然已被处理——
+      // 事件驱动的定罪时点，无固定时窗。
       ws.send(JSON.stringify({ type: 'subscribe', channel: 42 }));
-      await waitForEvent<Record<string, unknown>>(bus, 'agent_subscribed', () => false).catch(
-        () => undefined,
-      );
-      // 超长频道（>128）
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'x'.repeat(200) }));
-      // 静默拒绝无事件可等（设计如此），只能按时间界定：等待吸收 CI 负载
-      await new Promise((r) => setTimeout(r, 200));
+
+      const subscribed = waitForEvent<{ agentId: string }>(
+        bus,
+        'agent_subscribed',
+        (e) => e.agentId === 'ag1',
+      );
+      ws.send(JSON.stringify({ type: 'subscribe', channel: 'status_update' }));
+      await subscribed;
 
       assert.equal(bus.getMetrics().security.invalidChannelRejections, 2, '两次非法频道各计一次');
       ws.close();

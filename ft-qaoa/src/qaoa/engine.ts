@@ -28,9 +28,16 @@ export function qaoaState(model: IsingModel, energyOf: Float64Array, params: Qao
 /** Forward pass keeping only <C> — the workhorse of every parameter search. */
 export function qaoaExpectation(model: IsingModel, energyOf: Float64Array, params: QaoaParams): number {
   const state = qaoaState(model, energyOf, params);
-  const probs = state.probabilities();
+  // <C> accumulated from the amplitudes directly: probs[s] = r*r + i*i then
+  // acc += probs[s] * E[s] execute the same float ops in the same order as
+  // the probabilities()-materializing route, without the intermediate vector
+  const { re, im } = state;
   let acc = 0;
-  for (let s = 0; s < probs.length; s++) acc += probs[s]! * energyOf[s]!;
+  for (let s = 0; s < re.length; s++) {
+    const r = re[s]!;
+    const i = im[s]!;
+    acc += (r * r + i * i) * energyOf[s]!;
+  }
   return acc;
 }
 

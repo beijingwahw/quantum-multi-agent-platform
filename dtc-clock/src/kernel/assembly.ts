@@ -171,8 +171,22 @@ export interface EdgeSeries {
  * INCREMENTALLY (m_{k} = m_{k-1}·(2k+1)(k-1)/(2k^2), m_1 = 3/4 — spot-
  * checked against the exact rationals), then the known asymptotic
  * 3/8·k^{-3/2} - (11/128)(3/8)k^{-5/2} is summed analytically through the
- * zeta values, leaving a remainder series that converges like k^{-7/2}. */
+ * zeta values, leaving a remainder series that converges like k^{-7/2}.
+ * Pure in K and priced at K iterations: the render, W-Y and both Phi1
+ * witnesses all ask for the SAME 2^20 series, so it is computed once per K
+ * per process — the returned record's numbers identical to a fresh run's. */
+const edgeSeriesCache = new Map<number, EdgeSeries>();
+
 export function edgeSeriesAccelerated(K: number): EdgeSeries {
+  let cached = edgeSeriesCache.get(K);
+  if (cached === undefined) {
+    cached = edgeSeriesCompute(K);
+    edgeSeriesCache.set(K, cached);
+  }
+  return cached;
+}
+
+function edgeSeriesCompute(K: number): EdgeSeries {
   const c32 = 0.375 / Math.sqrt(Math.PI);
   const bTerm = (EDGE_SECOND_COEFF * 0.375) / Math.sqrt(Math.PI);
   let m = 0.75;
@@ -302,8 +316,19 @@ const PHI1_SIGMA_COMBOS: ReadonlyArray<readonly number[]> = [
   [24576, 98304, 393216],
 ];
 
-/** The assembled Phi1 face: point, certified bracket, error pieces. */
+/** The assembled Phi1 face: point, certified bracket, error pieces. Pure in
+ * nothing (fixed grids, fixed K): the render prints it twice and W-Z audits
+ * it once more — each call walks four sigma1 Richardson combos (n to 2^20,
+ * O(n) each) plus the 2^20 edge series. Memoized per process; every number
+ * identical to the recomputed face's. */
+let phi1FaceCache: Phi1Face | undefined;
+
 export function phi1Face(): Phi1Face {
+  phi1FaceCache ??= phi1FaceCompute();
+  return phi1FaceCache;
+}
+
+function phi1FaceCompute(): Phi1Face {
   const estimates = PHI1_SIGMA_COMBOS.map((g) =>
     richardsonLimit(g.map((n) => ({ n, v: sigmaFirstIncremental(n) })), 1),
   );
@@ -340,13 +365,20 @@ export interface Phi1GridRow {
   readonly phi1D: number; // kappaFaceIncremental(D) - zeta_m
 }
 
-/** The Phi1(D) grid on the certified road (D = 2^12..2^20). */
+/** The Phi1(D) grid on the certified road (D = 2^12..2^20). Pure over fixed
+ * grids — each row a kappaFaceIncremental(D) walk (O(D)); memoized per
+ * process, the rows read-only. */
+let phi1GridCache: readonly Phi1GridRow[] | undefined;
+
 export function phi1Grid(): readonly Phi1GridRow[] {
-  const zetaM = edgeSeriesAccelerated(1 << 20).zetaM;
-  return [4096, 16384, 65536, 262144, 1048576].map((D) => ({
-    D,
-    phi1D: kappaFaceIncremental(D) - zetaM,
-  }));
+  if (phi1GridCache === undefined) {
+    const zetaM = edgeSeriesAccelerated(1 << 20).zetaM;
+    phi1GridCache = [4096, 16384, 65536, 262144, 1048576].map((D) => ({
+      D,
+      phi1D: kappaFaceIncremental(D) - zetaM,
+    }));
+  }
+  return phi1GridCache;
 }
 
 /** The D-grid structural certificate: sign stability (Phi1(D) < 0

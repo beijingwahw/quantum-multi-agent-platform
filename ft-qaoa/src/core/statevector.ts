@@ -60,17 +60,22 @@ export class StateVector {
     if (c === 1 && si === 0) return;
     for (let j = 0; j < n; j++) {
       const stride = 1 << j;
-      for (let s0 = 0; s0 < dim; s0++) {
-        if (s0 & stride) continue;
-        const s1 = s0 | stride;
-        const re0 = re[s0]!;
-        const im0 = im[s0]!;
-        const re1 = re[s1]!;
-        const im1 = im[s1]!;
-        re[s0] = c * re0 + si * im1;
-        im[s0] = c * im0 - si * re1;
-        re[s1] = c * re1 + si * im0;
-        im[s1] = c * im1 - si * re0;
+      // enumerate exactly the (s0, s1 = s0 | stride) pairs in ascending s0
+      // order — the same updates on the same values in the same sequence as
+      // the masked scan, without visiting the skipped half of the range
+      for (let base = 0; base < dim; base += stride << 1) {
+        for (let off = 0; off < stride; off++) {
+          const s0 = base + off;
+          const s1 = s0 | stride;
+          const re0 = re[s0]!;
+          const im0 = im[s0]!;
+          const re1 = re[s1]!;
+          const im1 = im[s1]!;
+          re[s0] = c * re0 + si * im1;
+          im[s0] = c * im0 - si * re1;
+          re[s1] = c * re1 + si * im0;
+          im[s1] = c * im1 - si * re0;
+        }
       }
     }
   }

@@ -205,39 +205,46 @@ function axisStates(): readonly CVec[] {
  * are orthogonal Pauli-axis states, the second column carried through the
  * phases {1, i, -1, i}. (U (x) U*) kills the global phase, so one
  * representative per phase class suffices.)
+ * Memoized: pure, deterministic, and rebuilt by every twirl — the cached
+ * group is the same objects with the same bits.
  */
 export function cliffords(): readonly CMat[] {
-  const out: CMat[] = [];
-  const phases: ReadonlyArray<{ re: number; im: number }> = [
-    { re: 1, im: 0 },
-    { re: 0, im: 1 },
-    { re: -1, im: 0 },
-    { re: 0, im: -1 },
-  ];
-  for (const c1 of axisStates()) {
-    for (const c2 of axisStates()) {
-      for (const ph of phases) {
-        const c2p: CVec = {
-          n: 2,
-          re: new Float64Array([c2.re[0]! * ph.re - c2.im[0]! * ph.im, c2.re[1]! * ph.re - c2.im[1]! * ph.im]),
-          im: new Float64Array([c2.re[0]! * ph.im + c2.im[0]! * ph.re, c2.re[1]! * ph.im + c2.im[1]! * ph.re]),
-        };
-        if (Math.abs(vInner(c1, c2p).re) > 1e-12 || Math.abs(vInner(c1, c2p).im) > 1e-12) continue; // columns must be orthogonal (both parts)
-        const m = mat(2, 2);
-        m.re[0] = c1.re[0]!;
-        m.im[0] = c1.im[0]!;
-        m.re[1] = c1.re[1]!;
-        m.im[1] = c1.im[1]!;
-        m.re[2] = c2p.re[0]!;
-        m.im[2] = c2p.im[0]!;
-        m.re[3] = c2p.re[1]!;
-        m.im[3] = c2p.im[1]!;
-        out.push(m);
+  cachedCliffords ??= (() => {
+    const out: CMat[] = [];
+    const phases: ReadonlyArray<{ re: number; im: number }> = [
+      { re: 1, im: 0 },
+      { re: 0, im: 1 },
+      { re: -1, im: 0 },
+      { re: 0, im: -1 },
+    ];
+    for (const c1 of axisStates()) {
+      for (const c2 of axisStates()) {
+        for (const ph of phases) {
+          const c2p: CVec = {
+            n: 2,
+            re: new Float64Array([c2.re[0]! * ph.re - c2.im[0]! * ph.im, c2.re[1]! * ph.re - c2.im[1]! * ph.im]),
+            im: new Float64Array([c2.re[0]! * ph.im + c2.im[0]! * ph.re, c2.re[1]! * ph.im + c2.im[1]! * ph.re]),
+          };
+          if (Math.abs(vInner(c1, c2p).re) > 1e-12 || Math.abs(vInner(c1, c2p).im) > 1e-12) continue; // columns must be orthogonal (both parts)
+          const m = mat(2, 2);
+          m.re[0] = c1.re[0]!;
+          m.im[0] = c1.im[0]!;
+          m.re[1] = c1.re[1]!;
+          m.im[1] = c1.im[1]!;
+          m.re[2] = c2p.re[0]!;
+          m.im[2] = c2p.im[0]!;
+          m.re[3] = c2p.re[1]!;
+          m.im[3] = c2p.im[1]!;
+          out.push(m);
+        }
       }
     }
-  }
-  return out;
+    return out;
+  })();
+  return cachedCliffords;
 }
+
+let cachedCliffords: readonly CMat[] | undefined;
 
 /**
  * The BBPSSW depolarizing step, executed exactly: the isotropic twirl

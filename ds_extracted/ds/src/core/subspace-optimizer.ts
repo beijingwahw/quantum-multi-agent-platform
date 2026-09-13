@@ -504,8 +504,13 @@ function runSubspaceQaoaCircuit(
   layers: number,
   model: SubspaceModel,
   energies: Float64Array,
+  scratch?: SubspaceState,
 ): SubspaceState {
-  const state = new SubspaceState(model.dimension);
+  // R13（P2 分配搅动）：坐标下降每次评估曾 new 一块 2×dim 态矢量
+  //（子空间 QAOA 维度上限 2^16 ⇒ 每评估 1MB，数百次评估的分配+清零
+  // 噪音）。同一求解内维度不变，复用调用方 scratch：setUniform 先覆写
+  // 全部 re/im 再被读，数值轨迹与逐次新建逐位一致。
+  const state = scratch?.dim === model.dimension ? scratch : new SubspaceState(model.dimension);
   state.setUniform();
   for (let p = 0; p < layers; p++) {
     state.applyCostPhase(angles[p]!, energies);
@@ -527,16 +532,22 @@ function optimizeSubspaceQaoaAngles(
   rng: () => number,
   cvarAlpha = 1,
   descentOpts: DescentOptions = {},
+  // R13（P2）：求解级态矢量 scratch——每次评估的电路在同一块寄存器上
+  // 重建（初态覆写全部元素，见 runSubspaceQaoaCircuit 注记）
+  stateScratch?: SubspaceState,
 ): { angles: number[]; expectation: number; evaluations: number } {
-  // scratch 概率缓冲（01#18）：与全空间引擎 optimizeQaoaAngles 同款——
-  // 每次评估一块 dim 维分配改为整求解单块复用，逐位结果不变
-  const scratch = new Float64Array(energies.length);
   if (cvarAlpha < 1) {
+    // scratch 概率缓冲（01#18）：与全空间引擎 optimizeQaoaAngles 同款——
+    // 每次评估一块 dim 维分配改为整求解单块复用，逐位结果不变。
+    // R13：仅 CVaR 分支需要，均值分支不再为它付分配
+    const scratch = new Float64Array(energies.length);
     const order = cvarOrder(energies);
     return optimizeAnglesByCoordinateDescent(
       (angles) =>
         cvarExpectationOrdered(
-          runSubspaceQaoaCircuit(angles, layers, model, energies).probabilitiesInto(scratch),
+          runSubspaceQaoaCircuit(angles, layers, model, energies, stateScratch).probabilitiesInto(
+            scratch,
+          ),
           energies,
           order,
           cvarAlpha,
@@ -549,7 +560,10 @@ function optimizeSubspaceQaoaAngles(
   }
   return optimizeAnglesByCoordinateDescent(
     (angles) =>
-      expectationValueInto(runSubspaceQaoaCircuit(angles, layers, model, energies), energies),
+      expectationValueInto(
+        runSubspaceQaoaCircuit(angles, layers, model, energies, stateScratch),
+        energies,
+      ),
     layers,
     restarts,
     rng,
@@ -570,8 +584,10 @@ function runSubspaceQaoaCircuitMulti(
   layers: number,
   model: SubspaceModel,
   energies: Float64Array,
+  scratch?: SubspaceState,
 ): SubspaceState {
-  const state = new SubspaceState(model.dimension);
+  // R13（P2）：同 runSubspaceQaoaCircuit 的求解级 scratch 复用
+  const state = scratch?.dim === model.dimension ? scratch : new SubspaceState(model.dimension);
   state.setUniform();
   const G = model.mixers.length;
   for (let p = 0; p < layers; p++) {
@@ -594,6 +610,8 @@ function refineSubspaceQaoaAnglesMulti(
   layerAngles: number[],
   layerEvaluations: number,
   descentOpts: DescentOptions = {},
+  // R13（P2）：求解级态矢量 scratch（同 optimizeSubspaceQaoaAngles）
+  stateScratch?: SubspaceState,
 ): { angles: number[]; expectation: number; evaluations: number } {
   const G = model.mixers.length;
   const seed = expandLayerAnglesToMulti(layerAngles, layers, G);
@@ -601,17 +619,22 @@ function refineSubspaceQaoaAnglesMulti(
   const bounds: number[] = Array.from({ length: angleCount }, (_, i) =>
     i < layers ? GAMMA_BOUND : BETA_BOUND,
   );
-  // scratch 复用（01#18）：multi 角度空间的评估次数更多，收益同上
-  const scratch = new Float64Array(energies.length);
   const evaluate =
     cvarAlpha < 1
       ? (() => {
+          // scratch 复用（01#18）：multi 角度空间的评估次数更多，收益同上。
+          // R13：仅 CVaR 分支需要，均值分支不再为它付分配
+          const scratch = new Float64Array(energies.length);
           const order = cvarOrder(energies); // 预排序跨评估复用
           return (angles: number[]): number =>
             cvarExpectationOrdered(
-              runSubspaceQaoaCircuitMulti(angles, layers, model, energies).probabilitiesInto(
-                scratch,
-              ),
+              runSubspaceQaoaCircuitMulti(
+                angles,
+                layers,
+                model,
+                energies,
+                stateScratch,
+              ).probabilitiesInto(scratch),
               energies,
               order,
               cvarAlpha,
@@ -619,7 +642,7 @@ function refineSubspaceQaoaAnglesMulti(
         })()
       : (angles: number[]): number =>
           expectationValueInto(
-            runSubspaceQaoaCircuitMulti(angles, layers, model, energies),
+            runSubspaceQaoaCircuitMulti(angles, layers, model, energies, stateScratch),
             energies,
           );
   const result = optimizeAnglesByCoordinateDescentSeeded(
@@ -728,6 +751,9 @@ export function qaoaSolveSubspace(
       : {};
 
   const energies = normalizedEnergies(model, 1);
+  // R13（P2）：整求解一块态矢量 scratch，layer/multi 变分与末态重建共用
+  //（末态读出 probabilities/期望均同步完成，不跨求解存活）
+  const stateScratch = new SubspaceState(model.dimension);
   // layer 基线先行；multi 模式以基线最优角的展开为种子精修（支配性同全空间）
   const layer = optimizeSubspaceQaoaAngles(
     layers,
@@ -737,6 +763,7 @@ export function qaoaSolveSubspace(
     rng,
     cvarAlpha,
     descentOpts,
+    stateScratch,
   );
   const { angles, evaluations } =
     angleMode === 'multi'
@@ -750,12 +777,13 @@ export function qaoaSolveSubspace(
           layer.angles,
           layer.evaluations,
           descentOpts,
+          stateScratch,
         )
       : layer;
   const finalState =
     angleMode === 'multi'
-      ? runSubspaceQaoaCircuitMulti(angles, layers, model, energies)
-      : runSubspaceQaoaCircuit(angles, layers, model, energies);
+      ? runSubspaceQaoaCircuitMulti(angles, layers, model, energies, stateScratch)
+      : runSubspaceQaoaCircuit(angles, layers, model, energies, stateScratch);
   const probs = finalState.probabilities();
   const collapse = collapseSubspace(model, probs, select, shots, rng, topK);
 

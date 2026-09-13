@@ -32,6 +32,10 @@ it('启动和停止插件', async () => {
   }
 
   await plugin.stop();
+  // S3（R13 测试网）：stop 是本用例的另一半动作，其效果此前未被验证
+  if (plugin.getStatistics().running) {
+    throw new Error('插件停止后不应处于运行态');
+  }
 });
 
 // 测试3: 添加规则
@@ -187,6 +191,12 @@ it('获取统计信息', async () => {
   if (!stats.executor) {
     throw new Error('统计信息缺少executor');
   }
+
+  // S3（R13 测试网）：三个子对象的存在性检查可被空对象满足——
+  // 补与监控器同源的行为断言（observe 过的事件必须在统计中可见）
+  if (stats.monitor.total !== 1) {
+    throw new Error(`monitor.total 应为 1，实际 ${stats.monitor.total}`);
+  }
 });
 
 // 测试8: 规则触发（安全模式）
@@ -341,16 +351,27 @@ it('事件过滤', async () => {
 // 测试11: 决策指标
 it('决策指标', async () => {
   const plugin = new ProactiveIntelligencePlugin();
+  await plugin.start();
+
+  plugin.observe({
+    type: 'test',
+    source: 'test-source',
+    severity: 'info',
+    data: { value: 'test' },
+  });
+  await plugin.flush();
 
   const metrics = plugin.getEngine().getMetrics();
 
-  if (typeof metrics.totalEventsProcessed !== 'number') {
-    throw new Error('指标类型不正确');
-  }
+  // S3（R13 测试网）：原断言只查 typeof === 'number'（任何数值都过）——
+  // 升级为行为断言：observe 过的事件必须被决策批次真实处理
+  assert.equal(metrics.totalEventsProcessed, 1, '事件应被处理并计入指标');
+  assert.ok(
+    metrics.totalDecisionsMade >= 1,
+    `至少发生一次决策批次，实际 ${metrics.totalDecisionsMade}`,
+  );
 
-  if (typeof metrics.totalDecisionsMade !== 'number') {
-    throw new Error('指标类型不正确');
-  }
+  await plugin.stop();
 });
 
 // 测试12: 执行器配置

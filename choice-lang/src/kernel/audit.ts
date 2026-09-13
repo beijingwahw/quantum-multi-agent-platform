@@ -385,13 +385,16 @@ function mcAttempts(
   n: number,
 ): number {
   const rng: Rng = makeRng(seed);
+  // branch weights hoisted: sin^2(theta) is a per-step constant, and the census
+  // draws it millions of times — same value, same draw order, one evaluation
+  const sin2: readonly number[] = thetas.map((th) => Math.sin(th) ** 2);
   let attempts = 0;
   for (let i = 0; i < n; i++) {
     let tries = 0;
     for (;;) {
       let hit = true;
       for (let j = 0; j < thetas.length; j++) {
-        if ((rng() < Math.sin(thetas[j]!) ** 2 ? 1 : 0) !== target[j]) {
+        if ((rng() < sin2[j]! ? 1 : 0) !== target[j]) {
           hit = false;
           break;
         }

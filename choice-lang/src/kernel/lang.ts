@@ -159,21 +159,17 @@ export function branchProduct(p: Program, pattern: ReadonlyArray<0 | 1>): CMat {
   return u;
 }
 
-function digitsOf(idx: number, dims: readonly number[]): number[] {
-  const out: number[] = [];
-  let r = idx;
-  for (let i = 0; i < dims.length; i++) {
-    let stride = 1;
-    for (let j = i + 1; j < dims.length; j++) stride *= dims[j]!;
-    out.push(Math.floor(r / stride) % dims[i]!);
-    r %= stride;
-  }
-  return out;
-}
-
 /**
  * Measure the controls in their own basis, keep one outcome pattern:
  * returns the pattern probability and the conditional data state.
+ *
+ * Register digit arithmetic: with dims = [2, ..., 2, d] (nControls qubit
+ * digits, one data digit), an index's control prefix is floor(idx/d) written
+ * in binary (control 0 = most significant bit) and its data digit is idx % d —
+ * so an index carries the pattern iff floor(idx/d) === patternValue. The same
+ * (row, col) pairs therefore contribute in the same iteration order as the
+ * former per-index mixed-radix decomposition, and every accumulated float is
+ * bit-identical.
  */
 export function conditionOnPattern(
   rho: CMat,
@@ -208,17 +204,17 @@ export function conditionOnPattern(
       `conditionOnPattern: a ${nControls}-control register over ${d}-dim data is ${d * 2 ** nControls}-dimensional, but rho is ${rho.rows}x${rho.rows}`,
     );
   }
-  const dims = [...Array<number>(nControls).fill(2), d];
   const dim = rho.rows;
+  let patternValue = 0; // the pattern's control prefix as an integer (control 0 = MSB)
+  for (let i = 0; i < nControls; i++) patternValue = patternValue * 2 + (pattern[i] as number);
   const out = mat(d, d);
   let p = 0;
   for (let row = 0; row < dim; row++) {
-    const rd = digitsOf(row, dims);
-    if (!rd.slice(0, nControls).every((g, i) => g === pattern[i]!)) continue;
+    if (Math.floor(row / d) !== patternValue) continue;
+    const rowData = row % d;
     for (let col = 0; col < dim; col++) {
-      const cd = digitsOf(col, dims);
-      if (!cd.slice(0, nControls).every((g, i) => g === pattern[i]!)) continue;
-      const dr = rd[nControls]! * d + cd[nControls]!; // dims has nControls + 1 digits
+      if (Math.floor(col / d) !== patternValue) continue;
+      const dr = rowData * d + (col % d);
       out.re[dr] = out.re[dr]! + rho.re[row * dim + col]!;
       out.im[dr] = out.im[dr]! + rho.im[row * dim + col]!;
     }

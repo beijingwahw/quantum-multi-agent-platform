@@ -229,6 +229,12 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
     return Math.sqrt(2 * s);
   };
   const scale = Math.sqrt(m.reduce((s, x) => s + x * x, 0)) || 1;
+  // rotation work buffers hoisted out of the sweep — one allocation per solve,
+  // not four per (p, q) rotation; the values written are identical
+  const colP = new Float64Array(n);
+  const colQ = new Float64Array(n);
+  const rowP = new Float64Array(n);
+  const rowQ = new Float64Array(n);
   for (let sweep = 0; sweep < 100 && offDiag() > 1e-15 * scale; sweep++) {
     for (let p = 0; p < n - 1; p++) {
       for (let q = p + 1; q < n; q++) {
@@ -241,8 +247,6 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
         const s = t * c;
         // rotate columns p,q then rows p,q — always from copies of the
         // pre-rotation values so the two steps compose exactly as Jᵀ A J
-        const colP = new Float64Array(n);
-        const colQ = new Float64Array(n);
         for (let k = 0; k < n; k++) {
           colP[k] = m[k * n + p]!;
           colQ[k] = m[k * n + q]!;
@@ -251,8 +255,6 @@ function jacobiRealSymmetric(a: Float64Array, n: number): Float64Array {
           m[k * n + p] = c * colP[k]! - s * colQ[k]!;
           m[k * n + q] = s * colP[k]! + c * colQ[k]!;
         }
-        const rowP = new Float64Array(n);
-        const rowQ = new Float64Array(n);
         for (let k = 0; k < n; k++) {
           rowP[k] = m[p * n + k]!;
           rowQ[k] = m[q * n + k]!;

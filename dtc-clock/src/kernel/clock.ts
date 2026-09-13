@@ -281,12 +281,17 @@ export function expectedPermutedRho(psi: CVec, gates: readonly RevGate[], k: num
     re: new Float64Array(dataDim * dataDim),
     im: new Float64Array(dataDim * dataDim),
   };
+  // classicalAfter(gates, ·, k) is a pure function of its index: the pair
+  // loop used to recompute it per (x, x2) — precomputed once per basis index
+  // (same integer results, same skip conditions, same accumulation order)
+  const after = new Int32Array(dataDim);
+  for (let x = 0; x < dataDim; x++) after[x] = classicalAfter(gates, x, k);
   for (let x = 0; x < dataDim; x++) {
     if (psi.re[x] === 0 && psi.im[x] === 0) continue;
-    const y = classicalAfter(gates, x, k);
+    const y = after[x]!;
     for (let x2 = 0; x2 < dataDim; x2++) {
       if (psi.re[x2] === 0 && psi.im[x2] === 0) continue;
-      const y2 = classicalAfter(gates, x2, k);
+      const y2 = after[x2]!;
       const are = psi.re[x]!;
       const aim = psi.im[x]!;
       const bre = psi.re[x2]!;

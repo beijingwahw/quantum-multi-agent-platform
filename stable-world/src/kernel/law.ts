@@ -45,9 +45,13 @@ export function applyLaw(rho: CMat, gamma: number = GAMMA): CMat {
   return applyKraus(rho, lawKraus(gamma));
 }
 
+/** Iterate the law: the Kraus pair is built once for the whole trajectory
+ *  (lawKraus(gamma) is a pure construction — the same matrices every step —
+ *  so reusing them applies the identical channel per step, bit for bit). */
 export function iterateLaw(rho: CMat, steps: number, gamma: number = GAMMA): CMat {
+  const kraus = lawKraus(gamma);
   let cur = rho;
-  for (let k = 0; k < steps; k++) cur = applyLaw(cur, gamma);
+  for (let k = 0; k < steps; k++) cur = applyKraus(cur, kraus);
   return cur;
 }
 
@@ -797,9 +801,11 @@ export function applyTwoWorldLaw(rho: CMat, gamma: number = GAMMA): CMat {
   return applyKraus(rho, twoWorldLawKraus(gamma));
 }
 
+/** Same Kraus-set hoist as iterateLaw (pure construction, identical channel). */
 export function iterateTwoWorldLaw(rho: CMat, steps: number, gamma: number = GAMMA): CMat {
+  const kraus = twoWorldLawKraus(gamma);
   let cur = rho;
-  for (let k = 0; k < steps; k++) cur = applyTwoWorldLaw(cur, gamma);
+  for (let k = 0; k < steps; k++) cur = applyKraus(cur, kraus);
   return cur;
 }
 

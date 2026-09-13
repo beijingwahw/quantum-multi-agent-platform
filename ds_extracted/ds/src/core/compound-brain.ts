@@ -875,6 +875,11 @@ export class CompoundBrain extends EventEmitter {
   } {
     const agentList = [...this.agents.values()].filter((a) => a.spec.id !== excludedAgentId);
     const agentIdx = new Map(agentList.map((a, i) => [a.spec.id, i]));
+    // 资格成员测试 O(1) 化：includes 对每个 (task, agent) 对做 O(C) 线性
+    // 扫描；本调用内按 spec.capabilities 现值建 Set（A·C）后降为哈希
+    // 查询。has/includes 对同一数组内容恒同布尔，边构造序不变，位级不变
+    const capSets = new Map<AgentState, Set<string>>();
+    for (const a of agentList) capSets.set(a, new Set(a.spec.capabilities));
     const S = 0;
     const taskBase = 1;
     const agentBase = taskBase + tasks.length;
@@ -901,7 +906,7 @@ export class CompoundBrain extends EventEmitter {
       const c = task.capability;
       const cs = this.caps.get(c);
       for (const a of agentList) {
-        if (!a.spec.capabilities.includes(c)) continue;
+        if (!capSets.get(a)!.has(c)) continue;
         const q = this.qHat(a, c, a.capital.get(c) ?? 0, memo);
         const g = cs ? this.growthValue(a, c, memo) : 0;
         // 费用 = b − v·q̂ − g（福利的相反数）。索引缺位即不变量违例
@@ -941,11 +946,30 @@ export class CompoundBrain extends EventEmitter {
       };
     }
 
-    // 更新各能力价值 EWMA（公开量）
-    for (const c of new Set(tasks.map((t) => t.capability))) {
+    // 更新各能力价值 EWMA（公开量）。单遍分组：价值 EWMA 与份额 EWMA
+    // 两段各自做「按能力过滤 tasks」的 O(T·C) 扫描（外加两次 Set 构建）
+    // ——一次 O(T) 遍历同时产出 [首现序能力表, 各能力价值表(任务序),
+    // 各能力任务下标表(任务序)]，后续逐能力消费的取值序与原
+    // filter/flatMap 逐项相同，位级不变
+    const distinctCaps: string[] = [];
+    const valuesByCap = new Map<string, number[]>();
+    const idxByCap = new Map<string, number[]>();
+    for (let j = 0; j < tasks.length; j++) {
+      const c = tasks[j]!.capability;
+      let values = valuesByCap.get(c);
+      if (!values) {
+        distinctCaps.push(c);
+        values = [];
+        valuesByCap.set(c, values);
+        idxByCap.set(c, []);
+      }
+      values.push(tasks[j]!.value);
+      idxByCap.get(c)!.push(j);
+    }
+    for (const c of distinctCaps) {
       const cs = this.caps.get(c);
       if (!cs) continue;
-      const values = tasks.filter((t) => t.capability === c).map((t) => t.value);
+      const values = valuesByCap.get(c)!;
       const mean = values.reduce((a, b) => a + b, 0) / values.length;
       // 价值 EWMA 系数配置化（08#6）：0.8/0.2 硬编码与 shareAlpha 的
       // 配置面不对称——两条 EWMA 同属「公开平滑量」语义
@@ -972,11 +996,11 @@ export class CompoundBrain extends EventEmitter {
       payments[agentId] = a.bid * k + (full.W - without.W);
     }
 
-    // 份额 EWMA 更新（公开量：按本批分派比例）
-    for (const c of new Set(tasks.map((t) => t.capability))) {
+    // 份额 EWMA 更新（公开量：按本批分派比例；分组结构复用上方单遍遍历）
+    for (const c of distinctCaps) {
       const cs = this.caps.get(c);
       if (!cs) continue;
-      const taskIdxOfCap = tasks.flatMap((t, i) => (t.capability === c ? [i] : []));
+      const taskIdxOfCap = idxByCap.get(c)!;
       const winCounts = new Map<string, number>();
       for (const i of taskIdxOfCap) {
         const asg = assignmentByTask.get(i);
@@ -1201,14 +1225,21 @@ export class CompoundBrain extends EventEmitter {
       const capable = [...this.agents.values()].filter((a) => a.spec.capabilities.includes(c));
       if (capable.length === 0) continue;
       const T = this.config.growthHorizon;
-      const incubations: IncubationAdvice[] = capable.map((a) => {
+      // baseEstimate 预计算：原实现对每个 a 重算全部其他 agent 的
+      // baseEstimate（O(A²) 次含双 Map 查找的估值）。单次 advise 内
+      // attempts/successes/credential 不变，预计算数组按 capable 同序
+      // 取同一 double；delta 用 Math.max 链式折叠（与 Math.max(0, ...)
+      // 展开在数值上逐位一致，含 NaN 传播与 ±0 取大）
+      const ests = capable.map((a) => this.baseEstimate(a, c));
+      const incubations: IncubationAdvice[] = capable.map((a, i) => {
         const k = a.capital.get(c) ?? 0;
-        const base = this.baseEstimate(a, c);
+        const base = ests[i]!;
         // 最佳替代者的凭证优势（相对于 a）
-        const delta = Math.max(
-          0,
-          ...capable.filter((x) => x !== a).map((x) => this.baseEstimate(x, c) - base),
-        );
+        let delta = 0;
+        for (let j = 0; j < capable.length; j++) {
+          if (j === i) continue;
+          delta = Math.max(delta, ests[j]! - base);
+        }
         const kMin = lawKMin(base, delta, cs.alphaHat, cs.betaHat, T);
         const deltaMax = lawDeltaMax(base, k, cs.alphaHat, cs.betaHat, T);
         return {

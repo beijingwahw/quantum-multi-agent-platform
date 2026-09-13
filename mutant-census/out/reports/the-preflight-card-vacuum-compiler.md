@@ -10,6 +10,6 @@
 | cat:dimension-slot | 3 | b17#5 (b17) | GATE-ENFORCED | the global order is data (x) clock — reversed, the identity is off by 0.5; on cross-check failure, audit factor order on BOTH sides first |
 | cat:anchor-blindspot | 2 | b17#2 (b17) | GATE-ENFORCED | the eyeball passed, cmatUnitaryDev returned deviation exactly 1 — hand-written gate matrices fill completely and pass the unitarity check |
 | cat:machine-overruled | 1 | b17#6 (b17) | GATE-ENFORCED | both physics claims overruled twice: the marginal-COHERENCE law is the true law (the identity circuit is fully coherent), and the tilt closes on the trajectory-covariant subspace — the fuel account moves to the spectral gap; re-narrate per machine, closed forms supplied |
-| cat:wrong-object | 1 | b17#4 (b17) | GATE-ENFORCED | H_prop's ground state is 2^n-fold degenerate — the gap reads via firstExcited with multiplicity; 'every input's history state is a ground state' becomes the assertion at that site |
+| cat:wrong-object | 1 | b17#4 (b17) | BOOKED-UNENFORCEABLE | H_prop's ground state is 2^n-fold degenerate — the gap reads via firstExcited with multiplicity; 'every input's history state is a ground state' becomes the assertion at that site |
 
-Reports freshness (the repro-no-op face, v0.22.0): 4 reports on disk; newest render 2026-09-11T21:02:42.021Z; src tree newest 2026-09-11T16:05:40.509Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 4 reports on disk; newest render 2026-09-13T02:26:49.454Z; src tree newest 2026-09-11T16:05:40.509Z — FRESH (the newest render postdates every source)

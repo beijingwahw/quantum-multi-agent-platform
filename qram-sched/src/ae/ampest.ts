@@ -97,34 +97,43 @@ export function qaeDistribution(p: number, m: number): Float64Array {
     cgRe[x] = Math.sin(ang) * invSqrtM;
     cbRe[x] = Math.cos(ang) * invSqrtM;
   }
-  // Exact inverse QFT on the phase register, independently on each 2-plane sector.
-  // Forward QFT uses omega^{-xy}; the inverse uses omega^{+xy}, omega = e^{-2 pi i / M}.
-  for (const [re, im] of [
-    [cgRe, cgIm],
-    [cbRe, cbIm],
-  ] as const) {
-    const outRe = new Float64Array(M);
-    const outIm = new Float64Array(M);
-    for (let y = 0; y < M; y++) {
-      let accRe = 0;
-      let accIm = 0;
-      for (let x = 0; x < M; x++) {
-        const ang = (2 * Math.PI * x * y) / M;
-        const wr = Math.cos(ang);
-        const wi = Math.sin(ang);
-        const cr = re[x] as number;
-        const ci = im[x] as number;
-        accRe += cr * wr - ci * wi;
-        accIm += cr * wi + ci * wr;
-      }
-      outRe[y] = accRe * invSqrtM;
-      outIm[y] = accIm * invSqrtM;
+  // Exact inverse QFT on the phase register, independently on each 2-plane
+  // sector. Forward QFT uses omega^{-xy}; the inverse uses omega^{+xy},
+  // omega = e^{-2 pi i / M}. Both sectors share the same twiddle per (x, y),
+  // so one pass computes them together — each accumulator keeps exactly the
+  // original per-sector x-ascending addition sequence (bit-identical), with
+  // the cos/sin evaluated once instead of twice per pair.
+  const outGRe = new Float64Array(M);
+  const outGIm = new Float64Array(M);
+  const outBRe = new Float64Array(M);
+  const outBIm = new Float64Array(M);
+  for (let y = 0; y < M; y++) {
+    let gAccRe = 0;
+    let gAccIm = 0;
+    let bAccRe = 0;
+    let bAccIm = 0;
+    for (let x = 0; x < M; x++) {
+      const ang = (2 * Math.PI * x * y) / M;
+      const wr = Math.cos(ang);
+      const wi = Math.sin(ang);
+      const gr = cgRe[x] as number;
+      const gi = cgIm[x] as number;
+      gAccRe += gr * wr - gi * wi;
+      gAccIm += gr * wi + gi * wr;
+      const br = cbRe[x] as number;
+      const bi = cbIm[x] as number;
+      bAccRe += br * wr - bi * wi;
+      bAccIm += br * wi + bi * wr;
     }
-    for (let j = 0; j < M; j++) {
-      re[j] = outRe[j] as number;
-      im[j] = outIm[j] as number;
-    }
+    outGRe[y] = gAccRe * invSqrtM;
+    outGIm[y] = gAccIm * invSqrtM;
+    outBRe[y] = bAccRe * invSqrtM;
+    outBIm[y] = bAccIm * invSqrtM;
   }
+  cgRe.set(outGRe);
+  cgIm.set(outGIm);
+  cbRe.set(outBRe);
+  cbIm.set(outBIm);
   const dist = new Float64Array(M);
   for (let j = 0; j < M; j++) {
     dist[j] = (cgRe[j] as number) ** 2 + (cgIm[j] as number) ** 2 + (cbRe[j] as number) ** 2 + (cbIm[j] as number) ** 2;

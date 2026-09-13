@@ -265,14 +265,28 @@ export function runSim(cfg: SimConfig): SimReport {
   const viewVec = sensors ? beliefVec : currentVec;
 
   const buildView = (round: number): EngineView => {
-    const occupancy = new Map<string, Pair[]>();
+    // Occupancy: node -> link -> pairs anchored at (link, node). Semantics are
+    // identical to the previous flat `${linkId}|${node}` key map (a pair is
+    // anchored at (first link, endA) and (last link, endB); endA !== endB on
+    // every live pair, so the two inserts never collide) — bucket contents and
+    // order are the same, without a string concatenation per pair per view.
+    const occupancy = new Map<string, Map<string, Pair[]>>();
+    const bucket = (node: string, linkId: string): Pair[] => {
+      let byLink = occupancy.get(node);
+      if (byLink === undefined) {
+        byLink = new Map<string, Pair[]>();
+        occupancy.set(node, byLink);
+      }
+      let arr = byLink.get(linkId);
+      if (arr === undefined) {
+        arr = [];
+        byLink.set(linkId, arr);
+      }
+      return arr;
+    };
     for (const pr of pairs) {
-      const first = pr.links[0];
-      const last = pr.links[pr.links.length - 1];
-      const k1 = `${first}|${pr.endA}`;
-      const k2 = `${last}|${pr.endB}`;
-      (occupancy.get(k1) ?? occupancy.set(k1, []).get(k1)!).push(pr);
-      if (k2 !== k1) (occupancy.get(k2) ?? occupancy.set(k2, []).get(k2)!).push(pr);
+      bucket(pr.endA, pr.links[0]!).push(pr);
+      bucket(pr.endB, pr.links[pr.links.length - 1]!).push(pr);
     }
     return {
       round,
@@ -283,12 +297,12 @@ export function runSim(cfg: SimConfig): SimReport {
       freeSlots(linkId: string): number {
         const l = topo.linkById.get(linkId);
         if (!l) return 0;
-        const occA = (occupancy.get(`${linkId}|${l.a}`) ?? []).length;
-        const occB = (occupancy.get(`${linkId}|${l.b}`) ?? []).length;
+        const occA = occupancy.get(l.a)?.get(linkId)?.length ?? 0;
+        const occB = occupancy.get(l.b)?.get(linkId)?.length ?? 0;
         return Math.max(0, l.slots - Math.max(occA, occB));
       },
       anchoredAt(linkId: string, node: string): Pair[] {
-        return occupancy.get(`${linkId}|${node}`) ?? [];
+        return occupancy.get(node)?.get(linkId) ?? [];
       },
       pairsOf(owner: string): Pair[] {
         return pairs.filter((p) => p.owner === owner);
@@ -471,20 +485,20 @@ export function runSim(cfg: SimConfig): SimReport {
       }
     }
 
-    // 4–5. swap / purify / discard decisions and execution
+    // 4–5. swap / purify / discard decisions and execution. Pair lookup is a
+    // linear scan over the live list (fresh per op — the list mutates between
+    // ops); identical results to the previous per-op id->pair Map rebuild
+    // without its O(pairs) allocation every op.
     const ops = policy.decideOps(buildView(round), round);
-    const live = () => new Map(pairs.map((p) => [p.id, p] as const));
     for (const id of ops.discards) {
-      const m = live();
-      if (m.has(id)) {
+      if (pairs.some((p) => p.id === id)) {
         counters.discards++;
         removePairs(new Set([id]));
       }
     }
     for (const pu of ops.purifies) {
-      const m = live();
-      const keep = m.get(pu.keep);
-      const sac = m.get(pu.sac);
+      const keep = pairs.find((p) => p.id === pu.keep);
+      const sac = pairs.find((p) => p.id === pu.sac);
       if (
         keep &&
         keep.owner === sac?.owner &&
@@ -495,9 +509,8 @@ export function runSim(cfg: SimConfig): SimReport {
       }
     }
     for (const sw of ops.swaps) {
-      const m = live();
-      const left = m.get(sw.left);
-      const right = m.get(sw.right);
+      const left = pairs.find((p) => p.id === sw.left);
+      const right = pairs.find((p) => p.id === sw.right);
       if (left && left.owner === right?.owner) {
         executeSwap(left, right, round); // geometry re-validated inside
       }
@@ -508,7 +521,11 @@ export function runSim(cfg: SimConfig): SimReport {
     // Under a sensor plan the GATE runs on the belief mirror — the physics
     // referee keeps accounting on true fidelity, so belief errors surface as
     // bad deliveries that passed the believed gate (QoS violations).
+    // The onComplete view is built lazily at most once per round: nothing
+    // mutates `pairs` inside this loop (deliver() only touches ledgers), so
+    // every held pair saw the same view the per-pair rebuild used to make.
     const done: Pair[] = [];
+    let holdView: EngineView | null = null;
     for (const pr of pairs) {
       const r = byId.get(pr.owner);
       if (!r) continue;
@@ -518,7 +535,7 @@ export function runSim(cfg: SimConfig): SimReport {
       if (!complete) continue;
       const gateF = (sensors ? beliefVec(pr, round) : currentVec(pr, round))[0]!;
       if (gateF >= r.fMin) done.push(pr);
-      else if (policy.onComplete?.(buildView(round), pr) !== "hold") done.push(pr);
+      else if (policy.onComplete?.(holdView ?? (holdView = buildView(round)), pr) !== "hold") done.push(pr);
     }
     if (done.length > 0) {
       const ids = new Set(done.map((p) => p.id));

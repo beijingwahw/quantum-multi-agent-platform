@@ -59,7 +59,35 @@ export function projectGroundState(
   const state = StateVector.seededReal(n, seed);
   fixGlobalSign(state);
 
-  let energy = totalEnergy(state, energies, xEnergies, s);
+  // Reusable read-out buffers (allocation-churn fix): the per-step energy
+  // evaluation previously cloned the state and allocated two probability
+  // tables every step. The scratch below reproduces the exact same arithmetic
+  // — probabilities are folded elementwise (r*r + i*i is the identical double
+  // the table held), the Hadamard runs on the shared core, sums keep the same
+  // index order — so every reported number is bit-identical.
+  const dim = 1 << n;
+  const flippedRe = new Float64Array(dim);
+  const flippedIm = new Float64Array(dim);
+  const totalEnergy = (): number => {
+    let problemEnergy = 0;
+    for (let t = 0; t < dim; t++) {
+      const r = state.re[t]!;
+      const i = state.im[t]!;
+      problemEnergy += (r * r + i * i) * energies[t]!;
+    }
+    flippedRe.set(state.re);
+    flippedIm.set(state.im);
+    StateVector.hadamardArrays(flippedRe, flippedIm, n);
+    let driverEnergy = 0;
+    for (let t = 0; t < dim; t++) {
+      const r = flippedRe[t]!;
+      const i = flippedIm[t]!;
+      driverEnergy += (r * r + i * i) * xEnergies[t]!;
+    }
+    return -s * problemEnergy + (1 - s) * driverEnergy;
+  };
+
+  let energy = totalEnergy();
   let converged = false;
   let step = 0;
 
@@ -71,7 +99,7 @@ export function projectGroundState(
     state.applyHadamardAll();
     state.normalize();
 
-    const total = totalEnergy(state, energies, xEnergies, s);
+    const total = totalEnergy();
     if (Math.abs(total - energy) < tolerance * (1 + Math.abs(total))) {
       energy = total;
       converged = true;
@@ -89,20 +117,6 @@ export function projectGroundState(
     steps: step,
     signRatio: state.signRatio(),
   };
-}
-
-/** ⟨H(s)⟩ = −s·⟨C⟩_Z + (1−s)·⟨H_D⟩_X（驱动项在 X 基对角，翻转读出） */
-function totalEnergy(
-  state: StateVector,
-  energies: ZSpectrum,
-  xEnergies: XSpectrum,
-  s: number,
-): number {
-  const problemEnergy = state.expectation(energies);
-  const flipped = state.clone();
-  flipped.applyHadamardAll();
-  const driverEnergy = flipped.expectation(xEnergies);
-  return -s * problemEnergy + (1 - s) * driverEnergy;
 }
 
 /** 全局符号约定：最大 |幅值| 取正（P 的表示依赖性在此消除） */

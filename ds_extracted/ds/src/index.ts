@@ -36,6 +36,10 @@ export type DeepPartial<T> = {
 // 会触发 Object.prototype 的 setter，必须整体拒绝
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+// 控制台 submit_task 的合法优先级（R13）：成员测试走常量 Set——此前每条
+// 命令都新建数组字面量再线性扫描，纯热路径分配
+const CONSOLE_PRIORITIES = new Set(['low', 'medium', 'high', 'critical']);
+
 // 递归深度上限：防御病态嵌套配置导致的栈溢出（含循环引用的配置对象）
 const MAX_MERGE_DEPTH = 10;
 
@@ -391,8 +395,7 @@ export class QuantumMultiAgentPlatform extends EventEmitter {
           const priority = p.priority;
           if (
             priority !== undefined &&
-            (typeof priority !== 'string' ||
-              !['low', 'medium', 'high', 'critical'].includes(priority))
+            (typeof priority !== 'string' || !CONSOLE_PRIORITIES.has(priority))
           ) {
             throw new ConfigurationError(`Invalid priority '${JSON.stringify(priority)}'`);
           }

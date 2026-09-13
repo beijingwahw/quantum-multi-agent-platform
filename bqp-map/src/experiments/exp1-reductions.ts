@@ -19,7 +19,6 @@ import {
   genYesInstance,
   sizeGap,
   solveAndDecode,
-  threePartitionEquivHolds,
 } from "../reductions/threepartition.js";
 import { fptasRatio } from "../reductions/fptas.js";
 import { johnsonOptimal } from "../reductions/johnson.js";
@@ -80,9 +79,14 @@ function run(): void {
       for (let t = 0; t < 60; t++) {
         const pi = genPromiseInstance(rng, m, 24 + 8 * rng.int(3));
         const w = bruteForceThreePartition(pi);
-        if (!threePartitionEquivHolds(pi, w)) throw new Error(`3-partition equivalence failed`);
+        // one exact solve per instance: the equivalence predicate
+        // (makespan <= B) === brute-force witness and the B&B node meter read
+        // the same solution — running the solver once halves the section's
+        // exponential work without moving any reported number
+        const decoded = solveAndDecode(pi);
+        if ((decoded.solution.makespan <= pi.B) !== w) throw new Error(`3-partition equivalence failed`);
         if (w) yesC++;
-        nodes += solveAndDecode(pi).solution.nodes;
+        nodes += decoded.solution.nodes;
         inst++;
       }
     }

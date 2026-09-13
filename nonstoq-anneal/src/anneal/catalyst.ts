@@ -58,10 +58,23 @@ export function xEnergiesAt(
   gamma = 1,
 ): XSpectrum {
   const t = new Float64Array(mag.length);
-  for (let i = 0; i < t.length; i++) {
-    t[i] = -(1 - s) * gamma * mag[i]! + s * (1 - lambda) * xx[i]!;
-  }
+  xEnergiesAtInto(mag, xx, s, lambda, t, gamma);
   return xSpectrumOf(t);
+}
+
+/** xEnergiesAt 的就位变体（同一表达式逐元素写入 out）——退火内循环每片
+ *  重用同一缓冲，免去逐片分配 + 拷贝；数值与分配版逐位相同。 */
+export function xEnergiesAtInto(
+  mag: XSpectrum,
+  xx: XSpectrum,
+  s: number,
+  lambda: number,
+  out: Float64Array,
+  gamma = 1,
+): void {
+  for (let i = 0; i < out.length; i++) {
+    out[i] = -(1 - s) * gamma * mag[i]! + s * (1 - lambda) * xx[i]!;
+  }
 }
 
 export interface GapPoint {
@@ -150,8 +163,7 @@ export function annealCatalystPath(
     const lambda =
       options.lambda0 + (1 - options.lambda0) * Math.min(1, Math.max(0, (u - s1) / Math.max(1e-9, 1 - s1)));
     state.applyPhase(-dt * s, energies);
-    const table = xEnergiesAt(mag, xx, s, lambda);
-    xE.set(table);
+    xEnergiesAtInto(mag, xx, s, lambda, xE);
     state.applyHadamardAll();
     state.applyPhase(dt, xE);
     state.applyHadamardAll();

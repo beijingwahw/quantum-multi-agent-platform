@@ -489,10 +489,29 @@ const PROPERTIES: Record<string, (f: Family) => PropResult> = {
 
 export const PROPERTY_IDS: readonly string[] = Object.keys(PROPERTIES);
 
+// Properties are pure functions of the family they interrogate: every seed is
+// a fixed constant inside the property, so the same family object always
+// yields the same result. The suite points the battery at the same
+// constructions many times over (canonical + 9 mutants + the J-board's
+// per-error constructions, re-censused by every render and every trial), so
+// the verdicts are memoized per family object — a WeakMap, deliberately: a
+// FORGED family (the smuggling trials inject fresh objects) always takes the
+// compute path and can never inherit a cached verdict.
+const propertyCache = new WeakMap<Family, Map<string, PropResult>>();
+
 export function runProperty(id: string, f: Family = canonicalFamily()): PropResult {
   const prop = PROPERTIES[id];
   if (!prop) throw new Error(`unknown property ${id}`);
-  return prop(f);
+  let byId = propertyCache.get(f);
+  if (byId === undefined) {
+    byId = new Map<string, PropResult>();
+    propertyCache.set(f, byId);
+  }
+  const cached = byId.get(id);
+  if (cached !== undefined) return cached;
+  const result = prop(f);
+  byId.set(id, result);
+  return result;
 }
 
 export function runBattery(f: Family = canonicalFamily()): PropResult[] {
@@ -574,10 +593,13 @@ export function runNegativeControls(): ControlResult[] {
       return m;
     },
   };
+  // each control runs its property ONCE — the pass flag and the detail line
+  // quote the same execution (the former code ran every control twice)
+  const ncP1 = p1(blind);
   out.push({
     name: "NC-P1 shape-blind product",
-    pass: !p1(blind).pass,
-    detail: `P1 against the shape-blind product: ${p1(blind).detail} — the guard property fires`,
+    pass: !ncP1.pass,
+    detail: `P1 against the shape-blind product: ${ncP1.detail} — the guard property fires`,
   });
   // NC-P3: a LOPSIDED outer (element (0,1) doubled). NOTE: the mirror-symmetric
   // corruption (daggering outer) does NOT fire this mirror-symmetric identity —
@@ -592,10 +614,11 @@ export function runNegativeControls(): ControlResult[] {
       return o;
     },
   };
+  const ncP3 = p3(lopsided);
   out.push({
     name: "NC-P3 lopsided outer (element (0,1) doubled)",
-    pass: !p3(lopsided).pass,
-    detail: `P3 against the lopsided outer: ${p3(lopsided).detail} — the algebra identity fires; mirror-symmetric corruptions are invisible to it and are killed by P2's phase instead`,
+    pass: !ncP3.pass,
+    detail: `P3 against the lopsided outer: ${ncP3.detail} — the algebra identity fires; mirror-symmetric corruptions are invisible to it and are killed by P2's phase instead`,
   });
   // NC-P4: Kraus scaled by 1.1 — not a channel
   const rngNc = makeRng(4040);
@@ -604,10 +627,11 @@ export function runNegativeControls(): ControlResult[] {
     ...canonicalFamily(),
     applyKraus: (rho) => canonicalFamily().applyKraus(rho, kraus),
   };
+  const ncP4 = p4(scaled);
   out.push({
     name: "NC-P4 non-CPTP Kraus (x1.1)",
-    pass: !p4(scaled).pass,
-    detail: `P4 against the scaled Kraus set: ${p4(scaled).detail} — trace preservation fires`,
+    pass: !ncP4.pass,
+    detail: `P4 against the scaled Kraus set: ${ncP4.detail} — trace preservation fires`,
   });
   return out;
 }

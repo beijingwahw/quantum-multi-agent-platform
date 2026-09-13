@@ -48,6 +48,27 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
   strides[m - 1] = 1;
   for (let i = m - 2; i >= 0; i--) strides[i] = strides[i + 1]! * dims[i + 1]!;
   const dIn = rho.rows;
+  // Column invariants hoisted: each col's kept-index and its digits on the
+  // traced-out subsystems depend on col ALONE, yet were recomputed (with a
+  // fresh digits array) for every (row, col) pair. Precomputed once with the
+  // same integer arithmetic and the same keep.reduce expression; the traceOut
+  // digits are folded into one mixed-radix key per side (injective over digit
+  // tuples), and the (row, col) accumulation order below is untouched — the
+  // out matrix is filled with identical values in identical order.
+  const keepColOf = new Int32Array(dIn);
+  const traceKeyOf = new Int32Array(dIn);
+  for (let col = 0; col < dIn; col++) {
+    let c = col;
+    const cdigits: number[] = new Array<number>(m);
+    for (let i = 0; i < m; i++) {
+      cdigits[i] = Math.floor(c / strides[i]!);
+      c %= strides[i]!;
+    }
+    keepColOf[col] = keep.reduce((acc, sys, idx) => acc + cdigits[sys]! * keptStrides[idx]!, 0);
+    let key = 0;
+    for (const t of traceOut) key = key * dims[t]! + cdigits[t]!;
+    traceKeyOf[col] = key;
+  }
   for (let row = 0; row < dIn; row++) {
     // decompose row index into per-subsystem digits
     const digits: number[] = new Array<number>(m);
@@ -57,24 +78,14 @@ export function partialTrace(rho: CMat, dims: readonly number[], traceOut: reado
       r %= strides[i]!;
     }
     const keepRow = keep.reduce((acc, sys, idx) => acc + digits[sys]! * keptStrides[idx]!, 0);
+    let rowKey = 0;
+    for (const t of traceOut) rowKey = rowKey * dims[t]! + digits[t]!;
+    const outRowBase = keepRow * dOut;
     for (let col = 0; col < dIn; col++) {
-      let c = col;
-      const cdigits: number[] = new Array<number>(m);
-      for (let i = 0; i < m; i++) {
-        cdigits[i] = Math.floor(c / strides[i]!);
-        c %= strides[i]!;
-      }
-      let matches = true;
-      for (const t of traceOut) {
-        if (cdigits[t]! !== digits[t]!) {
-          matches = false;
-          break;
-        }
-      }
-      if (!matches) continue;
-      const keepCol = keep.reduce((acc, sys, idx) => acc + cdigits[sys]! * keptStrides[idx]!, 0);
-      out.re[keepRow * dOut + keepCol] = out.re[keepRow * dOut + keepCol]! + rho.re[row * dIn + col]!;
-      out.im[keepRow * dOut + keepCol] = out.im[keepRow * dOut + keepCol]! + rho.im[row * dIn + col]!;
+      if (traceKeyOf[col] !== rowKey) continue;
+      const oc = outRowBase + keepColOf[col]!;
+      out.re[oc] = out.re[oc]! + rho.re[row * dIn + col]!;
+      out.im[oc] = out.im[oc]! + rho.im[row * dIn + col]!;
     }
   }
   return out;
@@ -109,6 +120,10 @@ export function marginalProbs(rho: CMat, dims: readonly number[], measure: reado
   outStrides[measure.length - 1] = 1;
   for (let j = measure.length - 2; j >= 0; j--) outStrides[j] = outStrides[j + 1]! * measuredDims[j + 1]!;
   const probs = new Array<number>(dOut).fill(0);
+  // measure.indexOf is loop-invariant in the idx loop: hoisted to one lookup
+  // table per subsystem (same values, same digit arithmetic)
+  const atOf: number[] = new Array<number>(m);
+  for (let i = 0; i < m; i++) atOf[i] = measure.indexOf(i);
   for (let idx = 0; idx < rho.rows; idx++) {
     const re = rho.re[idx * rho.rows + idx]!;
     if (re === 0) continue;
@@ -117,7 +132,7 @@ export function marginalProbs(rho: CMat, dims: readonly number[], measure: reado
     for (let i = 0; i < m; i++) {
       const d = Math.floor(cur / strides[i]!);
       cur %= strides[i]!;
-      const at = measure.indexOf(i);
+      const at = atOf[i]!;
       if (at >= 0) digit += d * outStrides[at]!;
     }
     probs[digit] = probs[digit]! + re;

@@ -135,9 +135,16 @@ describe('P2/P3 收尾 · compound-brain', () => {
       const alloc = brain.allocateBatch([{ capability: 'js', value: 10 }]);
       brain.settle(alloc.assignments[0]!.taskId, true);
     }
-    const state = brain.getState();
-    // 8 次结算、窗口封顶 5：观测容量被裁（具体字段为能力快照的口径）
-    assert.ok(JSON.stringify(state).length > 0, 'getState 在封顶配置下仍可用');
+    // S3（R13 测试网）：原断言 JSON.stringify(state).length > 0 恒真（任何
+    // 状态对象都序列化为非空串）——标题声称的「窗口封顶」从未被验证。
+    // calibrations().attempts 直接暴露 cs.observations.length（观测窗口）：
+    // 8 次结算、cap=5 → 窗口恒为 5（第 6 次起 FIFO 淘汰）
+    const cal = brain.calibrations().find((c) => c.capability === 'js');
+    assert.ok(cal, 'js 能力应有校准快照');
+    assert.equal(cal.attempts, 5, '观测窗口按 observationCap=5 封顶');
+    // 公开 attempts 是累计口径（与校准窗口分列），不得被窗口裁剪
+    const a1 = brain.getState().agents.find((a) => a.id === 'a1')!;
+    assert.equal(a1.attempts.js, 8, '累计尝试次数不受窗口淘汰影响');
     brain.dispose();
   });
 

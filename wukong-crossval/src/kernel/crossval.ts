@@ -45,12 +45,18 @@ export function quboValue(inst: QuboSpec, bits: number): number {
     throw new XvalError("XVAL_QUBO_SHAPE", `quboValue: linear must carry n=${String(inst.n)} coefficients, got ${String(inst.linear.length)} (coupling rows may be empty or trailing-omitted — boundary reads fall back to 0)`);
   }
   let v = 0;
-  for (let i = 0; i < inst.n; i++) {
-    const bi = (bits >> (inst.n - 1 - i)) & 1;
-    if (bi === 1) v += inst.linear[i]!;
-    for (let j = i + 1; j < inst.n; j++) {
-      const bj = (bits >> (inst.n - 1 - j)) & 1;
-      if (bi === 1 && bj === 1) v += inst.coupling[i]?.[j - i - 1] ?? 0;
+  const n = inst.n;
+  const coupling = inst.coupling;
+  for (let i = 0; i < n; i++) {
+    // a 0 bit on i contributes nothing (the inner j loop's add is gated on
+    // bi === 1 anyway), so the whole row is skipped — the surviving adds run
+    // in exactly the original order: linear[i] first, then coupling terms
+    // j-ascending, one sum accumulator untouched
+    if (((bits >> (n - 1 - i)) & 1) === 1) {
+      v += inst.linear[i]!;
+      for (let j = i + 1; j < n; j++) {
+        if (((bits >> (n - 1 - j)) & 1) === 1) v += coupling[i]?.[j - i - 1] ?? 0;
+      }
     }
   }
   return v;
@@ -188,17 +194,24 @@ export function applyRX(psi: Float64Array, n: number, q: number, theta: number):
   const s = Math.sin(theta / 2);
   const bit = 1 << (n - 1 - q);
   const half = dimOf(psi);
-  for (let b0 = 0; b0 < half; b0++) {
-    if ((b0 & bit) !== 0) continue;
-    const b1 = b0 | bit;
-    const r0 = psi[b0]!;
-    const i0 = psi[half + b0]!;
-    const r1 = psi[b1]!;
-    const i1 = psi[half + b1]!;
-    psi[b0] = c * r0 - s * i1;
-    psi[half + b0] = c * i0 + s * r1;
-    psi[b1] = c * r1 - s * i0;
-    psi[half + b1] = c * i1 + s * r0;
+  // the pairs {b0, b0|bit} with bit unset on b0, enumerated directly by block
+  // instead of scan-and-skip: the same b0 set in the same ascending order,
+  // every read and write identical — the stride just never visits the skipped
+  // halves (the per-element `continue` branch) at all
+  const stride = bit << 1;
+  for (let base = 0; base < half; base += stride) {
+    for (let off = 0; off < bit; off++) {
+      const b0 = base + off;
+      const b1 = b0 | bit;
+      const r0 = psi[b0]!;
+      const i0 = psi[half + b0]!;
+      const r1 = psi[b1]!;
+      const i1 = psi[half + b1]!;
+      psi[b0] = c * r0 - s * i1;
+      psi[half + b0] = c * i0 + s * r1;
+      psi[b1] = c * r1 - s * i0;
+      psi[half + b1] = c * i1 + s * r0;
+    }
   }
 }
 
@@ -214,12 +227,27 @@ function requirePairedParams(params: QaoaParams, what: string): void {
   }
 }
 
+/** The cost table behind an instance, computed once per instance object per
+ *  process (pure function of immutable input — every caller of runQaoa paid
+ *  the full 2^n x O(n^2) sweep per evaluation, ~25 sweeps per n=20 probe and
+ *  ~50 more per robustness census). Read-only downstream: applyCost and
+ *  expectation never write it. */
+const runCostCache = new WeakMap<Instance, Float64Array>();
+function runCosts(inst: Instance): Float64Array {
+  let t = runCostCache.get(inst);
+  if (t === undefined) {
+    t = costTable(inst);
+    runCostCache.set(inst, t);
+  }
+  return t;
+}
+
 /** The exact statevector after p cost+mixer layers from the uniform state. */
 export function runQaoa(inst: Instance, params: QaoaParams): Float64Array {
   const n = inst.n;
   requirePairedParams(params, "runQaoa");
   const psi = uniformState(n);
-  const costs = costTable(inst);
+  const costs = runCosts(inst);
   const p = params.betas.length;
   for (let l = 0; l < p; l++) {
     applyCost(psi, costs, params.gammas[l]!);
@@ -249,7 +277,7 @@ export function optimizeOffline(inst: Instance, p: number): QaoaParams {
     throw new XvalError("XVAL_DEPTH_RANGE", `optimizeOffline: layer count must be an integer >= 0 (p=0 is the uniform-state anchor), got ${String(p)}`);
   }
   const tier: "full" | "grid" | "coarse" = inst.n <= 12 ? "full" : inst.n <= 16 ? "grid" : "coarse";
-  const costs = costTable(inst);
+  const costs = runCosts(inst);
   const gridFull = [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4, Math.PI, (5 * Math.PI) / 4, (3 * Math.PI) / 2, (7 * Math.PI) / 4];
   const grid = tier === "full" ? gridFull : tier === "grid" ? [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4, Math.PI, (3 * Math.PI) / 2] : [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4, Math.PI];
   let best: QaoaParams = { betas: new Array<number>(p).fill(0), gammas: new Array<number>(p).fill(0) };

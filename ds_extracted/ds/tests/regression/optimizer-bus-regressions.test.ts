@@ -116,8 +116,6 @@ function waitForEvent<T>(
   });
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /** Ising 能量求值（z 基）：E = offset + Σh_i z_i + ΣJ_ij z_i z_j */
 function isingEnergyOf(model: IsingModel, bits: number[]): number {
   const zOf = (q: number): number => 1 - 2 * (bits[q] ?? 0);
@@ -355,14 +353,14 @@ describe('A3#5 订阅频道运行时校验（F01）', () => {
       ws.send(JSON.stringify({ type: 'subscribe', channel: 42 })); // 数字
       ws.send(JSON.stringify({ type: 'subscribe', channel: '' })); // 空串
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'x'.repeat(200) })); // 超长
-      // 静默拒绝无事件可等（设计如此），只能按时间界定：等待吸收 CI 负载
-      await sleep(300);
-      assert.equal(bus.getMetrics().security.invalidChannelRejections, 3, '三次非法频道各计一次');
-
+      // 三帧非法频道先发（静默拒绝无事件可等——设计如此）。S1（R13 测试网）：
+      // 原 sleep(300) 时间界定改为同连接有序定罪——紧随的合法订阅的
+      // agent_subscribed 事件到达时，前三帧必然已被处理
       const subscribed = waitForEvent<{ channel: string }>(bus, 'agent_subscribed', () => true);
       ws.send(JSON.stringify({ type: 'subscribe', channel: 'status_update' }));
       const ev = await subscribed;
       assert.equal(ev.channel, 'status_update', '合法频道订阅不受影响');
+      assert.equal(bus.getMetrics().security.invalidChannelRejections, 3, '三次非法频道各计一次');
       ws.close();
     } finally {
       bus.shutdown();

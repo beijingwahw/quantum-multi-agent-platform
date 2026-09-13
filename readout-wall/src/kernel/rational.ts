@@ -56,20 +56,22 @@ export const fCmp = (a: Frac, b: Frac): number => {
 export function fDecimal(a: Frac, digits: number): string {
   const neg = a.n < 0n;
   const n = neg ? -a.n : a.n;
-  const int = n / a.d;
-  let rem = n % a.d;
-  let frac = "";
-  for (let i = 0; i < digits; i++) {
-    rem *= 10n;
-    frac += (rem / a.d).toString();
-    rem %= a.d;
-  }
-  const s = int.toString() + (frac.length > 0 ? "." + frac : "");
+  // All `digits` fractional digits in ONE exact division: floor(n*10^d / d) is
+  // int*10^d followed by exactly the long-division digit string (leading zeros
+  // included) — the same digits the digit-by-digit loop produces, in one pass
+  // over the big denominator instead of one pass per digit.
+  const scale = 10n ** BigInt(digits);
+  const scaled = (n * scale) / a.d;
+  let s = scaled.toString();
+  if (s.length <= digits) s = "0".repeat(digits - s.length + 1) + s;
+  const intPart = s.slice(0, s.length - digits);
+  const frac = digits > 0 ? "." + s.slice(s.length - digits) : "";
+  const body = intPart + frac;
   // the sign tracks the VALUE, not the remainder: a negative fraction whose
   // expansion terminates exactly at the digit limit (e.g. -1/8 at 3 digits)
   // is still negative — the old `int !== 0n || rem !== 0n` guard dropped its
   // minus (convicted by T4's exact-value anchor, v0.3.0)
-  return neg && a.n !== 0n ? "-" + s : s;
+  return neg && a.n !== 0n ? "-" + body : body;
 }
 
 /**

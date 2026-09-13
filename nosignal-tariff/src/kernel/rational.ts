@@ -50,6 +50,30 @@ export const fCmp = (a: Frac, b: Frac): number => {
   return l < r ? -1 : l > r ? 1 : 0;
 };
 
+/**
+ * Value-preserving gcd reduction — SAME exact rational, smaller limbs. The
+ * fraction algebra above is deliberately unreduced (small fixed operands,
+ * reduction buys nothing), but a long accumulating sum of unreduced terms
+ * compounds its denominator as the PRODUCT of every term denominator (quadratic
+ * in the term count), and BigInt arithmetic on the resulting megabit limbs —
+ * not the mathematics — then dominates the whole certificate. Reducing the
+ * accumulator after each add keeps the limbs linear in the term count while
+ * every comparison (cross-multiplication), width, and decimal expansion below
+ * reads the same VALUE, so every certificate verdict and every printed digit
+ * is unchanged.
+ */
+function fReduce(a: Frac): Frac {
+  let x = a.n < 0n ? -a.n : a.n;
+  let y = a.d;
+  while (y !== 0n) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  if (x === 1n) return a;
+  return { n: a.n / x, d: a.d / x };
+}
+
 /** Decimal rendering by exact long division (no rounding of the last digit). */
 export function fDecimal(a: Frac, digits: number): string {
   const neg = a.n < 0n;
@@ -146,7 +170,7 @@ function negLnMantissa(m: Frac): Ivl {
   let s = F_ZERO;
   let tk = tf; // t^k at k = 1
   for (let k = 1; k <= LN_TERMS; k++) {
-    s = fAdd(s, fDiv(tk, fr(k)));
+    s = fReduce(fAdd(s, fDiv(tk, fr(k))));
     tk = fMul(tk, tf);
   }
   const tail = fDiv(tk, fMul(fr(LN_TERMS + 1), m)); // t^{K+1}/((K+1) m), tk now t^{K+1}
@@ -229,12 +253,35 @@ export function h2Series(q: Frac): Ivl {
   }
   const d = fSub(F_ONE, fMul(fr(2), q)); // 1 - 2q, in (-1,1) \ {0}
   const d2 = fMul(d, d); // in (0,1)
-  let psum = F_ZERO;
-  let d2k = d2;
-  for (let k = 1; k <= SERIES_TERMS; k++) {
-    psum = fAdd(psum, fDiv(d2k, fr(k * (2 * k - 1))));
-    d2k = fMul(d2k, d2);
+  // The partial sum Σ_{k<=K} d2^k/(k(2k-1)) is accumulated in PURE INTEGER
+  // arithmetic on the common denominator B^K·C (n = d2's numerator, B = d2's
+  // denominator, c_k = k(2k-1), C = ∏c_k):
+  //     Σ_k n^k/(B^k·c_k) = P/(B^K·C),  P = Σ_k n^k·B^{K-k}·(C/c_k).
+  // Same exact value as the term-by-term fraction sum — every comparison,
+  // width, and decimal expansion downstream reads the same rational — but the
+  // BigInt operands stay linear in K instead of compounding (unreduced) or
+  // paying a gcd per term (reduced).
+  const K = SERIES_TERMS;
+  const N = d2.n; // >= 0 (d2 = d^2)
+  const B = d2.d;
+  const c: bigint[] = new Array<bigint>(K + 1);
+  for (let k = 1; k <= K; k++) c[k] = BigInt(k * (2 * k - 1));
+  const prefix: bigint[] = new Array<bigint>(K + 2).fill(1n); // prefix[k] = c_1···c_{k-1}
+  for (let k = 1; k <= K; k++) prefix[k + 1] = prefix[k]! * c[k]!;
+  const suffix: bigint[] = new Array<bigint>(K + 2).fill(1n); // suffix[k] = c_{k+1}···c_K
+  for (let k = K; k >= 1; k--) suffix[k] = suffix[k + 1]! * c[k]!;
+  const C = prefix[K + 1]!;
+  let p = 0n;
+  let powN = 1n; // n^{k-1} entering iteration k
+  let powB = B ** BigInt(K); // B^{K-k+1} entering iteration k
+  for (let k = 1; k <= K; k++) {
+    powN *= N; // now exactly n^k
+    powB /= B; // now exactly B^{K-k}
+    p += powN * powB * (prefix[k]! * suffix[k + 1]!); // n^k·B^{K-k}·(C/c_k)
   }
+  const psum: Frac = { n: p, d: B ** BigInt(K) * C }; // exact: Σ_k n^k/(B^k·c_k)
+  let d2k = d2;
+  for (let k = 1; k <= K; k++) d2k = fMul(d2k, d2);
   // S = sum_{k>K} term, S <= d2^{K+1}/((K+1)(2K+1)(1-d2)) — d2k is now d2^{K+1}
   const tail = fDiv(d2k, fMul(fr((SERIES_TERMS + 1) * (2 * (SERIES_TERMS + 1) - 1)), fSub(F_ONE, d2)));
   // h2 = 1 - S/(2 ln2), S in [psum, psum+tail]:

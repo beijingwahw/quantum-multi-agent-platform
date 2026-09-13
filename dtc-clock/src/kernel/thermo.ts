@@ -37,12 +37,24 @@ import { multiplierCircuit } from "./compile.js";
 /** Boltzmann constant, exact by SI 2019 definition. */
 export const K_BOLTZMANN = 1.380649e-23;
 
+// The quadrature is pure in `steps` and costs `steps` divisions per call —
+// and the tariff machinery asks for the same default 2^20 sum several times
+// per run (W-D's ratio, joulePrices at two temperatures). Memoized per step
+// count: the cached value IS the value the recomputed road returns (same
+// accumulation, same order), so no joule price moves a digit.
+const ln2Cache = new Map<number, number>();
+
 /** ln 2 by midpoint quadrature of 1/x on [1,2] — the route-price W-A method. */
 export function ln2ByQuadrature(steps = 1 << 20): number {
-  const h = 1 / steps;
-  let s = 0;
-  for (let i = 0; i < steps; i++) s += 1 / (1 + (i + 0.5) * h);
-  return s * h;
+  let v = ln2Cache.get(steps);
+  if (v === undefined) {
+    const h = 1 / steps;
+    let s = 0;
+    for (let i = 0; i < steps; i++) s += 1 / (1 + (i + 0.5) * h);
+    v = s * h;
+    ln2Cache.set(steps, v);
+  }
+  return v;
 }
 
 /** Landauer's floor per erased bit, in joules, at temperature T (kelvin). */

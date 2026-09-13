@@ -187,15 +187,22 @@ export function normalizeTerms(terms: ElementTerms): ElementTerms {
   return { ...terms, pairs: [...merged.values()] };
 }
 
-/** worst-case z 显式取每个邻位贡献的符号（同邻位多重边先合并）——max_z A_i(z) 精确。 */
-function worstSingleFlip(terms: ElementTerms, rot: LocalRotation, site: number): ElementViolation {
-  const { a, b } = cosSin(rot.psi);
-  const g = fieldArray(terms.n, terms.xFields);
-  const p = fieldArray(terms.n, terms.zFields);
+/** worst-case z 显式取每个邻位贡献的符号（同邻位多重边先合并）——max_z A_i(z) 精确。
+ *  a/b/g/p 由调用方一次算好传入（原实现逐 site 重算 cosSin 与两个场表——
+ *  表达式与求值顺序逐位不变，只消除了每 site 的重复计算与分配）。 */
+function worstSingleFlip(
+  norm: ElementTerms,
+  a: readonly number[],
+  b: readonly number[],
+  g: readonly number[],
+  p: readonly number[],
+  rot: LocalRotation,
+  site: number,
+): ElementViolation {
   let value = g[site]! * a[site]! - rot.d[site]! * p[site]! * b[site]!;
   const perNeighbor = new Map<number, number>();
   const order: number[] = [];
-  for (const e of terms.pairs) {
+  for (const e of norm.pairs) {
     if (e.i !== site && e.j !== site) continue;
     const other = e.i === site ? e.j : e.i;
     const t =
@@ -226,14 +233,22 @@ function worstSingleFlip(terms: ElementTerms, rot: LocalRotation, site: number):
   };
 }
 
-function doubleFlipElement(rot: LocalRotation, e: ElementPair): number {
-  const { a, b } = cosSin(rot.psi);
+function doubleFlipElement(a: readonly number[], b: readonly number[], rot: LocalRotation, e: ElementPair): number {
   return e.kappa * a[e.i]! * a[e.j]! + rot.d[e.i]! * rot.d[e.j]! * e.zz * b[e.i]! * b[e.j]!;
 }
 
 /** 精确扫描：最大非对角元 + 可命名的 worst 违规（供证书验证/走私审判）。 */
 export function scanMaxOffDiagonal(terms: ElementTerms, rot: LocalRotation): ElementScan {
-  const norm = normalizeTerms(terms);
+  return scanMaxNormalized(normalizeTerms(terms), rot);
+}
+
+/** scanMaxOffDiagonal 的已归一化输入变体：dichotomyGridCheck 的网格循环
+ *  每格点重复扫描同一 terms——归一化一次后复用（normalizeTerms 是纯函数，
+ *  幂等，输出逐位相同）。 */
+function scanMaxNormalized(norm: ElementTerms, rot: LocalRotation): ElementScan {
+  const { a, b } = cosSin(rot.psi);
+  const g = fieldArray(norm.n, norm.xFields);
+  const p = fieldArray(norm.n, norm.zFields);
   let worst: ElementViolation = {
     kind: "single-flip",
     site: null,
@@ -243,11 +258,11 @@ export function scanMaxOffDiagonal(terms: ElementTerms, rot: LocalRotation): Ele
     name: "empty",
   };
   for (let i = 0; i < norm.n; i++) {
-    const v = worstSingleFlip(norm, rot, i);
+    const v = worstSingleFlip(norm, a, b, g, p, rot, i);
     if (v.value > worst.value) worst = v;
   }
   for (const e of norm.pairs) {
-    const value = doubleFlipElement(rot, e);
+    const value = doubleFlipElement(a, b, rot, e);
     if (value > worst.value) {
       worst = {
         kind: "double-flip",
@@ -272,13 +287,16 @@ export function listViolations(
   tol = 0,
 ): ElementViolation[] {
   const norm = normalizeTerms(terms);
+  const { a, b } = cosSin(rot.psi);
+  const g = fieldArray(norm.n, norm.xFields);
+  const p = fieldArray(norm.n, norm.zFields);
   const out: ElementViolation[] = [];
   for (let i = 0; i < norm.n; i++) {
-    const v = worstSingleFlip(norm, rot, i);
+    const v = worstSingleFlip(norm, a, b, g, p, rot, i);
     if (v.value > tol) out.push(v);
   }
   for (const e of norm.pairs) {
-    const value = doubleFlipElement(rot, e);
+    const value = doubleFlipElement(a, b, rot, e);
     if (value > tol) {
       out.push({
         kind: "double-flip",
@@ -320,11 +338,11 @@ export function verifyElementCertificate(
 /** 平凡对角判定：所有非对角元是否都恰为零（vacuous de-signing）。 */
 export function isVacuousCertificate(terms: ElementTerms, rot: LocalRotation, tol = 1e-9): boolean {
   const norm = normalizeTerms(terms);
+  const { a, b } = cosSin(rot.psi);
+  const g = fieldArray(norm.n, norm.xFields);
+  const p = fieldArray(norm.n, norm.zFields);
   for (let i = 0; i < norm.n; i++) {
     // 全部 z 构型下 A_i(z) ≡ 0 ⟺ 基项与每个邻位（合并后）贡献都为零
-    const { a, b } = cosSin(rot.psi);
-    const g = fieldArray(norm.n, norm.xFields);
-    const p = fieldArray(norm.n, norm.zFields);
     if (Math.abs(g[i]! * a[i]! - rot.d[i]! * p[i]! * b[i]!) > tol) return false;
     for (const e of norm.pairs) {
       if (e.i === i || e.j === i) {
@@ -336,7 +354,7 @@ export function isVacuousCertificate(terms: ElementTerms, rot: LocalRotation, to
     }
   }
   for (const e of norm.pairs) {
-    if (Math.abs(doubleFlipElement(rot, e)) > tol) return false;
+    if (Math.abs(doubleFlipElement(a, b, rot, e)) > tol) return false;
   }
   return true;
 }
@@ -443,6 +461,8 @@ export function denseGroundStateSignRatio(H: ReadonlyArray<readonly number[]>): 
   const dim = H.length;
   const rng = new Rng(0xd3519);
   const v = Array.from({ length: dim }, () => rng.range(-1, 1));
+  // 稠密行转 Float64Array（值逐位不变，访问局部性更好）
+  const rows = H.map((r) => Float64Array.from(r));
   // Gershgorin 上界：c ≥ λ_max(H) 保证 (cI−H) 的主导本征方向 = H 的基态
   let c = -Infinity;
   for (let a = 0; a < dim; a++) {
@@ -452,32 +472,39 @@ export function denseGroundStateSignRatio(H: ReadonlyArray<readonly number[]>): 
   }
   c += 1;
   let prev = Infinity;
+  // 双缓冲迭代（原实现每步 splice(0, dim, ...nv) 展开拷贝——算术与顺序
+  // 逐位不变，只去掉逐步的展开分配）
+  let cur = v;
+  let nxt = new Array<number>(dim).fill(0);
   for (let step = 0; step < 20000; step++) {
-    const nv = new Array<number>(dim).fill(0);
     for (let a = 0; a < dim; a++) {
-      let acc = c * v[a]!;
-      for (let k = 0; k < dim; k++) acc -= H[a]![k]! * v[k]!;
-      nv[a] = acc;
+      let acc = c * cur[a]!;
+      const row = rows[a]!;
+      for (let k = 0; k < dim; k++) acc -= row[k]! * cur[k]!;
+      nxt[a] = acc;
     }
     let norm = 0;
-    for (const x of nv) norm += x * x;
+    for (const x of nxt) norm += x * x;
     norm = Math.sqrt(norm);
-    for (let a = 0; a < dim; a++) nv[a] = nv[a]! / norm;
+    for (let a = 0; a < dim; a++) nxt[a] = nxt[a]! / norm;
     // Rayleigh 收敛判定
     let energy = 0;
     for (let a = 0; a < dim; a++) {
       let acc = 0;
-      for (let k = 0; k < dim; k++) acc += H[a]![k]! * nv[k]!;
-      energy += nv[a]! * acc;
+      const row = rows[a]!;
+      for (let k = 0; k < dim; k++) acc += row[k]! * nxt[k]!;
+      energy += nxt[a]! * acc;
     }
-    v.splice(0, dim, ...nv);
+    const prevBuf = cur;
+    cur = nxt;
+    nxt = prevBuf;
     if (Math.abs(energy - prev) < 1e-12 * (1 + Math.abs(energy))) break;
     prev = energy;
   }
   let sum = 0;
   let absSum = 0;
   let big = 0;
-  for (const x of v) {
+  for (const x of cur) {
     sum += x;
     absSum += Math.abs(x);
     if (Math.abs(x) > Math.abs(big)) big = x;
@@ -511,10 +538,10 @@ function adjacency(terms: ElementTerms): Adjacency {
   return { g, p, nbrs };
 }
 
-/** 快速路径的 max 元素（与 scanMaxOffDiagonal 一致，避免重复分配）。 */
-function fastMax(adj: Adjacency, psi: readonly number[], d: readonly number[]): number {
-  const a = psi.map(Math.cos);
-  const b = psi.map(Math.sin);
+/** 快速路径的 max 元素（与 scanMaxOffDiagonal 一致，避免重复分配）。
+ *  cos/sin 表由调用方维护（sweep 内逐 site 增量更新——Math.cos(x) 是 x 的
+ *  确定性函数，缓存值与每次重算逐位相同；表达式与求值顺序不变）。 */
+function fastMax(adj: Adjacency, a: readonly number[], b: readonly number[], d: readonly number[]): number {
   let worst = -Infinity;
   for (let i = 0; i < adj.g.length; i++) {
     let value = adj.g[i]! * a[i]! - d[i]! * adj.p[i]! * b[i]!;
@@ -543,18 +570,26 @@ function sweep(
   rng: Rng,
   sweepBudget: number,
 ): number {
-  let f = fastMax(adj, psi, d);
+  // 增量三角表：site i 的候选评估只动 (psi[i], a[i], b[i])，其余表项沿用
+  // ——与每次 fastMax 内部 psi.map(Math.cos) 重算的数值逐位相同
+  const a = psi.map(Math.cos);
+  const b = psi.map(Math.sin);
+  let f = fastMax(adj, a, b, d);
   for (let s = 0; s < sweepBudget; s++) {
     let improved = false;
     const radius = 0.5 * Math.pow(0.95, s);
     for (let i = 0; i < psi.length; i++) {
       const base = psi[i]!;
+      const aBase = a[i]!;
+      const bBase = b[i]!;
       const cands = [radius, -radius, radius / 4, -radius / 4];
       for (let q = 0; q < 8; q++) cands.push((2 * Math.PI * q) / 8 + rng.next() * 0.1);
       let moved = false;
       for (const delta of cands) {
         psi[i] = base + delta;
-        const nf = fastMax(adj, psi, d);
+        a[i] = Math.cos(psi[i]!);
+        b[i] = Math.sin(psi[i]!);
+        const nf = fastMax(adj, a, b, d);
         if (nf < f - 1e-13) {
           f = nf;
           improved = true;
@@ -562,11 +597,15 @@ function sweep(
           break;
         }
       }
-      if (!moved) psi[i] = base;
+      if (!moved) {
+        psi[i] = base;
+        a[i] = aBase;
+        b[i] = bBase;
+      }
       // d 翻转（离散移动）
       const od = d[i]!;
       d[i] = -od;
-      const nf = fastMax(adj, psi, d);
+      const nf = fastMax(adj, a, b, d);
       if (nf < f - 1e-13) {
         f = nf;
         improved = true;
@@ -697,13 +736,19 @@ function pairLipschitzNoGo(
     const slack = ((Lu + Lv) * h) / 2;
     let gridMin = Infinity;
     const psi = [0, 0];
+    const a = [0, 0];
+    const b = [0, 0];
     for (const du of [1, -1]) {
       for (const dv of [1, -1]) {
         for (let s1 = 0; s1 < res; s1++) {
           psi[0] = s1 * h;
+          a[0] = Math.cos(psi[0]);
+          b[0] = Math.sin(psi[0]);
           for (let s2 = 0; s2 < res; s2++) {
             psi[1] = s2 * h;
-            const f = fastMax(adj, psi, [du, dv]);
+            a[1] = Math.cos(psi[1]);
+            b[1] = Math.sin(psi[1]);
+            const f = fastMax(adj, a, b, [du, dv]);
             if (f < gridMin) gridMin = f;
           }
         }
@@ -761,13 +806,19 @@ export function verifyNoGoCertificate(
   const slack = ((Lu + Lv) * h) / 2;
   let gridMin = Infinity;
   const psi = [0, 0];
+  const a = [0, 0];
+  const b = [0, 0];
   for (const du of [1, -1]) {
     for (const dv of [1, -1]) {
       for (let s1 = 0; s1 < res; s1++) {
         psi[0] = s1 * h;
+        a[0] = Math.cos(psi[0]);
+        b[0] = Math.sin(psi[0]);
         for (let s2 = 0; s2 < res; s2++) {
           psi[1] = s2 * h;
-          const f = fastMax(adj, psi, [du, dv]);
+          a[1] = Math.cos(psi[1]);
+          b[1] = Math.sin(psi[1]);
+          const f = fastMax(adj, a, b, [du, dv]);
           if (f < gridMin) gridMin = f;
         }
       }
@@ -840,6 +891,9 @@ export function dichotomyGridCheck(gamma: number, kappa: number, res = 360): {
     pairs: [{ i: 0, j: 1, kappa, zz: 0 }],
   };
   const h = (2 * Math.PI) / res;
+  // 归一化一次，网格内复用（normalizeTerms 纯且幂等——每格点重归一化的
+  // 输出本来逐位相同）
+  const norm = normalizeTerms(terms);
   let worstEscape = 0;
   for (const du of [1, -1]) {
     for (const dv of [1, -1]) {
@@ -848,7 +902,7 @@ export function dichotomyGridCheck(gamma: number, kappa: number, res = 360): {
         for (let s2 = 0; s2 < res; s2++) {
           psi[1] = s2 * h;
           const d = [du, dv];
-          const scan = scanMaxOffDiagonal(terms, { psi, d });
+          const scan = scanMaxNormalized(norm, { psi, d });
           if (scan.max <= 1e-12) {
             // 可行点：必须 vacuous（两个 a 都贴 0）
             const escape = Math.max(Math.abs(Math.cos(psi[0]!)), Math.abs(Math.cos(psi[1])));

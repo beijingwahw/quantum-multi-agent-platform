@@ -134,6 +134,22 @@ function collapsedSystemQuantumState(): QuantumState {
   };
 }
 
+/**
+ * 消息字段校验谓词（R13 提升为模块级：原为 validateMessage 内的逐消息
+ * 闭包分配——入口最热面上的纯函数搅动）。语义逐点不变。
+ */
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0;
+}
+
+/** timestamp 形状校验（09#F05 remainder，语义见 validateMessage 内注释） */
+function isValidTimestamp(v: unknown): boolean {
+  if (v instanceof Date) return !Number.isNaN(v.getTime());
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'string') return reviveDate(v) !== undefined;
+  return false;
+}
+
 // 总线运行指标快照（getMetrics返回结构）
 export interface QuantumBusMetrics {
   started: boolean;
@@ -236,6 +252,24 @@ function validateBusLimits(config: QuantumBusConfig): void {
 export class QuantumBus extends EventEmitter {
   private messageQueue = new Map<string, QuantumMessage[]>();
   private connections = new Map<string, WebSocketConnection>();
+  /**
+   * agentId → 该身份的全部连接（R13 性能：sendToAgent/离线冲刷原为每消息
+   * 全表 O(连接数) 扫描——组播消息 ×T 目标即 O(T·C)。索引在 authenticate
+   * 建档、close/error/心跳过期/shutdown 统一拆除。数组按连接创建序排列，
+   * 与 connections 全表扫描的过滤序逐点一致（帧序/日志序/投递首选连接
+   * 均为可观测行为，顺序保真是位级同一的前提）。
+   */
+  private connectionsByAgent = new Map<string, WebSocketConnection[]>();
+  /** 连接创建序号（WeakMap 承载：不进入连接对象的公开形状），索引数组按此插入排序 */
+  private connectionSeq = new WeakMap<WebSocketConnection, number>();
+  private nextConnectionSeq = 0;
+  /**
+   * 离线队列死前缀游标（R13 性能）：满桶出队原为 shift() 的 O(cap) 元素
+   * 搬移——伪造目标洪泛下每消息一次千元素 memmove。游标惰性推进 + 过半
+   * 物理压缩（与 monitor.ts 的 deadPrefix 同策略，均摊 O(1)/消息），
+   * live 视图 [head, length) 的内容/顺序与逐条 shift 完全一致。
+   */
+  private queueHeads = new Map<string, number>();
   private wsServer: WebSocketServer | null = null;
   private config: QuantumBusConfig;
   private started = false;
@@ -375,23 +409,34 @@ export class QuantumBus extends EventEmitter {
     };
 
     this.connections.set(connectionId, connection);
+    this.connectionSeq.set(connection, this.nextConnectionSeq++);
 
     // 每连接限速与畸形熔断的状态（F06/F07）
-    let messageTimestamps: number[] = [];
+    // R13：环形时间窗（Float64Array 定容）替代「每消息 filter 新数组 + push」
+    // ——限速检查是入口最热面，逐消息数组分配在合法高速客户端下纯属搅动。
+    // 语义逐点保持：保留条件 now-t<1000、阈值 MAX_MESSAGES_PER_SECOND、
+    // 超速判定与断开路径不变（环内时间戳按入窗顺序，出窗即推进 head）。
+    const rateWindow = new Float64Array(MAX_MESSAGES_PER_SECOND);
+    let rateHead = 0;
+    let rateSize = 0;
     let malformedCount = 0;
 
     ws.on('message', (data: RawData) => {
       // 限速（令牌窗口）：正常客户端远达不到该速率，超速即断开——
       // 广播路径的发送成本是 O(连接数)，入口不限速会被单一连接放大
       const now = Date.now();
-      messageTimestamps = messageTimestamps.filter((t) => now - t < 1000);
-      if (messageTimestamps.length >= MAX_MESSAGES_PER_SECOND) {
+      while (rateSize > 0 && now - rateWindow[rateHead]! >= 1000) {
+        rateHead = (rateHead + 1) % MAX_MESSAGES_PER_SECOND;
+        rateSize--;
+      }
+      if (rateSize >= MAX_MESSAGES_PER_SECOND) {
         logWarn('QuantumBus', `Rate limit exceeded on ${connectionId}, closing`);
         this.securityCounters.rateLimitDisconnects++;
         ws.close(1008, 'rate limit exceeded');
         return;
       }
-      messageTimestamps.push(now);
+      rateWindow[(rateHead + rateSize) % MAX_MESSAGES_PER_SECOND] = now;
+      rateSize++;
 
       try {
         const text = Buffer.isBuffer(data)
@@ -424,13 +469,13 @@ export class QuantumBus extends EventEmitter {
     });
 
     ws.on('close', () => {
-      this.connections.delete(connectionId);
+      this.removeConnection(connectionId);
       this.emit('connection_closed', connectionId);
     });
 
     ws.on('error', (error) => {
       logWarn('QuantumBus', `Error from connection ${connectionId}:`, error);
-      this.connections.delete(connectionId);
+      this.removeConnection(connectionId);
     });
 
     ws.on('pong', () => {
@@ -472,7 +517,7 @@ export class QuantumBus extends EventEmitter {
         if (timeSinceLastPing > timeoutMs) {
           logInfo('QuantumBus', `Closing stale connection ${connectionId}`);
           current.ws.terminate();
-          this.connections.delete(connectionId);
+          this.removeConnection(connectionId);
           this.heartbeatTimers.delete(interval);
           clearInterval(interval);
         } else {
@@ -498,6 +543,40 @@ export class QuantumBus extends EventEmitter {
     const a = createHash('sha256').update(received).digest();
     const b = createHash('sha256').update(expected).digest();
     return timingSafeEqual(a, b);
+  }
+
+  /**
+   * 连接加入 agent 路由索引（幂等：同 id 重复认证不重复入列）。插入位置
+   * 按连接创建序号排序——保证索引遍历序 == connections 全表扫描的过滤序，
+   * 投递顺序逐点保真。每 agent 连接数是个位数，插入扫描成本可忽略。
+   */
+  private indexConnection(connection: WebSocketConnection): void {
+    if (connection.agentId === '') return;
+    let conns = this.connectionsByAgent.get(connection.agentId);
+    if (conns === undefined) {
+      conns = [];
+      this.connectionsByAgent.set(connection.agentId, conns);
+    }
+    if (conns.includes(connection)) return;
+    const seq = this.connectionSeq.get(connection) ?? 0;
+    let i = conns.length;
+    while (i > 0 && (this.connectionSeq.get(conns[i - 1]!) ?? 0) > seq) i--;
+    conns.splice(i, 0, connection);
+  }
+
+  /** 连接从连接表与 agent 索引移除（幂等）：close/error/心跳过期统一出口 */
+  private removeConnection(connectionId: string): void {
+    const connection = this.connections.get(connectionId);
+    if (!connection) return;
+    this.connections.delete(connectionId);
+    if (connection.agentId !== '') {
+      const conns = this.connectionsByAgent.get(connection.agentId);
+      if (conns !== undefined) {
+        const idx = conns.indexOf(connection);
+        if (idx >= 0) conns.splice(idx, 1);
+        if (conns.length === 0) this.connectionsByAgent.delete(connection.agentId);
+      }
+    }
   }
 
   /** 鉴权开启时是否允许该连接使用常规消息/订阅路径（须已完成 authenticate） */
@@ -581,7 +660,10 @@ export class QuantumBus extends EventEmitter {
         connection.ws.close(4001, 'agentId not permitted for token');
         return;
       }
+      const isNewIdentity = connection.agentId !== message.agentId;
       connection.agentId = message.agentId;
+      // agent 路由索引建档（重复认证幂等，见 indexConnection）
+      if (isNewIdentity) this.indexConnection(connection);
       this.emit('agent_authenticated', { connectionId, agentId: message.agentId });
       // 身份确认后立即投递该agent的离线消息
       this.processQueuedMessages(message.agentId);
@@ -729,8 +811,12 @@ export class QuantumBus extends EventEmitter {
     if (message.targetAgentId) {
       this.sendToAgent(message.targetAgentId, message);
     } else if (message.targetAgentIds) {
+      // 组播共享一次序列化（R13 性能）：原每目标各调 sendToAgent，同一
+      // 消息被 JSON.stringify 至多 T 次——box 惰性求值首个 OPEN 连接触发，
+      // 之后 T-1 个目标复用同一字符串（帧字节完全相同）
+      const payloadBox = { payload: null as string | null };
       message.targetAgentIds.forEach((agentId) => {
-        this.sendToAgent(agentId, message);
+        this.sendToAgentShared(agentId, message, payloadBox);
       });
     } else {
       // 广播消息
@@ -762,19 +848,13 @@ export class QuantumBus extends EventEmitter {
       targetAgentIds?: unknown;
       timestamp?: unknown;
     };
-    const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
     // timestamp 形状校验（09#F05 remainder）：按 quantum-types.ts 文件头
     // 的 DTO 契约，合法形态是 Date 实例（进程内 createMessage 构造）或
     // 线上 JSON 的 ISO 8601 字符串 / epoch 毫秒数（DateLike；对端测试
     // 与真实客户端发送的正是 ISO 字符串——总线是透传/再序列化层，
     // 文档明确无需复活）。对象/数组/布尔/不可解析垃圾按无效格式丢弃；
     // 字段缺失同样无效（timestamp 是必填字段）。
-    const isValidTimestamp = (v: unknown): boolean => {
-      if (v instanceof Date) return !Number.isNaN(v.getTime());
-      if (typeof v === 'number') return Number.isFinite(v);
-      if (typeof v === 'string') return reviveDate(v) !== undefined;
-      return false;
-    };
+    // （谓词本体已提升为模块级 isNonEmptyString / isValidTimestamp）
     return (
       isNonEmptyString(raw.id) &&
       isNonEmptyString(raw.sourceAgentId) &&
@@ -792,19 +872,32 @@ export class QuantumBus extends EventEmitter {
 
   // 消息发送方法
   sendToAgent(agentId: string, message: QuantumMessage): boolean {
+    return this.sendToAgentShared(agentId, message, { payload: null });
+  }
+
+  /**
+   * sendToAgent 的内部实现：payloadBox 为跨目标共享的惰性序列化盒
+   * （组播路径复用同一份 JSON 字符串）。连接查找走 agent 路由索引
+   * （R13 性能：原为全表 O(连接数) 扫描）；索引序 == 连接表扫描序，
+   * 逐连接的帧序与日志序逐点保真。
+   */
+  private sendToAgentShared(
+    agentId: string,
+    message: QuantumMessage,
+    payloadBox: { payload: string | null },
+  ): boolean {
     let sent = false;
 
-    // 序列化一次，供该agent的全部连接复用
-    let payload: string | null = null;
-
-    // 查找所有连接到该agent的连接
-    for (const connection of this.connections.values()) {
-      if (connection.agentId === agentId && connection.ws.readyState === WebSocket.OPEN) {
-        payload ??= JSON.stringify(message);
-        // 以真实送达结果累计（F03）：sendToConnection 可能因发送异常/
-        // 慢消费者背压返回 false——无条件置 true 会让失败发送被计入
-        // 「已投递」，消息即不进离线队列（静默丢失）
-        sent = this.sendToConnection(connection.id, message, payload) || sent;
+    const conns = this.connectionsByAgent.get(agentId);
+    if (conns !== undefined) {
+      for (const connection of conns) {
+        if (connection.ws.readyState === WebSocket.OPEN) {
+          payloadBox.payload ??= JSON.stringify(message);
+          // 以真实送达结果累计（F03）：sendToConnection 可能因发送异常/
+          // 慢消费者背压返回 false——无条件置 true 会让失败发送被计入
+          // 「已投递」，消息即不进离线队列（静默丢失）
+          sent = this.sendToConnection(connection.id, message, payloadBox.payload) || sent;
+        }
       }
     }
 
@@ -862,6 +955,7 @@ export class QuantumBus extends EventEmitter {
 
   private queueMessageForAgent(agentId: string, message: QuantumMessage): void {
     let queue = this.messageQueue.get(agentId);
+    let head: number;
     if (!queue) {
       // 桶数基数上界（F02）：per-agent 队列封顶挡不住海量伪造
       // targetAgentId 的建桶攻击——新桶拒建并计入 droppedMessages，
@@ -879,14 +973,26 @@ export class QuantumBus extends EventEmitter {
       }
       queue = [];
       this.messageQueue.set(agentId, queue);
+      head = 0;
+    } else {
+      head = this.queueHeads.get(agentId) ?? 0;
     }
     queue.push(message);
 
-    // 队列封顶：丢弃最旧消息，防止离线agent导致内存无限增长
+    // 队列封顶：丢弃最旧消息，防止离线agent导致内存无限增长。
+    // R13：死前缀游标替代 shift()——满桶时每次 shift 是 O(cap) 的整段
+    // 元素搬移（伪造目标洪泛下的确定性放大面），游标推进 O(1)，live
+    // 视图 [head, length) 的内容与逐条 shift 完全一致
     const cap = this.config.communication?.maxQueuedMessages ?? 1000;
-    while (queue.length > cap) {
-      queue.shift();
+    while (queue.length - head > cap) {
+      head++;
       this.droppedMessages++;
+    }
+    this.queueHeads.set(agentId, head);
+    // 死前缀过半才物理压缩（均摊 O(1)/消息；压缩只移除已出窗元素）
+    if (head * 2 >= queue.length) {
+      queue.splice(0, head);
+      this.queueHeads.set(agentId, 0);
     }
 
     this.emit('message_queued', { agentId, message });
@@ -995,20 +1101,23 @@ export class QuantumBus extends EventEmitter {
     // 同义，删除断言零行为差异。
     const queuedMessages = this.messageQueue.get(agentId);
     if (!queuedMessages) return 0;
+    // live 视图：死前缀游标之前的消息已按容量/淘汰语义出队（见
+    // queueMessageForAgent），head=0 时即原数组本身
+    const head = this.queueHeads.get(agentId) ?? 0;
+    const liveMessages = head > 0 ? queuedMessages.slice(head) : queuedMessages;
 
-    // 该 agent 的候选连接快照（一次 O(C)，替代每消息一次的全表扫描）。
-    // 快照按 connections 插入序 == 原 find 的扫描序；逐消息仍重新校验
-    // OPEN 与存在性（背压断连会使 readyState 离开 OPEN），语义与原
-    // find 谓词逐点一致，且每条消息仍恰好尝试一次发送
-    const candidates: WebSocketConnection[] = [];
-    for (const conn of this.connections.values()) {
-      if (conn.agentId === agentId) candidates.push(conn);
-    }
+    // 该 agent 的候选连接快照（R13：agent 路由索引直取，替代每冲刷一次的
+    // 全表 O(连接数) 扫描；索引序 == 连接表插入序 == 原扫描序，首个 OPEN
+    // 连接的选择逐点一致）。逐消息仍重新校验 OPEN 与存在性（背压断连会使
+    // readyState 离开 OPEN），语义与原 find 谓词逐点一致，且每条消息仍
+    // 恰好尝试一次发送
+    const indexed = this.connectionsByAgent.get(agentId);
+    const candidates: WebSocketConnection[] = indexed === undefined ? [] : indexed.slice();
 
     let deliveredCount = 0;
     const remainingMessages: QuantumMessage[] = [];
 
-    for (const message of queuedMessages) {
+    for (const message of liveMessages) {
       const connection = candidates.find(
         (c) => c.ws.readyState === WebSocket.OPEN && this.connections.get(c.id) === c,
       );
@@ -1024,8 +1133,10 @@ export class QuantumBus extends EventEmitter {
 
     if (remainingMessages.length > 0) {
       this.messageQueue.set(agentId, remainingMessages);
+      this.queueHeads.set(agentId, 0);
     } else {
       this.messageQueue.delete(agentId);
+      this.queueHeads.delete(agentId);
     }
 
     return deliveredCount;
@@ -1043,10 +1154,13 @@ export class QuantumBus extends EventEmitter {
   }
 
   getMessageQueueSize(): number {
-    return Array.from(this.messageQueue.values()).reduce(
-      (total, messages) => total + messages.length,
-      0,
-    );
+    // R13：免分配求和（原 Array.from+reduce 每次调用拷贝整个桶值数组）；
+    // 计数扣除死前缀游标——live 消息数与逐条 shift 的数组长度逐点一致
+    let total = 0;
+    for (const [agentId, messages] of this.messageQueue) {
+      total += messages.length - (this.queueHeads.get(agentId) ?? 0);
+    }
+    return total;
   }
 
   getAgentsOnline(): string[] {
@@ -1098,7 +1212,9 @@ export class QuantumBus extends EventEmitter {
       connection.ws.terminate();
     }
     this.connections.clear();
+    this.connectionsByAgent.clear();
     this.messageQueue.clear();
+    this.queueHeads.clear();
 
     // 关闭WebSocket服务器
     if (this.wsServer) {

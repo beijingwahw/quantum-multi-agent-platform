@@ -375,10 +375,13 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
         ).slice(0, 120)}`,
       );
     }
-    const bits: number[] = [];
+    // 预分配位流（R13：原逐位 push 触发数组的对数级增长重分配——
+    // 大 num_reads 轮次的位流是字数×16，写索引顺序与原 push 序一致）
+    const bits = new Array<number>(words.length * 16);
+    let bitIndex = 0;
     for (const word of words) {
       for (let b = 0; b < 16; b++) {
-        bits.push((word >> b) & 1);
+        bits[bitIndex++] = (word >> b) & 1;
       }
     }
     // 位流按 16 位字对齐填充：解数不得越过实际可用位（否则解码出
@@ -417,9 +420,10 @@ function parseAnswer(rawAnswer: unknown, nqubits: number): DWaveAnswer {
     const numSolutions = Math.min(rawNumSolutions ?? fallbackCount, maxSolutions);
     const solutions: number[][] = [];
     for (let s = 0; s < numSolutions; s++) {
-      const sol: number[] = [];
+      // 预分配解向量（每解恰 nqubits 位，按索引写替代逐位 push）
+      const sol = new Array<number>(nqubits);
       for (let q = 0; q < nqubits; q++) {
-        sol.push(bits[s * nqubits + q] === 1 ? -1 : 1);
+        sol[q] = bits[s * nqubits + q] === 1 ? -1 : 1;
       }
       solutions.push(sol);
     }

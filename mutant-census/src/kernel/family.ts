@@ -47,7 +47,13 @@ function worldProjector(): CMat {
   return p1;
 }
 
-export function canonicalFamily(): Family {
+/** The canonical family is STATELESS (closures over shared read-only
+ * matrices), so one instance serves every consumer: the suite points the
+ * battery at it many times over and the property results are pure functions
+ * of the construction — caching the OBJECT lets battery.ts cache the work.
+ * Nothing in this repo mutates a Family after construction (verified: every
+ * member is a pure read of its inputs). */
+const CANONICAL: Family = (() => {
   const p1 = worldProjector();
   return {
     mMul: (a, b) => mMul(a, b),
@@ -93,6 +99,11 @@ export function canonicalFamily(): Family {
       return { est: x1 / accepted, exact: 0.6 };
     },
   };
+})();
+
+/** The one canonical family — same object every call (see CANONICAL above). */
+export function canonicalFamily(): Family {
+  return CANONICAL;
 }
 
 /** shape of a mutant registration: provenance + which piece is corrupted */
@@ -193,15 +204,26 @@ export const MUTANTS: readonly MutantSpec[] = [
   },
 ];
 
+/** Cached mutant constructions: the default register's specs are module
+ * constants, so their families are built once and reused — a WeakMap (not a
+ * key-indexed map) keeps FORGED specs (the smuggling trials inject their own
+ * spec objects) on the fresh-construction path, so an injected mutation can
+ * never inherit a cached verdict. */
+const mutantCache = new WeakMap<MutantSpec, Family>();
+
 /** Build the mutant family: the canonical family with exactly one piece corrupted. */
 export function mutantFamily(spec: MutantSpec): Family {
+  const cached = mutantCache.get(spec);
+  if (cached !== undefined) return cached;
   const canon = canonicalFamily();
   const p1 = worldProjector();
+  let fam: Family;
   switch (spec.id) {
     case "MU1":
-      return { ...canon, vInner: (a, b) => { const r = coreVInner(a, b); return { re: r.re, im: -r.im }; } };
+      fam = { ...canon, vInner: (a, b) => { const r = coreVInner(a, b); return { re: r.re, im: -r.im }; } };
+      break;
     case "MU2":
-      return {
+      fam = {
         ...canon,
         vecToRho: (v) => {
           const m = mat(v.n, v.n);
@@ -214,21 +236,24 @@ export function mutantFamily(spec: MutantSpec): Family {
           return m;
         },
       };
+      break;
     case "MU3":
-      return {
+      fam = {
         ...canon,
         embedWorld: (cargo) => kron(p1, kron(identity(2), cargo)), // 8x8 from a 2x2 cargo — silent inflation
       };
+      break;
     case "MU4":
-      return {
+      fam = {
         ...canon,
         measureWorldQubit: (rho) => {
           const m = mMul(p1, rho); // no (x)I: 2x2 against 4x4 — the family's shape guard must refuse
           return [1 - m.re[0]!, m.re[0]!] as [number, number];
         },
       };
+      break;
     case "MU5":
-      return {
+      fam = {
         ...canon,
         conditionalOn: (rho, digit) => {
           const { conditional } = filterBasisDigit(rho, [2, 2], 0, digit);
@@ -241,8 +266,9 @@ export function mutantFamily(spec: MutantSpec): Family {
           return out;
         },
       };
+      break;
     case "MU6":
-      return {
+      fam = {
         ...canon,
         applyLaw: (rho) => {
           const k0w = mat(2, 2);
@@ -253,8 +279,9 @@ export function mutantFamily(spec: MutantSpec): Family {
           return applyKraus(rho, [kron(k0w, identity(2)), kron(k1w, identity(2))]);
         },
       };
+      break;
     case "MU7":
-      return {
+      fam = {
         ...canon,
         limitObject: (rho) => {
           const out = mat(4, 4);
@@ -268,8 +295,9 @@ export function mutantFamily(spec: MutantSpec): Family {
           return out;
         },
       };
+      break;
     case "MU8":
-      return {
+      fam = {
         ...canon,
         mcOutsideAtK: (rng, trials, K, r) => {
           let everOut = 0;
@@ -285,8 +313,9 @@ export function mutantFamily(spec: MutantSpec): Family {
           return everOut / trials;
         },
       };
+      break;
     case "MU9":
-      return {
+      fam = {
         ...canon,
         postselectedFreq: (rng, trials) => {
           let x1 = 0;
@@ -296,13 +325,17 @@ export function mutantFamily(spec: MutantSpec): Family {
           return { est: x1 / trials, exact: 0.6 }; // total denominator: 0.18 against 0.6
         },
       };
+      break;
     case "MU98":
       // the Q2 fixture: the GHOST — declares a corruption and ships the
       // canonical function unchanged. Nothing to kill; the census must say so.
-      return { ...canon, vInner: (a, b) => coreVInner(a, b) };
+      fam = { ...canon, vInner: (a, b) => coreVInner(a, b) };
+      break;
     default:
       throw new Error(`unknown mutant ${spec.id}`);
   }
+  mutantCache.set(spec, fam);
+  return fam;
 }
 
 /** closed form used by the battery's statistical kill (re-exported for tests) */

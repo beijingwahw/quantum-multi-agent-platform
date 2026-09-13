@@ -41,6 +41,21 @@ interface DSHIntegrationMetrics {
   isInitialized: boolean;
 }
 
+// 工具模块的惰性单例（R13）：此前每次工具调用都 `await import(...)`——
+// ESM 模块缓存保证结果等价，但每次调用仍付出一次 promise 分配与微任务
+// 跳转（benchmarkDSHIntegration 的 100 次 read_file 全走这条路）。
+// 首次调用加载后缓存命名空间，后续调用零分配直达；import 失败时保持
+// null，下次调用照旧重试（与逐次 import 的失败语义一致）。
+// 类型面用 type-only 命名空间导入（编译期擦除，不破坏惰性加载）。
+import type * as FsToolsNS from '../tools/fs-tools.js';
+import type * as SystemToolsNS from '../tools/system-tools.js';
+import type * as WebToolsNS from '../tools/web-tools.js';
+import type * as AgentToolsNS from '../tools/agent-tools.js';
+let fsToolsModule: typeof FsToolsNS | null = null;
+let systemToolsModule: typeof SystemToolsNS | null = null;
+let webToolsModule: typeof WebToolsNS | null = null;
+let agentToolsModule: typeof AgentToolsNS | null = null;
+
 /**
  * DSH（DeepSeek Harness）集成层：工具注册表 + 工作流引擎（依赖拓扑执行）
  * + quantum→DSH agent 映射。工具实现委托 src/tools/*（沙箱文件系统、
@@ -315,7 +330,8 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private async executeFileSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { read_file, write_file } = await import('../tools/fs-tools.js');
+    fsToolsModule ??= await import('../tools/fs-tools.js');
+    const { read_file, write_file } = fsToolsModule;
 
     switch (tool.name) {
       case 'read_file':
@@ -328,7 +344,8 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private async executeSystemTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { execute_command } = await import('../tools/system-tools.js');
+    systemToolsModule ??= await import('../tools/system-tools.js');
+    const { execute_command } = systemToolsModule;
     const workdir = parameters.workdir;
     return await execute_command(
       String(parameters.command),
@@ -337,7 +354,8 @@ export class DSHIntegration extends EventEmitter {
   }
 
   private async executeWebTool(tool: DSHTool, parameters: DSHToolParams): Promise<unknown> {
-    const { web_search } = await import('../tools/web-tools.js');
+    webToolsModule ??= await import('../tools/web-tools.js');
+    const { web_search } = webToolsModule;
     return await web_search(String(parameters.query));
   }
 
@@ -346,7 +364,8 @@ export class DSHIntegration extends EventEmitter {
     parameters: DSHToolParams,
     dshAgentId?: string,
   ): Promise<unknown> {
-    const { subagent } = await import('../tools/agent-tools.js');
+    agentToolsModule ??= await import('../tools/agent-tools.js');
+    const { subagent } = agentToolsModule;
 
     // 构造subagent调用参数（dshAgentId 提供调用方上下文，缺省由子代理自选）
     const subagentParams = {
@@ -442,10 +461,11 @@ export class DSHIntegration extends EventEmitter {
       }
     });
 
-    // 拓扑排序
+    // 拓扑排序（R13：迭代消费替代 shift()——shift 每次搬移整个队列，
+    // 大工作流上是 O(n²)；数组迭代器按索引推进、零搬移，迭代中 push
+    // 进来的就绪节点照常被访问，出队次序与 Kahn 算法逐点一致）
     const stepById = new Map(steps.map((s) => [s.id, s]));
-    while (queue.length > 0) {
-      const stepId = queue.shift()!;
+    for (const stepId of queue) {
       // 「未知步骤」守卫同样不可达（queue 种子与邻居全部来自 steps 自身的
       // id 集合，stepById 按 steps 构建），按死代码清偿删除。
       result.push(stepById.get(stepId)!);

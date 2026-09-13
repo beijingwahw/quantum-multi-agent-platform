@@ -90,6 +90,7 @@ import {
   ghzLocalCensus,
   ghzPairwiseConcurrences,
   withdrawToAB,
+  type GhzCensus,
   type GhzClaimRow,
 } from "./ghz.js";
 import { BOARD, type BoardRow } from "./board.js";
@@ -265,7 +266,7 @@ export function checkLedger(rows: readonly UntrustedLedgerRow[] = LEDGER_SPECS):
 export type UntrustedGhzClaimRow = Omit<GhzClaimRow, "tag"> & { readonly tag: string };
 
 /** The machine's verdict on one GHZ claim: does the tagged outcome hold? */
-function ghzClaimOutcome(id: string, censusRounds: number): { holds: boolean; refuted: boolean; detail: string } {
+function ghzClaimOutcome(id: string, censusRounds: number, censusOnce: () => GhzCensus): { holds: boolean; refuted: boolean; detail: string } {
   const g = ghzCoin();
   switch (id) {
     case "G1": {
@@ -306,11 +307,11 @@ function ghzClaimOutcome(id: string, censusRounds: number): { holds: boolean; re
       return { holds: false, refuted: raised > 1 - 1e-9, detail: `C_AB rises 0 -> ${raised.toFixed(12)} under one LOCC withdrawal` };
     }
     case "G6": {
-      const census = ghzLocalCensus(makeRng(203), censusRounds);
+      const census = censusOnce();
       return { holds: census.worstCutRise <= 1e-12, refuted: false, detail: `worst cut rise ${census.worstCutRise.toExponential(3)} over ${censusRounds} rounds` };
     }
     case "G7": {
-      const census = ghzLocalCensus(makeRng(203), censusRounds);
+      const census = censusOnce();
       return { holds: census.worstPairwiseC <= 1e-12, refuted: false, detail: `worst pairwise concurrence ${census.worstPairwiseC.toExponential(3)} over ${censusRounds} rounds` };
     }
     default:
@@ -321,12 +322,17 @@ function ghzClaimOutcome(id: string, censusRounds: number): { holds: boolean; re
 /** H8 — GHZ-bank claims: the tag must match the machine's recomputed verdict. */
 export function checkGhzClaims(rows: readonly UntrustedGhzClaimRow[] = GHZ_CLAIMS, censusRounds = 150): Violation[] {
   const violations: Violation[] = [];
+  // G6 and G7 read the SAME seeded census — execute it once per invocation and
+  // hand both rows the result (each checkGhzClaims call still re-runs the
+  // census fresh; the rerun-determinism contract is untouched)
+  let census: GhzCensus | null = null;
+  const censusOnce = (): GhzCensus => (census ??= ghzLocalCensus(makeRng(203), censusRounds));
   for (const r of rows) {
     if (r.tag !== "HOLDS" && r.tag !== "REFUTED" && r.tag !== "CENSUS") {
       violations.push({ row: r.id, law: "H8", detail: `illegal claim tag "${r.tag}" — the vocabulary is {HOLDS, REFUTED, CENSUS}` });
       continue;
     }
-    const v = ghzClaimOutcome(r.id, censusRounds);
+    const v = ghzClaimOutcome(r.id, censusRounds, censusOnce);
     if (r.tag === "HOLDS" && !v.holds) {
       violations.push({ row: r.id, law: "H8", detail: `claimed HOLDS but the machine says otherwise (${v.detail})` });
     }

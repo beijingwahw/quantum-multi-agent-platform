@@ -131,6 +131,9 @@ export async function solveAssignmentOnBackend(
     string,
     { assignment: number[]; welfare: number; energy: number; occurrences: number }
   >();
+  // 无效分配的键备忘（R13）：isValidAssignment 是纯函数，同一分配的重复
+  // 样本逐个重验纯属冗余——重噪声轮次里无效样本可以是多数
+  const invalidKeys = new Set<string>();
   const totalOccurrences = samples.occurrences.reduce((s, o) => s + o, 0) || 1;
 
   for (let s = 0; s < samples.spins.length; s++) {
@@ -154,7 +157,22 @@ export async function solveAssignmentOnBackend(
       }
       assignment[t] = chosen;
     }
+    // 键先查后算（R13）：合法性/福利是分配的纯函数，重复样本只累加出现
+    // 次数——首个样本求值一次即可（合法分配含 -1 分隔键位、合法分配全
+    // 为非负索引，键空间无碰撞）；无效键经 invalidKeys 备忘，重噪声下
+    // 的重复无效样本不再逐个重验。聚合值与逐样本求值逐点一致
+    const key = assignment.join(',');
+    const existing = stateStats.get(key);
+    if (existing) {
+      existing.occurrences += samples.occurrences[s] ?? 1;
+      continue;
+    }
+    if (invalidKeys.has(key)) {
+      invalidSamples += samples.occurrences[s] ?? 1;
+      continue;
+    }
     if (!isValidAssignment(problem, assignment)) {
+      invalidKeys.add(key);
       invalidSamples += samples.occurrences[s] ?? 1;
       continue;
     }
@@ -162,18 +180,12 @@ export async function solveAssignmentOnBackend(
     // 后端能量是**信息性**字段（缺省时以 −福利 占位）：不参与闸门校验，
     // 退化由最优率对照兜底——见文件头「三道闸门」第 2 条的信任姿态说明
     const energy = samples.energies[s] ?? -welfare;
-    const key = assignment.join(',');
-    const existing = stateStats.get(key);
-    if (existing) {
-      existing.occurrences += samples.occurrences[s] ?? 1;
-    } else {
-      stateStats.set(key, {
-        assignment,
-        welfare,
-        energy,
-        occurrences: samples.occurrences[s] ?? 1,
-      });
-    }
+    stateStats.set(key, {
+      assignment,
+      welfare,
+      energy,
+      occurrences: samples.occurrences[s] ?? 1,
+    });
   }
 
   if (stateStats.size === 0) {

@@ -13,4 +13,4 @@
 | cat:statistics | 1 | b10#5 (b10) | BOOKED-UNENFORCEABLE | project-back each step always micro-improves -> 14s infinite loops; sweep cap + stagnation counter |
 | shell-template-heredoc | 1 | b10#8 (b10) | BOOKED-UNENFORCEABLE | backticks and unicode break — Edit tool or single-line replace |
 
-Reports freshness (the repro-no-op face, v0.22.0): 0 reports on disk — no render exists to go stale (is repro a registered debt here?)
+Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-09-13T01:27:34.295Z; src tree newest 2026-09-13T01:25:16.364Z — FRESH (the newest render postdates every source)

@@ -32,7 +32,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { census, machines, rightWalker, simulate, compareTowers, lit, tet, tetrate } from "./beaver.js";
+import { census, machines, rightWalker, simulate, compareTowers, lit, tet, tetrate, type Census } from "./beaver.js";
 import {
   LETTER,
   QUOTED_ABILITIES,
@@ -98,9 +98,7 @@ export interface WitnessResult {
   readonly detail: string;
 }
 
-function witnessCensus(): WitnessResult {
-  const c1 = census(1, 100);
-  const c2 = census(2, 300);
+function witnessCensus(c1: Census, c2: Census): WitnessResult {
   const stable1 = c1.censusAt[c1.maxSteps] === c1.censusAt[c1.censusAt.length - 1];
   const stable2 = c2.censusAt[c2.maxSteps] === c2.censusAt[c2.censusAt.length - 1];
   const ok =
@@ -133,8 +131,7 @@ function witnessWalker(): WitnessResult {
   return { name: "W-C right-walker invariant", pass: ok, detail: `${QUOTED_WALKER_STEPS} steps: halted=${r.halted}, ones=${r.ones} === steps` };
 }
 
-function witnessBookkeeping(): WitnessResult {
-  const c2 = census(2, 300);
+function witnessBookkeeping(c2: Census): WitnessResult {
   const pending = machines(2) - c2.halted;
   const ok = pending > 0 && c2.halted + pending === machines(2);
   return { name: "W-D census bookkeeping", pass: ok, detail: `${c2.halted} halted + ${pending} pending-at-300 = ${machines(2)} machines` };
@@ -159,7 +156,13 @@ function witnessAbilities(): WitnessResult {
 
 /** All seven witnesses (W-A..W-G), each an independent re-derivation. */
 export function runWitnesses(): WitnessResult[] {
-  return [witnessCensus(), witnessUniverseCounts(), witnessWalker(), witnessBookkeeping(), witnessAbilities(), witnessFrontier(), witnessSixthRung()];
+  // census(2, 300) — the whole 20,736-machine universe at up to 300 steps —
+  // is the suite's dominant computation, and W-A and W-D read the SAME
+  // object (a pure function of its arguments, used read-only): computed
+  // once, shared. Value-identical to the twice-computed road.
+  const c1 = census(1, 100);
+  const c2 = census(2, 300);
+  return [witnessCensus(c1, c2), witnessUniverseCounts(), witnessWalker(), witnessBookkeeping(c2), witnessAbilities(), witnessFrontier(), witnessSixthRung()];
 }
 
 /**

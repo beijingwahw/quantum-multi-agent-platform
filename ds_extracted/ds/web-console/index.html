@@ -790,25 +790,30 @@
         return PRIORITY_CLASS_TOKENS[String(v)] ?? 'other';
       }
 
+      // 静态元素引用缓存（R13）：仪表刷新每帧多次 getElementById → 首次
+      // 解析后复用（这些元素在页面生命周期内不被替换）
+      const elementCache = {};
+      function $id(id) {
+        return elementCache[id] ?? (elementCache[id] = document.getElementById(id));
+      }
+
       function updateDashboard() {
         const data = currentData();
 
         // 更新系统状态
-        document.getElementById('active-agents').textContent = data.metrics.activeAgents;
-        document.getElementById('pending-tasks').textContent = data.metrics.pendingTasks;
-        document.getElementById('completed-tasks').textContent = data.metrics.completedTasks;
-        document.getElementById('system-health').textContent =
-          Math.round(data.metrics.systemHealth * 100) + '%';
-        document.getElementById('quantum-efficiency').textContent =
+        $id('active-agents').textContent = data.metrics.activeAgents;
+        $id('pending-tasks').textContent = data.metrics.pendingTasks;
+        $id('completed-tasks').textContent = data.metrics.completedTasks;
+        $id('system-health').textContent = Math.round(data.metrics.systemHealth * 100) + '%';
+        $id('quantum-efficiency').textContent =
           Math.round(data.metrics.quantumEfficiency * 100) + '%';
 
-        // 更新Agents列表
-        const agentList = document.getElementById('agent-list');
-        agentList.innerHTML = '';
+        // 更新Agents列表（R13：模板拼接后单次 innerHTML 赋值，替代逐项
+        // createElement+appendChild 的 N 次已挂载节点插入——DOM 产物与
+        // 文案逐字节一致，只减布局往返）
+        const agentHtml = [];
         data.agents.forEach((agent) => {
-          const agentItem = document.createElement('div');
-          agentItem.className = 'agent-item';
-          agentItem.innerHTML = `
+          agentHtml.push(`<div class="agent-item">
                     <div class="agent-status status-${classToken(agent.state)}"></div>
                     <div class="agent-info">
                         <div class="agent-name">${escapeHtml(agent.name)}</div>
@@ -820,47 +825,54 @@
                         </div>
                         <div>${Number(agent.load) || 0}%</div>
                     </div>
-                `;
-          agentList.appendChild(agentItem);
+                </div>`);
         });
+        $id('agent-list').innerHTML = agentHtml.join('');
 
-        // 更新Tasks列表
-        const taskList = document.getElementById('task-list');
-        taskList.innerHTML = '';
+        // 更新Tasks列表：agentId → name 索引（R13：O(tasks+agents) 替代
+        // 每任务一次线性 find 的 O(tasks×agents)），未命中返回 undefined
+        // 与旧 `(find(...) || {}).name` 的 falsy 语义一致
+        const agentNames = new Map(data.agents.map((a) => [a.id, a.name]));
+        const taskHtml = [];
         data.tasks
           .slice(-20)
           .reverse()
           .forEach((task) => {
-            const taskItem = document.createElement('div');
-            taskItem.className = 'task-item';
-            const assignedName = task.assignedAgentId
-              ? (data.agents.find((a) => a.id === task.assignedAgentId) || {}).name
-              : null;
-            taskItem.innerHTML = `
+            const assignedName = task.assignedAgentId ? agentNames.get(task.assignedAgentId) : null;
+            taskHtml.push(`<div class="task-item">
                     <div class="task-priority priority-${priorityToken(task.priority)}"></div>
                     <div class="task-info">
                         <div class="task-name">${escapeHtml(task.name)}</div>
                         <div class="task-meta">${escapeHtml(task.type)} - ${escapeHtml(task.status)}</div>
                     </div>
                     ${assignedName ? `<div>分配给: ${escapeHtml(assignedName)}</div>` : '<div>等待分配</div>'}
-                `;
-            taskList.appendChild(taskItem);
+                </div>`);
           });
+        $id('task-list').innerHTML = taskHtml.join('');
 
-        // 更新性能图表
-        updatePerformanceChart();
+        // 更新性能图表（data 直传，免除重复的 currentData() 求值）
+        updatePerformanceChart(data);
       }
 
       // 性能图表：量子效率的滚动历史（真实指标采样，替代旧的正弦噪声示意）
       const efficiencyHistory = [];
       const EFFICIENCY_POINTS = 40;
+      // 图表画布与 2D 上下文的惰性缓存（R13，见 updatePerformanceChart）
+      let chartCanvas = null;
+      let chartCtx = null;
 
-      function updatePerformanceChart() {
-        const canvas = document.getElementById('performance-chart');
-        const ctx = canvas.getContext('2d');
+      function updatePerformanceChart(data) {
+        // canvas/ctx 首取后复用（R13）：getContext('2d') 每帧重取同一上下文
+        // 对象，缓存引用语义一致
+        if (chartCanvas === null) {
+          chartCanvas = document.getElementById('performance-chart');
+          chartCtx = chartCanvas.getContext('2d');
+        }
+        const canvas = chartCanvas;
+        const ctx = chartCtx;
 
-        const data = currentData();
-        const efficiency = Math.max(0, Math.min(1, Number(data.metrics.quantumEfficiency) || 0));
+        const d = data || currentData();
+        const efficiency = Math.max(0, Math.min(1, Number(d.metrics.quantumEfficiency) || 0));
         efficiencyHistory.push(efficiency);
         if (efficiencyHistory.length > EFFICIENCY_POINTS) efficiencyHistory.shift();
 

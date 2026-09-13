@@ -83,6 +83,21 @@ export function chernoffShots(p0: number, p1: number, alpha: number, beta: numbe
  * (N * p0 well below ~1e5), which the allocation table's caps enforce.
  */
 export function powerAt(shots: number, p0: number, p1: number, alpha: number): number {
+  // pure function of (shots, p0, p1, alpha): the allocation table's doubling,
+  // bisection, walk-down and dips scans revisit the same N many times, and
+  // the X6 checker re-walks the builder's whole grid — a hit returns the very
+  // number the walk recomputed, so every shipped value is bit-identical
+  const memoKey = `${shots}|${p0}|${p1}|${alpha}`;
+  const hit = powerAtMemo.get(memoKey);
+  if (hit !== undefined) return hit;
+  const out = powerAtWalk(shots, p0, p1, alpha);
+  powerAtMemo.set(memoKey, out);
+  return out;
+}
+
+const powerAtMemo = new Map<string, number>();
+
+function powerAtWalk(shots: number, p0: number, p1: number, alpha: number): number {
   if (shots < 1) return 0;
   if (p1 === p0) return alpha; // no effect: the "power" is the size itself
   const n = shots;
@@ -103,7 +118,10 @@ export function powerAt(shots: number, p0: number, p1: number, alpha: number): n
     // lower tail: reject on K <= k*, k* = largest with CDF_{p0} <= alpha
     if (m0 > logAlpha) return 0; // even K <= 0 exceeds level: nothing rejects
     for (let j = 0; j < n; j++) {
-      logPmf0 += Math.log((n - j) / (j + 1)) + lr0;
+      // the increment's log((n-j)/(j+1)) is shared by both accumulators —
+      // computed once, added to each exactly as before
+      const l = Math.log((n - j) / (j + 1));
+      logPmf0 += l + lr0;
       if (logPmf0 > m0) {
         s0 = s0 * Math.exp(m0 - logPmf0) + 1;
         m0 = logPmf0;
@@ -111,7 +129,7 @@ export function powerAt(shots: number, p0: number, p1: number, alpha: number): n
         s0 += Math.exp(logPmf0 - m0);
       }
       if (m0 + Math.log(s0) > logAlpha) break; // next count would exceed level
-      logPmf1 += Math.log((n - j) / (j + 1)) + lr1;
+      logPmf1 += l + lr1;
       if (logPmf1 > m1) {
         s1 = s1 * Math.exp(m1 - logPmf1) + 1;
         m1 = logPmf1;
@@ -129,14 +147,15 @@ export function powerAt(shots: number, p0: number, p1: number, alpha: number): n
       // k* = j + 1; power = P_{p1}(K >= j+1) = 1 - CDF_{p1}(j)
       return 1 - Math.exp(m1 + Math.log(s1));
     }
-    logPmf0 += Math.log((n - j) / (j + 1)) + lr0;
+    const l = Math.log((n - j) / (j + 1));
+    logPmf0 += l + lr0;
     if (logPmf0 > m0) {
       s0 = s0 * Math.exp(m0 - logPmf0) + 1;
       m0 = logPmf0;
     } else {
       s0 += Math.exp(logPmf0 - m0);
     }
-    logPmf1 += Math.log((n - j) / (j + 1)) + lr1;
+    logPmf1 += l + lr1;
     if (logPmf1 > m1) {
       s1 = s1 * Math.exp(m1 - logPmf1) + 1;
       m1 = logPmf1;
@@ -160,8 +179,19 @@ export function minShots(p0: number, p1: number, alpha: number, target: number, 
   if (!(p1 > 0 && p1 < 1 && p1 !== p0)) throw new XvalError("XVAL_MINSHOTS_ALT_RATE", `minShots: alternative p1 must be in (0,1) and differ from p0, got ${p1} vs ${p0}`);
   if (!(0 < alpha && alpha < 1) || !(0 < target && target < 1)) throw new XvalError("XVAL_MINSHOTS_LEVEL", "minShots: alpha and target must be in (0,1)");
   const chernoff = chernoffShots(p0, p1, alpha, 1 - target);
+  // this scan's own revisits (the doubling's last step, the `reached` recheck,
+  // the final power read, overlapping walk-down/dips windows) share one
+  // per-call view over the pure powerAt — same values, one walk each
+  const seen = new Map<number, boolean>();
+  const pw = (N: number): boolean => {
+    const h = seen.get(N);
+    if (h !== undefined) return h;
+    const v = powerAt(N, p0, p1, alpha) >= target;
+    seen.set(N, v);
+    return v;
+  };
   let hi = 1;
-  while (hi < cap && powerAt(hi, p0, p1, alpha) < target) hi *= 2;
+  while (hi < cap && !pw(hi)) hi *= 2;
   // the doubling can overshoot the cap to the next power of two, and the
   // overshoot bracket [cap/2+1, 2^k] would happily ship an uncensored minimum
   // beyond the cap (measured: p0=0.2, p1=0.25, cap=257 returned N=454
@@ -169,17 +199,17 @@ export function minShots(p0: number, p1: number, alpha: number, target: number, 
   // deciding. The bisection bracket below is then the same one the
   // clamp-into-a-working-cap case has always used.
   if (hi > cap) hi = cap;
-  const reached = powerAt(hi, p0, p1, alpha) >= target;
+  const reached = pw(hi);
   if (!reached) return { shots: null, power: null, dips: null, chernoff };
   let lo = hi === 1 ? 1 : (hi >> 1) + 1; // the step below hi failed the doubling walk
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (powerAt(mid, p0, p1, alpha) >= target) hi = mid;
+    if (pw(mid)) hi = mid;
     else lo = mid + 1;
   }
   let n = hi;
-  for (let w = 0; w < 64 && n > 1 && powerAt(n - 1, p0, p1, alpha) >= target; w++) n -= 1;
+  for (let w = 0; w < 64 && n > 1 && pw(n - 1); w++) n -= 1;
   let dips = 0;
-  for (let w = 1; w <= 64; w++) if (powerAt(n + w, p0, p1, alpha) < target) dips++;
+  for (let w = 1; w <= 64; w++) if (!pw(n + w)) dips++;
   return { shots: n, power: powerAt(n, p0, p1, alpha), dips, chernoff };
 }

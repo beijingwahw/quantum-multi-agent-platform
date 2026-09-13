@@ -183,6 +183,18 @@ export class BatchVCGScheduler {
    */
   private readonly pullsCache = new Map<string, number>();
   private pullsDirty = true;
+  /**
+   * valueOf 的入口级记忆：估值 = f(公开履历, totalPulls, config)，与
+   * λ/μ/排除集/报价全部无关——预算紧路径单次 allocateBatch 要跑
+   * ≤62 次 solveWithPayments × (1+赢家数) 次 solveWDP 重解，每次重解
+   * 又对每个 (agent, task) 资格对重新求值 socialValueOf（内含
+   * dominantOf 的逐能力资本全扫描 + sqrt/log/exp）。记忆表在三个公开
+   * 分配入口清空：方法内无任何履历/注册变更点，settleBatch/register
+   * 只能发生在调用之间——缓存值即首次计算的同一 double，位级不变；
+   * 报价（bidMarkup）不进估值，measureMisreportGain 的逐 markup 重跑
+   * 也命中同一批缓存值。
+   */
+  private readonly valueMemo = new Map<string, number>();
 
   constructor(config: Partial<BatchVCGConfig> = {}) {
     this.config = { ...DEFAULT_BATCH_CONFIG, ...config };
@@ -226,9 +238,14 @@ export class BatchVCGScheduler {
     return total;
   }
 
-  /** 平台对 rt 执行 capability 的公开估值（λ 折价前） */
+  /** 平台对 rt 执行 capability 的公开估值（λ 折价前；入口级记忆，见 valueMemo） */
   private valueOf(rt: AgentRuntime, capability: string): number {
-    return socialValueOf(rt, capability, this.totalPullsOf(capability), this.config);
+    const key = `${rt.spec.id}\u0000${capability}`;
+    const cached = this.valueMemo.get(key);
+    if (cached !== undefined) return cached;
+    const v = socialValueOf(rt, capability, this.totalPullsOf(capability), this.config);
+    this.valueMemo.set(key, v);
+    return v;
   }
 
   // ---------- WDP：最小费用流精确求解 ----------
@@ -248,6 +265,12 @@ export class BatchVCGScheduler {
     const T = capabilities.length;
     if (T === 0 || rts.length === 0) return [];
 
+    // 资格成员测试 O(1) 化：includes 对每个 (agent, task) 对做 O(C)
+    // 线性扫描（全表 A·T·C，pivot 重解 × λ 二分再乘上去）；本调用内按
+    // spec.capabilities 现值建 Set（A·C）后降为 A·T 次哈希查询。
+    // has/includes 对同一数组内容恒同布尔，位级不变
+    const capSets = rts.map((rt) => new Set(rt.spec.capabilities));
+
     const S = 0;
     const sink = 1 + rts.length + T;
     const mcf = new MinCostFlow(sink + 1);
@@ -257,10 +280,11 @@ export class BatchVCGScheduler {
     const pairEdges: Array<{ ref: FlowEdgeRef; taskIdx: number; agentId: string }> = [];
     for (let a = 0; a < rts.length; a++) {
       const rt = rts[a]!;
+      const capSet = capSets[a]!;
       const bid = this.bidOf(rt);
       for (let t = 0; t < T; t++) {
         const cap = capabilities[t]!;
-        if (!rt.spec.capabilities.includes(cap)) continue;
+        if (!capSet.has(cap)) continue;
         const score = this.valueOf(rt, cap) - lambda - mu * bid;
         if (score <= 0) continue; // 免费处置：负分组合永不入最优解
         const ref = mcf.addEdge(1 + a, 1 + rts.length + t, 1, -score);
@@ -344,6 +368,7 @@ export class BatchVCGScheduler {
         `budget must be a non-negative finite number or Infinity, got ${String(opts.budget)}`,
       );
     }
+    this.valueMemo.clear(); // 入口级记忆周期开始（见 valueMemo 字段注释）
     const exact = this.solveWithPayments(capabilities, 0);
     const maxWelfare = this.welfareOf(capabilities, exact.pairs, 0);
 
@@ -465,6 +490,7 @@ export class BatchVCGScheduler {
     if (typeof mu !== 'number' || !Number.isFinite(mu) || mu < 1) {
       throw new MechanismError(`affine mu must be a finite number ≥ 1, got ${String(opts.mu)}`);
     }
+    this.valueMemo.clear(); // 入口级记忆周期开始（见 valueMemo 字段注释）
     const pairs = this.solveWDP(capabilities, lambda, undefined, mu);
 
     const phiOf = (ps: Array<{ taskIdx: number; agentId: string }>): number => {
@@ -539,6 +565,7 @@ export class BatchVCGScheduler {
    * 忽略批间替代效应，用于对照（低估赢家支付、分配可能次优）。
    */
   allocateMyopic(capabilities: string[]): BatchAllocation {
+    this.valueMemo.clear(); // 入口级记忆周期开始（见 valueMemo 字段注释）
     const remaining = new Map<string, number>();
     for (const rt of this.agents.values()) remaining.set(rt.spec.id, rt.spec.capacity);
     const assignments: BatchAssignment[] = [];

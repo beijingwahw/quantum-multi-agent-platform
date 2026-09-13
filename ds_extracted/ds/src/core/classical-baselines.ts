@@ -71,9 +71,15 @@ export function hungarianAssignment(weights: number[][], ineligible: boolean[][]
       const i0 = p[j0]!;
       let delta = Infinity;
       let j1 = -1;
+      // 内环外提（本仓 O(n³) 对手的核）：cost[i0]/u[i0] 在整个 j 扫描中
+      // 不变（u 只在扫描后的位势更新环里改写），row/ui0 各取一次替代
+      // 每列两次边界检查 + 双重索引。运算序 (row[j] − ui0) − v[j] 与原
+      // cost[i0][j] − u[i0] − v[j] 完全同序，位级不变
+      const row = cost[i0]!;
+      const ui0 = u[i0]!;
       for (let j = 1; j <= n; j++) {
         if (used[j]) continue;
-        const cur = cost[i0]![j]! - u[i0]! - v[j]!;
+        const cur = row[j]! - ui0 - v[j]!;
         if (cur < minv[j]!) {
           minv[j] = cur;
           way[j] = j0;

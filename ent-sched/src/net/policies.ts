@@ -170,14 +170,22 @@ function makePathPolicy(
     pathByRequest.set(r.id, p.links);
   }
   const pointers = new Map<string, number>();
+  // requestsOnLink's input (pathByRequest) is fixed for the policy's lifetime,
+  // so its per-link answer is computed once instead of once per link per round
+  // (same iteration order, same array contents).
+  const onLinkCache = new Map<string, string[]>();
+  const candidatesOf = (linkId: string): string[] => {
+    let cached = onLinkCache.get(linkId);
+    if (cached === undefined) {
+      cached = requestsOnLink(pathByRequest, linkId);
+      onLinkCache.set(linkId, cached);
+    }
+    return cached;
+  };
   return {
     name,
     allocateAttempts(st: EngineView): Map<string, string[]> {
-      return allocateRoundRobin(
-        st,
-        (linkId) => requestsOnLink(pathByRequest, linkId),
-        pointers
-      );
+      return allocateRoundRobin(st, candidatesOf, pointers);
     },
     decideOps(st: EngineView): { swaps: SwapAction[]; purifies: PurifyAction[]; discards: number[] } {
       if (mode === "asap") {
@@ -218,10 +226,12 @@ export function tdmPolicy(
 ): Policy {
   if (requests.length === 0) throw new SchedError("TDM_NO_REQUESTS", "tdm: time-division needs at least one request to rotate between");
   const paths = new Map<string, string[]>();
+  const pathSets = new Map<string, Set<string>>();
   for (const r of requests) {
     const p = topo.shortestPath(r.src, r.dst);
     if (!p) throw new SchedError("POLICY_NO_PATH", `tdm: request '${r.id}' has no path ${r.src}→${r.dst} in this topology`);
     paths.set(r.id, p.links);
+    pathSets.set(r.id, new Set(p.links));
   }
   let idx = 0;
   let epochStart = 0;
@@ -241,9 +251,9 @@ export function tdmPolicy(
       rotateIfNeeded(st);
       const cur = requests[idx % requests.length]!; // requests non-empty (guarded at construction); idx stays in [0, len)
       const out = new Map<string, string[]>();
-      const path = paths.get(cur.id)!;
+      const pathSet = pathSets.get(cur.id)!;
       for (const l of st.net.links) {
-        if (!path.includes(l.id)) continue;
+        if (!pathSet.has(l.id)) continue;
         const free = st.freeSlots(l.id);
         if (free > 0) out.set(l.id, Array.from({ length: free }, () => cur.id));
       }
@@ -283,7 +293,7 @@ export function ersPolicy(
     candidates.set(r.id, paths.map((p) => ({ links: p.links, et: p.et })));
   }
   const pairCountOn = (st: EngineView, owner: string, linkId: string): number => {
-    const l = st.net.links.find((x) => x.id === linkId);
+    const l = st.topology.linkById.get(linkId);
     if (!l) return 0;
     const a = st.anchoredAt(linkId, l.a).filter((p) => p.owner === owner);
     const b = st.anchoredAt(linkId, l.b).filter((p) => p.owner === owner);
@@ -380,8 +390,12 @@ export function ersPolicy(
           const sameSegment = (x: Pair): boolean =>
             x.links.length === seg.links.length && x.links.every((l, i) => l === seg.links[i]);
           const onSeg = [...uniq.values()].filter((p) => sameSegment(p));
-          const fOf = (p: Pair): number => st.currentVec(p, st.round)[0]!;
-          const fSeg = fOf(seg);
+          // Fidelity snapshot: currentVec is deterministic in (pair, round) and
+          // nothing mutates pairs inside decideOps, so one evaluation per pair
+          // feeds the O(L^2) pairing loop below with the identical doubles the
+          // repeated fOf(p) calls used to recompute.
+          const fSegs = onSeg.map((p) => st.currentVec(p, st.round)[0]!);
+          const fSeg = st.currentVec(seg, st.round)[0]!;
           // believed (oracle mode: true) fresh level — the stale-rung threshold
           const f0 = st.believedF0(segFirst);
           const slotsFull = st.freeSlots(segFirst) === 0 || st.freeSlots(segLast) === 0;
@@ -390,9 +404,11 @@ export function ersPolicy(
             for (let j = i + 1; j < onSeg.length; j++) {
               const pa = onSeg[i]!; // i < onSeg.length (loop bound)
               const pb = onSeg[j]!; // j < onSeg.length (loop bound)
-              const hi = fOf(pa) >= fOf(pb) ? pa : pb;
+              const fa = fSegs[i]!;
+              const fb = fSegs[j]!;
+              const hi = fa >= fb ? pa : pb;
               const lo = hi === pa ? pb : pa;
-              const fHi = fOf(hi);
+              const fHi = hi === pa ? fa : fb;
               const { out } = purify2to1(st.currentVec(hi, st.round), st.currentVec(lo, st.round));
               const fOut = out[0]!; // purify2to1 returns a length-4 vector
               if (fOut <= fHi + MIN_GAIN) continue; // degrading, plateau, or grazing mix
@@ -406,10 +422,19 @@ export function ersPolicy(
                 action = { keep: hi.id, sac: lo.id, fHi, fOut, fSeg };
             }
           if (!improved && slotsFull && onSeg.length >= 2) {
-            const stale = onSeg.filter((p) => fOf(p) > f0 + 0.01);
-            const pool = stale.length > 0 ? stale : onSeg;
+            // stale rungs above believed-fresh level; pool fallback keeps every
+            // rung. First minimum on ties, matching the previous reduce tie-break.
+            const staleIdx: number[] = [];
+            for (let i2 = 0; i2 < onSeg.length; i2++) {
+              if (fSegs[i2]! > f0 + 0.01) staleIdx.push(i2);
+            }
+            const poolIdx = staleIdx.length > 0 ? staleIdx : onSeg.map((_, i2) => i2);
             // pool is non-empty: onSeg.length >= 2 checked just above
-            const lowest = pool.reduce((a, b) => (fOf(a) <= fOf(b) ? a : b), pool[0]!);
+            let lowestIdx = poolIdx[0]!;
+            for (const i2 of poolIdx) {
+              if (fSegs[i2]! < fSegs[lowestIdx]!) lowestIdx = i2;
+            }
+            const lowest = onSeg[lowestIdx]!;
             if (!relief || fSeg < relief.fSeg) relief = { discard: lowest.id, fSeg };
           }
         }
