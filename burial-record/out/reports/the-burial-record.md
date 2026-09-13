@@ -4,14 +4,14 @@
 
 ## Census
 
-- batches: 97
-- errors: 799
+- batches: 98
+- errors: 803
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
-| burial-record | 22 | 370 |
+| burial-record | 23 | 374 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 14 | 64 |
 | ds_extracted/ds | 6 | 44 |
@@ -43,13 +43,13 @@
 
 | category | errors |
 | --- | --- |
-| process | 269 |
+| process | 271 |
 | toolchain | 151 |
-| wrong-object | 105 |
+| wrong-object | 106 |
 | statistics | 68 |
 | dimension-slot | 51 |
 | machine-overruled | 48 |
-| citation-drift | 46 |
+| citation-drift | 47 |
 | conjugation | 29 |
 | anchor-blindspot | 19 |
 | bogus-comparison | 13 |
@@ -1631,15 +1631,27 @@
 | [orchestrator self-report, this batch] one Edit's old_string was guessed from memory of an HTML row's class layout instead of read from the file — the mismatch refusal was the guard doing its job | old_strings are copied from a fresh read, never reconstructed — the refusal cost one round-trip and prevented a blind replace | process |
 | [wave-collective] both fix agents converged lint, prettier, or typecheck on the second round — P1 (tsc 2, eslint 3, prettier 2 files), P2 (prettier 4 files) — the rule faces read after the writing, the fourth consecutive wave | the rule face is read before the first line is written — the collective face is booked for the fourth wave running, a standing recurrence until the pre-flight checklist makes it structural | process |
 
+### Batch 98 — burial-record (2026-09-14)
+
+- context: the R16 both-axes visit (visit ninety-one: the exact-cosine coordinate minimizer delivered on the token 'give a world-class innovation that truly balances cost and quality' — the two-eigenvalue single-cosine theorem machine-executed, 11/12 instances dominating coordinate descent on both axes, one structural Pareto point honestly pinned, one delivery agent plus the orchestrator): four delivery errors — three test-side first reds (a precision-floor expectation at a flat minimum, a 'degenerate' construction that was actually separable, a flat-coordinate accounting assertion), a typecheck/prettier convergence, the orchestrator's arXiv digit recalled wrong and corrected only at the source page, and a read-state refusal on a barrel edited after a formatting pass; every one self-caught, tool-caught, or source-caught in the act, none shipped
+- source: `memory/2026-09-14.md` @ "关键经验（第九十八批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| [delivery agent R16] three first-round test reds, all test-side: the independent-argmin expectation demanded 1e-9 where the flat minimum's numerical floor sits at 3.0e-8 (fixed by a parabola-vertex refinement stage in the verifier itself, module untouched); the 'degenerate three-point' case was constructed with gap=1000/bound=0.001 — a placement that is actually separable under that Delta (rebuilt at gap=2/bound=1e-10); and the flat-coordinate accounting expected two sweeps where the exact minimizer early-stops in one | a test's numeric tolerance is derived from the curvature it measures, a degeneracy construction is checked against the separability criterion before it is named degenerate, and early-stop behavior is asserted from the mechanism's own accounting — all three reds were the harness asking the wrong question of a correct module | wrong-object |
+| [delivery agent R16] typecheck caught a readonly angles array passed into an evaluate closure (fixed with slice()), prettier failed the first check on both new files, and the probe script went through four drafts before the benchmark matrix settled — all disclosed as process, none touching shipped code | readonly surfaces are copied at the boundary, the format gate runs before the first test, and probe iterations live outside the repo — the convergence face, booked with the collective history | process |
+| [orchestrator self-report, this batch] the Rotosolve arXiv identifier was recalled as 1905.10945 in the dispatch prompt's citation text — the source page returned 1905.09692, the correction made before any code or comment carried the wrong digit | identifier-grade data is written from the source page, never from the recall that filled the prompt — the second-source law caught the verifier's own input this time, one visit after the same law was enrolled against the verifier | citation-drift |
+| [orchestrator self-report, this batch] the ECCM barrel export Edit was refused by the read-state guard — the previous visit's formatting pass had touched src/index.ts after its last read, and the Edit was attempted without re-reading | after any formatting pass the edited file's read state is refreshed before the next Edit — the refusal cost one round-trip and prevented a stale-context replace | process |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..97 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (799 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 799 = repo sum 799)
-- PASS — W-4 declared totals 97 batches / 799 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (79 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (72 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..98 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (803 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 803 = repo sum 803)
+- PASS — W-4 declared totals 98 batches / 803 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (80 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (73 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 799 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 803 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

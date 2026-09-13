@@ -128,26 +128,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 799 errors across 97 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 803 errors across 98 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 344 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 338 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 342 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
 | anchor-blindspot | 0 | 17 | 2 |
 | bogus-comparison | 0 | 10 | 3 |
-| citation-drift | 0 | 32 | 14 |
+| citation-drift | 0 | 32 | 15 |
 | conjugation | 19 | 10 | 0 |
 | dimension-slot | 29 | 22 | 0 |
 | machine-overruled | 0 | 47 | 1 |
-| process | 0 | 69 | 200 |
+| process | 0 | 69 | 202 |
 | statistics | 25 | 33 | 10 |
 | toolchain | 0 | 66 | 85 |
-| wrong-object | 44 | 38 | 23 |
+| wrong-object | 44 | 38 | 24 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -699,6 +699,10 @@ The registry is imported LIVE on every run: 799 errors across 97 batches, each w
 - b97#11 [citation-drift] — three citation slips in the orchestrator's own verification pass — Mitarai's volume (99 vs 98), Schuld's PRA number (100,032328 vs 99,032331), and the Dantzig-Ford-Fulkerson-1956 attribution conflating the 1954 TSP duality paper with Ford-Fulkerson's max-flow. Booked: the verifier face — the identifier-grade law binds the verifier too; every digit is second-sourced
 - b97#12 [process] — one Edit's old_string was guessed from memory of an HTML row's class layout — the mismatch refusal was the guard doing its job. Booked: the old_string face — copied from a fresh read, never reconstructed
 - b97#13 [process] — both fix agents converged lint/prettier/typecheck on the second round — the fourth consecutive wave. Booked: the rule face — read before the first line is written; a standing recurrence until the pre-flight checklist makes it structural
+- b98#0 [wrong-object] — three test-side first reds against a correct module — a tolerance below the flat minimum's numerical floor, a 'degenerate' construction that was actually separable, an early-stop accounting assertion. Booked: the harness-question face — tolerances derive from curvature, degeneracy is checked against the separability criterion
+- b98#1 [process] — readonly array passed into a closure (typecheck red), first-check prettier, four probe drafts — none touching shipped code. Booked: the convergence face, with the collective history
+- b98#2 [citation-drift] — the Rotosolve arXiv identifier recalled as 1905.10945 in the dispatch prompt — the source page returned 1905.09692, corrected before any artifact carried the wrong digit. Booked: the prompt-input face — identifier data is written from the source page, never from recall; the second-source law caught the verifier's own input
+- b98#3 [process] — a barrel-export Edit refused by the read-state guard — a formatting pass had touched the file after its last read. Booked: the read-state face — after any formatting pass the read state is refreshed before the next Edit
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -918,12 +922,12 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 237 | b1 | b97#13 | BOOKED-UNENFORCEABLE |
+| cat:process | 239 | b1 | b98#3 | BOOKED-UNENFORCEABLE |
 | cat:toolchain | 116 | b1 | b96#13 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 93 | b2 | b97#0 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 94 | b2 | b98#0 | BOOKED-UNENFORCEABLE |
 | cat:statistics | 65 | b3 | b95#17 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
-| cat:citation-drift | 44 | b6 | b97#11 | BOOKED-UNENFORCEABLE |
+| cat:citation-drift | 45 | b6 | b98#2 | BOOKED-UNENFORCEABLE |
 | cat:machine-overruled | 44 | b4 | b96#5 | BOOKED-UNENFORCEABLE |
 | shell-template-heredoc | 35 | b10 | b97#9 | BOOKED-UNENFORCEABLE |
 | runner-path | 30 | b14 | b96#23 | BOOKED-UNENFORCEABLE |
@@ -935,7 +939,7 @@ The E-board made every error answer for its enforcement; the A-board made every 
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 | tautological-witness | 2 | b79 | b96#9 | BOOKED-UNENFORCEABLE |
 
-The catch census: gate 140 / author 610 / numbers 48 / visitor 1 over 799 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 141 / author 613 / numbers 48 / visitor 1 over 803 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -1071,7 +1075,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 276 | the reason is true as written; the basis states the ungated face |
+| HELD | 280 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1426,6 +1430,10 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b97#11 — verifier face: all three slips corrected at the source pages; the law that caught them is the one it enforces
 - **HELD** b97#12 — old_string face: the refusal prevented a blind replace; the row was read fresh and re-edited
 - **HELD** b97#13 — rule face: fourth consecutive wave — booked as a standing recurrence with the pre-flight checklist as the named structural fix
+- **HELD** b98#0 — harness-question face: all three reds re-derived from the mechanism's own curvature, separability criterion, and accounting — the module was never wrong
+- **HELD** b98#1 — convergence face: typecheck and format closed on the second round, probes iterated outside the repo
+- **HELD** b98#2 — prompt-input face: the digit was corrected at the source page before any artifact carried it — the law caught its own author's input
+- **HELD** b98#3 — read-state face: the refusal prevented a stale-context replace at the cost of one round-trip
 
 ## T-board — the total gate
 
@@ -1438,11 +1446,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 28/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (799 errors enrolled LIVE against a registry of 97 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 338, every booked row printed on the report)
+- PASS — W-F enrollment census (803 errors enrolled LIVE against a registry of 98 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 342, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 799 errors (16 recurring, all resolved); catch census gate 140 / author 610 / numbers 48 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 803 errors (16 recurring, all resolved); catch census gate 141 / author 613 / numbers 48 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (351 booked-population rows audited LIVE (of the 338 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 276 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (355 booked-population rows audited LIVE (of the 342 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 280 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries

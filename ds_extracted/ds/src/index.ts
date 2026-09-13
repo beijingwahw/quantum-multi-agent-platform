@@ -932,6 +932,21 @@ export {
   dampedNaturalDirection,
   refineAnglesByNaturalGradient,
 } from './core/natural-gradient.js';
+// R16：精确余弦坐标极小化（两值谱混合器的单余弦定理——三点定弦、闭式全局
+// 极小、零步长超参；opt-in，未接默认求解路径）
+export {
+  refineAnglesByExactCosine,
+  fitCosine,
+  cosineSampleBetas,
+  cosineMinimumInBounds,
+  cosineValueAt,
+} from './core/exact-cosine-coordinate.js';
+export type {
+  CosineFit,
+  SamplePlacement,
+  ExactCosineOptions,
+  ExactCosineResult,
+} from './core/exact-cosine-coordinate.js';
 export type {
   StateAmplitudes,
   NaturalMixerSpec,

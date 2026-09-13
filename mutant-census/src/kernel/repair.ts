@@ -487,6 +487,10 @@ export const REPAIR_AUDIT: readonly RepairRow[] = [
   { key: "b97#11", verdict: "HELD", basis: "verifier face: all three slips corrected at the source pages; the law that caught them is the one it enforces" },
   { key: "b97#12", verdict: "HELD", basis: "old_string face: the refusal prevented a blind replace; the row was read fresh and re-edited" },
   { key: "b97#13", verdict: "HELD", basis: "rule face: fourth consecutive wave — booked as a standing recurrence with the pre-flight checklist as the named structural fix" },
+  { key: "b98#0", verdict: "HELD", basis: "harness-question face: all three reds re-derived from the mechanism's own curvature, separability criterion, and accounting — the module was never wrong" },
+  { key: "b98#1", verdict: "HELD", basis: "convergence face: typecheck and format closed on the second round, probes iterated outside the repo" },
+  { key: "b98#2", verdict: "HELD", basis: "prompt-input face: the digit was corrected at the source page before any artifact carried it — the law caught its own author's input" },
+  { key: "b98#3", verdict: "HELD", basis: "read-state face: the refusal prevented a stale-context replace at the cost of one round-trip" },
 ];
 
 export interface RepairViolation {
