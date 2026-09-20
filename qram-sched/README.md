@@ -19,7 +19,7 @@ Quantum 9, 1922 (2025))的插入成本/机会成本论证是 EXP1-D 计量普查
 
 ```bash
 npm install          # dev deps only (tsx, typescript); runtime is zero-dependency
-npm test             # 77/77 referee tests (incl. three 走私审判 smuggling trials)
+npm test             # 90/90 referee tests (incl. three 走私审判 smuggling trials)
 npm run repro        # rebuild all six experiment reports (~30s) into out/reports/
 ```
 
@@ -27,6 +27,7 @@ TypeScript 严格模式(`strict` + `exactOptionalPropertyTypes` + NodeNext),零�
 每个数字可由种子逐位重建。v0.3.0:全部内核拒绝路径带命名错误码(`QramError` + `code`),非法输入被点名驳回而非
 静默 NaN/伪造见证(由 test/errors.test.ts 的走私审判 #3 与"无匿名 throw"结构守卫把守)。
 v0.4.0:回本定律定理化(`src/qram/payback.ts`)——EXP1-D 的计量普查升格为精确闭式 + 不可行域 + ε 交叉律 + 审计面。
+v0.5.0:Szegedy↔Grover 精确归约(`src/walk/grover-bridge.ts`)——两态 flip 族的谱闭式 + 检测序列闭式 + q=1/2 Grover 简并点 + 惰性化平方加速律(walk↔ampest 双模块自对拍新锚)。
 
 ## 回本定律(v0.4.0,`src/qram/payback.ts`)
 
@@ -47,6 +48,34 @@ v0.4.0:回本定律定理化(`src/qram/payback.ts`)——EXP1-D 的计量普查�
 
 诚实边界:成本模型=激活账本(EXP1-D 既有),不含纠错/相干噪声(引 Arunachalam 2015);m* ≤ 30 与 n_b ≤ 30 是
 精确 QPE 与本模型的实现域;闭式全整数精确(< 2^53)。
+
+## Szegedy↔Grover 精确归约(v0.5.0,`src/walk/grover-bridge.ts`)
+
+两态 flip 族(P = [[1−q,q],[1−q,q]],EXP2-B 的家族,非 lazy)上,行走算子 U = C·S·R 的谱与检测序列全部闭式化:
+
+**定理(SG1,谱)**:U 的特征多项式为 palindromic **λ⁴ − (2−4q)λ³ + ((2−4q)²/2)λ² − (2−4q)λ + 1**
+——tr U = 2−4q、tr U² = 0、det U = 1 恒等式;特征相位 w± 由根式 **cos w± = (1−2q±√(1+4q(1−q)))/2** 给出,
+且恒满足**相位锁 w₁ − w₂ ≡ −π/2**(等价 cos 2w₁ = −cos 2w₂),以及 cos w₁cos w₂ = −2q(1−q)、
+sin w₁sin w₂ = 2q(1−q)。数值 4×4 算子(tr/det/Newton 恒等式)双路钉死(1e-12)。
+
+**定理(SG2,检测序列)**:p_k = 1/2 + [k 奇 D_o / k 偶 D_e]·cos(2w₁k) + [k 偶]·C·(−1)^{k/2},
+其中 **D_o = (q−1/2)/cos 2w₁、D_e = (4q(1−q)−1/2+C)/cos 4w₁、C = −2q(1−q)/(1+4q(1−q))**;
+前三步多项式值 q、4q(1−q)、q(1−2q)²+4(1−q)q²(3−4q)²。对拍引擎 detectionCurve ≤1e-13(60 步全网格),
+闭式首达步 = 引擎 detectionTime(逐 q 相等)。
+
+**定理(SG3,Grover 简并点与 ampest 桥)**:R18 规格的"检测序列恰为 sin²((2k+1)θ)"被机器证伪
+(最优单 Grover 拟合残差 >0.05——序列是双相位的,负对照具名定罪)。成立的是:q=1/2 处两频率重合,
+序列坍缩为**纯等差相位 Grover 形 p_k = sin²(kπ/4)**(1e-15);一般 q 上奇子序列
+p_{2m+1} = A·sin²((2m+1)w₁)+B 是 ampest `groverSuccessClosedForm` 族的精确仿射元(walk↔ampest 新锚,≤1e-13),
+偶子序列按半奇偶拆分为同族(带 4w₁ 相位偏移,≤5e-12)。负对照:伪造角 asin√q 被整体偏差 >0.2 定罪。
+
+**定律(SG4,惰性化即加速)**:lazy 化(P'=(P+I)/2)后 tr U' = 1−2q、tr U'² = 1,同结构二次给 w₁',
+序列为五余弦 Fourier 形(系数机器拟合,结构精确 ≤1e-13);w₁' ~ √(2q/3)(小 q),检测步 ~ √(3/(2q)),
+而**非 lazy 族 w₁ ~ c·q、检测 Θ(1/q)**——平方加速恰在惰性化处进入(q→q/4 时 lazy 步 ~2×、非 lazy ~4×,
+机器钉板),这是 EXP2-B 实测 const/√q 的闭式来源。
+
+诚实边界:两态 flip 族(本模块构造两种变体);一般链/图仍是 walk 模块的经验律;相位锁与 SG2 系数为仓内推导
++机器验证,不主张文献新颖性〔待双源〕。
 
 ## 六组实验(全部精确裁判对拍)
 
@@ -93,10 +122,10 @@ Montanaro arXiv:1504.06987。经典下界: Lai-Robbins 1985;Auer et al. SICOMP 3
 ## 目录
 
 ```
-src/core/     seeded RNG, LU, Jacobi            src/walk/    Szegedy 行走 + 经典命中裁判
+src/core/     seeded RNG, LU, Jacobi            src/walk/    Szegedy 行走 + 经典命中裁判 + Grover 归约
 src/qram/     bucket-brigade 模型 + 振幅编码流   src/bandit/  UCB1/ETC/Exp3 + 量子重放调度器
 src/ae/       精确 QPE 振幅估计 + 全空间 Grover  src/online/  Dürr-Høyer 搜索 + 在线匹配 + KVV 紧实例
-src/experiments/  exp1..exp6 + run-all          test/        77 项裁判测试(含三场走私审判)
+src/experiments/  exp1..exp6 + run-all          test/        90 项裁判测试(含三场走私审判)
 ```
 
 MIT。

@@ -109,11 +109,44 @@ the single point where all three faces meet. Boundaries, same line as T4:
 two-lab two-bit ICO process class; layer (c)'s optimality rides on the LC25
 citation (executed here on the attaining family), not re-proven.
 
+**T7 — the causal polytope's exact contamination robustness, the LP duality
+face** (`src/process/polytope.ts`, `test/polytope.test.ts`; new in v0.5.0):
+the three constructed causal processes span the polytope face
+C = conv{channel A≺B, channel B≺A, white noise}, and the Born-rule payoff is
+affine in the process — so the mixture β·W\* + (1−β)·V violates the cap iff
+β > β\*(V) = (cap − p_V)/(p_W\* − p_V), a closed form in ℚ(√2) executed in
+BigInt-fraction arithmetic (with a small exact simplex for the extremal LPs,
+dual certificates closing at gap exactly 0). Three results, all exact:
+(a) the WORST contamination directions are white noise AND the B≺A channel —
+the fixed OCB protocol reads A1 in z, gets b XOR t (t Bob's private
+x-outcome), so the B≺A vertex is payoff-isomorphic to white noise — with
+β\* = 1/√2 EXACTLY: T3's white-noise threshold is a special-case direction
+of the polytope face, and the guaranteed contamination radius is
+σ_guar = 1 − 1/√2 ≈ 0.2929 against every direction at once; (b) the BEST
+direction is the A≺B channel, whose payoff IS the uniform cap (3/4), so
+β\*(V_AB) = 0 — even β = 1e−9 of W\* keeps the executed violation: the
+violation is arbitrarily dilutable against the extreme channel (under biased
+weights no vertex sits at the cap and every β\* > 0, pinned exactly at
+2√2/3 and (2+3√2)/7 for weights (1, ½)); (c) the smuggling trial: hull
+membership is an exact Phase-1 LP over continued-fraction-reconstructed
+rational entries — barycentric members recovered exactly, forbidden-pattern
+processes convicted by exact infeasibility, W\* and its noisy blends refused
+BY NAME at the irrationality gate (1/(4√2) entries) and by the payoff face
+(no causal member can exceed the cap). Executed observation, certificate
+divergence: W\* and the channels are ISOSPECTRAL ({0, ½}), but any
+contamination spreads the spectrum immediately ({⅛, ⅜} against white noise,
+{0, 0.725} against the channel) while the payoff violation survives up to
+the β\* boundary — the spectral certificate dies first. Boundaries: C is
+the three-vertex hull of the constructed processes (a subset of the full
+causal set); payoffs are the fixed OCB protocol's values (strategy-sup for
+mixtures cited, not re-optimized); payoff metric only (no Hilbert-metric
+claim); weight pairs outside T6's cone are refused by name.
+
 ## Reproduce
 
 ```
 npm install
-npm test        # 33/33
+npm test        # 49/49
 npm run repro   # ~20 s — rebuilds all five reports (exp4's sweep dominates)
 ```
 

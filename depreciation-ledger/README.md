@@ -74,11 +74,40 @@ recorded: the R18 spec sheet placed the complementary root in (½, 1); the
 machine shows (3+√2)/4 > 1 — outside (0,1) entirely, not even a legal
 sin² value. The classifier test pins the corrected reading.
 
+## The h₂ anchor as an exact interval certificate (v0.5.0)
+
+W-E's float witness (`h2(0.025) ≈ 0.168661`, 1e-6) is upgraded to a strict
+BigInt rational interval certificate (`src/kernel/h2certificate.ts`,
+`test/h2-certificate.test.ts`, eleven tests) — the float witness keeps
+running; this file gives its number exact brackets:
+
+- **HC1** — every log the anchor needs (ln2, ln(5/4), ln(40/39), and the
+  spec-literal identity ln(41/40) = 2·artanh(1/81)) is enclosed twice by
+  INDEPENDENT series: road 1 the positive artanh series with a geometric
+  tail bound (remainder ≤ x^{2K+3}/((2K+3)(1−x²))), road 2 the alternating
+  ln(1+x) Leibniz brackets or the −ln(1−x) positive series. All four pairs
+  overlap at ≤1e-20 width.
+- **HC2** — h₂(1/40) = (1/40)·log₂40 + (39/40)·log₂(40/39) with
+  ln40 = 5·ln2 + ln(5/4): the intersected width is < 1e-15 in exact BigInt
+  comparison (the machine delivers < 1e-20).
+- **HC3/HC4** — the float double agrees within 5e-16 (its own ~1 ulp —
+  agreement, not containment), and the ledger row's six-digit number
+  0.168661 is bracketed exactly inside the rounding window
+  [0.1686605, 0.1686615].
+- **Negative controls** — the tail-omitted partial sum at K=2 (convicted
+  below the certified lower bound by ~1.4e-4 — the geometric tail is
+  load-bearing), the forged shifted interval (1e-13 ≫ width), and the
+  wrong-point value h₂(1/41) — each convicted by the face it attacks. The
+  tail bound itself is verified dominant by brute BigInt summation.
+
+Series arguments outside (0,1) are refused by name
+(`H2_SERIES_DOMAIN`); the certificate is deterministic.
+
 ## Quickstart
 
 ```
 npm ci
-npm test          # 23/23
+npm test          # 34/34
 npm run repro     # renders out/reports/the-ledger.md, or throws
 ```
 

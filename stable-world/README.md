@@ -110,6 +110,30 @@ the world bit, identity on the cargo. Nothing else. Then, machine-witnessed:
   re-derived and checked by name); the dense census runs to k=4 (32 dims),
   the closed form holds for EVERY k (anchored by the nested-binomial identity
   c_S = 1/2 ⟹ leak = [1−(1−(1−γ)^t)^k]/2, verified to 1.3e−14 at k=12).
+- **The measurement-feedback engine** (AT19) — the banked weight's coherence
+  HARVESTED, one shot, and the exact share that stays locked. A
+  Sagawa–Ueda-form engine on the shortcut's weight qubit: align the phase
+  (AT14's controller), measure in the |±⟩ basis (the coherence eigenbasis),
+  apply the conditional shift that banks every branch's known pure bit on the
+  ground |1_w⟩ (post-channel state EXACTLY |1⟩⟨1|, feedback shifts unitary),
+  and price the record's erasure at its source-coding cost. Net:
+  **W_ext = kT ln2 · [1 − h₂((1+C_ℓ¹)/2)]** with C_ℓ¹ the aligned weight's
+  ℓ¹-coherence (= 2× AT14's bank) — two independent roads (closed form from
+  the matrix elements vs the Kraus execution's branch statistics) agree to
+  2.2e−16. Straddlers harvest the banked bit WHOLE (W_ext = kT ln2 exactly,
+  gap 0); work locking holds pointwise on the AT15 37-trajectory census:
+  kT ln2·C_rel(weight) − W_ext ∈ [0, 0.177] bits, zero EXACTLY on the
+  equal-population face, strictly positive on unequal families; the
+  incoherent no-go is operational — an energy-diagonal engine's yield is
+  IDENTICAL on ρ_W and Δρ_W (coherence contributes exactly 0), and the
+  uncontrolled |±⟩ road never beats the aligned one. The design note's raw
+  form kT·ln(1+C_ℓ¹) is adjudicated: it agrees at the endpoints C_ℓ¹ ∈ {0,1}
+  but claims 0.585 bits against a free-energy value of 0.189 at C_ℓ¹ = 1/2 —
+  convicted by name as work smuggling. Boundary: single shot (WY16's
+  asymptotic face cited, not executed); the record erasure is priced at its
+  source-coding average. Sagawa–Ueda 2008/2010, del Rio et al. 2011,
+  Lostaglio–Jennings–Rudolph 2015, Åberg 2014 — pending dual-source,
+  registered here, not yet in citations.md.
 
 ## Honest boundaries
 
@@ -132,7 +156,7 @@ exact algebra bounds.
 ## Run
 
 ```bash
-npm test          # 75/75 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials, k-world inclusion-exclusion)
+npm test          # 83/83 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials, k-world inclusion-exclusion, measurement-feedback work extraction)
 npm run typecheck # tsc --noEmit, zero errors
 npm run repro     # renders out/reports/the-stable-world.md in seconds
 ```

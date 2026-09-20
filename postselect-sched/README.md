@@ -194,12 +194,31 @@ ledger declines to quote"), executed as its own theorem layer:
   the two-sided clamp holds at c\* ± 0.01; three smuggling trials (a quoted
   budget below the menu optimum, a forged k\* ladder with a planted
   up-step, a mis-stated zero threshold) are each NAMED and REJECTED.
+- **The always-pay no-beating theorem (v0.5.0, theorem enrolled,
+  `alwayspay.ts`)**: for any round menu {(c_i, p_i)} and any CYCLIC
+  schedule, T(S) = Σ_k g_k·(c_{t_k}/p_{t_k}) with g_k = R_k p_{t_k} ≥ 0 and
+  Σ g_k = 1 — the always-pay twin of LSZ93 eq. (7), machine-held on a THIRD
+  arithmetic path against payExpected over ~22k enumerated schedules
+  (550 seeded synthetic menus + 22 distribution menus, prefixes ≤ 3, worst
+  relative deviation 4.5e-16); hence NO schedule beats the best single
+  round, and the E10 spec's literal equality case ("iff a single-round
+  cycle") was machine-CONVICTED before coding — the true characterization
+  is equality iff the schedule's support sits inside argmin (tied rounds
+  cycle freely at the minimum), both directions enumerated with zero
+  mismatches. Together with the early-stop side this closes the TWO-COST-
+  MODEL no-beating pair, and the pair is SEPARATED by an executable
+  instance: the truncated geometric run-on regime where the early-stop
+  optimum is a deep cutoff (λ\* = 9.7410 at t = 50 beating λ(1) = 9.9485)
+  whose optimal strategy pays 50.0000 under always-pay — beaten by the
+  best single round by factor 5.03 (partial-progress credit is exactly the
+  resource the always-pay model denies); a pay-quote trial NAMES quotes
+  below the menu minimum.
 
 ## Quickstart
 
 ```
 npm ci
-npm test          # 65/65
+npm test          # 71/71
 npm run repro     # rebuilds out/reports/t1..t6 markdown tables, seconds
 ```
 

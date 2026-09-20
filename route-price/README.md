@@ -35,11 +35,48 @@ The renderer refuses to print an illegal dossier — and since v0.2.1 the refusa
 - **W-E** — the energy-certificate cross-check (backs D1-M4): orbit energy flat (zero net work on the ideal beat), the detuned first period's closed form W₀ = J(n−1)sin²2δ re-derived (0.256552), the isolated stroboscope's true coherent law |⟨Z⟩_k| = |cos 2kδ| (an honest correction of the geometric envelope), and the tariff table re-priced on this repo's own netlist: 0 < 5 < 9 < 43.02 kT·ln2 units.
 - **W-F** — the welfare-gap charge cross-check (backs D2-M4), in exact BigInt rationals (`src/kernel/exact.ts`): the gap equals the closed-form charge −(n−1)(s−t)²/(2n) bitwise, zero exactly at truth, gauge-invariant along the Groves orbit, and the off-gauge payment's profitable deviation worth exactly ε²n/(2(n−1)) at s* = t − εn/(n−1). The tests carry the independent float path on binary-exact grids.
 
+## The clone gap as a commutant certificate (v0.4.0)
+
+W-B's numerical clone mark (the pair coherence is rephasing-invariant while a
+clone's target rotates at twice the rate) is upgraded to an algebraic
+certificate in `src/kernel/covariance.ts` (`test/covariance.test.ts`, nine
+tests), all on this repo's own linalg:
+
+- **CV1** — the triple equivalence: a qubit channel commutes with rephasing
+  conjugation ⟺ its Choi matrix commutes with U_φ⊗Ū_φ for every φ ⟺ its
+  Choi entries live on the integer band m−n = i−j. Checked on a table of
+  eight channels (identity, dephasing, ZρZ, amplitude damping — covariant;
+  XρX, YρY, two seeded random conjugations — not). The machine corrected the
+  spec-era expectation twice, both corrections pinned in the test: ZρZ and
+  amplitude damping ARE rephasing-covariant (diagonal Kraus structure).
+- **CV2** — the CNOT pair channel is one-wire rephasing-covariant at machine
+  zero, clones the diagonals bitwise, and is not a clone of |+⟩ — the
+  covariant-but-not-cloning control that must pass.
+- **CV3/CV4** — cloning four seed states (|0⟩, |1⟩, |+⟩, |+i⟩) pins a
+  channel's basis images at exact dyadic-plus-i values (every entry a
+  quarter of a Gaussian integer); the pinned images carry 16 nonzero entries
+  off the one-wire band and 16 off the two-wire band, smallest magnitude ≥
+  ¼. A cloner of all pure states would be pinned, covariant on pure states
+  (each U_φ|ψ⟩ is pure again), hence fully covariant by the spanning bridge,
+  hence banded — contradiction. No-cloning with the covariance commutant
+  doing the convicting.
+- **CV5/CV6** — the null-space census (one-wire band frees 24 of 64 Choi
+  entry positions, two-wire frees 20) and the W-B tie: the clone's
+  |00⟩⟨11| face rotates at exactly −2φ while any linear map's is a rate-1
+  mix — the numerical gap is the band structure on one entry.
+- **NC3** — the negative control: band-laundering the pinned images
+  (deleting off-band entries) satisfies the band but breaks cloning — the
+  covariant family and the clone-pinned family are jointly infeasible.
+
+Malformed basis images are refused by name (`COVARIANCE_SHAPE`); the
+certificate is deterministic. The W-B witness itself keeps running unchanged
+— this table upgrades its reading, it does not replace the gate.
+
 ## Run
 
 ```
 npm install
-npm test        # laws + witnesses + smuggling trials
+npm test        # laws + witnesses + smuggling trials + the clone-gap certificate
 npm run repro   # renders out/reports/the-dossier.md (refuses illegal dossiers)
 npm run typecheck
 ```

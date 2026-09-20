@@ -195,6 +195,38 @@ stay" has no referent at all. That is this repo.
   double-sourcing; no cited theorem is re-proved — every identity is
   elementary algebra executed on two paths.
 
+### S9 — the recombination interference ledger (`src/kernel/recombine.ts`, v0.5.0)
+
+- Two phase-carrying survivors of the SAME funded set, recombined
+  Mach-Zehnder style (path register opened, 50:50 splitter, tunable
+  compensator phase): **P_rec(θ) = ½(1 + Re[e^{iθ}⟨A|B⟩])**, maximized at
+  **P_rec = ½(1+V)** with V = |Σ_x w_x e^{iΔφ_x}|/P — computed on THREE
+  paths (explicit circuit execution on the path⊗address state, amplitude
+  inner product, closed-form sum; worst deviation 3.3e-16 over the family
+  census), extending phaseOverlap's two-path face to the recombination
+  probability.
+- **The ℓ¹ bound and the alignment equality**: V ≤ 1 by the triangle
+  inequality — the bound evaluates to 1 on the survivor frame (Σ_funded w_x
+  = P, computed not asserted) and is ATTAINED by the diagonal alignment
+  control χ_x = −Δφ_x: after diag(e^{iχ}) the recombination succeeds with
+  probability 1 to 2.2e-16 (stable-world AT14's alignment-bank identity,
+  executed on the postselected survivor face — its twin, cross-repo).
+- **The spec conviction recorded in the source**: the R18 design draft
+  asserted "E[V] = 0 under independent uniform phases"; the machine trial
+  convicted the literal wording BEFORE the kernel was written (E[V] = 0.366
+  at t = 6 — the 2-D random-walk modulus scale √π/(2√t) = 0.3618). The
+  theorem that survives: the COMPLEX amplitude E[A] = 0 exactly (analytic,
+  witnessed at 3σ); E[V] itself is DATA at the random-walk scale.
+- Negative controls: high-visibility claims under random phases are
+  convicted on the dispersed (equal-weight) prior (random-vs-random
+  V = 0.155, P_rec = 0.578 on the witness instance); on concentrated
+  weights V is phase-insensitive (DATA — the visibility account belongs to
+  the dispersed prior, exactly where the alignment control means something).
+- Honest boundaries: two survivors of the same funded set only (no
+  multi-branch networks); phase priors cover the two poles
+  (independent-uniform / fully aligned), nothing between is a theorem; the
+  MC face is a realization referee only.
+
 ## The census laws (G1-G5, `src/kernel/audit.ts`)
 
 - **G1 — both faces, always**: a rate row ships conditional AND unconditional
@@ -215,7 +247,7 @@ stay" has no referent at all. That is this repo.
 
 ```
 npm ci
-npm test          # 71/71
+npm test          # 78/78
 npm run repro     # renders out/reports/the-survivor-census.md, seconds
 ```
 

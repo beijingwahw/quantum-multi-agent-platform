@@ -151,6 +151,49 @@ weak-DSIC flat (charge 0), counted honestly. The gauge-readoff census gains
 a two-parameter non-linear gauge, read off coefficient-exact with hidden
 own-report terms convicted on sight.
 
+**T11 the period/Green classifier (v0.5.0)**: payment EXISTENCE as one
+decidable criterion, closing the gap between the two layers the repo had
+kept apart. (a) GREEN EXECUTED — for a polynomial 1-form and a
+rational-vertex polygon loop, both sides of Green's identity hold in exact
+rational arithmetic: the line route (per-edge FTC pullbacks) and the area
+route (an origin-cone decomposition into DIRECTED triangles, each
+monomial integrated by the reference-simplex closed form c!d!/(c+d+2)!),
+concave loops included (the naive unsigned fan that fills the notch is
+convicted), nonzero curl included (the skew form's flux −2c·area matches
+the T5 engine's −2cwh exactly). (b) POLYNOMIAL CLOSED ⟹ EXACT ON ANY
+REGION — the radial Poincaré pullback exhibits the GLOBAL polynomial
+potential (dΦ = α coefficient-wise), so the period around EVERY loop —
+including loops winding around holes — is exactly ZERO: T2's
+"closed ⟹ exact on finitely many reports", promoted past every hole (a
+polynomial curl has no poles; Green fills any interior). (c) THE
+OBSTRUCTION IS POLE-ONLY — a closed RATIONAL form can fail exactness on a
+holed region ONLY if its denominator has a zero inside the hole: the pole
+census decides it by three exact channels (a rational root HIT, slice
+STURM sign-variation counts, and the axis-centered quadratic NO-pole
+certificate with a TOTAL coefficient readoff — a partial readoff would
+forge bounds, and the regression anchor proves it refuses them). One
+criterion — closedness AND no pole — unifies the T2 and K3 layers; the
+winding form (pole inside: period 2π, K3's territory) flips to EXACT the
+moment its pole is shifted out of the hole, the spec's negative control
+executed. Undecidable denominators are reported undecided, never guessed.
+
+**T12 the Groves drift quadratic on the affine moduli space (v0.5.0)**:
+the [G] drift of the envelope-compatible payment, symbolically on the
+THREE-parameter moduli space x = a·s + b₀ + b₁·o (the intercept affine in
+the other's type — the efficient rule itself lives at b = (1−o)/2, so a
+constant-intercept space cannot even host it): D = (a−2a²)s + a(1−2b₀) −
+a(1+2b₁)o, exactly, coefficient-wise. The GROVES LOCUS — where D is the
+zero polynomial in (s, o) — is precisely {a = 0} ∪ {(1/2, 1/2, −1/2)}: the
+degenerate constant-rule slice and the single EFFICIENT point (on the
+implementable cone a > 0, Groves = efficient — the GL79 reading executed
+on moduli space). The K2 κ-law κ(1−κ)(n−1)s/n is the one-parameter
+specialization through the efficient intercept, cross-checked
+value-by-value against the repo's own kappaGrovesDrift. Spec-as-hypothesis
+record: the design sketch's literal "Groves orbit = the a = 1 slice" and
+"the drift is independent of b" are both REFUTED by the machine (D's a = 1
+slice is −s + 1 − o − 2b; the drift carries the −2ab cross-terms) — the
+smuggled intercept-free claim is convicted by the surviving monomials.
+
 ## Honest boundaries
 
 - **What is proved**: both instantiations of the algebra at the discrete
@@ -197,6 +240,6 @@ own-report terms convicted on sight.
 npm ci && npm test && npm run repro
 ```
 
-91/91 tests; seven reports rebuilt in about a second and a half. Seeded,
+114/114 tests; seven reports rebuilt in about a second and a half. Seeded,
 zero runtime dependencies, TypeScript strict + NodeNext. Reports land in
 `out/reports/`. Citations (web-verified): [docs/citations.md](docs/citations.md).

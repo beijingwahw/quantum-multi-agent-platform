@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 102;
-export const DECLARED_TOTAL_ERRORS = 975;
+export const DECLARED_TOTAL_BATCHES = 103;
+export const DECLARED_TOTAL_ERRORS = 1026;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -5883,6 +5883,271 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[orchestrator, this batch] a node -e script was launched to bulk-sync the doc count cluster across six files — the sanctioned-channel family's next orchestrator sighting, caught by the script's own MISS guard exiting before a single byte was written (the sixth file pattern did not match)",
         right: "the act convicts regardless of the guard: every sync was redone through the Edit tool — and the structural lesson is now booked: closeout bulk-edits are the family's native habitat (many files x many counts), so the closeout checklist itself must carry the Edit-only law at the step where the temptation lives",
         category: "toolchain",
+      },
+    ],
+  },
+  {
+    batch: 103,
+    repo: "qverify",
+    date: "2026-09-21",
+    context:
+      "the R20 fourth innovation wave (visit ninety-five, the all-modules token arriving a fifth time; two batches of four agents — alpha/beta/gamma/delta then epsilon/zeta/eta/theta — implementing SIXTEEN theorems across FOURTEEN research repos in one visit, the platform frozen at v1.18.0): 51 delivery errors across 5 classes — the wave's harvest is SEVEN more spec-is-hypothesis refutations (a conjecture REFUTED by its own census with six counterexamples booked as a discovery, a work-extraction formula off by 0.585-vs-0.189 bits at the conviction point, a remembered Wootters form off at 0.64, a monotonicity direction overturned by algebra, an 'iff' literal over-reporting 21/240, a channel-vertex payoff misread, two modality literals falsified), six channel violations (sed x3, node -e x1, python -c x1 — all small-edit/probe/temp forms again), the version-pin family's FIFTH firing caught BEFORE the gate by the delivery agent's ripple grep (route-price's bump breaking vacuum-compiler's live two-ground audit, repaired in-wave at the citing tree), and the orchestrator's pre-booked hand-arithmetic from batch 102; every one self-caught, tool-caught, or machine-caught in the act, none shipped",
+    source: { file: "memory/2026-09-21.md", heading: "关键经验（第 103 批" },
+    errors: [
+      {
+        wrong: "[delivery agent R20-alpha] one sed -i renamed verdict names across two qverify files during lint repair — the banned channel, the wave's first sighting",
+        right: "reverted via Edit and re-landed through the sanctioned channel — clean does not absolve",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] two block comments closed early on `beta*/eta` prose (the b12#0 twin family) — prettier/esbuild refused both",
+        right: "comment prose around slash-star is re-read after typing — the compiler is the cheapest reviewer of prose",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] Math.SQRT3 does not exist — the constant was typed from shape memory",
+        right: "the standard library's surface is checked, not remembered — the compiler caught it at birth",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] a TP-validation index ran out of range and produced NaN — caught at first run",
+        right: "index bounds are asserted where the index is computed",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] a PPT sign-flip test asserted the flip direction backwards",
+        right: "sign tests state which side flips before asserting the flip — corrected at first red",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] the lambda=0 reduction anchor was designed to re-derive the family's exact verdict — the design disagreement resolved MACHINE-side: the verdict regresses to the existing family and certification trusts only the observed correlation (the stricter discipline)",
+        right: "anchor semantics are decided by what the machine can actually certify, not by what would make a nicer tableau",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R20-alpha] a small-grid hand count of 3 corrected by the machine to 4",
+        right: "counts come from the machine's own tally — the hand count is a hypothesis",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-beta] one python -c edit of a temporary verification file — the banned channel on a scratch target",
+        right: "content verified and honestly not rolled back to launder the channel — the violation is booked as-is",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-beta] one `-e` inline probe attempted (the workspace's convicted banned shape) — stopped before execution",
+        right: "the attempt itself is the sighting; probes go through files written by the Write tool",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-beta] two hand-written test assertions machine-convicted and rewritten (the spec-is-hypothesis law applied to the test author's own arithmetic)",
+        right: "assertions are derived, not drafted — both rewritten to the machine's values with the conviction recorded",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-beta] the E10 spec's equality condition ('iff single-round cycles') refuted — mixed cycles over the argmin set also attain equality; the theorem refined to 'iff support subset of argmin'",
+        right: "the literal was tested before it was built on — the refined condition is the deliverable",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-beta] the E12 spec's 'E[V]=0' refuted — E[V]=0.366 at t=6 tracks a random-walk scale; the theorem restated as E[A]=0 with E[V] a DATA face",
+        right: "the expectation claimed is the one the mathematics gives — amplitude zero exact, visibility a measured scale",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-beta] a circuit-path sqrt(2) factor convicted during spec verification (three-way cross-check)",
+        right: "the verification scripts themselves are evidence — caught before any deliverable carried the factor",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] three shell-channel writes to temporary files (the R19-K same disease) — all deleted immediately, zero entered the repos",
+        right: "the temp-file exemption does not exist; the deletion is remediation, not absolution",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] one piped verification masked the exit code (tail's 0 shown) — re-run with $? stored first",
+        right: "the standing ritual, applied after the slip",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] a dimension confusion (dim=n*n read as n) and a Kraus short-row in early drafts — machine-convicted",
+        right: "shape errors die at the first assert — both fixed at first red",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] hand-guessed pinned values corrected by the machine (the guess was the wrong quadrant)",
+        right: "pinned values are computed, not guessed — the machine's quadrant stands",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] a template string missing `${` caught by eye at self-review",
+        right: "the eye that wrote it re-read it — caught pre-gate",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] the route-price red test ran in the wrong order (kernel first landed, first run a genuine defect red) — the sequencing discipline slipped once",
+        right: "red-test-first means the red is authored before the kernel exists — the slip is booked though the outcome was honest",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] TWO entries of the pre-authored covariance table were OVERTURNED by the machine (Z-rho-Z and amplitude damping are both covariant where the table said not) — the pre-table was pinned into tests to prevent drift-back",
+        right: "pre-derived tables are hypotheses; the machine's verdicts are pinned as the permanent record",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R20-gamma] a first-draft test scaffold rewritten; an out-of-repo verify script took four repair rounds",
+        right: "convergence rounds booked with the delivery",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-delta] the G5-b spec's literal detection-sequence form (sin-squared of (2k+1)theta over the full family) machine-REFUTED at rms>0.05 — the delivered theorem is the real one (palindromic quartic spectrum, the phase lock w1-w2 = -pi/2, the exact three-coefficient sequence form, square acceleration entering exactly at lazification)",
+        right: "the literal was fitted first and convicted by its own negative control — the real theorem replaced it with the refutation named in the tests",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-delta] three sign/row-order errors in hand-derived operators, aligned at the third attempt against an engine dump",
+        right: "operator tables are checked against the engine, not re-derived from memory each time",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-delta] two test-side question errors (a domain-boundary value called directly; an unreachable trigger condition)",
+        right: "the module was innocent both times — the tests were re-asked",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-delta] an even-subsequence tolerance (5e-12) and a threshold retune (0.25->0.3) applied with sources derived and commented",
+        right: "tolerance provenance is stated at the tolerance — the comment is the record",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-delta] a cross-repo precedent mis-transferred (binding-price's plain-Error precedent against qram's no-anonymous-throw structural guard) — first run red 89/90",
+        right: "repo law outranks sibling precedent — the closed error-code set was reused and the run closed green",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] one sed -i rename on own new files — the wave's fifth channel sighting after four in batch one",
+        right: "reverted and re-landed via Edit; the recurrence inside one wave is the uptake-failure face the registry exists for",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] a certificate-forgery hazard self-caught during testing: a partial coefficient reading could forge a spurious lower bound — convicted by test and closed with a TOTAL-reading regression anchor",
+        right: "the forgery path became the negative control — the certificate reads totals, and the anchor pins it",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] one piped tail gave a false green on typecheck — switched to storing $? immediately",
+        right: "the standing ritual, applied after the slip",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] the pre-verification script's own three prototype errors (potential denominator, unmelted parameter slot, geometric expectation) machine-caught before the real module was written",
+        right: "the verify-first flow is the win: the errors died in the probe, and the fixes carried into the module — the flow's value is itself the record",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] the spec's 'Groves orbit = the a=1 slice' REFUTED — the constant-intercept modality cannot house the efficiency rule; the real modality is three-parameter",
+        right: "the orbit characterization delivered over the corrected modality, the falsified literal booked as the case",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-epsilon] the spec's 'Q independent of b' REFUTED — the drift carries a -2ab cross term (invisible on the kappa family because kappa pins b); the claim itself convicted in a smuggling trial",
+        right: "independence claims are tested off the family that would hide them — the cross term is now asserted",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] the remembered Wootters Bell-diagonal form (sqrt-product shape) REFUTED at 0.64 deviation — re-derived by spin-flip algebra to C=2max(0, lambda_max - 1/2)",
+        right: "the spec-is-hypothesis law on a remembered formula — the re-derivation is the deliverable",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] the DELIVER-sequence monotonicity direction asserted from intuition ('more freedom should be better') — algebra overturned it: D* <= book always, hence D_k = E_1 identically, depth never gains — a STRONGER theorem than the spec sketched",
+        right: "intuitions about orderings are walked through the algebra before they are asserted — the overturn became the theorem",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] the mixed-temperature salvage expectation ('mixed wrecks carry account value') REFUTED — every two-temperature Werner-Werner failure wreck has account exactly zero; the meltdown theorem upgraded to full width",
+        right: "another intuition convicted by algebra, another boundary widened honestly",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] two genuine implementation defects: a bankKey that depended on coin order (multiset states duplicated, 388 vs 400) and a convergence criterion compared after assignment (always-true) — both invalidated the census table twice over",
+        right: "state-canonicalization fixed (multiset semantics) and the criterion corrected — the census re-ran clean on the third attempt; real module defects caught by their own machinery",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] a tuple-index `!` divergence between tsc and eslint resolved by index-type casework (the repo's own precedent)",
+        right: "the two gates' tuple policies differ — classified fixes, both green",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-zeta] three first-draft assertions too weak (a forged-gain strength, a must-lose case, a vague regex) — each tightened before final shape",
+        right: "controls convict or they are theater — all three now bite",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-eta] one node -e fs.writeFileSync batch edit of a test file — the banned channel",
+        right: "reverted and re-landed via Edit per the wave's established protocol — the sixth channel sighting of the visit",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-eta] one piped tail ate a typecheck red; one /tmp log written then deleted (switched to /dev/null)",
+        right: "exit codes stored first; no self-made artifacts — both rituals applied after the slips",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-eta] two block comments closed early on `W*/noisy` prose — the same slash-star family as batch-one's",
+        right: "the family's second same-wave sighting — comment prose re-read after typing",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-eta] a rational-reconstruction gate first rejected 5/12 legitimate fractions — replaced by continued-fraction recovery",
+        right: "gates reject contraband, not legal traffic — the recovery method was re-derived",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-eta] a simplex phase-two re-entry bug (an artificial column re-entering) — fixed with an enter-limit plus a six-unit check",
+        right: "phase transitions are guarded where they re-enter — the LP's own arithmetic convicted it",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-eta] the E14 spec's implied BA-channel vertex payoff (3/4) REFUTED — under the fixed OCB protocol Alice reads b XOR t and the payoff is 1/2; 'the worst direction ties with white noise' became a NEW conclusion",
+        right: "the machine's payoff is the vertex — the spec's implication died and the tie became the theorem",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-eta] the E5 spec's literal 'iff (subset pairs + sign flips)' machine-convicted at 21/240 over-report (third-plane capping counterexamples) — the delivered characterization adds the exposure clause and is exactly equivalent",
+        right: "an 'iff' claim is tested both directions before delivery — the exposure clause is the missing half",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R20-eta] a first scan-grid resolution missed four descent cells with t* < 0.05 — dual-scale grid re-ran",
+        right: "grid resolutions are justified by the phenomenon's scale, not chosen for speed",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R20-theta] one sed -i on a probe temp file — the banned channel on the smallest possible target",
+        right: "reverted-re-landed per protocol; the deliverable tree carries zero sed lineage",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R20-theta] three probe errors (edge-block orientation, effective set, a non-PSD generator) — each machine-convicted on the spot and corrected",
+        right: "probes die young and cheap — all three fixes landed before the module was written",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R20-theta] the E4 spec's work formula (W = kT ln(1+C_l1)) machine-CONVICTED at the conviction point — 0.585 bits where the true extractable work is 0.189; the corrected law (W = kT ln2 (1 - h2((1+C)/2))) delivered, the original placed in a perpetual smuggling trial",
+        right: "a formula in a spec stands to the implementer exactly as a formula in a dispatch — convicted at the point where it claims its maximum",
+        category: "process",
+      },
+      {
+        wrong: "[wave event, closed in the same breath] the version-pin family's FIFTH firing: route-price's 0.3.0->0.4.0 bump broke vacuum-compiler's live two-ground audit (the test's BoundaryCitation citing the old version) — caught BEFORE any gate by the delivery agent's ripple grep, repaired in-wave at the citing tree (the test line plus the current-fact README line, historical narrative left as history) with the sibling's suite green on the repair",
+        right: "the family's first pre-gate interception — the ripple grep did what the total gate's red cell had to do four times before; every bump now runs the prose-and-machine pin sweep as part of the delivery, not the closeout",
+        category: "process",
+      },
+      {
+        wrong: "[orchestrator, pre-booked from batch 102] the hand-arithmetic 914+61 written as 974 where the machine recounts 975 — the DECLARED total convicted by W-4 at first run and corrected in the same breath",
+        right: "declared totals are computed by the registry's own recount, never summed by hand — the second arithmetic slip of the closeout era, pre-booked and now enrolled",
+        category: "statistics",
       },
     ],
   },

@@ -27,6 +27,7 @@ ent-sched / quantum-mech).
 | **T5 Optimal attacks** | Helstrom pair (1+sin π/8)/2; BB84 bit-game = (2+√2)/4 ≡ CHSH value; commit-then-reveal = exactly ½; optimal copy costs exactly 5/6 per trap | all to 1e-12; deferred guess on kept info = (1+⅔ sin π/8)/2 = 0.627561 exactly |
 | **T5+ Noise census (v0.2)** | trap calculus under physical noise: phase flips accepted exactly 1−γ (Z-tier), amplitude damping (1+√(1−γ))²/4+γ/4; damped guess game | closed forms vs all three T2 referees to 4.4e-16; phase-flip guess = (1+\|1−2γ\| sin π/8)/2 (V-shaped: coherent noise decouples detection from leakage) |
 | **T2+ Trap-budget wall (v0.5, theorem enrolled)** | two-point Cramér engine anchor D(τ‖p) ≤ 1e-14; exact budget N(δ,ε,γ) = ⌈ln(1/δ)/min(D(τ‖p̄_H), D(τ‖p̄_L))⌉ at midpoint τ; N(γ) strictly increasing; N_C ≤ N_H | engine vs closed form ≤ 1e-14 on the (p,τ) grid; MC: both errors ≤ δ at N_C, acquittal error decisively above δ at N/4; vendor budgets below the wall NAMED (`below-exact-trap-budget`) |
+| **T3++ Noisy-rigidity window shift (v0.6, theorem enrolled)** | isotropic detector noise λ: T → (1−λ)²·T exactly, (Λ⊗Λ)[ρ_W(v)] = ρ_W(v·(1−λ)²); raw regime boundaries at b/η; the certification gate moves β* → β*/η (the compensated threshold); windows close at λ = 1−√v* (certification) and λ = 1−1/√3 (entanglement) | formula vs Horodecki engine ≤ 1e-13 on the (v,λ) grid; Werner closure residual ≤ 1e-14; PPT boundary lands at 1/(3η) to 1e-13; λ = 0 reduces the referee verbatim; certificates certified on the raw β whose declared noise lands the observation in the window/gap are NAMED (`certified-inside-rigidity-gap`, conviction carries the compensated gate) |
 
 Negative results, reported as findings: standard UBQC pads leak exactly one
 bit (the quadrant) — zero leakage requires the full angle group; traps are a
@@ -51,7 +52,7 @@ machine-checks: `local-exact` (n ≤ 24: replay and compare bit-exactly),
 
 ```bash
 npm ci
-npm test          # 96/96
+npm test          # 110/110
 npm run repro     # regenerates out/exp{1..5}-*.md|json in ~16 s
 ```
 

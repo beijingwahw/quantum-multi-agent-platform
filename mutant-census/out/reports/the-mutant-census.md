@@ -128,13 +128,13 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 975 errors across 102 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 1026 errors across 103 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 344 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 514 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 565 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
@@ -143,11 +143,11 @@ The registry is imported LIVE on every run: 975 errors across 102 batches, each 
 | citation-drift | 0 | 32 | 17 |
 | conjugation | 19 | 10 | 0 |
 | dimension-slot | 29 | 22 | 0 |
-| machine-overruled | 0 | 47 | 6 |
-| process | 0 | 69 | 256 |
-| statistics | 25 | 33 | 18 |
-| toolchain | 0 | 66 | 121 |
-| wrong-object | 44 | 38 | 87 |
+| machine-overruled | 0 | 47 | 9 |
+| process | 0 | 69 | 275 |
+| statistics | 25 | 33 | 20 |
+| toolchain | 0 | 66 | 135 |
+| wrong-object | 44 | 38 | 100 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -875,6 +875,57 @@ The registry is imported LIVE on every run: 975 errors across 102 batches, each 
 - b102#58 [process] — an index-first redesign would have flipped an empty-bucket x corrupted-snapshot corner from silent-empty to throw — caught during design, preserved and pinned. Booked: the corner face — bit-identity obligations cover error paths and corners
 - b102#59 [toolchain] — one prefer-optional-chain finding. Booked: the gate's catch
 - b102#60 [toolchain] — the orchestrator launched a node -e script to bulk-sync the doc count cluster across six files — caught by the script's own MISS guard exiting before a byte was written; every sync redone through Edit. Booked: the closeout-habitat face — closeout bulk-edits are the family's native habitat (many files x many counts); the closeout checklist now carries the Edit-only law at the step where the temptation lives
+- b103#0 [toolchain] — one sed -i verdict rename across two files. Booked: the wave's first channel sighting — clean does not absolve
+- b103#1 [toolchain] — two block comments closed early on beta-slash-star prose. Booked: the b12#0 twin family — comment prose is re-read after typing
+- b103#2 [toolchain] — Math.SQRT3 typed from shape memory — it does not exist. Booked: the stdlib-surface face — checked, not remembered
+- b103#3 [wrong-object] — a TP-validation index out of range producing NaN. Booked: index bounds asserted where the index is computed
+- b103#4 [wrong-object] — a PPT sign-flip test asserting the direction backwards. Booked: sign tests state which side flips
+- b103#5 [machine-overruled] — the lambda=0 reduction anchor designed for a re-derived verdict — resolved machine-side: regressed to the family and certification trusts only observed correlation. Booked: the certifiable-semantics face
+- b103#6 [wrong-object] — a small-grid hand count 3 corrected to 4. Booked: counts come from the machine's tally
+- b103#7 [toolchain] — one python -c edit of a temporary verification file. Booked: the scratch-target face — content verified, channel booked as-is
+- b103#8 [toolchain] — one -e inline probe attempted and stopped. Booked: the attempt is the sighting
+- b103#9 [wrong-object] — two hand-written assertions machine-convicted and rewritten. Booked: assertions are derived, not drafted
+- b103#10 [process] — the E10 spec's equality condition refuted (mixed argmin cycles also attain equality) — refined to support-subset-of-argmin. Booked: the spec-is-hypothesis face
+- b103#11 [process] — the E12 spec's E[V]=0 refuted (0.366 at t=6, a random-walk scale) — restated as E[A]=0 with E[V] a DATA face. Booked: the expectation-claimed-is-the-one-given face
+- b103#12 [wrong-object] — a circuit-path sqrt2 factor convicted during spec verification. Booked: verification scripts are evidence
+- b103#13 [toolchain] — three shell-channel writes to temporary files (the R19-K same disease). Booked: the temp-file exemption does not exist
+- b103#14 [toolchain] — one piped tail masked an exit code. Booked: the $?-first ritual applied after the slip
+- b103#15 [wrong-object] — a dimension confusion (n*n read as n) and a Kraus short-row. Booked: shape errors die at the first assert
+- b103#16 [wrong-object] — hand-guessed pinned values in the wrong quadrant, machine-corrected. Booked: pinned values are computed
+- b103#17 [process] — a template string missing ${ caught by eye. Booked: the writer re-reads
+- b103#18 [process] — the route-price red test sequenced kernel-first (first run a genuine defect red instead of an authored red). Booked: the red-authored-first face
+- b103#19 [machine-overruled] — TWO entries of the pre-authored covariance table overturned by the machine (Z-rho-Z and amplitude damping both covariant) — pinned into tests to prevent drift-back. Booked: the pre-table-is-hypothesis face
+- b103#20 [process] — a first-draft test scaffold rewritten; an out-of-repo verify script took four rounds. Booked: convergence rounds with the delivery
+- b103#21 [process] — the G5-b spec's literal detection-sequence form refuted at rms>0.05 — the real theorem (palindromic quartic, phase lock, exact sequence form, square acceleration at lazification) delivered with the refutation named in tests. Booked: the literal-fitted-and-convicted face
+- b103#22 [wrong-object] — three sign/row-order errors in hand-derived operators, aligned against an engine dump at the third attempt. Booked: operator tables checked against the engine
+- b103#23 [wrong-object] — two test-side question errors (domain-boundary direct call; unreachable trigger). Booked: the module was innocent
+- b103#24 [process] — an even-subsequence tolerance and a threshold retune applied with derived, commented provenance. Booked: tolerance provenance stated at the tolerance
+- b103#25 [process] — a cross-repo precedent mis-transfer (plain-Error against the repo's no-anonymous-throw guard) — first run 89/90. Booked: repo law outranks sibling precedent
+- b103#26 [toolchain] — one sed -i rename on own new files — the wave's fifth channel sighting after four in batch one. Booked: the same-wave recurrence is the uptake-failure face
+- b103#27 [process] — a certificate-forgery hazard self-caught (partial coefficient readings could forge a lower bound) — convicted by test and closed with a TOTAL-reading regression anchor. Booked: the forgery-path-becomes-the-control face
+- b103#28 [toolchain] — one piped tail gave a false green on typecheck. Booked: the $?-first ritual
+- b103#29 [process] — the pre-verification script's own three prototype errors machine-caught before the module was written. Booked: the verify-first flow is the win — errors die in the probe
+- b103#30 [process] — the spec's 'Groves orbit = a=1 slice' refuted — the modality is three-parameter. Booked: the modality-literal face
+- b103#31 [process] — the spec's 'Q independent of b' refuted (a -2ab cross term invisible on the kappa family) — the claim convicted in a smuggling trial. Booked: independence tested off the hiding family
+- b103#32 [process] — the remembered Wootters Bell-diagonal form refuted at 0.64 — re-derived to C=2max(0, lambda_max-1/2). Booked: the spec-is-hypothesis law on a remembered formula
+- b103#33 [process] — the DELIVER-monotonicity intuition overturned by algebra: D*<=book always, depth never gains — a stronger theorem than the spec sketched. Booked: orderings walked through the algebra
+- b103#34 [process] — the mixed-temperature salvage expectation refuted — all two-temperature Werner-Werner wrecks have account exactly zero; the meltdown theorem upgraded to full width. Booked: another intuition convicted, another boundary widened
+- b103#35 [machine-overruled] — two genuine implementation defects (a bankKey depending on coin order duplicating multiset states 388-vs-400; a convergence criterion compared after assignment, always-true) — the census table invalidated twice before the fix. Booked: real module defects caught by their own machinery
+- b103#36 [toolchain] — a tuple-index ! divergence between tsc and eslint resolved by index-type casework. Booked: the two gates' tuple policies differ
+- b103#37 [wrong-object] — three first-draft assertions too weak — each tightened. Booked: controls convict or they are theater
+- b103#38 [toolchain] — one node -e batch edit of a test file. Booked: the wave's sixth channel sighting — reverted and re-landed via Edit
+- b103#39 [toolchain] — one piped tail ate a typecheck red; one /tmp log written then deleted. Booked: both rituals applied after the slips
+- b103#40 [toolchain] — two block comments closed early on W-slash-star prose — the family's second same-wave sighting. Booked: comment prose re-read
+- b103#41 [wrong-object] — a rational-reconstruction gate rejected 5/12 legitimate fractions — replaced by continued-fraction recovery. Booked: gates reject contraband, not legal traffic
+- b103#42 [wrong-object] — a simplex phase-two re-entry bug (an artificial column re-entering) — fixed with an enter-limit plus a six-unit check. Booked: phase transitions guarded where they re-enter
+- b103#43 [process] — the E14 spec's implied BA-vertex payoff (3/4) refuted — under the fixed OCB protocol it is 1/2, and 'the worst direction ties with white noise' became a new conclusion. Booked: the machine's payoff is the vertex
+- b103#44 [process] — the E5 spec's literal iff convicted at 21/240 over-report — the delivered characterization adds the exposure clause and is exactly equivalent. Booked: iff claims tested both directions
+- b103#45 [statistics] — a first scan-grid resolution missed four descent cells below 0.05 — dual-scale grid re-ran. Booked: grid resolutions justified by the phenomenon's scale
+- b103#46 [toolchain] — one sed -i on a probe temp file — the smallest possible target. Booked: reverted-re-landed; the deliverable tree carries zero sed lineage
+- b103#47 [wrong-object] — three probe errors (edge-block orientation, effective set, non-PSD generator) machine-convicted on the spot. Booked: probes die young and cheap
+- b103#48 [process] — the E4 spec's work formula convicted at the conviction point (0.585 claimed vs 0.189 true bits) — the corrected law delivered, the original placed in a perpetual smuggling trial. Booked: a spec formula stands to the implementer exactly as a dispatch formula
+- b103#49 [process] — the version-pin family's FIFTH firing: route-price's bump broke vacuum-compiler's live two-ground audit — caught BEFORE any gate by the delivery agent's ripple grep and repaired in-wave at the citing tree with the sibling green on the repair. Booked: the first pre-gate interception — the ripple grep did what the total gate's red cell had to do four times before
+- b103#50 [statistics] — the orchestrator's pre-booked hand-arithmetic 914+61=974 where the machine recounts 975 — convicted by W-4 at first run. Booked: declared totals are computed by the registry's own recount, never summed by hand
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -1094,15 +1145,15 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 288 | b1 | b102#58 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 155 | b2 | b102#57 | BOOKED-UNENFORCEABLE |
-| cat:toolchain | 143 | b1 | b102#60 | BOOKED-UNENFORCEABLE |
-| cat:statistics | 73 | b3 | b102#54 | BOOKED-UNENFORCEABLE |
+| cat:process | 307 | b1 | b103#49 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 167 | b2 | b103#47 | BOOKED-UNENFORCEABLE |
+| cat:toolchain | 156 | b1 | b103#46 | BOOKED-UNENFORCEABLE |
+| cat:statistics | 75 | b3 | b103#50 | BOOKED-UNENFORCEABLE |
+| cat:machine-overruled | 52 | b4 | b103#35 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
-| cat:machine-overruled | 49 | b4 | b102#37 | BOOKED-UNENFORCEABLE |
 | cat:citation-drift | 46 | b6 | b100#7 | BOOKED-UNENFORCEABLE |
-| shell-template-heredoc | 42 | b10 | b102#52 | BOOKED-UNENFORCEABLE |
-| runner-path | 36 | b14 | b102#48 | BOOKED-UNENFORCEABLE |
+| shell-template-heredoc | 43 | b10 | b103#7 | BOOKED-UNENFORCEABLE |
+| runner-path | 37 | b14 | b103#12 | BOOKED-UNENFORCEABLE |
 | cat:conjugation | 28 | b4 | b79#3 | GATE-ENFORCED |
 | edit-anchor | 21 | b22 | b102#20 | BOOKED-UNENFORCEABLE |
 | cat:anchor-blindspot | 19 | b9 | b102#33 | BOOKED-UNENFORCEABLE |
@@ -1111,7 +1162,7 @@ The E-board made every error answer for its enforcement; the A-board made every 
 | tautological-witness | 3 | b79 | b101#25 | BOOKED-UNENFORCEABLE |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 
-The catch census: gate 177 / author 744 / numbers 53 / visitor 1 over 975 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 191 / author 778 / numbers 56 / visitor 1 over 1026 errors — the gate fraction rose from 1% (batches 1-22) to 24% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -1247,7 +1298,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 452 | the reason is true as written; the basis states the ungated face |
+| HELD | 503 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1778,6 +1829,57 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b102#58 — corner face: the corner is preserved and pinned — bit-identity obligations cover corners
 - **HELD** b102#59 — gate's catch: optional-chained in the delivered file
 - **HELD** b102#60 — closeout-habitat face: zero bytes landed (the script's own MISS guard exited first) and every sync went through Edit — the structural lesson: the closeout checklist now carries the Edit-only law at the bulk-sync step
+- **HELD** b103#0 — channel face: reverted and re-landed via Edit — the standing row
+- **HELD** b103#1 — comment-prose face: the compiler refused both — the cheapest reviewer of prose
+- **HELD** b103#2 — stdlib face: caught at birth by the compiler
+- **HELD** b103#3 — index-bound face: caught at first run
+- **HELD** b103#4 — sign-test face: corrected at first red
+- **HELD** b103#5 — certifiable-semantics face: the machine decides what an anchor can certify — the stricter discipline adopted
+- **HELD** b103#6 — machine-tally face: the hand count is a hypothesis
+- **HELD** b103#7 — scratch-target face: booked as-is, no rollback laundering
+- **HELD** b103#8 — attempt-is-sighting face: stopped before execution
+- **HELD** b103#9 — derived-not-drafted face: both rewritten with convictions recorded
+- **HELD** b103#10 — spec-is-hypothesis face: the refined condition is the deliverable
+- **HELD** b103#11 — expectation face: amplitude zero exact, visibility a measured scale
+- **HELD** b103#12 — verification-scripts-are-evidence face: caught before any deliverable carried it
+- **HELD** b103#13 — temp-file face: deletion is remediation, not absolution
+- **HELD** b103#14 — ritual face: applied after the slip
+- **HELD** b103#15 — shape face: died at the first assert
+- **HELD** b103#16 — computed-not-guessed face: the machine's quadrant stands
+- **HELD** b103#17 — writer-rereads face: caught pre-gate
+- **HELD** b103#18 — red-authored-first face: booked though the outcome was honest
+- **HELD** b103#19 — pre-table face: the machine's verdicts pinned as the permanent record
+- **HELD** b103#20 — convergence face: booked with the delivery
+- **HELD** b103#21 — literal-fitted-and-convicted face: the real theorem delivered with the refutation named in tests
+- **HELD** b103#22 — engine-check face: aligned at the third attempt
+- **HELD** b103#23 — test-question face: the module was innocent
+- **HELD** b103#24 — provenance face: derived and commented at the tolerance
+- **HELD** b103#25 — repo-law face: closed error-code set reused, run closed green
+- **HELD** b103#26 — uptake-failure face: the same-wave recurrence is the row's reason
+- **HELD** b103#27 — forgery-path face: the hazard became the negative control
+- **HELD** b103#28 — ritual face: applied after the slip
+- **HELD** b103#29 — verify-first face: the errors died in the probe and the fixes carried into the module
+- **HELD** b103#30 — modality-literal face: the corrected modality delivered
+- **HELD** b103#31 — off-the-hiding-family face: the cross term is now asserted
+- **HELD** b103#32 — remembered-formula face: the re-derivation is the deliverable
+- **HELD** b103#33 — ordering face: the overturn became the theorem
+- **HELD** b103#34 — boundary-widened face: another intuition convicted
+- **HELD** b103#35 — own-machinery face: multiset semantics fixed, census clean on the third run
+- **HELD** b103#36 — tuple-policy face: classified fixes, both green
+- **HELD** b103#37 — controls-bite face: all three tightened
+- **HELD** b103#38 — channel face: the sixth sighting — reverted and re-landed
+- **HELD** b103#39 — ritual face: both applied after the slips
+- **HELD** b103#40 — comment-prose face: the family's second same-wave sighting
+- **HELD** b103#41 — legal-traffic face: continued-fraction recovery re-derived
+- **HELD** b103#42 — re-entry face: guarded where they re-enter
+- **HELD** b103#43 — vertex face: the tie became the theorem
+- **HELD** b103#44 — both-directions face: the exposure clause is the missing half
+- **HELD** b103#45 — grid-scale face: dual-scale re-ran
+- **HELD** b103#46 — smallest-target face: zero sed lineage in the deliverable tree
+- **HELD** b103#47 — probes-die-young face: all three fixed before the module
+- **HELD** b103#48 — spec-formula face: the corrected law delivered, the original in perpetual trial
+- **HELD** b103#49 — pre-gate-interception face: the ripple grep did the gate's work before the gate — the pin sweep is now part of the delivery
+- **HELD** b103#50 — recount face: declared totals computed by the registry's own recount — the pre-booked slip enrolled
 
 ## T-board — the total gate
 
@@ -1790,11 +1892,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 28/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (975 errors enrolled LIVE against a registry of 102 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 514, every booked row printed on the report)
+- PASS — W-F enrollment census (1026 errors enrolled LIVE against a registry of 103 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 565, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 975 errors (16 recurring, all resolved); catch census gate 177 / author 744 / numbers 53 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 1026 errors (16 recurring, all resolved); catch census gate 191 / author 778 / numbers 56 / visitor 1 — the gate fraction rose from 1% (b1-22) to 24% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (527 booked-population rows audited LIVE (of the 514 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 452 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (578 booked-population rows audited LIVE (of the 565 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 503 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries

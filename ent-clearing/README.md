@@ -29,6 +29,17 @@ The GHZ bank re-opened at an arbitrary coin angle, |GHZ_θ⟩ = (|000⟩ + e^{i�
 - **The basis census.** No measurement basis folds θ into any population — the R18 design draft expected Y to fold it and the machine refuted that: Y folds its OWN basis phase into the coin as θ − π/2, populations stay ½. Branch concurrence = |sin 2β| at every tilt (θ-free); the standard coin is withdrawn exactly at equatorial bases and nowhere else; the coin's phase is θ − φ (the transfer direction is enumerable).
 - **Claims discipline.** The desk carries its own seven-row claims table (TH1–TH7: five HOLDS, one CENSUS, two REFUTED) with an H8-style checker that recomputes every verdict; contraband tags are convicted by name. Concurrence/E_F exactness runs two paths: the linear cell 2|ρ_{00,11}| (exact to 1e-12) and the Wootters solver (cross-path at 1e-7 — its documented ~1e-8 noise on rank-deficient pure states is a face of the solver, not of the coin).
 
+## The salvage desk (v0.5.0, `src/kernel/recycle.ts`)
+
+The FAILED branch of a BBPSSW round, priced by dynamic programming. What executes: a bank of 1–4 Bell-diagonal coins; an action family of pairing rounds (each side optionally twirled first — the twirl is free as a local operation, never free of consequence); every transition on the 16×16 kernel with BOTH branch spectra cross-checked against their XOR closed forms (the fail branch's closed form is new here); and value iteration over the finite reachable graph — each round consumes two coins and leaves one, so bounded depth is conservation, not an assumption.
+
+- **R2 — step never-rises (VIDAL00 instantiated per action).** Every (state, action) pair's branch-averaged book value ≤ the acting bank's book, recomputed action by action from the kernels; a violation refuses by name — the smuggling trials' instrument.
+- **R3 — three value-iteration series.** HOLD (free to stop) is pinned AT the book at every depth; EXACT (forced to act at every depth) is non-increasing to its floor; DELIVER (forced first move, free afterwards) drops once and never climbs: **depth does not pay — the deliverable optimum is exactly the best single round (D* = E_1, a machine identity across the whole census)**.
+- **R4 — the L9 squeeze.** The conservation ledger's purification row is this DP's depth-1 face: book = L9's before and D* = L9's after EXACTLY at the canonical grade F = 0.85 (machine equality against `computeLedger()`); L9_after ≤ E_1 ≤ D* ≤ book = L9_before.
+- **R5 — the melt-down, two widths.** Isothermal: the failed residue is EXACTLY I/4 at every grade (all four Bell weights 1/4, E_F exactly 0). Werner–Werner at ANY two grades: every residue weight stays under 1/2 — the failed branch prices at exactly 0 however the grades mix; non-Werner leftovers (raw success branches) do carry book value and trade on the market like any coin.
+- **R6 — the census (17 rows).** Isothermal banks at the yield table's grades plus mixed-grade banks; every row's book / deliverable / gap / floor recomputes from the DP (1e-9, the row's numbers are keyed, the checker convicts a forgery). The recycling discount book − D* is strictly positive everywhere (0.030 per pair at F = 0.55 rising to 0.874 at F = 0.95), and a deeper mixed market recycles tighter (4-coin 0.118 vs 3-coin 0.296) — never once above the book.
+- **Contraband.** Three trials convict by name: a forged successor bank (EC_RECYCLE_MONOTONICITY), a census row claiming a NEGATIVE recycling discount, and the free refinery — a failed residue "re-distilled" against a fresh near-standard coin with the target's E_F never entering the ledger (the same physical transition with the target honestly on the books passes the same audit).
+
 ## Laws (the checker, `src/kernel/audit.ts`)
 
 - **H1** every trade carries BOTH columns (give and get) — single-sided quotes do not ship;
@@ -40,12 +51,12 @@ The GHZ bank re-opened at an arbitrary coin angle, |GHZ_θ⟩ = (|000⟩ + e^{i�
 - **H7** ledger honesty — every conservation row's claim must match the machine-recomputed delta (a fake conservation identity is rejected by recomputation);
 - **H8** GHZ-bank claim honesty — HOLDS/REFUTED/CENSUS tags must match the machine's recomputed verdict (a refuted wall claimed as holding is contraband).
 
-The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes twelve smuggling trials (one per law face plus the named-refusal boundary trials), the theta desk's four contraband-claim trials (v0.4.0), the render entry guard, a test that the exported render mains really run, and the quality anchors (every kernel throw carries a named EC_ code; the report printer refuses non-finite input by name).
+The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes twelve smuggling trials (one per law face plus the named-refusal boundary trials), the theta desk's four contraband-claim trials (v0.4.0), the salvage desk's three contraband trials (v0.5.0: a forged successor bank, a negative-discount census row, the free refinery), the render entry guard, a test that the exported render mains really run, and the quality anchors (every kernel throw carries a named EC_ code; the report printer refuses non-finite input by name).
 
 ## Run
 
 ```
-npm test        # the full suite: 76 tests (machinery, witnesses, 12 smuggling trials, the theta desk's 18, entry guard, render mains, quality anchors, boundary/determinism regressions)
+npm test        # the full suite: 94 tests (machinery, witnesses, 12 smuggling trials, the theta desk's 18, the salvage desk's 18, entry guard, render mains, quality anchors, boundary/determinism regressions)
 npm run typecheck
 npm run lint
 npm run repro   # renders out/reports/the-ent-clearing.md (board + yield table + ledger + GHZ bank + witnesses)
@@ -62,3 +73,4 @@ Zero runtime dependencies; TypeScript strict; the matrix kernel is the workspace
 5. E6 quotes the sibling books' settled tariff; this desk never re-executes another book's numbers.
 6. Public-key quantum money remains open — quantum-mech's boundary stands; this desk notarizes with private keys, as Wiesner's bank does.
 7. The board's quantum claims are all 2–3 qubit density matrices (up to 16×16 for the purification round); no hardware claims are made or implied.
+8. The salvage DP (v0.5.0) certifies its own action family — pairing rounds with optional twirls on Bell-diagonal banks of at most 4 coins. Optimality over ALL of LOCC stays cited (VIDAL00, VW02); the machine testifies within the family, the court cites beyond it.
