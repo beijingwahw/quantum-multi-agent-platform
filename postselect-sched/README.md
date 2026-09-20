@@ -179,12 +179,27 @@ ledger declines to quote"), executed as its own theorem layer:
   fabricate a ledger quote at an exact tie, a counterfeit plateau (two
   flavors: perturbed table; tie that is real but sub-dominant), and forged
   c₁ digits; the adjudicator NAMES and REJECTS each.
+- **The amplification-restart menu identity + the k\* monotone law (v0.4.0,
+  theorem enrolled, `menu-law.ts`)**: payStarMenu over the FULL amplified
+  menu {(k+1, p_k(θ))} equals eStarGrover(N,t) on every (N,t) — exhaustive
+  N ≤ 512 plus the 2^9..2^12 full-t grid, worst relative deviation 0
+  EXACTLY, zero argmin mismatches (the generic round-ratio referee and the
+  Grover-specific scan are two independent code paths saying the same
+  number); k\*(N,t) = argmin_k (k+1)/p_k is monotone NONINCREASING in t —
+  the whole-t ladder at N = 2^8..2^14 (32505 adjacent steps) has ZERO
+  up-steps, upgrading the zeroOptimal boundary to a whole-ladder law; the
+  k\*=0 boundary concentrates at c\* = (3−√2)/4 with the finite-N
+  correction delivered as DATA (|t_c/N − c\*| ≤ 1/N, correction·N < 1 on
+  the sampled grid; t_c−1 still amplifying — the boundary is exact), and
+  the two-sided clamp holds at c\* ± 0.01; three smuggling trials (a quoted
+  budget below the menu optimum, a forged k\* ladder with a planted
+  up-step, a mis-stated zero threshold) are each NAMED and REJECTED.
 
 ## Quickstart
 
 ```
 npm ci
-npm test          # 54/54
+npm test          # 65/65
 npm run repro     # rebuilds out/reports/t1..t6 markdown tables, seconds
 ```
 

@@ -17,3 +17,6 @@ export * from './execution-tier.js';
 // R14 创新波 opt-in：跨后端共识统计与读出误差缓解解码（未接入默认管线）
 export * from './cross-backend-consensus.js';
 export * from './readout-mitigation.js';
+// R18 创新波 opt-in：噪声感知后端选择器与对易性感知 FT 并行画像（未接入默认管线）
+export * from './noise-aware-backend-selector.js';
+export * from './commutation-ft.js';

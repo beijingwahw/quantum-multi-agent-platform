@@ -26,6 +26,7 @@ ent-sched / quantum-mech).
 | **T4+ Sample wall (v0.2)** | uniform-rejection counts N_C = ⌈ln(1/δ)/I₀(τ)⌉ (exact Cramér rate over all 2ⁿ values) and N_H = ⌈R²ln(1/δ)/2τ²⌉; shadow counts from exact per-shot moments | n=8 census: N_C = 28 (λ₀=1, δ=0.05) → 5023 (λ₀=0.1, δ=0.001), always ≤ N_H; MC: false-accept 0.0012 ≤ δ = 0.01 at N_C, 0.052 at N/4; shadow σ² = 2.107 exact, batch std matches to 2.5% |
 | **T5 Optimal attacks** | Helstrom pair (1+sin π/8)/2; BB84 bit-game = (2+√2)/4 ≡ CHSH value; commit-then-reveal = exactly ½; optimal copy costs exactly 5/6 per trap | all to 1e-12; deferred guess on kept info = (1+⅔ sin π/8)/2 = 0.627561 exactly |
 | **T5+ Noise census (v0.2)** | trap calculus under physical noise: phase flips accepted exactly 1−γ (Z-tier), amplitude damping (1+√(1−γ))²/4+γ/4; damped guess game | closed forms vs all three T2 referees to 4.4e-16; phase-flip guess = (1+\|1−2γ\| sin π/8)/2 (V-shaped: coherent noise decouples detection from leakage) |
+| **T2+ Trap-budget wall (v0.5, theorem enrolled)** | two-point Cramér engine anchor D(τ‖p) ≤ 1e-14; exact budget N(δ,ε,γ) = ⌈ln(1/δ)/min(D(τ‖p̄_H), D(τ‖p̄_L))⌉ at midpoint τ; N(γ) strictly increasing; N_C ≤ N_H | engine vs closed form ≤ 1e-14 on the (p,τ) grid; MC: both errors ≤ δ at N_C, acquittal error decisively above δ at N/4; vendor budgets below the wall NAMED (`below-exact-trap-budget`) |
 
 Negative results, reported as findings: standard UBQC pads leak exactly one
 bit (the quadrant) — zero leakage requires the full angle group; traps are a
@@ -50,7 +51,7 @@ machine-checks: `local-exact` (n ≤ 24: replay and compare bit-exactly),
 
 ```bash
 npm ci
-npm test          # 85/85
+npm test          # 96/96
 npm run repro     # regenerates out/exp{1..5}-*.md|json in ~16 s
 ```
 

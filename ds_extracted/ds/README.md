@@ -4,8 +4,8 @@
 
 > 🇬🇧 **English version**: [README.en.md](./README.en.md)（图内文字为中文，图注附英文关键词）
 
-![version](https://img.shields.io/badge/version-1.16.0-blue)
-![tests](https://img.shields.io/badge/tests-1033-brightgreen)
+![version](https://img.shields.io/badge/version-1.17.0-blue)
+![tests](https://img.shields.io/badge/tests-1171-brightgreen)
 ![typescript](https://img.shields.io/badge/TypeScript-5.9%20strict-blue)
 ![node](https://img.shields.io/badge/node-%3E%3D22-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -29,9 +29,9 @@
 | 🧠 | [市场机制研究线](#-市场机制研究线) | 增广 WDP · DSIC · 学习曲线 |
 | 📊 | [基准与性能](#-基准与性能) | 量子 5/5 · 匈牙利互证 · 23.5× 并行 |
 | 🚀 | [快速开始](#-快速开始) | 十条命令 + 代码示例 |
-| 🧪 | [测试与质量](#-测试与质量) | 1033 用例 · 六门禁 · 覆盖率棘轮 |
+| 🧪 | [测试与质量](#-测试与质量) | 1171 用例 · 六门禁 · 覆盖率棘轮 |
 | 📁 | [目录结构](#-目录结构) | 含图集生成器 |
-| 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.16 |
+| 🗓️ | [版本演进](#️-版本演进时间线) | v1.0 → v1.17 |
 | ⚠️ | [诚实的边界](#️-诚实的边界) | 等效≠真机 · 组合爆炸 · 热路径 |
 
 ---
@@ -254,7 +254,7 @@ git clone https://github.com/beijingwahw/quantum-multi-agent-platform.git
 cd quantum-multi-agent-platform
 npm install
 
-npm test                # 1033 用例 · 0 失败
+npm test                # 1171 用例 · 0 失败
 npm run typecheck       # 全仓类型检查（strict + noUncheckedIndexedAccess）
 npm run lint            # ESLint（typescript-eslint 推荐规则集）
 npm run example:basic   # 基础用法全链路（平台启停/调度/DSH 工具调用）
@@ -298,7 +298,7 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 
 ## 🧪 测试与质量
 
-**1033 用例 · 0 失败 · 91 个测试文件 / 309 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
+**1171 用例 · 0 失败 · 104 个测试文件 / 352 个套件**（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：
 
 ![质量门禁体系](docs/diagrams/16-quality.png)
 
@@ -325,7 +325,9 @@ console.log(report.assignments.map(a => `${a.taskName} → ${a.agentId} (p=${a.p
 | R15 缺陷清偿（r15p1/p2，红测先行） | 24 | dwave 超时预算共享·occurrences 垃圾具名拒绝 · 总线未知帧熔断·连接封顶入 security 账 · complete_task 严格布尔 · benchmark 种子化 RNG · min-cost-flow 增量陷阱具名拒绝 |
 | R16 ECCM（r16，两值谱单余弦定理） | 21 | 定理钉 ≤1e-12 · 闭式全局极小 vs 稠密 argmin ≤1e-9 · 双轴对拍 11/12 实例质量≤CD 且评估数 −99~−326 · 帕累托点四构形钉死 · 负对照 11 组 |
 | R17 严格正向升格（r17a-d：位势流 SPFA 平价·准入精确拒绝·批组成零成本路径·Hedge 组合） | 51 | 单解墙钟 9/9 CI 含 1.0（旧 +122%）· 增量收益 4.93× 重测 · 拒绝证书四元构造性零错 · 无耦合 O(T+E+P) 零搜索 · 后悔界 ln3/η+ηT/2 三对抗流验证（一流反超 +50） |
-| **全套** | **1033** | **91 个测试文件 / 309 个套件 · 0 失败** |
+| R18 创新波批 1（r18a-d：影子价格割线·挂起可达性·噪声感知选择器·对易 FT·SPRT 门·证据门控探索·γ 谱买断） | 111 | 分段仿射 3 评估命中定理 · T1 零错杀可达性刻画 · 保持率闭式＋Beta 精确优势概率 · Kőnig 精确构造达 Δ(G⁺) 下界 · 截断混合 SPRT Ⅰ 类误差 ≤α/(1−β) · 探索预算 ≤e₀√(N+κ₀+1) 望远镜证书 · γ 段三角多项式买断（N=2M+1 DFT 精确恢复＋Lipschitz 夹逼证书） |
+| R18 接线与背压（r18i/j：λ 割线生产接线·挂起早失败·总线分级降质） | 27 | secant 路径评估数 −89%（福利逐位一致） · unsatisfiable 提前失败终态与等满 TTL 逐任务相同 · 滞回分级状态机（降级永不静默，缺省字节不变） |
+| **全套** | **1171** | **104 个测试文件 / 352 个套件 · 0 失败** |
 
 （表内计数为文档对账时点一次绿色全量运行的快照；以 `npm test` 实时输出为准。）
 
@@ -337,7 +339,7 @@ npm run lint      # ESLint 0 错误（类型感知 strict 集：no-floating-prom
                   #   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）
 npm run coverage  # c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛
 npm run knip      # 死代码/未用导出/未用依赖（唯一既定发现：index.ts 的同名 named+default 双导出，为兼容 import X from 的刻意 API）
-npm test          # 1033 用例 · 0 失败 ✅
+npm test          # 1171 用例 · 0 失败 ✅
 npm run format    # Prettier 统一格式
 ```
 
@@ -388,7 +390,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 │   ├── dsh/dsh-integration.ts        # DeepSeek Harness 集成
 │   ├── proactive-intelligence/       # 主动智能规则引擎（三层）
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            # 测试套件（91 文件 / 1033 用例）
+├── tests/                            # 测试套件（104 文件 / 1171 用例）
 ├── docs/diagrams/                    # 🎨 README 原理图集 + generate.py 生成器
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  # 量子基准（7 部分）
@@ -421,6 +423,7 @@ python docs/diagrams/generate.py   # 重建全部 18 张 PNG（需 matplotlib，
 - **v1.14 缺陷清偿波**——七项登记缺陷红测修复（dwave 超时预算 2×/occurrences 静默回退 · 总线未知帧熔断/连接封顶计数 · complete_task 严格口径 · benchmark 种子化 · min-cost-flow 增量陷阱具名拒绝）＋文档双披露
 - **v1.15 ECCM**——两值谱混合器的单余弦定理：三点定弦、闭式全局极小、零步长超参（Rotosolve 面的仓内精确化）；4×5 基准族 11/12 实例对坐标下降**双轴同时占优**（质量≤CD 且评估数 −99~−326），帕累托点如实入账
 - **v1.16 严格正向升格**——四个「条件性正向」的代价面逐一消除：位势流引擎 SPFA 化（单解墙钟 9/9 CI 含 1.0，旧 +122%）、准入拒绝 exact 反事实验证（证书四元构造性零错）、批组成无耦合 O(T+E+P) 快速路径、Hedge 策略组合（对所携任意固定策略的后悔界保证，一流反超 +50）
+- **v1.17 第二轮创新波**——7 个 opt-in 新模块＋2 处 opt-in 接线：影子价格 λ 分段仿射割线（3 评估命中定理）、挂起任务可达性三分类（零错杀刻画）、噪声感知后端选择器（保持率闭式＋Beta 精确优势概率）、对易性感知 FT 并行画像（Kőnig 精确构造达匹配下界）、混合 SPRT 序贯校准门（截断族 Ⅰ 类误差界）、证据门控探索反馈环（预算望远镜证书）、γ 段谱差三角多项式买断（parameter-shift/ECCM 域外冻结段的精确面）；λ 割线生产接线（评估数 −89% 福利逐位一致）与总线分级降质背压（滞回分级、降级永不静默），默认路径全部字节不变
 
 ---
 

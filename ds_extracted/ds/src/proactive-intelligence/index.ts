@@ -46,3 +46,31 @@ export type {
   BayesianHireState,
 } from './bayesian-hire-brain.js';
 export { lgamma, logBeta, betaCdf, betaQuantile } from './beta-distribution.js';
+
+// R18 创新波 opt-in：混合 SPRT 序贯校准门与证据门控探索系数反馈环
+// ——不接入默认装配，宿主显式构造使用
+export {
+  SprtCalibrationGate,
+  DEFAULT_SPRT_COMPONENTS,
+  DEFAULT_SPRT_GATE_CONFIG,
+  bonferroniTypeOne,
+  sprtTypeOneUpperBound,
+} from './sprt-calibration-gate.js';
+export type {
+  SprtComponent,
+  SprtGateConfig,
+  SprtDecision,
+  SprtGateSnapshot,
+} from './sprt-calibration-gate.js';
+export {
+  EvidenceGatedExploration,
+  ExplorationBudgetLedger,
+  sigmaBound,
+  explorationBudgetBound,
+  DEFAULT_EVIDENCE_GATED_EXPLORATION_CONFIG,
+} from './evidence-gated-exploration.js';
+export type {
+  EvidenceGatedExplorationConfig,
+  ExplorationFeedbackInputs,
+  ExplorationCoefficient,
+} from './evidence-gated-exploration.js';

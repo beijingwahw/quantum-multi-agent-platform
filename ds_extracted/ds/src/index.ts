@@ -787,6 +787,41 @@ export type {
   AdmissionCertificate,
   AdmissionReason,
 } from './core/admission-control.js';
+// —— R18 创新波 opt-in 模块（未接入默认调度路径，显式导入使用）——
+export { solveSecant } from './core/shadow-price-secant.js';
+export type {
+  PaymentEvaluator,
+  SecantSearchInput,
+  SecantSearchResult,
+} from './core/shadow-price-secant.js';
+export { classifyPendingTask, classifyPendingBucket } from './core/pending-reachability.js';
+export type {
+  ReachabilityAgentView,
+  ReachabilityTaskView,
+  ReachabilityClass,
+  ReachabilityVerdict,
+} from './core/pending-reachability.js';
+export {
+  analyzeGammaSpectrum,
+  buyoutGammaCurve,
+  gammaCurveValueAt,
+  gammaCurveDerivativeAt,
+  minimizeGammaCurve,
+  refineGammaByTrigBuyout,
+} from './core/gamma-spectrum-buyout.js';
+export type {
+  GammaSpectrumOptions,
+  GammaSpectrum,
+  GammaSpectrumFailure,
+  GammaSpectrumResult,
+  BuyoutOptions,
+  GammaCurveBuyout,
+  GammaMinimizeOptions,
+  GammaMinCertificate,
+  GammaBuyoutRefineOptions,
+  GammaBuyoutRow,
+  GammaBuyoutRefineResult,
+} from './core/gamma-spectrum-buyout.js';
 export {
   LocalQuantumBackend,
   registerBackend,
@@ -849,6 +884,34 @@ export type {
   MitigationReport,
   MitigateReadoutOptions,
 } from './core/qpu/readout-mitigation.js';
+// R18 创新波 opt-in：噪声感知后端选择器与对易性感知 FT 并行画像
+export {
+  oneHotRetentionRate,
+  betaAdvantageProbability,
+  noiseAwarePrior,
+  NoiseAwareBackendSelector,
+} from './core/qpu/noise-aware-backend-selector.js';
+export type {
+  SelectorArmInit,
+  SelectionRule,
+  ArmPosterior,
+  SelectionDecision,
+  SelectorOptions,
+} from './core/qpu/noise-aware-backend-selector.js';
+export {
+  matchingLowerBound,
+  interactionIsBipartite,
+  verifyMatchingPartition,
+  parallelizeLayer,
+  parallelEstimateFtCircuit,
+} from './core/qpu/commutation-ft.js';
+export type {
+  CouplingEdge,
+  LayerGroup,
+  LayerPartition,
+  ParallelizeOptions,
+  ParallelFtEstimate,
+} from './core/qpu/commutation-ft.js';
 export { AgentManager } from './core/agent-manager.js';
 export {
   PlatformError,
@@ -970,6 +1033,32 @@ export {
   betaCdf,
   betaQuantile,
 } from './proactive-intelligence/beta-distribution.js';
+// R18 创新波 opt-in：混合 SPRT 序贯校准门与证据门控探索系数反馈环
+export {
+  SprtCalibrationGate,
+  DEFAULT_SPRT_COMPONENTS,
+  DEFAULT_SPRT_GATE_CONFIG,
+  bonferroniTypeOne,
+  sprtTypeOneUpperBound,
+} from './proactive-intelligence/sprt-calibration-gate.js';
+export type {
+  SprtComponent,
+  SprtGateConfig,
+  SprtDecision,
+  SprtGateSnapshot,
+} from './proactive-intelligence/sprt-calibration-gate.js';
+export {
+  EvidenceGatedExploration,
+  ExplorationBudgetLedger,
+  sigmaBound,
+  explorationBudgetBound,
+  DEFAULT_EVIDENCE_GATED_EXPLORATION_CONFIG,
+} from './proactive-intelligence/evidence-gated-exploration.js';
+export type {
+  EvidenceGatedExplorationConfig,
+  ExplorationFeedbackInputs,
+  ExplorationCoefficient,
+} from './proactive-intelligence/evidence-gated-exploration.js';
 export { ToolCapabilityPolicy } from './tools/tool-capability-policy.js';
 export type {
   CapabilityKind,

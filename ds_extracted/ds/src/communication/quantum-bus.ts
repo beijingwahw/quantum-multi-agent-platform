@@ -59,6 +59,42 @@ export interface QuantumBusConfig {
     host?: string;
     /** 最大并发连接数（防连接洪水），超出即以 1013 拒绝新连接 */
     maxConnections?: number;
+    /**
+     * 可选慢消费者分级降质背压（R18-J，opt-in）。未设置（缺省）时发送
+     * 路径字节不变：仅有既有的 MAX_BUFFERED_BYTES(4MiB) 单阈值断开，
+     * 0..4MiB 区间无条件缓冲。设置后按 ws.bufferedAmount 水位对每条
+     * 连接维护一个滞回分级状态机（上行用 thresholdBytes、下行用
+     * recoverBytes，缺省 floor(thresholdBytes/2)），每级绑定一个降质
+     * 动作，每次 tier 变化必发 slow_consumer_tier_changed 事件 +
+     * tierEntries/tierExits 计数 + 日志行（降级永不静默）：
+     * - 'warn'：仅观测（事件/计数/日志），消息照发；
+     * - 'shed-low-priority'：拒发 priority==='low' 的消息（计数
+     *   shedDroppedMessages；单播按既有回退语义入离线队列，水位恢复
+     *   时重投递——降质不丢数据；广播 fire-and-forget 真丢）；
+     * - 'quarantine'：拒发全部消息（单播同样入离线队列，受
+     *   maxQueuedMessages 既有封顶约束），水位回落到恢复线以下时
+     *   解除并自动冲刷该连接 agent 的离线队列。
+     * 分级不替代也不削弱内置 4MiB 硬顶——硬顶仍是配置路径的最后防线。
+     * tiers 必须：非空数组、thresholdBytes 为严格递增正整数、
+     * recoverBytes 为非负整数且落在 [前级 thresholdBytes, 自身
+     * thresholdBytes)（滞回带划分良定义：恢复线随级非降且不越过上级
+     * 进入线，tier 计算的判定线序列单调无带间空洞），否则构造期具名
+     * 拒绝（ConfigurationError）。
+     * 诚实边界：水位探测是消息驱动的惰性探测（无独立定时器）；降级
+     * 对客户端透明（不发新下行帧，不 bump PROTOCOL_VERSION）——客户
+     * 端只会观察到低优先级消息不再到达/投递暂停，观测出口是服务端
+     * 事件面与 getSlowConsumerDegradationMetrics()。
+     */
+    slowConsumerDegradation?: {
+      tiers: ReadonlyArray<{
+        /** 进入该级的水位（字节，>= 即进入；上行判定线） */
+        thresholdBytes: number;
+        /** 该级生效期间的降质动作 */
+        action: 'warn' | 'shed-low-priority' | 'quarantine';
+        /** 退出该级的水位（字节，< 即降级；缺省 floor(thresholdBytes/2)） */
+        recoverBytes?: number;
+      }>;
+    };
   };
 }
 
@@ -260,6 +296,92 @@ function validateBusLimits(config: QuantumBusConfig): void {
   }
 }
 
+/**
+ * 慢消费者分级降质的内部归一形态（R18-J）：构造期校验完成后的冻结
+ * 策略——recoverBytes 已填充缺省值，tiers 全序良定义。
+ */
+interface SlowConsumerTier {
+  thresholdBytes: number;
+  action: 'warn' | 'shed-low-priority' | 'quarantine';
+  recoverBytes: number;
+}
+
+/**
+ * 构造期解析+校验慢消费者分级降质配置（R18-J，缺省 undefined → null，
+ * 全部新路径不可达）。走私值具名拒绝（ConfigurationError）——分级阈值
+ * 是安全策略配置：乱序/越界的恢复线会破坏滞回带划分的良定义性
+ * （tier 计算的判定线序列必须相对当前级单调非降，否则 max 语义在带间
+ * 空洞处行为不可预言）。带划分约束：thresholdBytes 严格递增，且每级
+ * recoverBytes ∈ [前级 thresholdBytes, 自身 thresholdBytes)。
+ */
+function parseSlowConsumerPolicy(c: QuantumBusConfig['communication']): SlowConsumerTier[] | null {
+  // 配置值按 unknown 逐字段 narrow（Array.isArray 会把元素收窄成 any[]，
+  // 逐字段防御必须绕开该收窄直接以 unknown 视图处理）
+  const raw: unknown = c?.slowConsumerDegradation;
+  if (raw === undefined) return null;
+  if (typeof raw !== 'object' || raw === null) {
+    throw new ConfigurationError(
+      'communication.slowConsumerDegradation must be an object with a tiers array',
+    );
+  }
+  const tiersField: unknown = (raw as Record<string, unknown>).tiers;
+  if (!Array.isArray(tiersField) || tiersField.length === 0) {
+    throw new ConfigurationError(
+      'communication.slowConsumerDegradation.tiers must be a non-empty array of tier objects',
+    );
+  }
+  const tiers: SlowConsumerTier[] = [];
+  let prevThreshold = 0;
+  for (const [index, tier] of (tiersField as unknown[]).entries()) {
+    if (typeof tier !== 'object' || tier === null) {
+      throw new ConfigurationError(
+        `communication.slowConsumerDegradation.tiers[${index}] must be an object`,
+      );
+    }
+    const { thresholdBytes, action, recoverBytes } = tier as Record<string, unknown>;
+    if (
+      typeof thresholdBytes !== 'number' ||
+      !Number.isInteger(thresholdBytes) ||
+      thresholdBytes < 1
+    ) {
+      throw new ConfigurationError(
+        `communication.slowConsumerDegradation.tiers[${index}].thresholdBytes must be a positive integer, got ${String(thresholdBytes)}`,
+      );
+    }
+    if (thresholdBytes <= prevThreshold) {
+      throw new ConfigurationError(
+        `communication.slowConsumerDegradation.tiers[${index}].thresholdBytes (${String(thresholdBytes)}) must be strictly greater than the previous tier threshold (${String(prevThreshold)})`,
+      );
+    }
+    const actionValue: unknown = action;
+    if (
+      actionValue !== 'warn' &&
+      actionValue !== 'shed-low-priority' &&
+      actionValue !== 'quarantine'
+    ) {
+      throw new ConfigurationError(
+        `communication.slowConsumerDegradation.tiers[${index}].action must be one of 'warn' | 'shed-low-priority' | 'quarantine', got ${String(actionValue)}`,
+      );
+    }
+    const recoverBytesValue: unknown =
+      recoverBytes === undefined ? Math.floor(thresholdBytes / 2) : recoverBytes;
+    if (
+      typeof recoverBytesValue !== 'number' ||
+      !Number.isInteger(recoverBytesValue) ||
+      recoverBytesValue < 0 ||
+      recoverBytesValue >= thresholdBytes ||
+      recoverBytesValue < prevThreshold
+    ) {
+      throw new ConfigurationError(
+        `communication.slowConsumerDegradation.tiers[${index}].recoverBytes (${String(recoverBytesValue)}) must be a non-negative integer in [previous threshold ${String(prevThreshold)}, own threshold ${String(thresholdBytes)}) — set it explicitly when the default floor(threshold/2) breaks the hysteresis band partition`,
+      );
+    }
+    tiers.push({ thresholdBytes, action: actionValue, recoverBytes: recoverBytesValue });
+    prevThreshold = thresholdBytes;
+  }
+  return tiers;
+}
+
 export class QuantumBus extends EventEmitter {
   private messageQueue = new Map<string, QuantumMessage[]>();
   private connections = new Map<string, WebSocketConnection>();
@@ -315,11 +437,39 @@ export class QuantumBus extends EventEmitter {
    * 多次调用，以 connectionId 为键挂在总线上；连接移除时一并拆除。
    */
   private unknownTypeCounts = new Map<string, number>();
+  /**
+   * 慢消费者分级降质策略（R18-J，opt-in）：null = 未配置，全部新路径
+   * 不可达——发送行为与既有逐字节一致（仅有 4MiB 硬顶断开）。
+   */
+  private readonly slowConsumerTiers: SlowConsumerTier[] | null;
+  /**
+   * connectionId → 当前滞回 tier 索引（1-based；0/缺席 = 正常级）。
+   * 连接移除时一并拆除（与 unknownTypeCounts 同位语义）。
+   */
+  private slowConsumerTierState = new Map<string, number>();
+  /** 分级降质观测账（独立于 droppedMessages/securityCounters：缺省路径零触碰） */
+  private slowConsumerStats = {
+    tierEntries: [] as number[],
+    tierExits: [] as number[],
+    shedDroppedMessages: 0,
+    quarantineDeferredMessages: 0,
+  };
 
   constructor(config: QuantumBusConfig) {
     super();
     validateBusLimits(config);
     this.config = config;
+    // R18-J opt-in 分级降质：构造期解析+校验（缺省 undefined → null，
+    // 新路径整体不可达）；观测账按级分配
+    this.slowConsumerTiers = parseSlowConsumerPolicy(config.communication);
+    if (this.slowConsumerTiers !== null) {
+      this.slowConsumerStats = {
+        tierEntries: this.slowConsumerTiers.map(() => 0),
+        tierExits: this.slowConsumerTiers.map(() => 0),
+        shedDroppedMessages: 0,
+        quarantineDeferredMessages: 0,
+      };
+    }
     // tokenAgents 归一 + 形状校验（09#F04 remainder）：绑定表是安全配置，
     // 垃圾形状（空 token 键 / 非字符串数组的允许清单）必须在构造期拒绝——
     // 运行期才暴露会让绑定「看似配置、实则恒不生效或恒全拒」。
@@ -589,6 +739,7 @@ export class QuantumBus extends EventEmitter {
   /** 连接从连接表与 agent 索引移除（幂等）：close/error/心跳过期统一出口 */
   private removeConnection(connectionId: string): void {
     this.unknownTypeCounts.delete(connectionId);
+    this.slowConsumerTierState.delete(connectionId);
     const connection = this.connections.get(connectionId);
     if (!connection) return;
     this.connections.delete(connectionId);
@@ -969,6 +1120,11 @@ export class QuantumBus extends EventEmitter {
   ): boolean {
     const connection = this.connections.get(connectionId);
     if (connection?.ws.readyState === WebSocket.OPEN) {
+      // R18-J opt-in 分级降质：未配置（null）时本分支不可达，下方既有
+      // 路径字节不变
+      if (this.slowConsumerTiers !== null && !this.applySlowConsumerTier(connection, message)) {
+        return false;
+      }
       // 发送背压：对端停止读取但仍保持 TCP/WS 存活时，ws 库会在服务端
       // 无限缓冲待发数据——超过阈值即判定慢消费者并断开，防内存耗尽
       if (connection.ws.bufferedAmount > MAX_BUFFERED_BYTES) {
@@ -985,6 +1141,85 @@ export class QuantumBus extends EventEmitter {
         return false;
       }
     }
+    return false;
+  }
+
+  /**
+   * R18-J opt-in 慢消费者分级降质：按当前 bufferedAmount 更新该连接的
+   * 滞回 tier 状态机并应用当前级动作。返回 false = 该消息被降质动作
+   * 拒发（shed 拒 low / quarantine 全拒）——单播由 sendToAgentShared 的
+   * 既有回退语义转入离线队列（有界缓冲替换无界 ws 缓冲）。
+   *
+   * tier 计算：line(j) = j > last ? tiers[j-1].thresholdBytes（上行
+   * 进入线）: tiers[j-1].recoverBytes（下行保持线），tier = 满足
+   * amount >= line(j) 的最深 j。构造期校验保证 line 序列相对 last
+   * 单调非降（恢复线随级严格递增且被上级进入线压制：recover[k] <
+   * threshold[k] ≤ recover[k+1]），首个失守的 j 之后全部失守——带间
+   * 无空洞、阈值附近无抖动循环。水位探测是消息驱动的惰性探测（无独立
+   * 定时器）。降级永不静默：每次 tier 变化必发
+   * slow_consumer_tier_changed 事件 + tierEntries/tierExits 计数 +
+   * 日志行（升级 logWarn、恢复 logInfo）。
+   */
+  private applySlowConsumerTier(connection: WebSocketConnection, message: QuantumMessage): boolean {
+    const tiers = this.slowConsumerTiers;
+    if (tiers === null) return true; // 类型收窄守卫（调用点已保证非 null）
+    const amount = connection.ws.bufferedAmount;
+    const last = this.slowConsumerTierState.get(connection.id) ?? 0;
+    let tier = 0;
+    for (let j = 1; j <= tiers.length; j++) {
+      const spec = tiers[j - 1]!;
+      const line = j > last ? spec.thresholdBytes : spec.recoverBytes;
+      if (amount >= line) tier = j;
+      else break;
+    }
+    if (tier !== last) {
+      this.slowConsumerTierState.set(connection.id, tier);
+      const action = tier > 0 ? tiers[tier - 1]!.action : null;
+      const previousAction = last > 0 ? tiers[last - 1]!.action : null;
+      if (tier > last) {
+        this.slowConsumerStats.tierEntries[tier - 1]!++;
+        logWarn(
+          'QuantumBus',
+          `Slow consumer ${connection.id} degraded to tier ${tier}/${tiers.length} ` +
+            `(action '${action}', bufferedAmount ${amount})`,
+        );
+      } else {
+        this.slowConsumerStats.tierExits[last - 1]!++;
+        logInfo(
+          'QuantumBus',
+          `Slow consumer ${connection.id} recovered from tier ${last} to ${tier} ` +
+            `(bufferedAmount ${amount})`,
+        );
+      }
+      this.emit('slow_consumer_tier_changed', {
+        connectionId: connection.id,
+        agentId: connection.agentId,
+        from: last,
+        to: tier,
+        action,
+        previousAction,
+        bufferedAmount: amount,
+      });
+      // 恢复冲刷：降级时该连接 agent 的离线队列（降质期间按既有回退
+      // 语义积压）立即尝试冲刷。水位若在冲刷中回升，后续消息按状态机
+      // 重新升级，未投递消息保留在队列（不丢）
+      if (tier < last && connection.agentId !== '') {
+        this.processQueuedMessages(connection.agentId);
+      }
+    }
+    if (tier === 0) return true;
+    const currentAction = tiers[tier - 1]!.action;
+    if (currentAction === 'warn') return true;
+    if (currentAction === 'shed-low-priority') {
+      // 只拒显式 'low'：JSON 透传消息的 priority 未经入站校验，
+      // 缺省/垃圾值不等于 'low'——降质只作用于确定的低优先级
+      if (message.priority === 'low') {
+        this.slowConsumerStats.shedDroppedMessages++;
+        return false;
+      }
+      return true;
+    }
+    this.slowConsumerStats.quarantineDeferredMessages++;
     return false;
   }
 
@@ -1267,6 +1502,7 @@ export class QuantumBus extends EventEmitter {
     this.connectionsByAgent.clear();
     this.messageQueue.clear();
     this.queueHeads.clear();
+    this.slowConsumerTierState.clear();
 
     // 关闭WebSocket服务器
     if (this.wsServer) {
@@ -1291,6 +1527,50 @@ export class QuantumBus extends EventEmitter {
       agentsOnline: this.getAgentsOnline().length,
       security: { ...this.securityCounters, queuedAgentBuckets: this.messageQueue.size },
       uptime: this.startedAt !== null ? (Date.now() - this.startedAt) / 1000 : 0,
+    };
+  }
+
+  /**
+   * R18-J 分级降质观测面快照：未配置时返回 null（该面不存在，与缺省
+   * 字节不变一致）。tierEntries/tierExits 按配置级序（1-based 级的
+   * 计数在数组下标 k-1）；degradedConnections 是当前处于非零级的连接
+   * 快照（连接移除时其 tier 状态一并拆除，不残留）。
+   */
+  getSlowConsumerDegradationMetrics(): {
+    tierEntries: number[];
+    tierExits: number[];
+    shedDroppedMessages: number;
+    quarantineDeferredMessages: number;
+    degradedConnections: Array<{
+      connectionId: string;
+      agentId: string;
+      tier: number;
+      action: 'warn' | 'shed-low-priority' | 'quarantine';
+    }>;
+  } | null {
+    if (this.slowConsumerTiers === null) return null;
+    const degradedConnections: Array<{
+      connectionId: string;
+      agentId: string;
+      tier: number;
+      action: 'warn' | 'shed-low-priority' | 'quarantine';
+    }> = [];
+    for (const [connectionId, tier] of this.slowConsumerTierState) {
+      if (tier > 0) {
+        degradedConnections.push({
+          connectionId,
+          agentId: this.connections.get(connectionId)?.agentId ?? '',
+          tier,
+          action: this.slowConsumerTiers[tier - 1]!.action,
+        });
+      }
+    }
+    return {
+      tierEntries: [...this.slowConsumerStats.tierEntries],
+      tierExits: [...this.slowConsumerStats.tierExits],
+      shedDroppedMessages: this.slowConsumerStats.shedDroppedMessages,
+      quarantineDeferredMessages: this.slowConsumerStats.quarantineDeferredMessages,
+      degradedConnections,
     };
   }
 }

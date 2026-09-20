@@ -226,8 +226,8 @@
     <p class="doc-subtitle">Quantum Multi-Agent Development &amp; Scheduling Platform</p>
     <p class="lang-note">🇬🇧 <strong>English version</strong>: <code>README.en.md</code>（图内文字为中文，图注附英文关键词）</p>
     <div class="badges">
-      <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.16.0</span></span>
-      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">1033</span></span>
+      <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.17.0</span></span>
+      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">1171</span></span>
       <span class="badge"><span class="b-l">TypeScript</span><span class="b-v" style="background:#007ec6">5.9 strict</span></span>
       <span class="badge"><span class="b-l">node</span><span class="b-v" style="background:#97ca00">&gt;=22</span></span>
       <span class="badge"><span class="b-l">license</span><span class="b-v" style="background:#9f9f9f">MIT</span></span>
@@ -254,9 +254,9 @@
       <tr><td class="c">🧠</td><td><a href="#market-research">市场机制研究线</a></td><td>增广 WDP · DSIC · 学习曲线</td></tr>
       <tr><td class="c">📊</td><td><a href="#benchmarks">基准与性能</a></td><td>量子 5/5 · 匈牙利互证 · 23.5× 并行</td></tr>
       <tr><td class="c">🚀</td><td><a href="#quick-start">快速开始</a></td><td>十条命令 + 代码示例</td></tr>
-      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>1033 用例 · 六门禁 · 覆盖率棘轮</td></tr>
+      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>1171 用例 · 六门禁 · 覆盖率棘轮</td></tr>
       <tr><td class="c">📁</td><td><a href="#directory-structure">目录结构</a></td><td>含图集生成器</td></tr>
-      <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.16</td></tr>
+      <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.17</td></tr>
       <tr><td class="c">⚠️</td><td><a href="#honest-limits">诚实的边界</a></td><td>等效≠真机 · 组合爆炸 · 热路径</td></tr>
     </tbody>
   </table>
@@ -537,7 +537,7 @@
 cd quantum-multi-agent-platform
 npm install
 
-npm test                <span class="c"># 1033 用例 · 0 失败</span>
+npm test                <span class="c"># 1171 用例 · 0 失败</span>
 npm run typecheck       <span class="c"># 全仓类型检查（strict + noUncheckedIndexedAccess）</span>
 npm run lint            <span class="c"># ESLint（typescript-eslint 推荐规则集）</span>
 npm run example:basic   <span class="c"># 基础用法全链路（平台启停/调度/控制台协议）</span>
@@ -581,7 +581,7 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
 
   <!-- ══════════════ 测试与质量 ══════════════ -->
   <h2 id="testing-quality" class="pb">🧪 测试与质量</h2>
-  <p><strong>1033 用例 · 0 失败 · 91 个测试文件 / 309 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
+  <p><strong>1171 用例 · 0 失败 · 104 个测试文件 / 352 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
 
   <figure><img src="docs/diagrams/16-quality.png" alt="质量门禁体系"></figure>
 
@@ -603,7 +603,15 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
       <tr><td>市场机制（CompoundBrain/VCG/增长市场/相变）</td><td class="c">87</td><td>DSIC · 校准 · 定律验证 · 模拟器分离（08#11）· 守恒不变量（05#7）</td></tr>
       <tr><td>回归/质量波（regression·wave1-3·quality·golden·audit·coverage·utils·docs·scripts）</td><td class="c">339</td><td>回归钉板 · 黄金契约 · 属性测试 · 标注审计 · 工具域负对照 · R10 情报/总线/QPU 回归（intelligence-bus-r10 18 · qpu-r10 9） · R12 并发余量/守卫回归（r12-scheduler-concurrency 3）</td></tr>
       <tr><td>tests/ 子目录（bench·mutation·sched-bench）</td><td class="c">46</td><td>基准诚实性 · 变异杀死 · 基准错误面负对照</td></tr>
-      <tr><td><strong>全套</strong></td><td class="c"><strong>1033</strong></td><td><strong>91 个测试文件 / 309 个套件 · 0 失败</strong></td></tr>
+      <tr><td>R13 位级同一优化钉（r13-kernel/market/bus-qpu/infra/testnet-gaps）</td><td class="c">54</td><td>状态矢量复用/路由索引/环形窗口/记忆化的失效路径 · 双引擎指纹往返 · 位级对拍参考实现</td></tr>
+      <tr><td>R14 调度/机制/优化器创新（r14a/d/i/j）</td><td class="c">121</td><td>纠缠批组成零遗憾性质 · 位势流对拍 SPFA 150 实例 · 参数移位精确梯度 · 自然梯度 FS 度规 · 保留价 VCG DSIC · 影子价格准入 LP 对偶证书</td></tr>
+      <tr><td>R14 QPU/智能创新（r14b/c）</td><td class="c">67</td><td>跨后端共识 tau-b/Wilson/TVD · 读出 MAP 缓解闭式 · Beta 数值内核解析锚 · 贝叶斯雇佣三策略 · 能力策略 default-deny</td></tr>
+      <tr><td>R15 缺陷清偿（r15p1/p2，红测先行）</td><td class="c">24</td><td>dwave 超时预算共享·occurrences 垃圾具名拒绝 · 总线未知帧熔断·连接封顶入 security 账 · complete_task 严格布尔 · benchmark 种子化 RNG · min-cost-flow 增量陷阱具名拒绝</td></tr>
+      <tr><td>R16 ECCM（r16，两值谱单余弦定理）</td><td class="c">21</td><td>定理钉 ≤1e-12 · 闭式全局极小 vs 稠密 argmin ≤1e-9 · 双轴对拍 11/12 实例质量≤CD 且评估数 −99~−326 · 帕累托点四构形钉死 · 负对照 11 组</td></tr>
+      <tr><td>R17 严格正向升格（r17a-d：位势流 SPFA 平价·准入精确拒绝·批组成零成本路径·Hedge 组合）</td><td class="c">51</td><td>单解墙钟 9/9 CI 含 1.0（旧 +122%）· 增量收益 4.93× 重测 · 拒绝证书四元构造性零错 · 无耦合 O(T+E+P) 零搜索 · 后悔界 ln3/η+ηT/2 三对抗流验证（一流反超 +50）</td></tr>
+      <tr><td>R18 创新波批 1（r18a-d：影子价格割线·挂起可达性·噪声感知选择器·对易 FT·SPRT 门·证据门控探索·γ 谱买断）</td><td class="c">111</td><td>分段仿射 3 评估命中定理 · T1 零错杀可达性刻画 · 保持率闭式＋Beta 精确优势概率 · Kőnig 精确构造达 Δ(G⁺) 下界 · 截断混合 SPRT Ⅰ 类误差 ≤α/(1−β) · 探索预算 ≤e₀√(N+κ₀+1) 望远镜证书 · γ 段三角多项式买断（N=2M+1 DFT 精确恢复＋Lipschitz 夹逼证书）</td></tr>
+      <tr><td>R18 接线与背压（r18i/j：λ 割线生产接线·挂起早失败·总线分级降质）</td><td class="c">27</td><td>secant 路径评估数 −89%（福利逐位一致） · unsatisfiable 提前失败终态与等满 TTL 逐任务相同 · 滞回分级状态机（降级永不静默，缺省字节不变）</td></tr>
+      <tr><td><strong>全套</strong></td><td class="c"><strong>1171</strong></td><td><strong>104 个测试文件 / 352 个套件 · 0 失败</strong></td></tr>
     </tbody>
   </table>
   <p class="note">（表内计数为文档对账时点一次绿色全量运行的快照；以 <code>npm test</code> 实时输出为准。）</p>
@@ -615,7 +623,7 @@ npm run lint      <span class="c"># ESLint 0 错误（类型感知 strict 集：
                   <span class="c">#   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）</span>
 npm run coverage  <span class="c"># c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛</span>
 npm run knip      <span class="c"># 死代码/未用导出/未用依赖 0 发现</span>
-npm test          <span class="c"># 1033 用例 · 0 失败 ✅</span>
+npm test          <span class="c"># 1171 用例 · 0 失败 ✅</span>
 npm run format    <span class="c"># Prettier 统一格式</span>
 </code></pre>
 
@@ -661,7 +669,7 @@ npm run format    <span class="c"># Prettier 统一格式</span>
 │   ├── dsh/dsh-integration.ts        <span class="c"># DeepSeek Harness 集成</span>
 │   ├── proactive-intelligence/       <span class="c"># 主动智能规则引擎（三层）</span>
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            <span class="c"># 测试套件（91 文件 / 1033 用例）</span>
+├── tests/                            <span class="c"># 测试套件（104 文件 / 1171 用例）</span>
 ├── docs/diagrams/                    <span class="c"># 🎨 README 原理图集 + generate.py 生成器</span>
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  <span class="c"># 量子基准（7 部分）</span>
@@ -690,6 +698,11 @@ npm run format    <span class="c"># Prettier 统一格式</span>
     <li><strong>v1.9/v1.10 CVaR + ma-QAOA</strong>——分位数目标 · 构造性支配（定理级）</li>
     <li><strong>v1.11 QuantumSched-Bench + FTQC 分级</strong>——可复现基准 · 执行层级路由</li>
     <li><strong>v1.12 质量交付波</strong>——错误面收敛 · 单源化孪生收敛 · 静默垃圾守卫 · 文档对账 · 本图集</li>
+    <li><strong>v1.13 创新波</strong>——11 个 opt-in 新模块（纠缠批组成 · 位势增量流 · 影子价格准入 · 参数移位/自然梯度 · 保留价 VCG · 跨后端共识 · 读出缓解 · 贝叶斯雇佣 · 能力策略），默认路径字节不变</li>
+    <li><strong>v1.14 缺陷清偿波</strong>——七项登记缺陷红测修复＋文档双披露＋文献双源核实 44 条</li>
+    <li><strong>v1.15 ECCM</strong>——两值谱混合器的单余弦定理：三点定弦、闭式全局极小、零步长超参；4×5 基准族 11/12 实例对坐标下降双轴同时占优，帕累托点如实入账</li>
+    <li><strong>v1.16 严格正向升格</strong>——四个「条件性正向」的代价面逐一消除：位势流 SPFA 平价 · 准入精确拒绝 · 批组成零成本路径 · Hedge 组合后悔界</li>
+    <li><strong>v1.17 第二轮创新波</strong>——7 个 opt-in 新模块＋2 处 opt-in 接线（影子价格割线 · 挂起可达性 · 噪声感知选择器 · 对易 FT · SPRT 门 · 证据门控探索 · γ 谱买断 · λ 割线接线 · 总线分级降质），默认路径全部字节不变</li>
   </ul>
 
   <hr>

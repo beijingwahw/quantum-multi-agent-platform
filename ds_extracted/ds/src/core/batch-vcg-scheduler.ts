@@ -65,6 +65,7 @@ import { MinCostFlow, type FlowEdgeRef } from './min-cost-flow.js';
 import { mulberry32 } from '../utils/rng.js';
 import { round2, round3, round9 } from '../utils/numeric.js';
 import { MechanismError } from '../utils/errors.js';
+import { solveSecant } from './shadow-price-secant.js';
 import {
   bidOf,
   socialValueOf,
@@ -146,6 +147,13 @@ export interface BatchAllocation {
   budget: number;
   /** true = 精确 DSIC 路径；false = λ 松弛路径（DSIC 近似） */
   exactDSIC: boolean;
+  /**
+   * λ 求解评估的机器计数（R18-I 披露面：仅 lambdaSolver:'secant' 路径
+   * 设置；缺省二分路径不设置该键——位同构铁律）。对照口径：二分路径的
+   * 结构常数 62 = 1(exact@0) + 1(hi 初值) + 60(轮)。每次评估 =
+   * 1 次全解 + 赢家数次 pivot 重解（每次重解一个 MCF 冷网络）。
+   */
+  lambdaEvaluations?: number;
 }
 
 export interface BatchSettlement {
@@ -356,8 +364,14 @@ export class BatchVCGScheduler {
    * 批量分配 + 定价。
    * budget = 每批现金支付上限 Σp ≤ B（默认 Infinity → 精确 VCG 路径）。
    * 预算紧时按拉格朗日影子价格 λ 对估值折价，二分最小可行 λ。
+   * lambdaSolver（R18-I opt-in，缺省 'bisection'）：预算紧路径的 λ 求解器
+   * 选择——'secant' 改用分段仿射割线搜索（shadow-price-secant.ts，仿射
+   * 段内一步命中、可行性保守）。未传该参时与既有行为完全一致（位同构）。
    */
-  allocateBatch(capabilities: string[], opts: { budget?: number } = {}): BatchAllocation {
+  allocateBatch(
+    capabilities: string[],
+    opts: { budget?: number; lambdaSolver?: 'bisection' | 'secant' } = {},
+  ): BatchAllocation {
     const budget = opts.budget ?? Infinity;
     // 退化边界具名拒绝：NaN 与任何数的比较恒 false，二分搜索会全程判
     // 「超预算」而静默退化成空分配——一批看起来像「无可负担组合」的
@@ -366,6 +380,16 @@ export class BatchVCGScheduler {
     if (typeof budget !== 'number' || Number.isNaN(budget) || budget < 0) {
       throw new MechanismError(
         `budget must be a non-negative finite number or Infinity, got ${String(opts.budget)}`,
+      );
+    }
+    // R18-I opt-in：λ 求解器选择（缺省 'bisection' 位同构）。域外值具名
+    // 拒绝——静默回退会让调用方拿着「以为在测 secant、实际跑二分」的
+    // 数据出 DSIC/性能结论。变量按 string 宽型持有：JS 调用方可传任意
+    // 值，类型窄化不能替代运行时校验。
+    const lambdaSolver: string = opts.lambdaSolver ?? 'bisection';
+    if (lambdaSolver !== 'bisection' && lambdaSolver !== 'secant') {
+      throw new MechanismError(
+        `lambdaSolver must be 'bisection' or 'secant', got ${String(opts.lambdaSolver)}`,
       );
     }
     this.valueMemo.clear(); // 入口级记忆周期开始（见 valueMemo 字段注释）
@@ -427,6 +451,38 @@ export class BatchVCGScheduler {
       for (const cap of rt.spec.capabilities) {
         lambdaMax = Math.max(lambdaMax, this.valueOf(rt, cap) + 1);
       }
+    }
+    // R18-I opt-in：λ 割线求解器（缺省 'bisection' 不进本分支——位同构）。
+    // solveSecant 的可行性保守性：任何返回路径的 λ 都是实测过支付的点，
+    // 故 evaluated 映射必命中（λ=0 复用入口 exact 解，零重算）；终局无需
+    // 二分路径的预算复核兜底——返回解本身就是实测 ≤ B + tol 的那个。
+    if (lambdaSolver === 'secant') {
+      const evaluated = new Map<
+        number,
+        {
+          pairs: Array<{ taskIdx: number; agentId: string }>;
+          payments: Record<string, number>;
+          total: number;
+        }
+      >();
+      evaluated.set(0, exact);
+      const secant = solveSecant({
+        evaluate: (lambda) => {
+          const cand = lambda === 0 ? exact : this.solveWithPayments(capabilities, lambda);
+          evaluated.set(lambda, cand);
+          return cand.total;
+        },
+        budget,
+        lambdaMax,
+      });
+      const cand =
+        evaluated.get(secant.lambda) ?? this.solveWithPayments(capabilities, secant.lambda);
+      // 报告的 λ 即所行解的真实 λ（cand 在该 λ 实测），口径自洽；
+      // 评估计数是 opt-in 路径专属披露键，缺省路径不设置
+      const alloc = build(cand.pairs, cand.payments, secant.lambda);
+      alloc.lambdaEvaluations = secant.evaluatedLambdas.length;
+      this.lastAllocation = alloc;
+      return alloc;
     }
     // λ = λmax 时所有组合 score < 0 → 空分配，Σp = 0 ≤ B 恒可行
     let lo = 0; // 不可行

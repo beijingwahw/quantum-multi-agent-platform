@@ -58,14 +58,38 @@ d = 4; k = 4 at d = 4 — four pairwise-anticommuting unitaries need d = 4).
   D(fixed)/√2 does NOT survive (dilution becomes √5/3 ≈ 0.7454). Still
   strictly below every definite order: order superposition does not beat
   ANY definite order on scheduling primitives.
+- **The k = 5 Majorana ladder (v0.5.0, theorem enrolled)**: γ₅ =
+  γ₁γ₂γ₃γ₄ over the d = 4 anticommuting quadruple is the Pauli **Z⊗Y
+  exactly** (deviation 0) — Cl(5) closes at dimension 4; the parity law
+  survives its third step (all 120 orders multiply to sgn(π)·P, deviation
+  0; ⟨u|u_sgn⟩ = (60−60)/120 = 0 exactly; |u_sgn⟩ readout fidelity 1);
+  the Pauli pentad census over C(15,5) = 3003 finds **6 anticommuting
+  quintuples, 0 commuting**, reconciled by the machine identity
+  #quintuples×5 = Σ extensions = 30 with every anticommuting quadruple
+  extending by exactly one Pauli (it spans F₂⁴ — the symplectic
+  uniqueness); C(15,6) = 5005 sextuples contain **zero** anticommuting
+  ones (2n+1 = 5 maximal); the dimension staircase d(k) = 2^⌈(k−1)/2⌉ is
+  machine-witnessed at k = 1..5 with the d = 2 Bloch-orthogonality ceiling
+  (3 pairwise-orthogonal unit vectors at most, the fourth forced to zero —
+  det = ±1 on every sampled orthonormal triple).
 
 ## Reproduce
 
 ```
 npm install
-npm test        # 43/43
+npm test        # 56/56
 npm run repro   # 5 reports in out/reports/
 ```
+
+## v0.5.0 — the k = 5 Majorana ladder (theorem enrolled)
+
+New file `src/kswitch/k5.ts` + `test/k5.test.ts`, nothing else touched:
+the derived fifth Majorana, the 120-order parity law at k = 5, the pentad
+census with its reconciliation identity and sextuple maximality face, the
+dimension staircase with the d = 2 ceiling, and three smuggling trials
+(forged pentad, counterfeit census count, ladder lie) each NAMED and
+rejected against the machine-recomputed truth. Counts as the machine
+prints them: 56/56.
 
 ## v0.3.0 — the quality wave (math frozen, results bit-identical)
 

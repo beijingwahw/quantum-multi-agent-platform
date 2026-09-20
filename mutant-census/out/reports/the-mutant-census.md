@@ -41,7 +41,7 @@
 
 ## K-board — the kernel family census (live)
 
-Canonical hashes (sha256/16): cmat.ts=3bb62b05317c5f8f, states.ts=a9c6e43a93158d4c, channels.ts=8f1f9b8806364be1, rng.ts=86473d79d00462d3, measures.ts=00432a11fbf10a3d. Across 140 repo-file pairs: 86 NOT-PRESENT, 42 REGISTERED-DIVERGENCE, 12 IDENTICAL.
+Canonical hashes (sha256/16): cmat.ts=4053be46e1b13d6d, states.ts=a9c6e43a93158d4c, channels.ts=8f1f9b8806364be1, rng.ts=da0949a095e01297, measures.ts=00432a11fbf10a3d. Across 140 repo-file pairs: 86 NOT-PRESENT, 42 REGISTERED-DIVERGENCE, 12 IDENTICAL.
 
 | registered divergence | reason |
 | --- | --- |
@@ -128,26 +128,26 @@ The pre-batch-21 guard debt was PAID in batch 33: 42 experiment entries across 1
 
 ## E-board — the enrollment census (every buried error, live)
 
-The registry is imported LIVE on every run: 814 errors across 99 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
+The registry is imported LIVE on every run: 886 errors across 100 batches, each wired to the guard that kills it NOW. The registry is closed — burying a new error without enrolling it fails the build (E1); a guard that is not on disk fails the build (E3); a booked line without a reason fails the build (E4).
 
 | tier | errors | meaning |
 | --- | --- | --- |
 | MUTANT-KILLED | 117 | the error's registered class is replayed as a live mutant and killed by the battery (class tie, E2) |
 | GATE-ENFORCED | 344 | recurrence fails a real build gate; the anchor file+needle verified live (E3) |
-| BOOKED-UNENFORCEABLE | 353 | no machine can hold this line; the reason is mandatory and printed below (E4) |
+| BOOKED-UNENFORCEABLE | 425 | no machine can hold this line; the reason is mandatory and printed below (E4) |
 
 | category | MUTANT | GATE | BOOKED |
 | --- | --- | --- | --- |
-| anchor-blindspot | 0 | 17 | 3 |
+| anchor-blindspot | 0 | 17 | 4 |
 | bogus-comparison | 0 | 10 | 3 |
-| citation-drift | 0 | 32 | 15 |
+| citation-drift | 0 | 32 | 17 |
 | conjugation | 19 | 10 | 0 |
 | dimension-slot | 29 | 22 | 0 |
-| machine-overruled | 0 | 47 | 2 |
-| process | 0 | 69 | 208 |
-| statistics | 25 | 33 | 10 |
-| toolchain | 0 | 66 | 86 |
-| wrong-object | 44 | 38 | 26 |
+| machine-overruled | 0 | 47 | 4 |
+| process | 0 | 69 | 231 |
+| statistics | 25 | 33 | 15 |
+| toolchain | 0 | 66 | 100 |
+| wrong-object | 44 | 38 | 51 |
 
 | live gate anchor | errors held | categories |
 | --- | --- | --- |
@@ -714,6 +714,78 @@ The registry is imported LIVE on every run: 814 errors across 99 batches, each w
 - b99#8 [process] — disclosed scope latitude: one adjacent catalog line edited to keep a new fact doc-true beyond the literal grant. Booked: the latitude face — disclosed, accepted by the orchestrator as the alternative to a one-line lie
 - b99#9 [process] — the daily-memory insertion replaced the previous visit's verification section instead of appending — the THIRD consecutive visit with the identical mistake, each caught and restored in the same breath. Booked: the append-anchor face — the full section is read to its terminator before the Edit, the recurrence booked with its lineage
 - b99#10 [anchor-blindspot] — the E1 firing demo hardcoded its forged error at the future key b99#9 — the day batch 99 enrolled a real b99#9 the premise expired and A3 convicted the anchor itself. Booked: the future-key face — demo fixtures are derived one past the live registry so they can never collide with real growth
+- b100#0 [wrong-object] — an affine-segment test instance whose floor clamping broke the segment premise it was asserting against. Booked: the instance face — instances are checked against the theorem's premises before its conclusion
+- b100#1 [wrong-object] — a monotonicity-violation instance intercepted by an earlier guard, so the named rejection never fired. Booked: the validation-order face — adversarial instances walk the guard order on paper first
+- b100#2 [wrong-object] — a random-family budget interval dropped its last segment, leaving claimed domain untested. Booked: the partition face — interval partitions are audited for full-domain coverage
+- b100#3 [wrong-object] — a Task object passed where the API takes an id; the shape error hid inside a passing-shaped assertion. Booked: the argument-contract face — contracts are read at the call site
+- b100#4 [wrong-object] — a revival-channel assertion outran the registration hook it observed. Booked: the event-order face — assertion order follows the mechanism's own order
+- b100#5 [process] — the first secant draft carried three termination defects (Illinois flip, single-side stagnation, no two-sided flat exit), caught at pre-test self-review. Booked: the exit-predicate face — a bracketing method's termination lattice is designed before the loop is typed
+- b100#6 [process] — a redundant state union survived to lint. Booked: the dead-state face — lint catches what the author should not write
+- b100#7 [citation-drift] — literature names recalled from memory drafted into a module header before the no-recall law caught them. Booked: the memory-shape face — citation shapes carry the pending-dual-source mark from the first keystroke
+- b100#8 [toolchain] — a /tmp probe path assumed POSIX semantics on a Windows host. Booked: the portability face — probe paths are host-normalized or workspace-local
+- b100#9 [statistics] — Simpson-integration endpoints zeroed, forging a first red against a correct closed form. Booked: the quadrature face — endpoints are verified against the integrand's support before they are dropped
+- b100#10 [process] — a chase cursor compared edge ids as vertex numbers and never advanced — the ghost edge convicted by a bidirectional-consistency diagnostic. Booked: the identifier-space face — id spaces are never mixed
+- b100#11 [process] — a deletion by value where ownership mattered — transient conflicts deleted another edge's fresh record, killed by the internal verifier. Booked: the owner-matched-deletion face — order-sensitivity is documented where the deletion happens
+- b100#12 [wrong-object] — a negative control's smuggled edge lay outside the audited base set, convicting nothing. Booked: the control-domain face — forged inputs must lie inside the validated domain
+- b100#13 [wrong-object] — a negative control pursued a mathematically unreachable target, repositioned as an enumeration proof. Booked: the reachability face — controls are checked for target reachability before assertion
+- b100#14 [toolchain] — an Array.isArray narrow produced any[], admitting 27 no-unsafe-* findings. Booked: the narrow face — unknown with per-field discrimination, never any
+- b100#15 [statistics] — a test-side arithmetic slip (E=270/342 for a 180/252 construction), self-caught at re-derivation. Booked: the re-derivation face — expected values are never transcribed from mental tally
+- b100#16 [wrong-object] — an assertion demanded the SPRT decide within 400 steps — error control promises no deadline (8.7% undecided is a true fact). Booked: the guarantee-shape face — the promise is read before it is asserted
+- b100#17 [wrong-object] — an n=0 endpoint test used the default prior kernel while expecting multi-kappa values. Booked: the explicit-kernel face — a default is a choice expectations must share
+- b100#18 [process] — a first test draft carried priority-inverted predicates and formatting residue; lint caught three findings. Booked: the draft-death face — drafts die at self-review
+- b100#19 [machine-overruled] — a whole-project typecheck red located entirely in a sibling agent's parallel in-flight files. Booked: the sibling-state face — a red in another's WIP is reported as that sibling's instant state
+- b100#20 [wrong-object] — a dense-sweep upper bound compared against a certificate upper bound — two quantities whose comparison is meaningless. Booked: the bracket-arm face — an upper bound proves nothing against another upper bound
+- b100#21 [wrong-object] — a hand-computed expectation at M=199 wrong by the asserted margin. Booked: the red-ink face — hand arithmetic is unconfirmed until the machine confirms it
+- b100#22 [process] — a gap assertion selected min where it meant max, inverting the certified interval. Booked: the role-label face — bounds are labeled with their roles at the assertion point
+- b100#23 [process] — a readonly field assigned after construction. Booked: the single-writer face — the constructor is the only writer
+- b100#24 [toolchain] — a discriminated-union/exactOptionalPropertyTypes combination took three rounds. Booked: the strict-face re-read — convergence rounds are booked, not hidden
+- b100#25 [anchor-blindspot] — a lean toward dynamic import where a static import serves, self-caught and excluded pre-ship. Booked: the habit face — the disposition is booked because the habit, not the act, is the risk
+- b100#26 [process] — a task list's stated priority diverged from actual execution order. Booked: the checklist face — the checklist is the record or it is nothing
+- b100#27 [toolchain] — a top-level find targeted the wrong layout nesting (src/experiments vs experiments). Booked: the probe-first face — layout is confirmed before the glob is typed
+- b100#28 [wrong-object] — a byte-lock family assumption made without checking — the hashes differ by three-generation family drift. Booked: the verify-at-hash face — lock claims are verified across members
+- b100#29 [process] — a 542-line render file partially read, the mechanical assembly段 declared partially read rather than claimed. Booked: the declared-partial face — coverage claims state exactly what was read
+- b100#30 [statistics] — single-round suite runs with no variance re-run, declared rather than papered over. Booked: the declared-single-round face — reproducibility claims inherit the evidence's shape
+- b100#31 [wrong-object] — an expected archive (memory/r14/agentF.md) assumed to exist — it does not; the R14 总册 rebuilt the context. Booked: the archive-existence face — existence is verified before it is load-bearing
+- b100#32 [machine-overruled] — a cmat hash mismatch against a remembered record read as a broken lock — it is the family-consistent third-generation hash, all four twins equal. Booked: the member-wise face — a lock is verified across members, not against remembered hashes
+- b100#33 [process] — a test timeout transposed from repro data (150s for a 4.7s suite). Booked: the timeout-provenance face — timeouts come from the command's own history
+- b100#34 [toolchain] — a machine-form-only version grep nearly concluded no pins exist — the prose-form sweep found seven live pins. Booked: the dual-form face — ripple greps run both machine and prose patterns
+- b100#35 [wrong-object] — an initial semantic-inconsistency verdict withdrawn on comparison. Booked: the withdrawal face — withdrawals are booked as sharply as convictions
+- b100#36 [process] — a no-noise diagonal reading about to be generalized to arbitrary channels — rewritten as lambda_max(B) with a POVM bound for all CPTP. Booked: the quantifier-walk face — theorems walk their worst case before the claim is typed
+- b100#37 [citation-drift] — a GYNI year drafted from memory as 2012 — the dual-source register says 2010; corrected at the register. Booked: the register-over-recall face — the register outranks memory
+- b100#38 [toolchain] — a test-output tail truncation nearly swallowed the duration line — re-run for the complete block. Booked: the complete-block face — verdicts are read from complete output
+- b100#39 [wrong-object] — a '^test(' count returned 0 on a describe/it repo, nearly misreporting. Booked: the per-repo-convention face — the machine's runner is the only counter
+- b100#40 [toolchain] — read-only verification commands piped through tail — the banned shell shape, verdicts taken from complete count blocks instead of exit codes. Booked: the pipe-shape face — exit-code honesty honored by block re-read, the shape itself booked
+- b100#41 [wrong-object] — a grep -c count of 101 read as a numbering duplicate — 101 is 99 batches plus an interface plus a comment. Booked: the declared-authority face — the DECLARED constant and W-4 outrank prose counts
+- b100#42 [process] — a first full Read truncated at the size cap — re-read in segments with a batch-head index until the counts reconciled. Booked: the bounded-segment face — a truncated read is a declared, filled hole
+- b100#43 [wrong-object] — an exact-equality demand on bisection lambda broken by the round9 payment platform's ~1e-9 left edge. Booked: the quantization face — equality claims sit at the output's own quantization
+- b100#44 [wrong-object] — a same-payment assertion broken by the same +1e-9 edge, replaced by feasibility plus an honestly-scoped observation. Booked: the guarantee-vs-observation face — the test says which sentence it asserts
+- b100#45 [toolchain] — an out-of-domain validator narrowed to literal-false by the compiler. Booked: the wire-shape face — validators see the wire shape, not the parsed type
+- b100#46 [process] — an inserted block's wrapping violated prettier's shape — re-folded surgically, no --write over the host file. Booked: the surgical-format face — the grant covers only the author's new files
+- b100#47 [process] — an arithmetic-spaced threshold ladder broke its own band invariant — the new validator rejected it (an accidental self-proof). Booked: the band-invariant face — ladders are designed against the invariant first
+- b100#48 [toolchain] — the any-narrow relapse, second occurrence in one wave (the sibling's same face earlier in the batch). Booked: the lesson-uptake face — a family sighting within one wave is an uptake failure
+- b100#49 [toolchain] — a Set.has literal-union narrow the compiler refuses (TS2322), replaced by a three-way comparison; the dead constant cleaned in the same breath. Booked: the replace-not-decorate face — type tricks that do not hold are replaced
+- b100#50 [process] — three prettier deviations hand-repaired to whole-file cleanliness. Booked: the hand-repair face — same surgical law, existing files are not the wave's to re-shape
+- b100#51 [wrong-object] — a negative-control draft asserted the API face first and red as TypeError. Booked: the behavior-first face — convictions open on behavior; API absence is the setup
+- b100#52 [wrong-object] — two inherited-first-red test errors: a negative KL expectation (2/3 computed as 1/3) and an MC working point in the degenerate domain rejected by the module's own guard. Booked: the sanity-face-first law — divergence non-negativity and guard formulas are checked before the equality
+- b100#53 [wrong-object] — a probe's parenthesization unbalanced (5 matrices, 4 layers) — esbuild refused at birth. Booked: the load-at-birth face — the loader is the cheapest reviewer
+- b100#54 [wrong-object] — an indices array used directly as the sign table (the PAIRWISE_SIGNS15 lookup skipped) and an Rng instance called as a function — both exposed by the first red. Booked: the accessor face — tables are read through accessors, RNG through its interface
+- b100#55 [wrong-object] — a matrix comparison by reference equality on independently-built instances. Booked: the value-claim face — value comparisons for value claims
+- b100#56 [wrong-object] — a monotonicity direction read literally from a ratio (non-decreasing in N/t is non-increasing in t) — 120 phantom violations before the expansion. Booked: the explicit-expansion face — ratio directions are expanded into single-variable statements before assertion
+- b100#57 [toolchain] — a floating-boundary first red: asin(√3/2) is not exactly π/3, so a zero-probability branch never fired (p₁≈1e-33). Booked: the float-realizability face — exact-value premises are checked for float realizability before gating a branch
+- b100#58 [process] — probe scratch files written via heredoc TWICE — outside every grant, against the absolute channel ban, the second after the first confession. Booked: the no-scratch-exemption face — the Edit/Write channel is absolute; the relapse is its own row
+- b100#59 [process] — two type-friction convergence rounds (missing non-null then a redundant one on a tuple literal). Booked: the policy-divergence face — typecheck and lint hold different tuple policies; the second round was foreseeable
+- b100#60 [process] — an inherited half-product with unknowable original process — the warranty declared covers present text plus present tests, not the unreconstructable history. Booked: the handover-scope face — warranties state what they can verify
+- b100#61 [statistics] — a statistical pin at M=2000 fragile — re-pinned at M=3000 with fixed seed. Booked: the pin-strength face — statistical pins state M and seed
+- b100#62 [process] — 1e-15-scale evidence printed as 0.000 in a showcase draft — the point of the segment vanished in formatting. Booked: the scientific-notation face — magnitudes are printed at their scale
+- b100#63 [toolchain] — a badge-grep pattern returned empty across 29 repos — badges live in count-line shapes there; re-derived from the corpus. Booked: the pattern-question face — a grep that finds nothing is a question about the pattern
+- b100#64 [process] — a sibling ledger's stable-world claim about to be repeated — the live README has no version section; the board outranks the ledger. Booked: the live-file face — doc-truth is verified against the file, never inherited
+- b100#65 [process] — a platform total derived from sibling ledgers plus a find count rather than a live run (disclosed as such). Booked: the disclosed-intermediate face — the closeout's own run is the number the docs carry
+- b100#66 [process] — a zero-tolerance assertion attempted and kept as run rather than loosened after the fact. Booked: the no-post-hoc-loosening face — ambitious assertions stand as run or are re-derived before it
+- b100#67 [wrong-object] — a showcase segment initially compared two upper bounds (the sibling's booked trap), avoided by reading its ledger row first. Booked: the read-the-traps face — reading booked traps is part of writing the next test
+- b100#68 [toolchain] — the push task's first git fetch ran piped (2>&1 | tail; echo FETCH=$?) — the pipe masks the exit code, the exit-code-masking family's 31st sighting, caught by the FETCH_REAL re-check. Booked: the unpiped-verdict face — network verdicts come from PIPESTATUS or an unpiped run
+- b100#69 [process] — the CHANGELOG named batch-3-K's three-repo delivery while K was still running — a forward-dated ledger line, rewritten against the machine-verified delivery. Booked: the landed-only face — a ledger records what has landed, the quoted-digit family's undelivered variant
+- b100#70 [statistics] — a doc-sync stated the interim family increment as 256 where the machine says 329−124=205, caught by re-derivation before any gate. Booked: the executed-arithmetic face — doc arithmetic is executed, not recalled
+- b100#71 [toolchain] — the census's own package.json description count edited via node -e script instead of the Edit tool — the sanctioned-channel family's next orchestrator sighting, in the very closeout that enforces the law, caught by self-review before any gate; the diff verified exactly one line. Booked: the no-convenience-exemption face — the Edit tool is the only channel for the orchestrator too
 
 ## A-board — the anchor witness registry (every guard, evidence on file)
 
@@ -933,24 +1005,24 @@ The E-board made every error answer for its enforcement; the A-board made every 
 
 | family | sightings | first | latest | latest tier (held by) |
 | --- | --- | --- | --- | --- |
-| cat:process | 245 | b1 | b99#9 | BOOKED-UNENFORCEABLE |
-| cat:toolchain | 116 | b1 | b96#13 | BOOKED-UNENFORCEABLE |
-| cat:wrong-object | 95 | b2 | b99#7 | BOOKED-UNENFORCEABLE |
-| cat:statistics | 65 | b3 | b95#17 | BOOKED-UNENFORCEABLE |
+| cat:process | 267 | b1 | b100#69 | BOOKED-UNENFORCEABLE |
+| cat:toolchain | 127 | b1 | b100#68 | BOOKED-UNENFORCEABLE |
+| cat:wrong-object | 120 | b2 | b100#67 | BOOKED-UNENFORCEABLE |
+| cat:statistics | 70 | b3 | b100#70 | BOOKED-UNENFORCEABLE |
 | cat:dimension-slot | 49 | b5 | b87#28 | GATE-ENFORCED |
-| cat:citation-drift | 45 | b6 | b98#2 | BOOKED-UNENFORCEABLE |
-| cat:machine-overruled | 45 | b4 | b99#0 | BOOKED-UNENFORCEABLE |
-| shell-template-heredoc | 36 | b10 | b99#1 | BOOKED-UNENFORCEABLE |
-| runner-path | 31 | b14 | b99#5 | BOOKED-UNENFORCEABLE |
+| cat:machine-overruled | 47 | b4 | b100#32 | BOOKED-UNENFORCEABLE |
+| cat:citation-drift | 46 | b6 | b100#7 | BOOKED-UNENFORCEABLE |
+| shell-template-heredoc | 37 | b10 | b100#58 | BOOKED-UNENFORCEABLE |
+| runner-path | 33 | b14 | b100#57 | BOOKED-UNENFORCEABLE |
 | cat:conjugation | 28 | b4 | b79#3 | GATE-ENFORCED |
-| edit-anchor | 18 | b22 | b97#2 | BOOKED-UNENFORCEABLE |
-| cat:anchor-blindspot | 17 | b9 | b99#10 | BOOKED-UNENFORCEABLE |
+| edit-anchor | 20 | b22 | b100#71 | BOOKED-UNENFORCEABLE |
+| cat:anchor-blindspot | 18 | b9 | b100#25 | BOOKED-UNENFORCEABLE |
 | cat:bogus-comparison | 11 | b2 | b87#13 | GATE-ENFORCED |
 | count-drift | 9 | b36 | b90#0 | GATE-ENFORCED |
 | non-null-assert | 2 | b45 | b45#1 | GATE-ENFORCED |
 | tautological-witness | 2 | b79 | b96#9 | BOOKED-UNENFORCEABLE |
 
-The catch census: gate 145 / author 619 / numbers 49 / visitor 1 over 814 errors — the gate fraction rose from 1% (batches 1-22) to 25% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
+The catch census: gate 152 / author 682 / numbers 51 / visitor 1 over 886 errors — the gate fraction rose from 1% (batches 1-22) to 23% (batches 37+). The one visitor catch is b45#9 — and burial-record's B7 law (stated counts equal carried counts, v0.5.0 of the record) now holds that class by gate, with the A-fire B7 firing demo injecting the exact forgery into the real checkBurial.
 
 ## J-board — the per-error equivalence census (the JIA11 boundary, measured)
 
@@ -1086,7 +1158,7 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 | --- | --- | --- |
 | UPGRADED | 13 | the reason went false — the row is GATE-ENFORCED now and the basis cites the falsifying anchor verbatim (R2) |
 | SHARPENED | 62 | the reason survives but was coarse — rewritten to name the booked face and the gate-held face |
-| HELD | 291 | the reason is true as written; the basis states the ungated face |
+| HELD | 363 | the reason is true as written; the basis states the ungated face |
 
 **Every verdict, with its basis:**
 
@@ -1456,6 +1528,78 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - **HELD** b99#8 — latitude face: disclosed at delivery and accepted — booked as process, not granted as permission
 - **HELD** b99#9 — append-anchor face: three visits running, each restored in the same breath — the lineage is the record
 - **HELD** b99#10 — future-key face: the demo now derives its forged key from the live registry — the expiry-prone literal is gone and A3 fired on the conviction again
+- **HELD** b100#0 — instance face: instances are premise-checked in the module's own test battery — the lesson is process, the gate is the author's discipline
+- **HELD** b100#1 — validation-order face: the module's guard order is documented where the guards live — walking it on paper is author practice
+- **HELD** b100#2 — partition face: the random-family coverage is pinned by construction in the delivered tests — the dropped tail was caught by the same family's own audit
+- **HELD** b100#3 — argument-contract face: strict typing convicts shape at compile — the row is the test-author's, booked on the practice
+- **HELD** b100#4 — event-order face: the hook order is the module's own contract, pinned by its tests — the row books the test-side race
+- **HELD** b100#5 — exit-predicate face: the delivered termination lattice (Illinois flip, two-sided flat, stagnation midpoint) is pinned test-by-test in r18a — the lesson is design-order
+- **HELD** b100#6 — dead-state face: lint is the gate and it fired — the confession rides with the catch
+- **HELD** b100#7 — memory-shape face: the pending-dual-source mark is the enforced shape for every new module header — the draft never reached an artifact
+- **HELD** b100#8 — portability face: workspace-local probes are the rule; the failed probe cost one round-trip, nothing shipped
+- **HELD** b100#9 — quadrature face: the closed form is pinned against Monte Carlo and finite-sum legs in the delivered tests — the red was the harness's own numerics
+- **HELD** b100#10 — identifier-space face: the bidirectional-consistency diagnostic is delivered beside the fix — held on author practice
+- **HELD** b100#11 — owner-matched-deletion face: the internal verifier that killed the ghost edge ships with the module — held on author practice
+- **HELD** b100#12 — control-domain face: the delivered negative controls sit inside the validated domain — the vacuous draft died at self-review
+- **HELD** b100#13 — reachability face: repositioned as an enumeration proof in the delivered test — held on author practice
+- **HELD** b100#14 — narrow face: the no-unsafe-* rules are the standing gate and they fired — booked as the family's recurrence sighting
+- **HELD** b100#15 — re-derivation face: caught at re-derivation before any red — held on author practice
+- **HELD** b100#16 — guarantee-shape face: the four-state conservation and the bound are exactly what the delivered tests pin — the deadline draft asked a promise the method never makes
+- **HELD** b100#17 — explicit-kernel face: the delivered endpoint tests state their kernel — held on author practice
+- **HELD** b100#18 — draft-death face: lint fired on the draft — the convergence round is the record
+- **HELD** b100#19 — sibling-state face: the terminal whole-project typecheck is the closeout's gate and it closed at zero — the row books the mid-wave reading discipline
+- **HELD** b100#20 — bracket-arm face: the delivered certificate pins the bracket that matters — the comparison draft was test-side
+- **HELD** b100#21 — red-ink face: hand arithmetic is unconfirmed until the machine confirms — held on author practice
+- **HELD** b100#22 — role-label face: the delivered certificate asserts the bracket with named arms — the swap draft never reached a run
+- **HELD** b100#23 — single-writer face: the compiler is the gate and it fired
+- **HELD** b100#24 — strict-face re-read: typecheck is the standing gate — convergence rounds are booked, not hidden
+- **HELD** b100#25 — habit face: static-import-only is the enforced module shape — the lean was excluded pre-ship, the disposition books the habit
+- **HELD** b100#26 — checklist face: the report's own verification block is the counter-evidence — held on author practice
+- **HELD** b100#27 — probe-first face: exit-1 probes cost one round-trip — held on author practice
+- **HELD** b100#28 — verify-at-hash face: the family register's own hash columns are the machine check — the assumption was corrected against them
+- **HELD** b100#29 — declared-partial face: the report declares its read extent — the law this row polices is the declaration itself
+- **HELD** b100#30 — declared-single-round face: seeded RNG is the standing reproducibility gate — the declaration is the record
+- **HELD** b100#31 — archive-existence face: the absence is itself booked as a finding — held on author practice
+- **HELD** b100#32 — member-wise face: the family register's hash columns convicted the remembered hash, not the lock — machine-overruled in the wild
+- **HELD** b100#33 — timeout-provenance face: held on author practice — the suite's own duration is the counter-evidence
+- **HELD** b100#34 — dual-form face: the delivered ripple analysis ran both forms — held on author practice
+- **HELD** b100#35 — withdrawal face: held on author practice — withdrawals are booked as sharply as convictions
+- **HELD** b100#36 — quantifier-walk face: the delivered theorem states lambda_max(B) with a POVM bound over all CPTP — the generalization was corrected before it shipped
+- **HELD** b100#37 — register-over-recall face: the dual-source register is the standing citation gate — the correction happened at the register
+- **HELD** b100#38 — complete-block face: held on author practice — the re-run produced the complete block
+- **HELD** b100#39 — per-repo-convention face: the machine's runner output is the counter-evidence — held on author practice
+- **HELD** b100#40 — pipe-shape face: exit-code honesty was honored by complete-block reads — the shape is booked as the family's sighting
+- **HELD** b100#41 — declared-authority face: W-4 and the DECLARED constants are the standing gates — the inference was corrected against them
+- **HELD** b100#42 — bounded-segment face: the reconciliation against burial's own 814 is the machine check — held on author practice
+- **HELD** b100#43 — quantization face: the delivered wiring tests assert at the platform's own rounding — the tolerance is derived, not chosen
+- **HELD** b100#44 — guarantee-vs-observation face: the delivered test says which sentence it asserts — held on author practice
+- **HELD** b100#45 — wire-shape face: the validator ships holding the string width — the compiler conviction is the record
+- **HELD** b100#46 — surgical-format face: format:check over the whole repo is the standing gate and it closed — held on author practice
+- **HELD** b100#47 — band-invariant face: the delivered constructor validator is the gate — it rejected the illegal ladder (the accident self-proved the gate)
+- **HELD** b100#48 — lesson-uptake face: the no-unsafe-* gate fired on the recurrence — booked as the family's same-wave sighting
+- **HELD** b100#49 — replace-not-decorate face: the compiler is the gate and the dead code died with the approach
+- **HELD** b100#50 — hand-repair face: format:check closed over the whole file — held on author practice
+- **HELD** b100#51 — behavior-first face: the delivered conviction tests open on behavior — held on author practice
+- **HELD** b100#52 — sanity-face-first law: the module's own QV_DEGENERATE guard is the standing gate — it convicted the fixture, the source was correct
+- **HELD** b100#53 — load-at-birth face: esbuild is the gate and it refused at zero cost
+- **HELD** b100#54 — accessor face: the delivered census/pairing/smuggling faces pin the correct lookups — the first red exposed both, the tests now hold them
+- **HELD** b100#55 — value-claim face: the delivered test compares element-wise — held on author practice
+- **HELD** b100#56 — explicit-expansion face: the delivered monotonicity test asserts the expanded direction across 32,505 steps — the expansion is now the practice
+- **HELD** b100#57 — float-realizability face: the delivered test asserts two-path consistency on the tiny round — 1e-33 is not 0 and the test says so
+- **HELD** b100#58 — no-scratch-exemption face: the sanctioned-channel family's standing row — the relapse within one visit is its own row, both files deleted
+- **HELD** b100#59 — policy-divergence face: typecheck and lint are the standing gates — both closed, the rounds are the record
+- **HELD** b100#60 — handover-scope face: the declared warranty boundary is auditable in the delivered report — held as the boundary itself
+- **HELD** b100#61 — pin-strength face: the delivered showcase asserts at M=3000 fixed-seed — held on author practice
+- **HELD** b100#62 — scientific-notation face: the delivered showcase prints scientific magnitudes — held on author practice
+- **HELD** b100#63 — pattern-question face: the re-derived pattern found every badge — held on author practice
+- **HELD** b100#64 — live-file face: the doc-truth inventory's whole method is live-file verification — the row books the near-inheritance
+- **HELD** b100#65 — disclosed-intermediate face: the closeout's full run is the number the docs carry — the disclosure is the record
+- **HELD** b100#66 — no-post-hoc-loosening face: the assertion stood as run and passed — held on author practice
+- **HELD** b100#67 — read-the-traps face: the delivered segment prints the bracket that pins the true minimum — reading booked traps is now the practice
+- **HELD** b100#68 — unpiped-verdict face: the FETCH_REAL re-check is the standing ritual — the pipe shape is the family's 31st sighting, booked with its catch
+- **HELD** b100#69 — landed-only face: the changelog was rewritten against the machine-verified delivery — a ledger records what has landed
+- **HELD** b100#70 — executed-arithmetic face: the number now in the doc was computed before any gate ran — doc arithmetic is executed, not recalled
+- **HELD** b100#71 — no-convenience-exemption face: the diff was verified exactly one line and the edit stood correct — the channel, not the content, is the conviction; the sanctioned-channel family's standing row
 
 ## T-board — the total gate
 
@@ -1468,11 +1612,11 @@ A BOOKED reason is a universal claim — "no machine can hold this line" — and
 - PASS — W-C negative controls (3 synthetic violators fired (P1 shape-blind product, P3 lopsided outer, P4 non-CPTP Kraus); the mutant-trippers are proven by W-A itself)
 - PASS — W-D family census (12 file-pairs byte-identical to the canon; 42 registered divergences live (42 registered); 0 unregistered, 0 stale — the register matches reality exactly)
 - PASS — W-E workspace census (28/28 epoch repos: test+typecheck+repro and strict TS, 0 unguarded entries TOTAL (the pre-batch-21 guard debt PAID in batch 33 — 42 entries retrofitted, every gate re-run green); platform censused: ds_extracted/ds (test+typecheck mandatory, repro = the GENESIS-A registered debt, not a missing flag); report artifacts on disk: 28/29; workspace root: 0 strays (registered: none — zero exceptions) — the root-stray gate, v0.9.0)
-- PASS — W-F enrollment census (814 errors enrolled LIVE against a registry of 99 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 353, every booked row printed on the report)
+- PASS — W-F enrollment census (886 errors enrolled LIVE against a registry of 100 batches (declares exactly what it carries) — MUTANT-KILLED 117, GATE-ENFORCED 344, BOOKED-UNENFORCEABLE 425, every booked row printed on the report)
 - PASS — W-G anchor census (207 guards registered: 141 firing-inject demos on disk, 9 fired live this run, 57 resolved to machinery)
-- PASS — W-H genealogy census (16 families over 814 errors (16 recurring, all resolved); catch census gate 145 / author 619 / numbers 49 / visitor 1 — the gate fraction rose from 1% (b1-22) to 25% (b37+); count-drift held by B7: true)
+- PASS — W-H genealogy census (16 families over 886 errors (16 recurring, all resolved); catch census gate 152 / author 682 / numbers 51 / visitor 1 — the gate fraction rose from 1% (b1-22) to 23% (b37+); count-drift held by B7: true)
 - PASS — W-I per-error equivalence census (117 rows censused PER ERROR across 4 pilot classes (conjugation, wrong-object, dimension-slot, statistics): 9 collapses (bit-exact with their prototypes), 12 error-level kills (distinct constructions, killed live), 2 equivalent survivor(s) (booked with proofs), 94 unbuildable (the defect's home is not a family member) — battery-indistinguishability decided on all ten properties (10))
-- PASS — W-Y repair audit census (366 booked-population rows audited LIVE (of the 353 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 291 with the ungated face stated; born-audited is law)
+- PASS — W-Y repair audit census (438 booked-population rows audited LIVE (of the 425 booked + 13 upgraded) — UPGRADED 13 on cited live anchors with needle-level firing evidence (R4, 13 needles in the cited gates' own trees), SHARPENED 62 to named faces, HELD 363 with the ungated face stated; born-audited is law)
 - PASS — W-S self-report census (S1: 14 legislated sections in the closed order, M-board rows ascending by id, A-board kinds in evidence order; S2: 87 numeric prose claims reconciled against the live arithmetic — the artifact face on disk is re-derived by the suite on every run)
 
 ## Boundaries

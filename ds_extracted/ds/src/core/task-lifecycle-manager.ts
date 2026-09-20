@@ -32,6 +32,7 @@ import {
   checkTaskInvariants,
   type InvariantViolation,
 } from './task-lifecycle.js';
+import { classifyPendingTask } from './pending-reachability.js';
 // 01#24：仅类型依赖调度器模块（配置切片与统计口径）——无运行时环依赖
 import type { AgentScheduleStats, QuantumSchedulerConfig } from './quantum-scheduler.js';
 
@@ -493,6 +494,43 @@ export class TaskLifecycleManager {
             elapsedMs: now - task.assignedAt.getTime(),
           });
         }
+      }
+    }
+
+    // 1a) R18-I opt-in·挂起可达性早失败（缺省关——未配置时本段不可达，
+    // sweep 行为位同构）：unsatisfiable（全注册表无能力匹配，T1 零错杀
+    // 刻画见 pending-reachability.ts）的挂起任务立即以
+    // { reason: 'unsatisfiable', elapsedMs } 失败——终态与级联 reason 与
+    // 等满 pendingTimeoutMs 逐任务相同（T1' 提前失败严格支配），唯一差异
+    // 是时间与失败根因记录。判定是时点陈述（JS 单线程下判定与失败的
+    // 错杀窗口 = 空集）；sweep 之后注册的新 agent 不复活已判死任务
+    // （复活通道在判定之前）——依赖动态注册扩容的部署不应开启。
+    if (this.ctx.config.scheduling?.failFastUnsatisfiable === true) {
+      const agentViews = [...this.ctx.agents.values()].map((a) => ({
+        id: a.id,
+        capabilities: a.capabilities,
+        state: a.state,
+      }));
+      for (const task of this.tasks.values()) {
+        if (task.status !== 'pending') continue;
+        // 需求侧投影 + 去重：重复需求不改变匹配语义，但会触发判定模块
+        // 的输入契约拒绝——sweep 定时回调内不抛，防御性去重
+        const caps = [
+          ...new Set(task.requirements.filter((r) => r.type === 'capability').map((r) => r.name)),
+        ];
+        const verdict = classifyPendingTask(
+          { id: task.id, requiredCapabilities: caps },
+          agentViews,
+        );
+        if (verdict.classification !== 'unsatisfiable') continue;
+        logDebug(
+          'QuantumScheduler',
+          `Pending task failed fast (unsatisfiable): ${task.name} (${task.id}), required [${caps.join(', ')}]`,
+        );
+        this.completeTask(task.id, false, {
+          reason: 'unsatisfiable',
+          elapsedMs: now - task.createdAt.getTime(),
+        });
       }
     }
 

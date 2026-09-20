@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 99;
-export const DECLARED_TOTAL_ERRORS = 814;
+export const DECLARED_TOTAL_BATCHES = 100;
+export const DECLARED_TOTAL_ERRORS = 886;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -5048,6 +5048,376 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[wave latent, convicted this batch] the census E1 firing demo hardcoded its forged un-enrolled error at the FUTURE key b99#9 — the day batch 99 actually enrolled a real b99#9 the demo's premise expired and the forged row stopped being un-enrolled, A3 convicting the anchor itself ('did not fire') on the wave's own render",
         right: "firing-demo fixtures are DERIVED from the live registry (one past its last batch) so they can never collide with real growth — the expiry-prone literal is the anchor-blindspot family's future-key face, caught by the machinery it was supposed to demonstrate",
         category: "anchor-blindspot",
+      },
+    ],
+  },
+  {
+    batch: 100,
+    repo: "ds_extracted/ds",
+    date: "2026-09-20",
+    context:
+      "the R18 second innovation wave (visit ninety-three, the every-line traversal token re-issued with a mid-wave reinforcement token; three batches of four delivery agents over the platform's four quarters, the 29 research repos, and targeted implementation, plus the orchestrator): 72 delivery errors across 7 classes — the largest batch ever booked, one wave of thirteen actors — led by twenty-five wrong-object test-side first reds (the recurring lesson: expectations derive from the mechanism's rule before the fixture is typed), two heredoc relapses on probe scratch files outside every grant, one monotonicity direction read backwards through a ratio bridge for 120 phantom violations, and the orchestrator's own four: the pre-booked push-task pipe-mask, a CHANGELOG line written ahead of the delivery it described, a hand-arithmetic 256 where the machine says 205, and a node -e edit of the census's own package.json in the very closeout that enforces the Edit-only channel — the sanctioned-channel family's next orchestrator sighting, caught by self-review before any gate ran; every one self-caught, tool-caught, or machine-caught in the act, none shipped",
+    source: { file: "memory/2026-09-20.md", heading: "关键经验（第 100 批" },
+    errors: [
+      {
+        wrong: "[delivery agent R18-A] an affine-segment test instance whose floor clamping broke the very segment premise the assertion depended on",
+        right: "test instances are checked against the theorem's premises before they are asserted against its conclusion — the instance is the experiment, not just an input",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-A] a monotonicity-violation instance was intercepted by the earlier lambda-max check, so the named rejection under test never fired",
+        right: "an adversarial instance is walked through the validation order on paper first — whichever guard fires earliest owns the conviction, and the test must name that guard",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-A] a random-family generator's budget interval dropped its last segment, leaving part of the claim's domain untested",
+        right: "interval partitions are audited for coverage of the full claimed domain — a dropped tail is a silent hole, not a simplification",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-A] a Task object was passed where the API takes a task id — the shape error surfaced as a wrong assertion, not a type error",
+        right: "argument contracts are read at the call site before the assertion is written — convenience-shaped calls are how shape errors hide inside passing tests",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-A] a revival-channel assertion fired before the registration hook it depended on had run, misreading a timing gap as a mechanism failure",
+        right: "assertion order follows the mechanism's own event order — a test that outruns the hook it observes convicts the test",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-A] the first secant draft carried the Illinois sign flip, single-side stagnation, and no two-sided-flat termination — caught at pre-test derivation self-review and rewritten before any run",
+        right: "the termination lattice of a bracketing method is designed on paper before the loop is typed — all three defect faces shared one root: the exit predicate was an afterthought",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-A] a redundant state union in the module survived to lint, which killed it",
+        right: "dead state is lint's to catch and the author's to not write — the confession rides with the catch",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-A] literature names recalled from memory (Lagnèse/Todd/Edgeworth shapes) were drafted into the module header before the no-recall law caught them at self-review",
+        right: "citation shapes are written as author-year-title-keyword with a pending-dual-source mark from the first keystroke — memory-sourced names are deleted, not corrected in place",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent R18-A] a /tmp probe path assumed POSIX semantics on a Windows host and failed",
+        right: "probe paths are host-normalized or kept inside the workspace — portability is part of the probe, not an afterthought",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-B] Simpson-integration endpoints were zeroed in a three-legged comparison, producing a first red against a correct closed form — the test's own numerics, not the module",
+        right: "quadrature endpoints are verified against the integrand's support before they are dropped — a smoothed-away endpoint is a forged anchor",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R18-B] the koenigColoring chase cursor compared edge ids as vertex numbers, so the cursor never advanced — a ghost edge sent the chase around a cycle to a RangeError, convicted by a bidirectional-consistency diagnostic script",
+        right: "identifier spaces are never mixed — a chase that cannot advance is a bug in its cursor, and the diagnostic that catches it is kept beside the fix",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-B] setColor deleted by value where ownership mattered — under flip sequences with transient same-color conflicts it deleted another edge's fresh record, a second ghost edge the internal verifier killed",
+        right: "deletions are owner-matched, and the order-sensitivity of the operation is documented where the deletion happens — the verifier that caught it is part of the delivery",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-B] a negative control's smuggled edge was not in the audited base set, so the control convicted nothing it claimed to",
+        right: "a negative control's forged input must lie inside the validated domain — outside it, the rejection is vacuous and the control is theater",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-B] a negative control pursued a target the mathematics makes unreachable (the lower bound already implies it) — repositioned as an enumeration proof instead",
+        right: "controls are checked for reachability of their target before they are asserted — an impossible target is a proof obligation misfiled as a test",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-B] an Array.isArray narrow produced any[], admitting 27 no-unsafe-* findings at lint",
+        right: "narrows go through unknown with per-field discrimination — any is a hole the lint will always find and the author should never dig",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-B] a test-side arithmetic slip wrote E=270/342 where the construction is 180/252 — self-caught at re-derivation before any red",
+        right: "expected values are re-derived from the construction, never transcribed from a mental tally",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R18-C] an assertion demanded the null stream decide within 400 steps — but the SPRT promises error control, never a decision deadline (8.7% undecided is a true statistical fact)",
+        right: "the guarantee's shape is read before it is asserted: four-state conservation plus the bound, not a promise the method never made",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-C] an n=0 endpoint test used the default prior kernel while expecting multi-kappa values — the test object was wrong, the module was not",
+        right: "endpoint tests state their kernel explicitly — a default is a choice, and expectations computed under another choice are forged",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-C] a first test draft carried priority-inverted predicates and formatting residue; lint caught three findings across two passes",
+        right: "drafts die at self-review — the rule face is read before the first line, and the convergence round is booked with the delivery",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-C] a whole-project typecheck showed three errors — all in a sibling agent's parallel in-flight files (r18a), none in this agent's four new files",
+        right: "a red in a sibling's work-in-progress is reported as the sibling's state at that instant, not claimed and not fixed — the terminal-state check belongs to the wave's closeout",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R18-D] a dense-sweep upper bound was compared directly against the certificate upper bound — two different quantities whose comparison is meaningless",
+        right: "the certificate's bracket arms are named before any comparison — an upper bound proves nothing against another upper bound",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-D] a hand-computed expectation at M=199 was wrong by the margin the assertion then demanded",
+        right: "hand arithmetic is red-ink until the machine confirms it — expectations are computed by the same code path they test where possible",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-D] a gap assertion selected min where it meant max (and the reverse), inverting the certified interval's meaning",
+        right: "interval bounds are labeled with their roles at the point of assertion — a swapped pair passes vacuously on symmetric fixtures and that is the trap",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-D] a readonly field was assigned after construction — the strict compiler rejected the shape",
+        right: "readonly is honored at design time, not silenced at write time — the constructor is the only writer",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-D] a discriminated-union/exactOptionalPropertyTypes combination took three first-red rounds to satisfy",
+        right: "the type-system's strict faces are re-read when the shape is unusual — convergence rounds are booked, not hidden",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-D] a lean toward dynamic import for the module's probe was self-caught and excluded before it shipped — the anchor-shaped habit of reaching for runtime loading where a static import serves",
+        right: "static where static suffices — the disposition is booked because the habit, not the act, is the risk",
+        category: "anchor-blindspot",
+      },
+      {
+        wrong: "[delivery agent R18-E] a task list ranked npm test as a tail-end low priority while the runs actually happened per-repo as traversed — list semantics and execution diverged",
+        right: "the checklist is the record or it is nothing — semantics drift between plan and execution is booked even when the execution was the better one",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-E] a top-level find targeted experiments/ on a repo whose layout nests it under src/experiments/ — exit 1 on the first probe",
+        right: "layout is confirmed before the glob is typed — path assumptions are probe-first questions",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-E] an initial assumption treated two repos as byte-locked by family without checking — the hashes differ (three-generation family drift)",
+        right: "lock claims are verified at the hash before they are asserted — an unverified family assumption is exactly the blindspot the family register exists to prevent",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-E] dtc-clock's 542-line render.ts was initially planned as a structure scan; the head and write faces were then read, and the mechanical markdown assembly段 was honestly declared partially read rather than claimed",
+        right: "coverage claims state exactly what was read — a declared partial read is a legal report; a claimed full read that was not is the crime this row exists for",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-E] each repo's suite ran a single round with no variance re-run — RNG fully seeded makes the risk low, and the omission was declared rather than papered over",
+        right: "single-round suites are declared as single-round — reproducibility claims inherit the shape of the evidence that ran",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R18-F] expected memory/r14/agentF.md to exist as background — it does not (the R14 batch-2 ledgers were never archived); the R14 总册 rebuilt the context instead",
+        right: "an archive's existence is verified before it is load-bearing — the gap itself was booked as a finding, the second time this absence has bitten",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-F] a cmat hash mismatch against the R14 record (a03a0e77 vs e8a33cb0) read as a broken byte-lock — it is the family-wide consistent third-generation hash, all four twins equal",
+        right: "a lock is verified across its members, not against a remembered hash — the machine said the family is intact and the memory of one hash was the drift",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R18-F] a retro-cache test was given a 150s timeout transposed from repro data — the suite actually runs in 4.7s",
+        right: "timeouts come from the command's own history, not from adjacent numbers in the ledger",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-F] the first version-ripple grep used only JSON/@-style patterns, near-zero hits, and was about to conclude no pins exist — a prose-form sweep (repo vN.N.N) then found the historical citations and seven live pins",
+        right: "ripple greps run both machine-form and prose-form patterns before concluding — a version number lives in sentences too",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-G] an initial reading called secondHighest/secondOf semantically inconsistent — comparison showed same values; the case was withdrawn",
+        right: "a semantic-verdict draft is re-derived against both implementations before it is filed — withdrawals are booked as sharply as convictions",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-G] a no-noise diagonal-dependence reading was about to be generalized to arbitrary channels — self-review caught that Hadamard-type off-diagonal action breaks it, and the theorem was rewritten as lambda_max(B) with a POVM upper bound for all CPTP",
+        right: "a theorem's quantifier is walked through its worst case before the claim is typed — the generalization face is where quiet wrong theorems are born",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-G] a GYNI citation year drafted from memory as 2012 — the R15 dual-source register says PRL 104, 230404 (2010); corrected at the register before any artifact carried it",
+        right: "the dual-source register outranks recall — the correction is booked because the hand reached for memory first",
+        category: "citation-drift",
+      },
+      {
+        wrong: "[delivery agent R18-G] a test-output tail truncation nearly swallowed the duration line — re-run to confirm the complete block",
+        right: "verdicts are read from complete output blocks — a truncated tail is a re-run, not an assumption",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-G] a '^test(' count over k-switch returned 0 and nearly misreported — that repo uses describe/it; the live run said 43",
+        right: "counting conventions are per-repo — the machine's own runner output is the only counter",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-H] all read-only verification commands were piped through tail — the banned shell shape, with green verdicts read from complete count blocks inside the output rather than exit codes",
+        right: "read-only audits may use the pipe shape only where the verdict block is fully captured; the law's spirit (exit-code honesty) is honored by re-reading the block, and the shape itself is booked",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-H] a grep -c 'batch:' count of 101 read as a numbering duplicate — 101 is 99 batches plus an interface definition plus a comment; the authority is the DECLARED constant and W-4",
+        right: "counting grep hits is a question, the registry's declared totals are the answer — inference from prose counts is how phantoms are born",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-H] a first full Read of enrollment.ts hit the size cap and truncated — re-read in segments with a batch-head index until E1's 814 reconciled against burial's own 814",
+        right: "big files are read in bounded segments with an index — a truncated read is a hole declared and filled, never a silent one",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-I] a main-pin assertion demanded bisection lambda exactly 3.0 — the round9 payment platform moves the feasible left edge by ~1e-9, and the machine printed 2.999999999",
+        right: "equality claims on floating outputs are made at the output's own quantization — tolerance is derived from the platform's rounding, here 2e-9 to absorb the step",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-I] a same-payment assertion was broken by the same +1e-9 left edge — replaced by feasibility plus an observed-domination assertion honestly scoped as an observation, not a theorem",
+        right: "what the machine guarantees and what one run observed are different sentences — the test says which it is asserting",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-I] an out-of-domain validator was narrowed to literal-false by the compiler (no-unnecessary-condition) — the field must be held as string width to validate",
+        right: "validators see the wire shape, not the parsed type — narrowing before validation is how garbage gets typed into legality",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-I] an inserted code block's line wrapping violated prettier's expected shape — re-folded via targeted Edits rather than running --write over the host file",
+        right: "format edits on existing files are surgical — the wave's formatting grant covers only the author's new files",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-J] the conviction test's first threshold ladder [1,2,3]MiB was arithmetic-spaced and broke its own band invariant — the new constructor validator rejected it (an accidental self-proof of the validator)",
+        right: "threshold ladders are designed against the band invariant first — the doubling sequence that replaced it is legal by construction, not by luck",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-J] the Array.isArray-narrow-to-any[] relapse (the sibling agent's same face, caught earlier in the same batch)",
+        right: "unknown with per-field discrimination — booked as a family sighting because the second occurrence in one wave is a lesson-uptake failure",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-J] Set.has cannot narrow a literal union (TS2322) — the three-way comparison replaced it, and the constant that became dead code was cleaned in the same breath",
+        right: "type-level tricks that do not hold are replaced, not decorated — dead constants from abandoned approaches die with the approach",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-J] three prettier deviations in the new block were hand-repaired to whole-file cleanliness (no --write over the existing file)",
+        right: "same surgical-format law as the sibling rows — the existing file's formatting is not the wave's to re-shape",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-J] a negative-control draft asserted the API face first and red as TypeError — the conviction must open on the behavior face; the API absence is a supporting exhibit",
+        right: "convictions are behavioral first — a TypeError proves the API is missing, which is the setup, not the crime",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] two inherited-first-red test-side errors: a hand-computed KL expectation written negative ((1−τ)/(1−p)=2/3 computed as 1/3 — a KL cannot be negative), and an MC working point sitting in the degenerate domain (γ=0.3 ≥ ε/2, the comment's own pH/pL contradicted it) — the module's own QV_DEGENERATE guard rejected the fixture",
+        right: "sanity faces (non-negativity of divergences, guard formulas) are checked before the equality — the value ½ln(4/3) replaces the impossible draft and working points are chosen inside the separable domain; both reds were the test's questions, the source was correct",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] a k5 probe's parenthesization was unbalanced (5 matrices, 4 cmatMul layers) — esbuild refused it before it could enter the repo",
+        right: "probes are syntax-checked by the loader at birth — the refusal is the toolchain doing its job at zero cost",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] k5's first version used the indices array directly as the ±1 sign table (the PAIRWISE_SIGNS15[i-1][j-1] lookup was skipped) and called the Rng instance as a function — the census/pairing/smuggling faces were all wrong until the first red exposed both",
+        right: "lookup tables are read through their accessors and RNG objects through their interface — bundled source bugs are booked as one row when one review would have caught both",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] a k5 test compared matrices by reference equality (assert.equal on two independently-built instances)",
+        right: "value comparisons for value claims — reference equality on fresh instances is a guaranteed false red",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] the menu-law monotonicity probe asserted the direction read literally from the spec's ratio (k* non-decreasing in N/t) — through the theta bridge that means NON-INCREASING in t; the first run produced 120 phantom violations before the expansion was written out",
+        right: "a ratio's monotonicity direction is expanded into an explicit single-variable statement before any assertion is typed — literal reading of ratio prose is how directions flip",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R18-K] a floating-boundary first red: asin(√3/2) is not exactly π/3 in floating point, so p₁≈1e-33 > 0 and the zero-probability branch never fired — re-asserted honestly as two-path consistency on the tiny-probability round",
+        right: "exact-value premises are checked for float realizability before they gate a branch — 1e-33 is not 0, and the test now says so",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-K] probe scratch files were written via heredoc (cat >/tmp) TWICE — outside every grant, against the absolute channel ban, the second after the first confession",
+        right: "the Edit/Write channel is absolute with no scratch-file exemption — the relapse within one visit is booked as its own row; both files deleted, all deliverables via the sanctioned channel",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-K] two convergence rounds on type friction (a missing non-null assertion under noUncheckedIndexedAccess, then eslint flagging a redundant one on a tuple literal)",
+        right: "typecheck and lint hold different tuple-index policies — both rounds are booked because the second was foreseeable from the first",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-K] the inherited qverify trapwall half-product carries an unknowable original-author process — the warranty declared covers the present text plus present tests green and pinned, not the unreconstructable history",
+        right: "handovers warranty what they can verify — a declared scope is booked so the boundary is auditable, not assumed",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-L] a null-scan statistical assertion at M=2000 was fragile — re-pinned at M=3000 with a fixed seed",
+        right: "statistical pins state M and seed — fragility is designed out, not tolerated",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R18-L] 1e-15-scale evidence printed as 0.000 in the first showcase draft — the number that is the point vanished in formatting",
+        right: "scientific notation for scientific magnitudes — a showcase that rounds away its own evidence is a lie with a decimal point",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-L] the badge-grep pattern returned empty across all 29 repos — badges live in count-line shapes there; the pattern was re-derived from the corpus's own forms",
+        right: "a grep that finds nothing is a question about the pattern, not a finding about the world",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R18-L] the F-ledger's 'stable-world last section v0.6.0' was about to be repeated — the live README has no version section at all; the board outranks the ledger",
+        right: "doc-truth claims are verified against the live file, never inherited from a sibling's ledger — the double-divergence was the finding",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-L] the platform total was cited from the sibling ledgers' raw lines plus a find count rather than a live full run (disclosed in the ledger as such)",
+        right: "a disclosed derivation is a legal intermediate — the closeout's own full run is the number the docs carry",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-L] a zero-tolerance assertion was attempted where the construction admits none — kept and honestly archived rather than loosened after the fact",
+        right: "ambitious assertions stand as run or are re-derived before the run — post-hoc loosening is the crime this row polices",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R18-L] the showcase's γ-buyout segment initially compared the dense-sweep upper bound against the certificate's upper bound — the sibling agent's double-upper-bound trap, avoided by reading its ledger row before writing the assertion",
+        right: "a certificate's arms are named before any comparison — the segment now prints the bracket that actually pins the true minimum, and reading the siblings' booked traps is part of writing the next test",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[orchestrator, pre-booked from the prior visit's push task] the first git fetch of the push ran as `git fetch 2>&1 | tail; echo FETCH=$?` — the pipe masks the exit code (FETCH=0 printed above the fatal), the exit-code-masking family's 31st sighting, caught by the FETCH_REAL re-check in the same breath",
+        right: "network commands' verdicts come from PIPESTATUS or an unpiped run — the re-check ritual that caught it is now the booked right column",
+        category: "toolchain",
+      },
+      {
+        wrong: "[orchestrator, this batch] the CHANGELOG's v1.17.0 entry named batch-3-K's three-repo delivery (repos, versions, counts) while K was still running — a forward-dated ledger line; had K failed or delivered differently, the changelog would have lied",
+        right: "a ledger records what has landed, not what is expected — the line was re-written against K's machine-verified delivery after the fact, and the practice is booked as the quoted-digit family's undelivered variant",
+        category: "process",
+      },
+      {
+        wrong: "[orchestrator, this batch] the QUANTUM-SCHEDULING family-count sync stated the interim wave increment as 256 — the machine arithmetic says 329−124=205; caught by re-derivation before any gate or audit ran",
+        right: "doc arithmetic is executed, not recalled — the number now in the doc was computed by the same engine that will audit it",
+        category: "statistics",
+      },
+      {
+        wrong: "[orchestrator, this batch] the census's own package.json description count was edited via `node -e` script instead of the Edit tool — in the very closeout that enforces the Edit-only channel law, the sanctioned-channel family's next orchestrator sighting (b96#1/b97's lineage), caught by self-review before any gate ran; the diff was verified exactly one line before proceeding",
+        right: "the Edit tool is the only channel for the orchestrator too, with no convenience exemption for one-line JSON edits — the row is booked in the same batch it happened, and the count sync redone under the law it violated",
+        category: "toolchain",
       },
     ],
   },

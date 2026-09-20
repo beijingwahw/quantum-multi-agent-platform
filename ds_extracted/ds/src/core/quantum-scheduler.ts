@@ -142,6 +142,16 @@ export interface QuantumSchedulerConfig {
      * 此前缺省关闭）；显式 0 关闭（长依赖链的合法等待语义）。
      */
     pendingTimeoutMs?: number;
+    /**
+     * R18-I opt-in：挂起任务可达性早失败（缺省关——位同构，未配置时
+     * sweep 行为与既有一致）。开启时 sweep 对全注册表无能力匹配
+     * （unsatisfiable，T1 零错杀刻画见 pending-reachability.ts）的挂起
+     * 任务立即以 { reason: 'unsatisfiable' } 失败——终态与级联 reason
+     * 与等满 pendingTimeoutMs 逐任务相同（T1'）。判定是时点陈述：
+     * sweep 之后注册的新 agent 不复活已判死任务（复活通道在判定
+     * 之前）——依赖动态注册扩容的部署不应开启。
+     */
+    failFastUnsatisfiable?: boolean;
     quantumAlgorithm?: QuantumAlgorithm;
     quantum?: QuantumEngineConfig;
     /**
