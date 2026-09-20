@@ -154,11 +154,24 @@ The comparison model's second executed theorem, on the same three mutually cross
 
 Honest boundary: n ≤ 6 is machine-enumerated; the all-n statement is the classical theorem carried by the machine invariant (Kislitsyn-1964 on the minimum comparisons for the second largest; Knuth-1973 *The Art of Computer Programming Vol. 3: Sorting and Searching* §5.3.3 — author-year-title keywords, awaiting dual sourcing). Deterministic comparison trees only — randomized or quantum models are other islands. The atlas entries/registry stay untouched, as with v0.3.0's walls.
 
+## The min&max wall (v0.5.0, `src/lower/minmax.ts`)
+
+The comparison model's third executed theorem, on the same three mutually cross-checking legs (the second-largest wall's DFS mechanics, a new terminal and a new adversary): **finding BOTH the minimum and the maximum of n distinct keys needs exactly ⌈3n/2⌉ − 2 comparisons (n ≥ 2)** — even n: 3n/2 − 2, odd n: (3n−3)/2. The R18 draft's prose "n = 2 special case: 3 comparisons" is machine-refuted: n = 2 needs exactly 1 (compare the two; the winner is the max, the loser the min — the closed form itself).
+
+- **LEG A (flat sweep):** every canonical depth-q tree audited on all n! inputs for a single true (min, max) pair per reached leaf — all 27 depth-2 trees on n=3 die at the forgery depth ⌈3n/2⌉−3, as do all 279,936 depth-3 trees on n=4; depth 3 on n=3 carries correct trees with every leaf separating the n(n−1) ordered outcomes.
+- **LEG B (game DFS):** the terminal is "minimum AND maximum both determined" (a unique sink-source pair in the partial order) — the exact optimum equals ⌈3n/2⌉−2 at n = 2..6 (1, 3, 4, 6, 7).
+- **LEG C (the pairing adversary, at any n):** the classical pairing argument as a machine invariant. Every element starts with TWO candidacies — max until it loses, min until it wins; classes NO/MAXC/MINC/OUT track them. NO-vs-NO is the only play that burns two candidacies at once (and at most ⌊n/2⌋ such plays exist), same-class duels burn one, cross-class duels burn ZERO (MAXC beats MINC and nothing is lost); after k plays the surviving pool is ≥ 2n − k − ⌊n/2⌋, so at k = ⌈3n/2⌉−3 the pool is ≥ 3 > 2 — either two elements never lost (the max is open) or two never won (the min is open), each carrying a machine-verified witness total order consistent with every answer. The exhaustive sweep plays every adaptive strategy of k = ⌈3n/2⌉−3 comparisons (n=4: all 216 sequences; n=5: all 100,000) and every one leaves both extrema undetermined; the drop law is held as data (n=6: exactly the three paired duels are the two-burn plays).
+- **The counting gate, exact BigInt:** q ≥ ⌈log₂(n(n−1))⌉ — TIGHT at n = 4 (both read 4; the only wall in the family the leaf count touches), gapped at n = 5 (5 vs 6) and n = 6 (5 vs 7 — two comparisons wide, invisible to counting alone).
+- **Tightness, constructive:** `minmaxTreeWitness(n)` builds a correct flat tree at exactly the closed form's depth (n = 2..5 audited green); and the pairing strategy itself (pair them up, king-of-the-hill the winners, king-of-the-hill the min bracket) played against the adversary determines both extrema at exactly ⌈3n/2⌉ − 2 plays (n = 2, 4, 5, 6 — even and odd).
+- **Smuggling trials:** the king-of-the-hill tree — optimal for find-max at n−1 — is convicted BY NAME as a min&max forgery (n=4: the leaf, the killing permutation, the two disagreeing (min, max) pairs); the sequential tournament at n−1 plays against the adversary blocks on MIN-UNKNOWN with n−1 min candidates and two named min witnesses; degenerate inputs are refused with descriptive errors per house style.
+
+Honest boundary: n ≤ 6 is machine-enumerated; the all-n statement is the classical theorem carried by the machine invariant (Pohl-1972 on simultaneous min-max; Knuth-1973 §5.3.3 — author-year-title keywords, awaiting dual sourcing). Deterministic comparison trees only. The atlas entries/registry stay untouched, as with every wall in this family.
+
 ## Reproduce
 
 ```
 npm install
-npm test        # 91/91 — includes re-running every machine certificate
+npm test        # 102/102 — includes re-running every machine certificate
 npm run repro   # ~4 s — rebuilds all six experiment reports + the atlas
 ```
 

@@ -3,19 +3,22 @@
  *
  * Entry guard (batch 21): rendering fires only when this file is the invoked
  * program. The refusal gate covers the whole package: the ledger laws, the
- * witnesses, AND the recomputation laws for the allocation table (X6) and
- * the robustness census (X7) — a counterfeit number anywhere and nothing
- * renders.
+ * witnesses, the recomputation laws for the allocation table (X6), the
+ * robustness census (X7), the information bound (X9), and the readout-fit
+ * root census (X8's mapped boundary) — a counterfeit number anywhere and
+ * nothing renders.
  */
 import { pathToFileURL } from "node:url";
 import { XVAL } from "../kernel/ledger.js";
-import { checkBudgetTable, checkRobustTable, checkXval, requireInstance, runWitnesses } from "../kernel/audit.js";
+import { checkBudgetTable, checkChernoffTable, checkRootCensus, checkRobustTable, checkXval, requireInstance, runWitnesses } from "../kernel/audit.js";
 import { writeReport } from "./report.js";
 import { instanceSet, type Instance } from "../kernel/crossval.js";
 import { allocationScope, BUDGET_BETAS, BUDGET_CAP, BUDGET_FLIPS, buildBudgetTable, budgetDepths, type BudgetRow } from "../kernel/budget.js";
 import { CENSUS_BAND, CENSUS_DELTAS, perturbCensus, robustSummary, type PerturbRow } from "../kernel/robust.js";
 import { exactProbe } from "../kernel/probe.js";
 import { DISC_PROBE_IDS, discriminatorRow, MC_SHELL_DEMO, mcShellDemo } from "../kernel/discriminate.js";
+import { chernoffRow, CHERNOFF_DELTA, type ChernoffRow } from "../kernel/chernoff.js";
+import { fitRootCensus, type FitRootCensusRow } from "../kernel/roots.js";
 import { XvalError } from "../kernel/error.js";
 
 function fmt(x: number | null): string {
@@ -27,7 +30,26 @@ function sci(x: number): string {
   return x.toExponential(3);
 }
 
-function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[], censusRows: readonly PerturbRow[]): string {
+/** The X9/root-census rows for the four size probes — built once, shared by
+ * the renderer's tables and main()'s refusal gate (one computation, not two
+ * that could drift apart). */
+function buildInformationRows(insts: readonly Instance[]): { chernoff: ChernoffRow[]; roots: FitRootCensusRow[] } {
+  const chernoff: ChernoffRow[] = [];
+  const roots: FitRootCensusRow[] = [];
+  for (const id of DISC_PROBE_IDS) {
+    const inst = insts.find((i) => i.id === id);
+    if (inst === undefined) continue;
+    const probe = exactProbe(inst, 1);
+    const meta = { instanceId: inst.id, n: inst.n, depth: 1 };
+    for (const flip of BUDGET_FLIPS) {
+      chernoff.push(chernoffRow(probe.masses, meta, flip, CHERNOFF_DELTA));
+      roots.push(fitRootCensus(probe.masses, meta, flip));
+    }
+  }
+  return { chernoff, roots };
+}
+
+function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[], censusRows: readonly PerturbRow[], chernoffRows: readonly ChernoffRow[], rootRows: readonly FitRootCensusRow[]): string {
   const lines: string[] = [];
   lines.push("# THE CROSS-VALIDATION PACKAGE — the hardware path's executable half\n");
   lines.push(
@@ -90,8 +112,8 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
 
   // ---- X8: the falsifier sharpened ----
   lines.push("\n## The falsifier sharpened (X8) — readout vs depolarizing, as data\n");
-  lines.push("| instance | n | f | r | fit f | lambda | depol physical | shell1 readout | shell1 depol | gap | sigma @ planned | separable |");
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  lines.push("| instance | n | f | r | fit f | lambda | depol physical | shell1 readout | shell1 depol | gap | sigma @ planned | separable | C(P,Q) | N_info | 2-sigma / floor |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const id of DISC_PROBE_IDS) {
     const inst = insts.find((i) => i.id === id);
     if (inst === undefined) continue;
@@ -100,8 +122,10 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
       const plan = budget.find((b) => b.instanceId === id && b.depth === 1 && b.flip === flip && b.effectRel === 1 && b.beta === BUDGET_BETAS[0]);
       const plannedShots = plan?.shots ?? BUDGET_CAP;
       const row = discriminatorRow(probe.masses, { instanceId: inst.id, n: inst.n, depth: 1 }, flip, plannedShots);
+      const cRow = chernoffRows.find((c) => c.instanceId === id && c.flip === flip);
+      const cell = (v: number | null | undefined, render: (x: number) => string, dash = "—"): string => (v === null || v === undefined ? dash : render(v));
       lines.push(
-        `| ${row.instanceId} | ${row.n} | ${row.flip} | ${sci(row.r)} | ${row.fitFlip.toFixed(4)} | ${row.fitLambda.toFixed(3)} | ${row.depolPhysical ? "yes" : "NO (lambda>1)"} | ${sci(row.shell1Readout)} | ${sci(row.shell1Depol)} | ${sci(row.gap)} | ${sci(row.sigma)} | ${row.separable ? "yes" : "NO"} |`,
+        `| ${row.instanceId} | ${row.n} | ${row.flip} | ${sci(row.r)} | ${row.fitFlip.toFixed(4)} | ${row.fitLambda.toFixed(3)} | ${row.depolPhysical ? "yes" : "NO (lambda>1)"} | ${sci(row.shell1Readout)} | ${sci(row.shell1Depol)} | ${sci(row.gap)} | ${sci(row.sigma)} | ${row.separable ? "yes" : "NO"} | ${cell(cRow?.chernoff, sci)} | ${cell(cRow?.nInfo, fmt)} | ${cell(cRow?.efficiency, (x) => `${x.toFixed(2)}x`)} |`,
       );
     }
   }
@@ -109,6 +133,25 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
   lines.push(
     `\nMC demonstration under readout truth (n=8 probe, f=0.02, 40k shots, X3's own sampler): sampled shell-1 mass ${mc.shell1Estimate.toFixed(5)} vs readout prediction ${mc.readoutPrediction.toFixed(5)} vs depolarizing prediction ${mc.depolPrediction.toFixed(5)} — the data lands on the readout branch. As found: the two models are separated outright wherever the predicted change is an inflation (no physical depolarizing fit exists); at decay operating points separability dies with size — 4.7-10 sigma at n=12, 1.8-4.0 sigma at n=16 (borderline at f=0.01), 0.08-0.20 sigma at n=20 (NOT separable at any planned budget; ~100x the shots or a stronger statistic needed) — and the readout fit is only locally unique (a spurious global root near f=0.37 reproduces the same hit rate).\n`,
   );
+
+  // ---- X9: the information bound + the root census ----
+  lines.push("\n## The information bound (X9) — the floor under every shell-face discriminator\n");
+  lines.push(
+    `No N-shot discriminator on the Hamming-shell face has error below (1/2)e^{-N C(P,Q)} (C = the Chernoff information of the two fitted shell distributions, computed by golden section on the convex log-sum-exp objective). N_info = ceil(ln(2/0.05)/C) is the floor's own budget; the three columns appended to the X8 table above price that statistic's 2-sigma budget against it. As found: all n=8 rows are sign-separated outright (inflation, lambda > 1 — no bound exists to quote); at the physical rows the floor spans 1.1e5..5.8e8 shots, and the 2-sigma shell-1 statistic pays 1.82-2.56x over the floor at n=12/16 but 9.6-10.8x at n=20 — the arithmetic content of X8's "~100x the shots or a stronger statistic": the optimal shell-face statistic can only recover about a factor of ten at n=20, not the hundred the simple statistic asks. Every X9 row is recomputed by law X9; a coincident shell pair (C -> 0) is rejected by name — the bound is infinite and the degeneracy is the finding.\n`,
+  );
+  lines.push("\n## The readout-fit root census (X8's boundary, fully mapped)\n");
+  lines.push("The observed rate is an exact degree-<=n polynomial in lambda = 1-2f, so the fit equation r(f) = r(f_op) has finitely many roots — and the census maps them all: each enrolled root is located by a dense-grid sign flip, bracketed to width <= 1e-9, and certified unique on its grid pair by a single Bernstein sign change; an independent sign-flip count agrees root for root.\n");
+  lines.push("| instance | n | f_op | target r | root count | roots in (0, 1/2) | hidden multiplicity | paths agree | stated root enrolled |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of rootRows) {
+    lines.push(
+      `| ${r.instanceId} | ${r.n} | ${r.flip} | ${sci(r.target)} | ${r.rootCount} | ${r.roots.map((x) => x.fMid.toFixed(6)).join(", ")} | ${r.hiddenRoots.length === 0 ? "none" : r.hiddenRoots.map((h) => `${String(h.excess)} @ [${h.lambdaLow.toFixed(6)}, ${h.lambdaHigh.toFixed(6)}]`).join("; ")} | ${r.twoPathsAgree ? "yes" : "NO"} | ${r.statedRootEnrolled ? "yes" : "no"} |`,
+    );
+  }
+  lines.push(
+    "\nAs found: the n=8 probe carries exactly TWO roots at every operating point — the stated f and a theorem-predicted global second root (0.388 / 0.368 / 0.315 at f = 0.01 / 0.02 / 0.05) that the local bracket works around; n=12/16/20 carry exactly one root each (locally unique AND globally unique there). The previously disclosed ~0.368 was this polynomial's root, not numerical noise — the fit's non-uniqueness is now completely mapped, not just disclosed.\n",
+  );
+
 
   lines.push("\n## Closing\n");
   lines.push(
@@ -126,7 +169,8 @@ function main(): void {
       censusRows.push(...perturbCensus(exactProbe(inst, depth), CENSUS_DELTAS).rows);
     }
   }
-  const violations = [...checkXval(), ...checkBudgetTable(budget), ...checkRobustTable(censusRows)];
+  const info = buildInformationRows(insts);
+  const violations = [...checkXval(), ...checkBudgetTable(budget), ...checkRobustTable(censusRows), ...checkChernoffTable(info.chernoff), ...checkRootCensus(info.roots)];
   const witnesses = runWitnesses();
   if (violations.length > 0 || witnesses.some((w) => !w.pass)) {
     const reasons = [
@@ -135,7 +179,7 @@ function main(): void {
     ];
     throw new XvalError("XVAL_PACKAGE_REJECTED", `CROSS-VALIDATION REJECTED — the package is not ready:\n${reasons.join("\n")}`);
   }
-  const path = writeReport("the-xval-package.md", renderPackage(insts, budget, censusRows));
+  const path = writeReport("the-xval-package.md", renderPackage(insts, budget, censusRows, info.chernoff, info.roots));
   console.log(`cross-validation package rendered -> ${path}`);
 }
 

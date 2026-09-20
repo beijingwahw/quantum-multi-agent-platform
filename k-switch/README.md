@@ -58,6 +58,26 @@ d = 4; k = 4 at d = 4 — four pairwise-anticommuting unitaries need d = 4).
   D(fixed)/√2 does NOT survive (dilution becomes √5/3 ≈ 0.7454). Still
   strictly below every definite order: order superposition does not beat
   ANY definite order on scheduling primitives.
+- **The dilution family law D_k (v0.6.0, theorem enrolled — the source of
+  √10/6)**: the single-erasure k-level chain (k−1 plane-preserving Pauli
+  writes + one erase box, uniform mixture over all k! orders) has the
+  CLOSED FORM D_k = √(¼ + (q_k − ½)²) with q_k = N₁/k! from the
+  erasure-position sum N₁ = Σ_s s!(k−1−s)!·O(s), O(s) = Σ_{f odd}
+  C(F,f)C(K,s−f) over the write census (F flippers X/Y, K keepers Z).
+  Machine-discovered TRICHOTOMY (exact on the F=0..7 × K=0..6 grid): **F
+  odd ⟹ q = ½ ⟹ D_k = ½ (the halving law, exact — suffix complementation
+  pairs odd with even bits); F = 2m ⟹ q = m/(2m+1) ⟹ D_k =
+  √((2m+1)²+1)/(2(2m+1))** (m=1: √10/6, the k=4 constant, now DERIVED;
+  m=2: √26/10, the k=7 cycling row); **F = 0 ⟹ D_k = 1/√2 — the switch
+  gains NOTHING** (all-keeper writes). K cancels identically. Every fixed
+  order stays on the 1/√2 wall at every k (the plane law), so
+  D(switch) < D(fixed) strictly whenever a flipper exists — order
+  superposition never beats any definite order, whatever k. The cycling
+  family k=2..9: halving at k=2,3,5,6,8,9; the m-law at k=4 (√10/6) and
+  k=7 (√26/10) — the dilution is family-census-dependent, NOT monotone in
+  k. Audits: the halving counterfeit at k=4, the swapped-mixture census,
+  and an off-family Hadamard write (caught by the γ=0 dispersion
+  structure) are each NAMED and rejected.
 - **The k = 5 Majorana ladder (v0.5.0, theorem enrolled)**: γ₅ =
   γ₁γ₂γ₃γ₄ over the d = 4 anticommuting quadruple is the Pauli **Z⊗Y
   exactly** (deviation 0) — Cl(5) closes at dimension 4; the parity law
@@ -77,9 +97,23 @@ d = 4; k = 4 at d = 4 — four pairwise-anticommuting unitaries need d = 4).
 
 ```
 npm install
-npm test        # 56/56
+npm test        # 69/69
 npm run repro   # 5 reports in out/reports/
 ```
+
+## v0.6.0 — the dilution family law D_k (theorem enrolled)
+
+New files `src/kswitch/dilution.ts` + `test/dilution.test.ts`, nothing
+else touched (version/lockfile/README aside): the erasure-position
+decomposition (γ=0 branches all land on ONE ray by exchanger parity; γ=1
+branches take exactly the two diagonal states with the counted census),
+the closed form D_k = √(¼ + (q_k−½)²), the flipper-census TRICHOTOMY
+(halving when F odd, the m-law √((2m+1)²+1)/(2(2m+1)) when F = 2m —
+√10/6 derived at m = 1 — and no gain at F = 0), the fixed-order wall at
+every k, the cycling-family table k = 2..9, and four smuggling trials
+(halving-law counterfeit, swapped census, off-family Hadamard write
+caught by structure, named domain guards). Counts as the machine prints
+them: 69/69 (56 old + 13 new).
 
 ## v0.5.0 — the k = 5 Majorana ladder (theorem enrolled)
 
@@ -120,7 +154,14 @@ stays).
 3. The scheduling chain is one toy family (unitary writes + probabilistic
    erasure); the k = 3 law was that family's law at that depth — the k = 4
    data (fixed 1/√2 survives, halving breaks at √10/6) shows the mixture
-   constant is family-and-k-specific, honestly scoped.
+   constant is family-and-k-specific, honestly scoped. The v0.6.0 family
+   law scopes this precisely: the trichotomy covers single-erasure chains
+   of plane-preserving writes {X, Z, Y} at d = 2 only — general channels,
+   multiple erasures, and d > 2 registers are out; the F = 2m branch is
+   machine-established on the swept (F, K) grid (no closed-form proof
+   shipped — an honest DATA law), while the F-odd halving branch is proven
+   by the suffix-complementation involution; the executor is priced for
+   k ≤ 6, the closed form carries any k.
 4. TCA+21's Table 2 (30 sets) is their convention; our 256-set census is
    ours. The 30 anticommuting Pauli quadruples here are a d = 4 census
    object — numerically equal to their 30 by coincidence, not the same set.

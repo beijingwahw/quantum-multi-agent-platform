@@ -20,6 +20,8 @@ export type XvalErrorCode =
   | "XVAL_MINSHOTS_NULL_RATE"
   | "XVAL_MINSHOTS_ALT_RATE"
   | "XVAL_MINSHOTS_LEVEL"
+  | "XVAL_CHERNOFF_DEGENERATE"
+  | "XVAL_ROOTS_DEGENERATE"
   | "XVAL_PACKAGE_REJECTED";
 
 export class XvalError extends Error {

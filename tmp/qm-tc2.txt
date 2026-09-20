@@ -1,0 +1,4 @@
+
+> quantum-mech@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.typecheck.json
+

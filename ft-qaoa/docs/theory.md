@@ -174,6 +174,50 @@ Willow 实测 d=7 每周期逻辑错误 1.43e-3、压制因子 Λ=2.14（Nature 
 （FALSE monotonicity claim，点名下降深度与幅度）。exp4 报告中的每个序列
 都过此门禁才落盘；测试含两个伪造审判用例。
 
+### 4.5 噪声面代数恒等（v0.4：交换定理与 Walsh 滤波）
+
+`src/qaoa/shrink.ts` 把实验 4 的数值面之下精确成立（与不成立）的代数分离出来。
+
+**F1 噪声-电路交换定理。** 逐元素事实链（全部在 density.ts 的实现层可核）：
+去极化信道的**对角作用**恰为经典比特翻转信道 F_{2ε/3}（pass-1 对角混合权重
+(1−2ε/3, 2ε/3)）；信道**从不**把非对角内容转回对角（pass-1 配对 (s,t)↔(s^bit,t^bit)
+保持 s≠t，pass-2 纯缩放）；代价相位不动对角（s=t 相位为 0）；只有**混合器**把
+相干性转移为布居。推论：
+
+- **交换域（恒等精确成立）**：非相互作用代价（层酉为单比特酉张量积，各向同性
+  信道与之交换）∨ p=1 ∨ 尾混合器平凡（β_{t≥2}=0；线性斜坡 p=2 天然满足）。
+  此时最终对角 ＝ F_{2ε/3}^{∘p}(理想对角)（平凡尾：无晚期转移；非相互作用：
+  态全程为直积态），即
+  ⟨C⟩_noisy = Σ_S a^{p|S|} Ĉ(S)⟨χ_S⟩_ideal = Σ_S b^{|S|}(1−b)^{n−|S|}⟨C⟩_{S-边缘}，
+  a=1−4ε/3、b=a^p；两闭式经二项反演等价，并与密度引擎对拍到浮点地板
+  （第三路：applyReadoutFlips^p(理想 probs) 即证明机制本身的可计算形态）。
+- **交织域（恒等破裂，机器定价）**：相互作用代价 + 层间非平凡混合器时，
+  交换律穿不过纠缠代价门（Λ∘ad_cost ≠ ad_cost∘Λ：pass-1 混合的两个-entry
+  所载相位不同）。闭式偏差 O(ε) 级、随 p 增长（种子实例网格 1e-3–2e-1），
+  如实入册；逐门噪声放置（代价与混合器各施加一次）为负对照，在层放置精确的
+  调度上同样被定罪。
+- **多项式年级（任意调度精确）**：⟨C⟩_noisy(a) 是 a 的 ≤np 次**精确多项式**
+  （p×n 个单比特信道各贡献一个 a-仿射因子），Chebyshev-Lobatto 节插值过
+  精确引擎 + 节点外残差双路验证。a⁰ 系数＝mean(E)（a=0 即 ε=3/4：一层后
+  完全混合，之后不变）——**角度无关**，噪声感知再训练不能移动它；再训练
+  问题由此分解为逐年级比较 Σ_k a^k(g_k(θ)−g_k(θ′))，逐实例可判定。
+
+**F2 读出 Walsh 滤波恒等。** 对称独立读出翻转信道以 Walsh 字符 χ_S 为本征基、
+本征值 (1−2q)^{|S|}，故对**任意**基础分布（理想或噪声电路输出）
+⟨C⟩_obs(q) = Σ_S (1−2q)^{|S|} Ĉ(S)⟨χ_S⟩ 精确成立：λ=1−2q 的 ≤n 次多项式
+（2-local 代价 ≤2 次——谱在 locality 之外为零）。实验 4 的经验句
+「读出噪声只缩放不弯折」升为**精确判据**：分组系数
+w_k = Σ_{|S|=k} Ĉ(S)⟨χ_S⟩ 全非负 ⟹ ⟨C⟩_obs 在 q∈[0,1/2] 单调非增
+（种子实例判据全成立，引擎直验）。**F1×F2 复合**：交换域内两滤波按模乘法
+复合（每模有效特征值 a^p·(1−2q)）——噪声面全代数化；ε·p* 弯折乘积机制在
+交换域是定理（逐相关器指数收缩 e^{−(4ε/3)p|S|}），交织域为带定价间隙的近似。
+
+**边界**：仅覆盖按层（代价+混合器之后）去极化与对称独立读出两模型；
+逐门噪声、振幅阻尼、相关读出不在内。交换域条件为**充分**（机器网格支持
+相互作用情形下的必要性，不作必要性声称）。二项权重仅在 ε≤3/4 时为概率
+混合表示；代数在信道全域 ε∈[0,1] 精确。反走私门禁 `verifyShrinkClaim`：
+伪造间隙、交织域恒等声称、交换域定理低估分别点名驳回。
+
 ## 5. 假设常数审计（v0.2：出处门禁）
 
 估算器全部常数进入 `src/ft/constants.ts` 的机器可查审计表：
@@ -218,6 +262,8 @@ Willow 实测 d=7 每周期逻辑错误 1.43e-3、压制因子 Λ=2.14（Nature 
 - [Ross & Selinger, arXiv:1403.2975](https://arxiv.org/abs/1403.2975) / QIC 16(11-12), 901-953 — 最优 ancilla-free Clifford+T 近似
 - Kliuchnikov, Maslov, Mosca, arXiv:1212.6964 (2013)
 - [Marshall, Wudarski, Hadfield, Hogg, IOP SciNotes 1, 025208 (2020)](https://iopscience.iop.org/article/10.1088/2633-1357/abb0d7) / [arXiv:2002.11682](https://arxiv.org/abs/2002.11682) — QAOA 局部噪声表征
+- Nielsen & Chuang, _Quantum Computation and Quantum Information_ — 去极化信道与单比特酉的协变性（交换域证明文献族）〔待双源〕
+- Beauchamp, _Walsh Functions and Their Applications_ (1984) — Walsh 谱与快速 Hadamard 方法〔待双源〕
 - [Pan et al., Phys. Rev. A 105, 032433 (2022)](https://link.aps.org/doi/10.1103/PhysRevA.105.032433) — QAOA 自动深度优化（有限最优深度）
 - [Bascones et al., EPJ Quantum Technology (2025)](https://link.springer.com/article/10.1140/epjqt/s40507-025-00446-y) — BP+OSD FPGA/ASIC 设计空间
 - [IBM: Real-time decoding of the gross code memory with FPGAs (Relay-BP), arXiv:2510.21600](https://arxiv.org/abs/2510.21600)

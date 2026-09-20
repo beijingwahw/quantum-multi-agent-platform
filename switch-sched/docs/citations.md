@@ -110,3 +110,22 @@ TWO independent sources before adoption, with the verification route noted.
     Verification: journal page (search-confirmed; single-source on this
     visit — carried as CONTEXT ONLY, no in-repo claim rests on it).
     Used for: context on the certification program; nothing machine-checked.
+
+## 2026-09-20 addition (v0.6.0, the GYNI flat-top face)
+
+12. **Almeida, Bancal, Brunner, Acín, Gisin, Pironio — "Guess Your
+    Neighbor's Input"**
+    Phys. Rev. Lett. 104, 230404 (2010). arXiv:1003.3844.
+    <https://arxiv.org/abs/1003.3844> ·
+    <https://link.aps.org/doi/10.1103/PhysRevLett.104.230404>
+    Verification: dual-sourced at the R15 citation-audit visit (the workspace
+    register DELIVERY/r15-dual-source-citations-20260914.md, row 9 of the
+    table: arXiv abstract page + APS DOI) — carried forward per the
+    register's already-dual-sourced rule, not re-verified this visit. That
+    register entry is itself a CORRECTION record: a first draft had
+    "Almeida et al. 2012"; the two sources fix the year to 2010.
+    Used for: the GYNI game and its celebrated no-quantum-violation theorem
+    — the baseline our T6 flat-top certificate layer echoes on the
+    uniform-input face (64-vertex census flat at C₃ = 1/2, shared randomness
+    exact by linearity, sampled Bell/Werner battery on the cap; the paper's
+    correlated-input inequality is cited, not reproduced).

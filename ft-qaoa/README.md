@@ -12,6 +12,7 @@
 - p 到 **128 层**的逻辑层 QAOA 精确态矢量模拟（绝热斜坡 + INTERP 参数转移 + 网格化 T 搜索）；
 - **深度单调性定理的机器验证**：参数嵌入恒等式 `F_{p+1}(θ⊗0) = F_p(θ)` 在引擎层精确成立（gap = 0.00e+0），最优值序列 `M_p` 非降（小 p 全量优化验证），实测 `r_p` 序列 7/7 实例单调；
 - **有界噪声面（v0.2 新增）**：同一条单调性轨道在精确密度矩阵（2^n×2^n，无抽样）上按层去极化 + 读出翻转定价——单调性在 ε≤1e-4 存活到 p=32，在 ε≥1e-3 弯折（有限最优深度 p*），读出噪声只缩放不弯折（实验 4）；
+- **噪声面代数恒等（v0.4 新增）**：实验 4 的数值面之下的精确代数——「按层去极化 ≡ 末端收缩 (1−4ε/3)^p」交换恒等在可判定交换域（非相互作用代价 ∨ p=1 ∨ 尾混合器平凡，斜坡 p=2 天然在内）三路独立代数对拍到浮点地板；交织域恒等**破裂**且机器定价（不掩盖）；⟨C⟩_noisy 是收缩因子的 ≤np 次精确多项式、a⁰ 系数＝mean(E) 角度无关（噪声感知再训练的可判定分解）；读出 Walsh 谱滤波恒等把「只缩放不弯折」升为精确判据；
 - **qLDPC / surface 资源估算器**：码目录带公开出处（gross [[144,12,12]]，Bravyi et al., Nature 2024），逻辑错误模型、Clifford+T 合成 T 计数、T 工厂吞吐、比特/时间/错误预算全参数化；**每个常数入机器可查的出处审计表**（citation-anchored 需 ≥2 独立文献；工程假设必须给出理由；无出处行被门禁点名拒绝，实验 2 Part C）；
 - **实时解码调度器**：综合征流的离散事件仿真（服务守恒窗口并行），CPU/FPGA/ASIC 场景的利用率与积压判定；**窗口大小策略扫参（v0.2 新增）**把批处理时延/吞吐权衡定价成数据并给出最小纠错时延的可行窗口。
 
@@ -25,7 +26,7 @@
 
 ```bash
 npm install
-npm test        # 57/57
+npm test        # 76/76
 npm run repro   # 重生成 out/ 下全部 JSON+MD 报告（约 2 分钟，exp4 密度矩阵占大头）
 ```
 
@@ -73,6 +74,26 @@ v0.2 窗口大小策略扫参（W ∈ {1,2,4,8,16,32}）：单轮流式（W=1）
   由 Λ=2.14 的压制在 d≈13 达到——与估算器选出的码距（gross d=12 / surface d=17–19）同量级
   （量级桥接，非逐门核算，见 theory.md §4）。
 
+**噪声面代数恒等（v0.4 新增，`src/qaoa/shrink.ts`）**——两个定理、全部可证伪：
+
+- **F1 噪声-电路交换定理**：去极化信道的对角作用恰为经典翻转信道 F_{2ε/3}（Walsh 模每层收缩
+  a=1−4ε/3），代价相位不动对角，只有混合器把相干性转移为布居。由此：**交换域**（非相互作用代价
+  ∨ p=1 ∨ 尾混合器平凡 β_{t≥2}=0——线性斜坡 p=2 天然满足）内，「p 层交织噪声 ≡ 末端逐比特收缩
+  b=(1−4ε/3)^p 的无噪电路」精确成立，闭式 ⟨C⟩_noisy = Σ_S b^{|S|}(1−b)^{n−|S|}⟨C⟩_{S-边缘}
+  ＝ Σ_S a^{p|S|}Ĉ(S)⟨χ_S⟩，与密度引擎三路对拍 ≤1e-12（种子实例 × p∈{1,2,4,8} × ε 网格）；
+  **交织域**（相互作用 + 层间非平凡混合器）恒等**破裂**——交换律穿不过纠缠代价门，机器定价
+  gap ≈1e-3–2e-1（如实入册，负对照：逐门噪声放置同样被定罪）；
+- **F1 推论·多项式年级**：任意调度下 ⟨C⟩_noisy(a) 是 a 的 ≤np 次**精确多项式**（Chebyshev 节
+  插值 + 节点外残差 ≤1e-9 双路验证），a⁰ 系数＝mean(E) 角度无关——噪声感知再训练问题分解为
+  逐年级比较 Σ_k a^k(g_k−g_k′)，逐实例可判定；
+- **F2 读出 Walsh 谱滤波恒等**：⟨C⟩_obs(q) = Σ_S (1−2q)^{|S|}Ĉ(S)⟨χ_S⟩ 为 λ=1−2q 的 ≤n 次
+  精确多项式（2-local 代价即 ≤2 次），对任意基础分布（含噪声电路输出）成立，对拍 ≤1e-13；
+  「读出只缩放不弯折」升为精确判据：分组系数 w_k≥0（种子实例全成立 ⟹ ⟨C⟩_obs 在 q∈[0,1/2]
+  单调非增，引擎直验）；
+- **F1×F2 复合**：交换域内两滤波按 Walsh 模乘法复合（有效特征值 a^p·(1−2q)），噪声面全代数化；
+  ε·p* 弯折乘积机制在交换域成为定理（逐相关器指数收缩 e^{−(4ε/3)p|S|}），交织域为带定价
+  间隙的近似。
+
 **假设常数审计（v0.2 新增，实验 2 Part C）**：20 行常数表全量过出处门禁——
 7 行 citation-anchored（gross 码参数/码距/伪阈值、T 计数系数、Λ=2.14、d7 逻辑错误、
 QAOA 噪声有限深度），每行 ≥2 独立 workId；13 行标注工程假设并给理由；
@@ -88,11 +109,13 @@ src/
   qaoa/     engine.ts(前向+嵌入恒等式) params.ts(斜坡+INTERP)
             optimize.ts(网格+黄金 T 搜索、坐标下降、深度阶梯) monotonic.ts(单调性检验)
             noise.ts(噪声面: 噪声期望/深度序列/弯折报告/声称验证门禁)
+            shrink.ts(噪声面代数: 交换恒等三路闭式/多项式年级/Walsh 滤波恒等/逐门负对照/声称门禁)
   ft/       codes.ts(码目录+出处) synthesis.ts(T 计数) estimate.ts(资源估算，常数单源引用)
             constants.ts(假设常数审计表+出处门禁) decoder-scheduler.ts(离散事件解码调度+窗口策略)
   experiments/  exp1-monotonic / exp2-resources(+常数审计) / exp3-decoder(+窗口策略) / exp4-noise / run-all
-test/       57 项：每个数学声称配独立实现对照（对拍）；走私审判 16 项（伪造噪声单调序列 ×2、
-            伪造常数出处 ×3、非法输入具名驳回 ×11）；单源常数无漂移断言 ×1
+test/       76 项：每个数学声称配独立实现对照（对拍）；走私审判 21 项（伪造噪声单调序列 ×2、
+            伪造 shrink 间隙/恒等/定理低估/守卫 ×5、伪造常数出处 ×3、非法输入具名驳回 ×11）；
+            单源常数无漂移断言 ×1
 docs/       theory.md — 定理、证明、模型假设、边界、文献
 ```
 
@@ -112,6 +135,7 @@ docs/       theory.md — 定理、证明、模型假设、边界、文献
 - Ross & Selinger, arXiv:1403.2975 / QIC 16(11-12) — Clifford+T 最优 T 计数 3log₂(1/ε)+O(log log)
 - Kliuchnikov, Maslov, Mosca (2013), arXiv:1212.6964 — Clifford+T 合成缩放
 - Marshall et al., IOP SciNotes 1, 025208 (2020)（去极化 >2% 时深度收益近零）；Pan et al., Phys. Rev. A 105, 032433 (2022)（有限最优深度）—— 噪声面预期形状
+- Nielsen & Chuang, _Quantum Computation and Quantum Information_（去极化信道与单比特酉的协变性——交换域证明的文献族）〔待双源〕；Beauchamp, _Walsh Functions and Their Applications_ (1984)（Walsh 谱/快速 Hadamard 方法）〔待双源〕—— v0.4 噪声面代数
 - Bascones et al., EPJ Quantum Technology (2025), 10.1140/epjqt/s40507-025-00446-y — BP+OSD FPGA/ASIC 设计空间；IBM Relay-BP FPGA 实时 gross 解码（arXiv:2510.21600）；Riverlane 实时 QEC 系统时延（16.32µs 均值）
 
 ## English summary
@@ -122,8 +146,13 @@ theorem (embedding identity exact to 0.0; r_p non-decreasing on all 7 seeded
 instances; worst-case r_128 = 0.991 at n=14), a **bounded-noise face** pricing
 the noiseless boundary on the exact density matrix (monotonicity survives
 p=32 at eps=1e-4, bends at eps>=1e-3 with finite optimal depth p*=8-12 and
-eps*p* ~ 0.02-0.12; readout noise only rescales; Willow d=7 logical error
-1.43e-3/cycle sits exactly on the bending grid point), a qLDPC/surface
+eps*p* ~ 0.02-0.12; Willow d=7 logical error 1.43e-3/cycle sits exactly on
+the bending grid point), an **exact noise-face algebra** (v0.4: the
+terminal-shrink exchange identity holds in a decidable commuting regime and
+is machine-priced where it fails; the noisy objective is an exact polynomial
+of degree <= np in the shrink factor with an angle-independent floor; the
+readout face is an exact Walsh-filter identity — "readout only rescales" is
+now a criterion, not an observation), a qLDPC/surface
 resource estimator with a **machine-gated assumption-constants audit** (every
 constant citation-anchored with >=2 independent works or labeled engineering
 assumption; fake provenance is named and rejected), and a discrete-event

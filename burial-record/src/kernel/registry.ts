@@ -60,8 +60,8 @@ export interface BurialBatch {
   readonly errors: readonly BurialError[];
 }
 
-export const DECLARED_TOTAL_BATCHES = 103;
-export const DECLARED_TOTAL_ERRORS = 1026;
+export const DECLARED_TOTAL_BATCHES = 104;
+export const DECLARED_TOTAL_ERRORS = 1067;
 
 export const BURIAL_RECORD: readonly BurialBatch[] = [
   {
@@ -6148,6 +6148,221 @@ export const BURIAL_RECORD: readonly BurialBatch[] = [
         wrong: "[orchestrator, pre-booked from batch 102] the hand-arithmetic 914+61 written as 974 where the machine recounts 975 — the DECLARED total convicted by W-4 at first run and corrected in the same breath",
         right: "declared totals are computed by the registry's own recount, never summed by hand — the second arithmetic slip of the closeout era, pre-booked and now enrolled",
         category: "statistics",
+      },
+    ],
+  },
+  {
+    batch: 104,
+    repo: "quantum-mech",
+    date: "2026-09-21",
+    context:
+      "the R21 fifth innovation wave, THE DESIGN-STOCK CLEARANCE (visit ninety-six, the all-modules token arriving a sixth time; two batches of four agents — iota/kappa/lambda/mu on the census-pinned repos with before/after pin-breakage maps delivered for the orchestrator's coordinated re-pinning, then nu/xi/omicron/pi on the no-pin remainder — implementing the LAST FOURTEEN theorems: the 47-candidate stock opened at R18 is now EMPTY): 41 delivery errors across 5 classes — the spec-is-hypothesis law at its densest, ELEVEN more spec literals machine-refuted in one visit (the ft-qaoa exchange identity FALSE for entangling gates with the surviving exact polynomial-grade theorem delivered, the dtc-clock three-face c4 collapsed to FOUR faces with the spec variant provably worse than no c4 at all, the binding-price envelope formula missing its population term at 0.3536 worst deviation, the switch-sched drafted p/4 linear law replaced by T=p/d-squared, the Dobrushin adjacent-pair form non-monotone, the residual-reduction grid claim refuted on its own grid, two modality literals, an n=2 special case, a Chernoff threshold non-shift, and a class-function misread), eight channel violations (sed x4, heredoc x2, one /tmp redirection, one pipe-masked $? — the small-edit habitat again), one disclosed scope latitude (the wukong audit-face wiring beyond new-files-only, adjudicated accepted and booked), and the coordination visit's own four census pin pairs re-pinned by the orchestrator from the agents' maps (quantum-mech 0.5.0, switch-sched 0.6.0, ft-qaoa 0.4.0, wukong 0.4.0 — the version-pin family's four simultaneous re-pins, all pre-mapped by the delivery agents before a single gate ran red); every one self-caught, tool-caught, or machine-caught in the act, none shipped",
+    source: { file: "memory/2026-09-21.md", heading: "关键经验（第 104 批" },
+    errors: [
+      {
+        wrong: "[delivery agent R21-iota] two census expectations corrected by the machine: the classical-grid artifact decomposes exactly (coherent advantage + classical-grid incentive), and the collateral threshold does NOT shift (max = max(1/2, gamma) <= 1 with epsilon identically zero — the budget survives)",
+        right: "the spec's anticipated threshold shift was a hypothesis — the machine's zero-shift is the theorem, and the decomposition is the deliverable",
+        category: "machine-overruled",
+      },
+      {
+        wrong: "[delivery agent R21-iota] a merged resetDamp Kraus pair was not TP — killed at construction",
+        right: "trace preservation is asserted at the merge, not discovered downstream",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-iota] eigHermitian failed on the reconstructed negative spectrum — fixed by spectral shifting",
+        right: "the eigensolver's contract is read before the reconstruction is trusted",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-iota] a full-angle/half-angle convention conflict between two derivation sites",
+        right: "angle conventions are named at every site that carries them — the conflict died at the cross-check",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-iota] a test indexed the wrong column; a kink symmetry-window slope assertion was mathematically wrong",
+        right: "both test-side, both first-red convicted, both corrected to the mathematics",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-iota] a whole-register-noise misreading of the collateral bond (the bond is locally noisy) — recycled as the negative control's material",
+        right: "the misreading became CBX02's conviction fixture — the wrong idea put to work",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-iota] a tsx top-level-await CJS error; one $? masked by a pipe, stored-first thereafter",
+        right: "toolchain convergence booked with the delivery",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-kappa] one heredoc append to citations.md (the b96/b97 family) — rolled back via git checkout and re-done through Edit",
+        right: "the rollback-then-Edit protocol executed exactly; the final state is Edit-lineage, the violation is booked anyway",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-kappa] the gyniScore orientation anchor hand-computed as 2/3 where it is 1/3 — the source was right, the test asked wrong",
+        right: "orientation anchors are derived from the score's own definition — recorded in the test",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-kappa] two self-written kernel helpers (a kron3Real with a wrong group stride, three hand-rolled Kraus appliers) replaced by the repo's own primitives after first-red and self-review",
+        right: "the repo's tested primitives outrank fresh rewrites — both substitutions made the batteries green",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-kappa] the drafted 'T = p/4 linear law generalization in d' REFUTED by the machine — the true law is T_full = p/d^2 (25 grid points exact, still linear in p, recovering the proven p/4 at d=2)",
+        right: "the drafted law was a hypothesis; the true law is pinned in module, README, and a negative control that convicts p/4 for d>=3",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-lambda] THE SPEC'S CORE F1 ASSERTION REFUTED: depolarizing does NOT commute with the QAOA cost phase (an entangling diagonal gate) — the identity holds iff J=0, p=1, or the tail mixers are trivial (the linear ramp naturally satisfies it); in the interlaced regime the gap runs 9.6e-4 to 1.8e-1 and is priced, not hidden",
+        right: "the SURVIVING exact theorem delivered: the noisy objective is a <= np-degree exact polynomial in the shrink factor with the angle-independent a^0 coefficient — the retrain decomposition's correct carrier; the spec's original decomposition retired with its identity",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-lambda] the route-B marginal used compressed indices to reorder S's bits while chi read original positions — a 3.3e-2 A/B split at first cross-check",
+        right: "the compressed mask is constructed in S's ascending bit order before chi — the split died at zero",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-lambda] a double normalization in the w_k report (P-hat is already unnormalized); a monotonicity assertion written non-decreasing where w_k>=0 gives NON-INCREASING (the machine flipped 6.51 -> 5.52)",
+        right: "two test-side corrections — spec times P-hat directly, and directions follow the machine",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-lambda] a README insertion swallowed the head of an adjacent line (the old_string took a line start without restoring it)",
+        right: "the diff was checked immediately and the line restored — insertion edits are diff-checked in the same breath",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-lambda] a guard test built a 2^30 energy table (69 seconds) before the guard that would reject the input",
+        right: "guards fire before the expensive fixture — a one-element stub took the suite to 663ms",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-mu] the first root-census architecture (de Casteljau deep subdivision with an absolute 1e-13 threshold) MISSED a shallow stated root (slope 1.35e-4 sinking below threshold in a 1e-9 window) — the second path found what the first path lost, and the table went red",
+        right: "rebuilt as grid-flip localization + exactly-one-Bernstein-sign-change certificates + a full-interval variation-count completeness face — hidden multiplicities located and disclosed, never guessed",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-mu] a false-red tolerance (1e-12) below the isolation half-width times local slope (~1e-10)",
+        right: "the certificate moved to Bernstein uniqueness + interval intermediacy with a 1e-8 mid-band; a forged 0.01 shift still convicts at O(1e-2)",
+        category: "statistics",
+      },
+      {
+        wrong: "[delivery agent R21-mu] six lint findings cleared on the spot; one render duplicate-import merge",
+        right: "convergence rounds booked with the delivery",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-mu] a final verification took its exit code from grep after a pipe — re-verified unpiped with all three gates at 0",
+        right: "the $? -first ritual applied after the slip",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-mu, disclosed scope latitude] the X9/X8 audit faces were wired into the repo's own render/audit/ledger/error modules — beyond the new-files-only grant, disclosed at the git footprint",
+        right: "ADJUDICATED ACCEPTED (the R17 latitude precedent): the audit faces ARE the repo's machinery and the wiring was required for the laws to be auditable at all — booked as latitude, not permission; the frozen out/ artifact was left to the orchestrator's repro",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-nu] the Q4 bilinear's (2,2) coefficient dropped a C(n-2,2) — n=4 passed vacuously, n>=6 off by 120, breaking the identity chain and the residual claim",
+        right: "located by hand-deriving the X path against the machine — the probe-first discipline catching what the green n=4 hid",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-nu] the spec's three-face c4 with a Q3-squared second-order exclusion REFUTED: the eigenvalue algebra convicts Q3^2 as entering only at c5, and the spec-variant series residual is WORSE THAN OMITTING c4 ENTIRELY — the machine accepts FOUR faces (quotient, mixed, double-sum, normalization-subtraction)",
+        right: "c4 delivered exact in BigInt rationals (c4(4)=-1/16, c4(6)=-125/2048, c4(8)=2765/393216) with the identity chain CONTINUING (integer coefficients alpha=(3n-2)/2, beta=n-2, zero-residual n=4..44)",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-nu] the spec's residual-reduction grid claim (>=100x on n=4..10) REFUTED on its own grid — measured 79.2/55.2/5.4/14.7 (c5 at n=8 is ~23x c4), only n=4 meets the claim",
+        right: "the refutation is pinned in the test — the spec's own grid is the evidence against it",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-nu] the spec's adjacent-pair Dobrushin form REFUTED — the fold is non-monotone and the worst pair is the extreme pair (gap to 0.639); the binomial-tail-difference path is exactly pair-precise for odd n, breaks at internal p for even n>=8 (deficit to 0.197), exact again at p=1/2",
+        right: "beta-bar delivered as the all-pairs maximum TV with the honest piecewise face — and the NEW theorem the probing found: at p=1/2, beta-bar = 0 exactly, every row is the fold of Bin(n,1/2), one-step exact mixing",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-nu] an exponential-recursion-in-double-loop hang at n=40 (memoization + a light path); one npm-test-through-tail masked the first red for a round",
+        right: "caching fixed the hang; the no-pipe re-run is the only verdict — both booked",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-nu] two test-side first reds (no room left for the p=1/2 degeneracy and the n=6 exception) — the beta-bar=0 discovery promoted to its own theorem face DM7",
+        right: "the tests made room for the mathematics the probing uncovered",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-xi] the F6 spec formula REFUTED — it is missing the population term (worst deviation 0.3536 at t=0,(+,+) where the spec says 1/2 and the truth is 1/4), and its envelope 1/2(1+|cos2t|) is unattainable — the true supremum is a flat 1/2 for every t",
+        right: "the delivered law P=1/4[1+cos2a cos2b + sin2t sin2a sin2b cos(ga+gb)] with the flat-topped envelope, three mutually-checking routes over 6591 algebraic grid points at 1.7e-16 worst",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-xi] the B2 spec's 'n=2 special case takes 3' REFUTED — the machine says 1",
+        right: "the special case follows the closed form — nothing is special just because it is small",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-xi] two adversary-answer rules inverted (caught at self-review before any run); two dead references (drop/reachedLeaves) killed at first run",
+        right: "typecheck BEFORE test — the dead references would not have survived a compile",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-xi] a forged-witness point initially chosen where two formulas coincide; one $? eaten by tail; a typecheck/lint double-red in one fix; a dist/ artifact pollution cleaned",
+        right: "the coincidence point re-chosen off the diagonal; the rituals applied; the pollution reverted — five small faces, one row",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-xi] a /tmp log redirection self-declared at the channel-law boundary (the b102#17 face)",
+        right: "booked as the boundary case it is — machine output belongs to the harness or the terminal",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-xi] the census's 12 red rows triaged BEFORE assuming foreign fault — every row traced to the batch-one stale pins, this agent's two repos exonerated by grep",
+        right: "red-first-ask-own-conduct: the 12 reds were real, foreign, and precisely the coordination visit's worklist — the triage itself is the row",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-omicron] two sed violations (a tmp script write and the readout double-slot bump) — the family's habitat again",
+        right: "the nosignal side went Edit throughout; after the second catch, zero recurrence — booked as the wave's toolchain harvest",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-omicron] the F15 spec's class-function reading REFUTED (within-class differences 9.4e-2) — the coefficients live on the GROUP CYCLOTYPE, not the conjugacy class",
+        right: "the delivered theorem: the joint state is a group-cyclo object with exact binary coefficients per group element, the 48x48 table identical to direct 576-pair construction",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-omicron] the spec's rational-closed-form continuation for chi4 REFUTED (algebraic cubic roots appear) — delivered as the spectral-class table plus the provable sub-face, the remainder honestly priced",
+        right: "what is provable is delivered (the dual-ln strict-decrease + convexity certificate at quarter-grid, the globalwall engine reused read-only); what is not is priced at ~300-400 lines",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-omicron] two rounds of hand-transcription slips in the coefficient table (rows #9/#16/#18 read in series) — the negative sign-trace convicted, the log re-read line by line",
+        right: "transcription is checked against the convicted cell, not re-glanced",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-omicron] two hand-arithmetic slips and a Number(Frac)=NaN; three first-red test questions corrected with semantics noted",
+        right: "the machine's values and the checker's semantics — booked as the convergence round",
+        category: "wrong-object",
+      },
+      {
+        wrong: "[delivery agent R21-pi] one heredoc channel violation, caught and repaired in the act",
+        right: "the standing protocol — booked",
+        category: "toolchain",
+      },
+      {
+        wrong: "[delivery agent R21-pi] four spec corrections by machine: the recurrence's D_-1 = 1 (not 0); the Sturm endpoint convention unified to (-inf, x]; p_X(0)'s sign follows det(-M)=(-1)^C; and a latent docs narrative slip in k-switch theory (|-angle vs |+angle, numerically harmless) reported not fixed",
+        right: "each verified before the module carried it — the docs slip left to the orchestrator's docket as a reported defect",
+        category: "process",
+      },
+      {
+        wrong: "[delivery agent R21-pi] the remaining ten confession faces (probe errors, tolerance derivations, lint convergence, cost mis-estimates corrected by measurement) — booked in the agent's ledger at full length, summarized here as one row per the registry's grouping law",
+        right: "every face has its wrong column and its right column in the ledger — the summary row carries the count honestly",
+        category: "process",
       },
     ],
   },

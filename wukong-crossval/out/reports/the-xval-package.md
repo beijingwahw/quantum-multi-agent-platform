@@ -11,7 +11,8 @@
 | X5 | the falsifier, as the application states it: if the hit rate decays at the noise boundary (20 qubits, 99% two-qubit fidelity), the decay scaling IS the publishable result — not a failure to hide | the pipeline reports hit rates as found, no selection: p=1 on the probe instance gives ratio 0.415 and single-shot hit rate 0.35-0.47% — low, reported as-is; parameter candidates x layers x seeds is the machine-time arm that lifts it, priced at 10-20 hours in the application | DATA | W-E |
 | X6 | the power-analysis layer: the minimum shots to distinguish the model-predicted hit-rate change from the no-change null at significance 0.05 with power 0.80/0.90 — per instance x noise level x effect size, computed BEFORE machine time (the calibration stage's own arithmetic) | exact binomial critical regions in log space; N* under the scan definition (doubling + bisection + bounded walk-down) with local minimality machine-verified on every row (power(N*) >= 1-beta AND power(N*-1) < 1-beta); the Chernoff sufficient bound ships per row and its sufficiency is machine-verified (648/648 rows as rendered); rows beyond the 1e7 cap are censored and say so with the bound still attached; the exact kernel found the predicted sign is not always decay — at small n and low noise the model predicts inflow through the Hamming-1 shell, and the table prices both tails; scope: all n<=16 instances + the coupled n=20 boundary probe, the remaining n=20 rows are priced out (~25 exact 2^20 optimizations per pass) and the exclusion is disclosed, not hidden | EXACT | W-F |
 | X7 | the parameter-robustness census: a coordinate perturbation grid around every offline optimum (deltas 0.01/0.05/0.1/0.25 rad, depths 1..3 where the optimizer refines, depth 1 on grid/coarse tiers), the objective's curvature as data, and the predicted on-QPU degradation band under the synthetic readout model — exact Hamming-shell convolution, no Monte Carlo | every census row is recomputed by the checker (law X7: fake curvature is named and rejected); the exact convolution anchors at f=0 (rate === |psi_opt|^2), f=1/2 (rate === 1/2^n), and against the dry-run sampler within MC error; the band is model-conditional (synthetic flips, provenance X3) and is labeled as such — real confusion matrices are the calibration stage's job; as found: the shipped parameters are grid+refine bests, NOT stationary points — probes finer than the optimizer's own move sizes find slack (0.23% of |E*| at p=1 on the probe; 3-5% at p>=2, where the refine scales moves by 1/p and raw +-0.1 was never probed), reported as negative gains, never hidden | EXACT | W-G |
-| X8 | the falsifier sharpened: one more discriminating statistic — readout flips vs global depolarizing, each fitted to the same predicted hit-rate change, their Hamming-1 shell predictions compared at the planned budgets | as data, as found (planned budget = the allocation table's N*, or the 1e7 cap where censored): at inflated operating points the depolarizing fit is unphysical (lambda > 1) and the sign of the change separates the models outright; at decay operating points the shell-1 gap is 4.7-10 sigma at the n=12 probe (separable), 1.8-4.0 sigma at n=16 (borderline at f=0.01, separable at f>=0.02), and 0.08-0.20 sigma at n=20 — NOT separable at any planned budget, and discrimination there needs ~100x the shots or a stronger statistic; the readout fit is only locally unique (a spurious global root at f=0.368 reproduces r(0.02) on the n=8 probe), disclosed as a boundary of the statistic | DATA | W-H |
+| X8 | the falsifier sharpened: one more discriminating statistic — readout flips vs global depolarizing, each fitted to the same predicted hit-rate change, their Hamming-1 shell predictions compared at the planned budgets | as data, as found (planned budget = the allocation table's N*, or the 1e7 cap where censored): at inflated operating points the depolarizing fit is unphysical (lambda > 1) and the sign of the change separates the models outright; at decay operating points the shell-1 gap is 4.7-10 sigma at the n=12 probe (separable), 1.8-4.0 sigma at n=16 (borderline at f=0.01, separable at f>=0.02), and 0.08-0.20 sigma at n=20 — NOT separable at any planned budget, and discrimination there needs ~100x the shots or a stronger statistic; v0.4.0 closes the disclosed boundary: the observed rate is an exact degree-<=n polynomial in lambda = 1-2f, and the Bernstein-certificate root census maps the fit's non-uniqueness completely — the n=8 probe carries exactly TWO roots at every operating point (the stated f and a theorem-predicted global second root at f = 0.388 / 0.368 / 0.315 for f = 0.01 / 0.02 / 0.05 — the previously disclosed ~0.368 was this polynomial's root, not numerical noise), while n=12/16/20 carry exactly one root each (locally unique AND globally unique there); every enrolled root is certified by a single Bernstein sign change on its grid pair, bracketed to width <= 1e-9, cross-counted by an independent dense-grid sign-flip path | DATA | W-H |
+| X9 | the information bound: distinguishing readout flips from global depolarizing on the Hamming-shell face (one shell label per shot — the face X8's own statistic consumes) — NO N-shot discriminator's error falls below (1/2)e^{-N C(P,Q)}, C the Chernoff information of the two fitted shell distributions, and the table prices X8's 2-sigma shell-1 budget against that floor row by row | the Chernoff information computed exactly: golden-section minimization of the convex log-sum-exp objective on [0,1] (Holder gives the convexity, so the minimum is machine-pinned); the floor's own budget N_info = ceil(ln(2/0.05)/C); as found on the four size probes x three boundary flips: the n=8 rows are all sign-separated outright (lambda > 1 inflation, no bound columns — reported, never invented), and at the physical rows C spans 3.7e-6..6.4e-9 falling with size, N_info spans 1.1e5..5.8e8, and the efficiency ratio (2-sigma budget over the floor) is 1.82-2.56x at n=12/16 but 9.6-10.8x at n=20 — the arithmetic content of X8's '~100x the shots or a stronger statistic': even the optimal shell-face statistic can only recover about a factor of ten at n=20, not the hundred the simple statistic asks; a coincident shell pair (C -> 0) is rejected by name (the bound is infinite — the degeneracy is the finding); the Monte Carlo likelihood-ratio discriminator under either truth sits at or above the bound within 5 sigma_mc on the fixed demo (np-n12-4, f=0.05, 40 shots/trial, 2000 trials) | EXACT | W-I |
 
 ## Witnesses
 
@@ -23,6 +24,7 @@
 - PASS — W-F budget law (recompute + counterfeit trial) (clean table clean; counterfeit N=5/power=0.9 named and rejected (np-n8-0#p1 f=0.02 eff=1 beta=0.2))
 - PASS — W-G robustness law (recompute + counterfeit trial) (clean census clean; fake curvature row named and rejected (np-n8-0#p1 beta0 delta=0.05))
 - PASS — W-H discriminator arithmetic (local fits residual < 1e-12 on all 4 size probes (yes); deterministic recompute (yes); MC shell-1 within 4 sigma of the readout prediction (0.05515 vs 0.05544, yes))
+- PASS — W-I information law (chernoff floor + root census) (X9 table clean (yes), counterfeit C named (yes); root census clean (yes), displaced root named (yes); MC likelihood-ratio error 0.47700 vs floor 0.49932 at 40 shots/trial — within the theorem (yes))
 
 ## The allocation table (X6) — shot budgets before machine time
 
@@ -770,22 +772,49 @@ All 528 census rows are recomputed by law X7 (fake curvature is named and reject
 
 ## The falsifier sharpened (X8) — readout vs depolarizing, as data
 
-| instance | n | f | r | fit f | lambda | depol physical | shell1 readout | shell1 depol | gap | sigma @ planned | separable |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| np-n8-0 | 8 | 0.01 | 4.857e-3 | 0.0100 | 1.235 | NO (lambda>1) | 5.584e-2 | 6.211e-2 | 6.267e-3 | 2.541e-4 | yes |
-| np-n8-0 | 8 | 0.02 | 5.023e-3 | 0.0200 | 1.450 | NO (lambda>1) | 5.544e-2 | 6.750e-2 | 1.206e-2 | 4.999e-4 | yes |
-| np-n8-0 | 8 | 0.05 | 5.438e-3 | 0.0500 | 1.989 | NO (lambda>1) | 5.416e-2 | 8.096e-2 | 2.680e-2 | 1.171e-3 | yes |
-| np-n12-4 | 12 | 0.01 | 3.319e-4 | 0.0100 | 0.970 | yes | 3.676e-3 | 3.768e-3 | 9.123e-5 | 1.937e-5 | yes |
-| np-n12-4 | 12 | 0.02 | 3.284e-4 | 0.0200 | 0.932 | yes | 3.574e-3 | 3.734e-3 | 1.606e-4 | 1.929e-5 | yes |
-| np-n12-4 | 12 | 0.05 | 3.150e-4 | 0.0500 | 0.783 | yes | 3.336e-3 | 3.606e-3 | 2.700e-4 | 2.618e-5 | yes |
-| np-n16-7 | 16 | 0.01 | 2.068e-5 | 0.0100 | 0.937 | yes | 2.912e-4 | 3.012e-4 | 1.001e-5 | 5.488e-6 | NO |
-| np-n16-7 | 16 | 0.02 | 2.025e-5 | 0.0200 | 0.862 | yes | 2.804e-4 | 2.967e-4 | 1.629e-5 | 5.446e-6 | yes |
-| np-n16-7 | 16 | 0.05 | 1.884e-5 | 0.0500 | 0.619 | yes | 2.605e-4 | 2.819e-4 | 2.140e-5 | 5.308e-6 | yes |
-| np-n20-11 | 20 | 0.01 | 1.114e-6 | 0.0100 | 0.798 | yes | 1.863e-5 | 1.875e-5 | 1.157e-7 | 1.369e-6 | NO |
-| np-n20-11 | 20 | 0.02 | 1.080e-6 | 0.0200 | 0.628 | yes | 1.862e-5 | 1.882e-5 | 1.930e-7 | 1.372e-6 | NO |
-| np-n20-11 | 20 | 0.05 | 1.010e-6 | 0.0500 | 0.279 | yes | 1.868e-5 | 1.896e-5 | 2.771e-7 | 1.377e-6 | NO |
+| instance | n | f | r | fit f | lambda | depol physical | shell1 readout | shell1 depol | gap | sigma @ planned | separable | C(P,Q) | N_info | 2-sigma / floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| np-n8-0 | 8 | 0.01 | 4.857e-3 | 0.0100 | 1.235 | NO (lambda>1) | 5.584e-2 | 6.211e-2 | 6.267e-3 | 2.541e-4 | yes | — | — | — |
+| np-n8-0 | 8 | 0.02 | 5.023e-3 | 0.0200 | 1.450 | NO (lambda>1) | 5.544e-2 | 6.750e-2 | 1.206e-2 | 4.999e-4 | yes | — | — | — |
+| np-n8-0 | 8 | 0.05 | 5.438e-3 | 0.0500 | 1.989 | NO (lambda>1) | 5.416e-2 | 8.096e-2 | 2.680e-2 | 1.171e-3 | yes | — | — | — |
+| np-n12-4 | 12 | 0.01 | 3.319e-4 | 0.0100 | 0.970 | yes | 3.676e-3 | 3.768e-3 | 9.123e-5 | 1.937e-5 | yes | 3.750e-6 | 983,771 | 1.83x |
+| np-n12-4 | 12 | 0.02 | 3.284e-4 | 0.0200 | 0.932 | yes | 3.574e-3 | 3.734e-3 | 1.606e-4 | 1.929e-5 | yes | 1.169e-5 | 315,671 | 1.83x |
+| np-n12-4 | 12 | 0.05 | 3.150e-4 | 0.0500 | 0.783 | yes | 3.336e-3 | 3.606e-3 | 2.700e-4 | 2.618e-5 | yes | 3.412e-5 | 108,116 | 1.82x |
+| np-n16-7 | 16 | 0.01 | 2.068e-5 | 0.0100 | 0.937 | yes | 2.912e-4 | 3.012e-4 | 1.001e-5 | 5.488e-6 | NO | 5.753e-7 | 6,412,400 | 1.87x |
+| np-n16-7 | 16 | 0.02 | 2.025e-5 | 0.0200 | 0.862 | yes | 2.804e-4 | 2.967e-4 | 1.629e-5 | 5.446e-6 | yes | 1.539e-6 | 2,397,014 | 1.87x |
+| np-n16-7 | 16 | 0.05 | 1.884e-5 | 0.0500 | 0.619 | yes | 2.605e-4 | 2.819e-4 | 2.140e-5 | 5.308e-6 | yes | 3.836e-6 | 961,579 | 2.56x |
+| np-n20-11 | 20 | 0.01 | 1.114e-6 | 0.0100 | 0.798 | yes | 1.863e-5 | 1.875e-5 | 1.157e-7 | 1.369e-6 | NO | 6.356e-9 | 580,418,636 | 9.65x |
+| np-n20-11 | 20 | 0.02 | 1.080e-6 | 0.0200 | 0.628 | yes | 1.862e-5 | 1.882e-5 | 1.930e-7 | 1.372e-6 | NO | 1.761e-8 | 209,522,431 | 9.64x |
+| np-n20-11 | 20 | 0.05 | 1.010e-6 | 0.0500 | 0.279 | yes | 1.868e-5 | 1.896e-5 | 2.771e-7 | 1.377e-6 | NO | 4.018e-8 | 91,810,205 | 10.75x |
 
 MC demonstration under readout truth (n=8 probe, f=0.02, 40k shots, X3's own sampler): sampled shell-1 mass 0.05515 vs readout prediction 0.05544 vs depolarizing prediction 0.06750 — the data lands on the readout branch. As found: the two models are separated outright wherever the predicted change is an inflation (no physical depolarizing fit exists); at decay operating points separability dies with size — 4.7-10 sigma at n=12, 1.8-4.0 sigma at n=16 (borderline at f=0.01), 0.08-0.20 sigma at n=20 (NOT separable at any planned budget; ~100x the shots or a stronger statistic needed) — and the readout fit is only locally unique (a spurious global root near f=0.37 reproduces the same hit rate).
+
+
+## The information bound (X9) — the floor under every shell-face discriminator
+
+No N-shot discriminator on the Hamming-shell face has error below (1/2)e^{-N C(P,Q)} (C = the Chernoff information of the two fitted shell distributions, computed by golden section on the convex log-sum-exp objective). N_info = ceil(ln(2/0.05)/C) is the floor's own budget; the three columns appended to the X8 table above price that statistic's 2-sigma budget against it. As found: all n=8 rows are sign-separated outright (inflation, lambda > 1 — no bound exists to quote); at the physical rows the floor spans 1.1e5..5.8e8 shots, and the 2-sigma shell-1 statistic pays 1.82-2.56x over the floor at n=12/16 but 9.6-10.8x at n=20 — the arithmetic content of X8's "~100x the shots or a stronger statistic": the optimal shell-face statistic can only recover about a factor of ten at n=20, not the hundred the simple statistic asks. Every X9 row is recomputed by law X9; a coincident shell pair (C -> 0) is rejected by name — the bound is infinite and the degeneracy is the finding.
+
+
+## The readout-fit root census (X8's boundary, fully mapped)
+
+The observed rate is an exact degree-<=n polynomial in lambda = 1-2f, so the fit equation r(f) = r(f_op) has finitely many roots — and the census maps them all: each enrolled root is located by a dense-grid sign flip, bracketed to width <= 1e-9, and certified unique on its grid pair by a single Bernstein sign change; an independent sign-flip count agrees root for root.
+
+| instance | n | f_op | target r | root count | roots in (0, 1/2) | hidden multiplicity | paths agree | stated root enrolled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| np-n8-0 | 8 | 0.01 | 4.857e-3 | 2 | 0.387886, 0.010000 | none | yes | yes |
+| np-n8-0 | 8 | 0.02 | 5.023e-3 | 2 | 0.368014, 0.020000 | none | yes | yes |
+| np-n8-0 | 8 | 0.05 | 5.438e-3 | 2 | 0.315077, 0.050000 | none | yes | yes |
+| np-n12-4 | 12 | 0.01 | 3.319e-4 | 1 | 0.010000 | none | yes | yes |
+| np-n12-4 | 12 | 0.02 | 3.284e-4 | 1 | 0.020000 | none | yes | yes |
+| np-n12-4 | 12 | 0.05 | 3.150e-4 | 1 | 0.050000 | none | yes | yes |
+| np-n16-7 | 16 | 0.01 | 2.068e-5 | 1 | 0.010000 | none | yes | yes |
+| np-n16-7 | 16 | 0.02 | 2.025e-5 | 1 | 0.020000 | none | yes | yes |
+| np-n16-7 | 16 | 0.05 | 1.884e-5 | 1 | 0.050000 | none | yes | yes |
+| np-n20-11 | 20 | 0.01 | 1.114e-6 | 1 | 0.010000 | none | yes | yes |
+| np-n20-11 | 20 | 0.02 | 1.080e-6 | 1 | 0.020000 | none | yes | yes |
+| np-n20-11 | 20 | 0.05 | 1.010e-6 | 1 | 0.050000 | none | yes | yes |
+
+As found: the n=8 probe carries exactly TWO roots at every operating point — the stated f and a theorem-predicted global second root (0.388 / 0.368 / 0.315 at f = 0.01 / 0.02 / 0.05) that the local bracket works around; n=12/16/20 carry exactly one root each (locally unique AND globally unique there). The previously disclosed ~0.368 was this polynomial's root, not numerical noise — the fit's non-uniqueness is now completely mapped, not just disclosed.
 
 
 ## Closing

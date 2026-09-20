@@ -29,6 +29,9 @@ import { perturbCensus, type PerturbRow } from "./robust.js";
 import { exactProbe } from "./probe.js";
 import { powerAt } from "./power.js";
 import { DISC_PROBE_IDS, discriminatorRow, MC_SHELL_DEMO, mcShellDemo } from "./discriminate.js";
+import { chernoffRow, CHERNOFF_DELTA, MC_CHERNOFF_DEMO, mcChernoffDemo, readoutShellDist, depolShellDist, type ChernoffRow } from "./chernoff.js";
+import { exactObservedHitRate } from "./robust.js";
+import { fitRootCensus, ROOT_MID_BAND, ROOT_WIDTH, type FitRootCensusRow } from "./roots.js";
 
 const WORKSPACE_ROOT = resolve(process.cwd(), "..");
 
@@ -39,8 +42,8 @@ export interface Violation {
   readonly detail: string;
 }
 
-/** The closed witness set, W-A through W-H. */
-const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H"];
+/** The closed witness set, W-A through W-I. */
+const WITNESS_IDS: readonly string[] = ["W-A", "W-B", "W-C", "W-D", "W-E", "W-F", "W-G", "W-H", "W-I"];
 
 /** The instance set is pure and deterministic (seeded); the n=20 universe
  * costs ~1M states per instance, so the audit memoizes it per process —
@@ -349,7 +352,180 @@ function witnessDiscriminator(): WitnessResult {
   };
 }
 
-/** All eight witnesses, W-A through W-H, each re-derived from scratch. */
+// ---------------------------------------------------------------------------
+// Law X9 (and X8's root-census face) — the recomputation checkers for the
+// information bound and the fit's root census. The smuggling vector is the
+// same as X6/X7's: a claimed Chernoff column, a displaced root — the checker
+// recomputes every field from the exact kernel.
+// ---------------------------------------------------------------------------
+
+function chernoffRowKey(r: ChernoffRow): string {
+  return `${r.instanceId}#p${r.depth} f=${r.flip}`;
+}
+
+/** Law X9: every information-bound row recomputed from the exact kernel. A
+ * row is contraband if any field disagrees, or if the operating point itself
+ * is degenerate (coincident shell pair) — named, never an anonymous throw. */
+export function checkChernoffTable(rows: readonly ChernoffRow[]): Violation[] {
+  const violations: Violation[] = [];
+  const byGroup = new Map<string, ChernoffRow[]>();
+  for (const r of rows) {
+    const g = `${r.instanceId}#${r.depth}`;
+    byGroup.set(g, [...(byGroup.get(g) ?? []), r]);
+  }
+  for (const [g, group] of byGroup) {
+    const head = group[0] as ChernoffRow;
+    const inst = instances().find((i) => i.id === head.instanceId);
+    if (inst === undefined) {
+      violations.push({ row: g, law: "X9", detail: `unknown instance "${String(head.instanceId)}" — fabricated row id` });
+      continue;
+    }
+    const probe = exactProbe(inst, head.depth);
+    const meta = { instanceId: inst.id, n: inst.n, depth: head.depth };
+    for (const r of group) {
+      const key = chernoffRowKey(r);
+      let truth: ChernoffRow;
+      try {
+        truth = chernoffRow(probe.masses, meta, r.flip, CHERNOFF_DELTA);
+      } catch (e) {
+        violations.push({ row: key, law: "X9", detail: `illegal operating point: ${e instanceof Error ? e.message : String(e)}` });
+        continue;
+      }
+      if (!numEq(r.r, truth.r) || !numEq(r.fitFlip, truth.fitFlip) || !numEq(r.fitLambda, truth.fitLambda) || r.depolPhysical !== truth.depolPhysical) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit fits: claimed r=${String(r.r)} fit f=${String(r.fitFlip)} lambda=${String(r.fitLambda)}, the exact kernel recomputes r=${String(truth.r)} f=${String(truth.fitFlip)} lambda=${String(truth.fitLambda)}` });
+        continue;
+      }
+      if (truth.chernoff === null) {
+        if (r.chernoff !== null) violations.push({ row: key, law: "X9", detail: `counterfeit bound columns: the depolarizing fit is unphysical here (sign-separated outright), no Chernoff number exists to ship` });
+        continue;
+      }
+      if (r.chernoff === null) {
+        violations.push({ row: key, law: "X9", detail: `missing bound columns: the operating point is physical (lambda in [0,1]) and the row must carry them` });
+        continue;
+      }
+      if (!numEq(r.chernoff, truth.chernoff)) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit chernoff: claimed C=${String(r.chernoff)}, recomputed ${String(truth.chernoff)}` });
+      }
+      // the minimizer s* sits in a quadratically flat bowl: its own location
+      // moves ~sqrt(eps) while the information value is pinned — judged loose
+      if (Math.abs(r.sStar! - truth.sStar!) > 1e-3) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit minimizer: claimed s*=${String(r.sStar)}, recomputed ${String(truth.sStar)}` });
+      }
+      if (r.nInfo !== truth.nInfo) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit information budget: claimed N_info=${String(r.nInfo)}, recomputed ${String(truth.nInfo)}` });
+      }
+      if (r.nTwoSigma !== truth.nTwoSigma) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit 2-sigma budget: claimed ${String(r.nTwoSigma)}, recomputed ${String(truth.nTwoSigma)}` });
+      }
+      if (!numEq(r.efficiency, truth.efficiency)) {
+        violations.push({ row: key, law: "X9", detail: `counterfeit efficiency ratio: claimed ${String(r.efficiency)}, recomputed ${String(truth.efficiency)}` });
+      }
+    }
+  }
+  return violations;
+}
+
+function rootRowKey(r: FitRootCensusRow): string {
+  return `${r.instanceId}#p${r.depth} f=${r.flip}`;
+}
+
+/** Law X8 (root-census face): every fit-root row recomputed, every enrolled
+ * root re-certified (a true root of its own equation, isolated to width),
+ * and the two counting paths must agree — a displaced or invented root, or a
+ * census whose paths disagree, is named and rejected. */
+export function checkRootCensus(rows: readonly FitRootCensusRow[]): Violation[] {
+  const violations: Violation[] = [];
+  const byGroup = new Map<string, FitRootCensusRow[]>();
+  for (const r of rows) {
+    const g = `${r.instanceId}#${r.depth}`;
+    byGroup.set(g, [...(byGroup.get(g) ?? []), r]);
+  }
+  for (const [g, group] of byGroup) {
+    const head = group[0] as FitRootCensusRow;
+    const inst = instances().find((i) => i.id === head.instanceId);
+    if (inst === undefined) {
+      violations.push({ row: g, law: "X8", detail: `unknown instance "${String(head.instanceId)}" — fabricated row id` });
+      continue;
+    }
+    const probe = exactProbe(inst, head.depth);
+    const meta = { instanceId: inst.id, n: inst.n, depth: head.depth };
+    for (const r of group) {
+      const key = rootRowKey(r);
+      let truth: FitRootCensusRow;
+      try {
+        truth = fitRootCensus(probe.masses, meta, r.flip);
+      } catch (e) {
+        violations.push({ row: key, law: "X8", detail: `illegal operating point: ${e instanceof Error ? e.message : String(e)}` });
+        continue;
+      }
+      if (!numEq(r.target, truth.target)) {
+        violations.push({ row: key, law: "X8", detail: `counterfeit target: claimed ${String(r.target)}, the exact kernel recomputes ${String(truth.target)}` });
+        continue;
+      }
+      if (r.rootCount !== truth.rootCount) {
+        violations.push({ row: key, law: "X8", detail: `counterfeit root count: claimed ${String(r.rootCount)}, the census recomputes ${String(truth.rootCount)}` });
+        continue;
+      }
+      for (const root of r.roots) {
+        if (root.width > ROOT_WIDTH + 1e-15) {
+          violations.push({ row: key, law: "X8", detail: `root at f=${root.fMid.toPrecision(10)} exceeds the isolation width bound (${String(root.width)} > ${String(ROOT_WIDTH)})` });
+        }
+        if (!root.certified) {
+          violations.push({ row: key, law: "X8", detail: `root at f=${root.fMid.toPrecision(10)} carries no one-sign-change Bernstein certificate — a located guess is not an enrolled root` });
+        }
+        if (Math.abs(exactObservedHitRate(probe.masses, root.fMid) - r.target) > ROOT_MID_BAND) {
+          violations.push({ row: key, law: "X8", detail: `counterfeit root: |r(f*) - target| = ${String(Math.abs(exactObservedHitRate(probe.masses, root.fMid) - r.target))} at claimed f*=${root.fMid.toPrecision(10)} — not a true root of its own fit equation` });
+        }
+      }
+      if (r.twoPathsAgree !== truth.twoPathsAgree) {
+        violations.push({ row: key, law: "X8", detail: `counterfeit agreement: the census recomputes twoPathsAgree=${String(truth.twoPathsAgree)} (hidden multiplicity is disclosed, never smoothed over)` });
+      }
+      if (truth.statedRootEnrolled && !r.statedRootEnrolled) {
+        violations.push({ row: key, law: "X8", detail: `the stated operating point f=${String(r.flip)} is itself a root of its own fit equation — its enrollment is not optional` });
+      }
+    }
+  }
+  return violations;
+}
+
+function witnessChernoffLaw(): WitnessResult {
+  const meta = (id: string, n: number) => ({ instanceId: id, n, depth: 1 });
+  const rows: ChernoffRow[] = [];
+  const roots: FitRootCensusRow[] = [];
+  for (const id of DISC_PROBE_IDS) {
+    const inst = instances().find((i) => i.id === id);
+    if (inst === undefined) return { name: "W-I information law", pass: false, detail: `probe instance ${id} missing` };
+    const probe = exactProbe(inst, 1);
+    for (const flip of [0.01, 0.02, 0.05]) {
+      rows.push(chernoffRow(probe.masses, meta(inst.id, inst.n), flip, CHERNOFF_DELTA));
+      roots.push(fitRootCensus(probe.masses, meta(inst.id, inst.n), flip));
+    }
+  }
+  const chernoffClean = checkChernoffTable(rows).length === 0;
+  const counterfeitC = rows.map((r) => (r.chernoff === null ? r : { ...r, chernoff: r.chernoff * 2, nInfo: Math.ceil(Math.log(2 / CHERNOFF_DELTA) / (r.chernoff * 2)) }));
+  const cCaught = checkChernoffTable(counterfeitC).find((v) => v.law === "X9" && v.detail.includes("counterfeit chernoff"));
+  const rootsClean = checkRootCensus(roots).length === 0;
+  const displaced = roots.map((r) => (r.roots.length === 0 || !r.roots[0] ? r : { ...r, roots: r.roots.map((x, i) => (i === 0 ? { ...x, fMid: x.fMid + 0.01 } : x)), statedRootEnrolled: false }));
+  const rCaught = checkRootCensus(displaced).find((v) => v.law === "X8" && v.detail.includes("counterfeit root"));
+  // the MC demonstration: the optimal discriminator under either truth sits
+  // at or above the Chernoff floor within MC fluctuation — below would
+  // falsify the theorem
+  const demoInst = requireInstance(MC_CHERNOFF_DEMO.probeId);
+  const demoProbe = exactProbe(demoInst, MC_CHERNOFF_DEMO.depth);
+  const demoRow = chernoffRow(demoProbe.masses, { instanceId: demoInst.id, n: demoInst.n, depth: MC_CHERNOFF_DEMO.depth }, MC_CHERNOFF_DEMO.flip, CHERNOFF_DELTA);
+  const p = readoutShellDist(demoProbe.masses, demoRow.fitFlip);
+  const q = depolShellDist(demoProbe.masses, demoRow.fitLambda);
+  const mc = mcChernoffDemo(p, q, MC_CHERNOFF_DEMO.shotsPerTrial, MC_CHERNOFF_DEMO.trials, MC_CHERNOFF_DEMO.seed);
+  const mcOk = mc.empiricalError + 5 * mc.sigma >= mc.bound;
+  const pass = chernoffClean && (cCaught !== undefined) && rootsClean && (rCaught !== undefined) && mcOk;
+  return {
+    name: "W-I information law (chernoff floor + root census)",
+    pass,
+    detail: `X9 table clean (${chernoffClean ? "yes" : "NO"}), counterfeit C named (${cCaught !== undefined ? "yes" : "NO"}); root census clean (${rootsClean ? "yes" : "NO"}), displaced root named (${rCaught !== undefined ? "yes" : "NO"}); MC likelihood-ratio error ${mc.empiricalError.toFixed(5)} vs floor ${mc.bound.toFixed(5)} at ${String(MC_CHERNOFF_DEMO.shotsPerTrial)} shots/trial — within the theorem (${mcOk ? "yes" : "NO"})`,
+  };
+}
+
+/** All nine witnesses, W-A through W-I, each re-derived from scratch. */
 export function runWitnesses(): WitnessResult[] {
   return [
     witnessInstances(),
@@ -360,5 +536,6 @@ export function runWitnesses(): WitnessResult[] {
     witnessBudgetLaw(),
     witnessRobustLaw(),
     witnessDiscriminator(),
+    witnessChernoffLaw(),
   ];
 }

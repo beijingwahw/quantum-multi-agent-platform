@@ -37,6 +37,14 @@ T6 certified net strictly increasing across the grid family's adjacent pairs; be
 
 **Honest boundary.** The power-series leg is the series path re-indexed in p (the substitution d = p is exact algebra; the tests verify agreement with the closed path as data — it is not a third independent derivation). Report enrollment (out/reports) and the tariff row (T9) are deliberately left to a dedicated visit — this section ships the theorem, the machinery, and the trials; nothing existing was re-rendered.
 
+## The convexity theorem (v0.6.0, `src/kernel/convexity.ts`)
+
+T7 booked convexity as a citation face (net′ and net″ formulas verified as data). v0.6.0 finishes the program the gap-free certificate started — **convexity is now a theorem face, isomorphic to v0.4.0's increment margin**:
+
+**Theorem (machine, exact).** Differentiating the all-positive-coefficient series term by term, **net′(p) = Σ_{k≥1} p^{2k−1}/(2·ln2·(2k−1))** — again all-positive coefficients — so for every rational pair 0 ≤ p₁ < p₂ < 1, **net′(p₂) − net′(p₁) ≥ (p₂−p₁)/(2·ln2) > 0** (net′ strictly increasing), and for every rational triple with midpoint m, **net(p₂) − 2·net(m) + net(p₁) ≥ (p₂−p₁)²/(8·ln2) > 0** (net strictly convex) — each margin the k = 1 series term plus a nonnegative remainder, pure BigInt rational algebra at any scale the rationals name (the task draft's weaker (p₂−p₁)²/(16·ln2) is implied). The remainder's nonnegativity is itself a machine object: the even monomials' second differences satisfy the exact binomial identity (m+h)^{2k} + (m−h)^{2k} − 2m^{2k} = 2·Σⱼ C(2k,2j)·m^{2k−2j}·h^{2j} ≥ 2h^{2k}, checked by two independent BigInt evaluations for k = 1..8. Machine numbers from the tests: min prime margin 0.036067376 over the 19 cells; min second-difference margin 0.001803368 over the 18 interior grid triples (the terminal triple touches p = 1 where the power-path data gate honestly refuses); the adversarial pair (1/3, 1/3 + 10⁻¹²) is separated by exact algebra at margin ≈ 7.2e-13, the tiny triple (0, 10⁻¹²) at ≈ 1.8e-25; the derivative series overlaps the T7 citation formula at every shared grid point with widest enclosure 1.7e-21; net″ = Σ p²ʲ/(2·ln2) overlaps 1/(2·ln2·(1−p²)) at samples.
+
+**Smuggling trials (convexity face).** An inflated prime margin (0.5 claimed where the enclosures cap the increment at ≈ 0.0363) and an inflated second-difference margin both die at the anti-inflation data gates (cross-path power-hi vs closed-lo, the v0.4.0 discipline); a concave dent (+1/25 at p = 10/20) is named by the shared `certifyConvexGrid` at cell 10 AND fails the margin-dominance face at the dent's triple — two independent deaths; a forged binomial closed form is caught by the direct expansion. Degenerate inputs (p ≥ 1 for the series, reversed pairs and triples, k outside 1..12, h ≤ 0) refuse with named `CONVEXITY_*` codes.
+
 ## The Welch exclusion certificate (v0.5.0)
 
 T8 enrolled the tetrahedral SIC axes as the fifth payer but left the family's closure unstated. The new face (the T10 face, `src/kernel/welch.ts`) closes it: **the constant-overlap 1/3 family is complete**.
@@ -59,6 +67,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 57/57 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, Welch exclusion certificate, smuggling trials, coded refusals, entry guard, witness determinism
+npm test        # 71/71 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, Welch exclusion certificate, convexity theorem (derivative series margins + binomial identity), smuggling trials, coded refusals, entry guard, witness determinism
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

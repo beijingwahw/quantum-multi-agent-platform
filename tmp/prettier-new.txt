@@ -1,0 +1,6 @@
+Checking formatting...
+[[33mwarn[39m] src/protocol/noisy-dsic.ts
+[[33mwarn[39m] src/contract/noisy-collateral.ts
+[[33mwarn[39m] test/noisy-dsic.test.ts
+[[33mwarn[39m] test/noisy-collateral.test.ts
+[[33mwarn[39m] Code style issues found in 4 files. Run Prettier with --write to fix.

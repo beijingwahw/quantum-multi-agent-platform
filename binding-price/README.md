@@ -22,6 +22,19 @@ G7's bend, upgraded from a float to exact certificates. For ANY single-qubit cha
 - **WC7** — the G7 float 0.103553 upgraded: wedge = (√2 − 1)/4 in Q(√2), bracketed 0.103553 < w < 0.103554 by exact BigInt squaring; cos² = 1/2 exactly; dense-vs-field float deviation at 1e−16 scale.
 - **Slack = loss ⟺ a ∥ r′** (WC3): the aligned announcement meets the one-to-one to 1e−15 at every swept point; every misaligned point is strictly wedged. The desk's counterfeit verifier names rationality laundering (NOT-RATIONAL-POINT), forged rationals (FORGED-COS/-WEDGE/-COS-SQUARE), and angles claimed on the degenerate boundary (DEGENERATE-OUTPUT).
 
+## The Schmidt joint-reveal envelope (v0.6.0, `src/kernel/schmidt.ts`)
+
+G8's bounded census, upgraded from floats to a law. For the Schmidt pair ensemble {½ψ(t), ½ψ′(t)} (ψ(t) = cos t|00⟩ + sin t|11⟩, ψ′ the swap-flip) and ANY product announcement |a⟩⊗|b⟩ with |a⟩ = cos α|0⟩ + e^{iγₐ}sin α|1⟩, |b⟩ likewise, the joint pass is EXACTLY **P(α,β;t) = ¼[1 + cos2α cos2β + sin2t·sin2α sin2β·cos(γₐ+γ_b)] = ¼[1 + aᵀC(t)b]** with correlation matrix C(t) = diag(sin2t, −sin2t, 1) — the family's entire two-coin behavior is one diagonal matrix, machine-checked on three routes (closed form, dense kernel trace, correlator bilinear) over the algebraic grid to 1e−12. The faces the law gives the census:
+
+- **SC1** — the closed form itself: 6591 grid points (α,β,t ∈ kπ/24 × three phase sums), worst closed-vs-dense 1.7e−16, correlator-vs-dense at the same scale.
+- **SC2** — per-coin flat at every t and announcement (both coins ½, worst 1.1e−16): the census's flat supply as a one-line corollary of the closed form.
+- **SC3** — the (z,z) announcement is PINNED at ½ for every t (the population correlation never turns off); the equatorial steering curve P(+,+;t) = ¼(1+sin2t) sweeps the census's ¼→½ span; the full envelope is FLAT — sup ½ at every t, inf exactly 0 at (z,−z).
+- **SC4** — the dead y-axis: the t-term carries the phase sum as cos(γₐ+γ_b) (in Bloch components, aₓbₓ − a_yb_y), so γₐ+γ_b = π/2 kills it entirely — a falsifiable face, not prose; the off-diagonal correlators vanish, C_yy = −sin2t is the phase-conjugate twin of C_xx.
+- **SC5** — the baseline anchors: t = 0 collapses to the classical joint table ¼[1+cos2αcos2β]; t = π/4 both members ARE |Φ⁺⟩ (the family closes at the Bell point, cross-anchored with the G8 Bell ensemble).
+- **SC6/SC7 (the R18 spec refuted, twice)** — the design draft's formula ¼[1+sin2αsin2βcos2t] carries NO population term and dies at the witness t = 0, (+,+): it claims ½ where the truth is ¼ (worst grid deviation 0.354 = √2/4); its envelope sup = ½(1+|cos2t|) (reaching 1 at t = 0) is unreachable — the machine's sup is ½ at every t, since P ≤ ¼(1+σ_max(C)) with σ_max = 1.
+
+The desk names counterfeit kinds: FORGED-VALUE (with the deviation printed at local scale, and the R18 shape itself fingerprinted when the forged value matches SC6's refuted formula), ENVELOPE-EXCEEDED (a pass above the flat ½ ceiling), SUBZERO-PASS, ANGLE-RANGE.
+
 ## The laws (src/kernel/audit.ts)
 
 | law | enforces |
@@ -48,6 +61,6 @@ The market layer prices the HJW-style commitment family at the qubit level; quan
 
 ```bash
 npm ci
-npm test        # 73/73
+npm test        # 87/87
 npm run repro   # renders out/reports/the-binding-price.md (seconds)
 ```

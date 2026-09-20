@@ -21,7 +21,7 @@ runtime dependencies, NodeNext, `node:test`. `npm run repro` rebuilds every
 report in seconds. Every number in `reports/` is exact linear algebra — no
 sampling anywhere in a theorem claim.
 
-## The five layers
+## The six layers
 
 **T1 — switch algebra** (`src/experiments/exp1-switch-algebra.ts`)
 - The switch as an executable isometry with certificate M†M = I (a valid
@@ -106,6 +106,53 @@ at d = 2 per wire (the OCB 2012 layer that v0.1.0 could only cite):
   size; all caught and fixed by new circuit-vs-process anchors (agreement
   2.2e-16 over complex random instances).
 
+**T2-b — dimension invariance of the capacity constants** (new in v0.6.0,
+`src/switch/dimension.ts`)
+- The replacer pair's control-face constants are dimension-FREE for
+  d = 2..6: T = 1/2, Helstrom 3/4, χ = H₂(1/4) − 1/2, target face exactly
+  zero, single boxes and definite orders exactly zero — the control register
+  is a qubit at every d (|+⟩⟨+| vs 𝟙/2 for the two ensemble members), so
+  every functional of it is d-independent by construction, now machine-pinned
+  across five dimensions.
+- The d = 2 joint law T_full = p/4 for (depol(p), depol(1)) does NOT extend
+  with coefficient 1/4: the machine census over d = 2..6 × p ∈ {0,¼,½,¾,1}
+  gives the exact general law **T_full = p/d²** (all 25 grid points) — linear
+  in p at every dimension, fading as 1/d² (the R18 draft's p/4 generalization
+  was refuted by the machine before any repo code was written; the d = 2
+  instance recovers the certified p/4).
+- Honest boundary: accessible-information certificates (single-use T,
+  binary-ensemble χ), not optimal capacities — the ESC optimisation stays
+  cited; the sweep is a closed-form cross-check, not a classification.
+
+**T6 — the GYNI flat-top certificate layer** (new in v0.6.0,
+`src/process/gyni.ts`) — three-party "guess your neighbor's input" ring,
+the cited no-quantum-violation game of Almeida et al., PRL 104, 230404
+(2010), here as an executable certificate layer on the uniform-input face:
+- Census theorem (machine-exhaustive): all 4³ = 64 deterministic vertices
+  (each party a unary function of its own input) succeed at EXACTLY
+  C₃ = 1/2 — min = max over the census, the FLAT TOP; the achiever set is
+  the full vertex set (64/64 — the maximizer characterization is vacuous,
+  per-party value 1/2 for every unary function since the target bit is
+  independent of the guesser's input).
+- Shared randomness: p_succ is linear in the joint behavior, so every convex
+  mixture sits at EXACTLY C₃ (stronger than "cannot exceed" — the cap is an
+  equality). Pinned two ways: linear decomposition Σ w_v p_succ(v) and a
+  from-scratch recompute of the mixture's induced behavior — agreement to
+  1e-14, and the un-normalized case shows raw linearity (Σw·C₃).
+- Sampled quantum battery (echo, non-exhaustive): parties share three Bell
+  (or Werner) pairs, measure in x-dependent bases, XOR their outcomes —
+  exact Born probabilities give p_succ = C₃ to ≤ 1e-12 across the angle
+  grid. Structural reason documented: on the uniform-input ring every
+  NO-SIGNALING strategy has P[b_i = x_{i+1}] = 1/2 per party, so the quantum
+  face sits ON the cap (machine echo of the cited no-violation theorem; the
+  paper's correlated-input inequality is cited, not reproduced).
+- Audit face: claimed census records, vertex values, and shared-random
+  values are recomputed from scratch; forgeries (inflated cap, truncated
+  family, wrong achiever count, 5/8 claims, non-strategy weights) are named
+  and rejected (GYNI-COUNTERFEIT verdicts).
+- Boundary: no three-party process-matrix layer is built — the certificate
+  layer covers classical / shared-random / sampled-quantum strategy faces.
+
 ## Verdict on the Epoch-2 claim
 
 - **Proven and now machine-certified:** order is a real resource — zero+zero
@@ -134,11 +181,11 @@ at d = 2 per wire (the OCB 2012 layer that v0.1.0 could only cite):
 ```
 src/core/        complex LA, channels (partial trace), measures (T, F, S, χ), rng
 src/switch/      Stinespring machinery, branch/switch isometries, chanlib,
-                 witnesses, capacity helpers
+                 witnesses, capacity helpers, dimension-invariance sweep (T2-b)
 src/process/     OCB process layer: CJ convention (pinned by circuit anchors),
                  the guess-your-partner's-input game + census + switch game,
                  term-type judge, W_OCB + witness certificates (gypi/cj/
-                 termtype/wocb)
+                 termtype/wocb), and the GYNI flat-top certificate layer (gyni)
 src/experiments/ exp1..exp5 + run-all (npm run repro)
 test/            anchor suite (closed forms vs machine, judges, smuggling trials)
 docs/            theory.md (derivations), citations.md (web-verified register)
@@ -174,3 +221,13 @@ reports/         generated markdown, one per experiment
    (exit 0 is not "ran"). The runner now calls the exported mains directly
    and verifies all five rendered; the defect is documented at the head of
    `src/experiments/run-all.ts`.
+8. T6 (v0.6.0) certificates the UNIFORM-INPUT GYNI face, where the flat cap
+   C₃ = 1/2 is pinned by no-signaling alone; Almeida et al.'s nontrivial
+   Bell inequality lives on a correlated input distribution and is cited,
+   not machine-checked. The quantum battery is a sampled family (pairwise
+   Bell/Werner, one angle grid), not an exhaustive quantum-classification —
+   the no-violation statement itself rests on the citation. T2-b sweeps a
+   closed form across dimensions (d = 2..6 replacer; d = 2..6 × 5-value p
+   grid depolarizing), it does not classify channels; the depolarizing pair's
+   d = 6 grid point materializes a 15552² dense output state (~16 s, the
+   suite's heavy end, documented in the test).
