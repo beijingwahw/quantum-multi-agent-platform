@@ -37,6 +37,18 @@ T6 certified net strictly increasing across the grid family's adjacent pairs; be
 
 **Honest boundary.** The power-series leg is the series path re-indexed in p (the substitution d = p is exact algebra; the tests verify agreement with the closed path as data — it is not a third independent derivation). Report enrollment (out/reports) and the tariff row (T9) are deliberately left to a dedicated visit — this section ships the theorem, the machinery, and the trials; nothing existing was re-rendered.
 
+## The Welch exclusion certificate (v0.5.0)
+
+T8 enrolled the tetrahedral SIC axes as the fifth payer but left the family's closure unstated. The new face (the T10 face, `src/kernel/welch.ts`) closes it: **the constant-overlap 1/3 family is complete**.
+
+**Theorem (machine, exact).** No five unit vectors in C² have pairwise overlaps |⟨φᵢ|φⱼ⟩|² = 1/3 — and, sharper, not even ONE ray extends the tetrahedron at constant 1/3. The instrument is the Welch bound at d = 2, executed rather than quoted. The proof's one polynomial identity — for every 2×2 Hermitian M, **2 Tr M² − (Tr M)² = (A−D)² + 4(X²+Y²)**, a sum of real squares — is certified as a polynomial identity by exact BigInt rational evaluation on the full grid {−2..2}⁴ (625 points; per-variable degree 2 < grid side 5, so vanishing on the whole grid forces the zero polynomial). A hypothetical five-ray frame operator would need 2·(35/3) − 25 = **−5/3 < 0** while the identity says ≥ 0 — contradiction, with the falsifiable margin 35/3 < 25/2 (cross-multiplied 70 < 75; margin 5/6). The tetrahedron itself is the positive control: four explicit kets over Q(i,√3), pairwise overlaps exactly 1/3, frame operator exactly 2I (the tight-frame identity Σ|ψᵢ⟩⟨ψᵢ| = (n/d)I), Welch total 8 = 16/2 on two paths (Gram sum vs frame-operator trace), and both SOS squares individually zero — a qubit SIC is a saturated Welch case, which is exactly why it cannot grow.
+
+The direct route: since M = 2I is machine-verified, every vector ϕ obeys Σᵢ|⟨ϕ|ψᵢ⟩|² = ⟨ϕ|2I|ϕ⟩ = 2‖ϕ‖² — executed exactly on rational and Q(√3) test vectors (individual terms may be irrational; the sum is exactly 2). A claimed fifth ray would force 4·(1/3) = 4/3 ≠ 2.
+
+**Smuggling trials.** The antipode ray (Bloch −r₁) presents overlaps {0, 2/3, 2/3, 2/3} — it satisfies the Bessel identity (as every vector must) and dies at the constant-overlap gate (`WELCH_NOT_EQUIANGULAR`): the certificate adjudicates equiangular claims only. A non-equiangular five-family (tetrahedron + antipode) is honestly NOT certifiable — its measured Welch total is 13 > 25/2, no contradiction to hide behind. The certificate's sharp edge is pinned: c = 3/8 at n = 5 sits exactly on the bound (margin 0, not excluded). Domain refusals by name (`WELCH_N_RANGE`, `WELCH_C_RANGE`, `WELCH_TETRA_INDEX`, `WELCH_IRRATIONAL`, `WELCH_S3_INVERSE`).
+
+**Honest boundary.** The SOS engine is 2×2 — general-d Welch stays a citation (Welch-1974, lower bounds on the maximum cross correlation of signals, double-source pending; the tetrahedral SIC's provenance: Renes-Blume-Kohout-Scott-Grassl-2004, symmetric informationally complete measurements, double-source pending — no arXiv id, DOI, or volume quoted from memory). Nonnegative squares in an ordered field is the one axiom-level fact cited. Nothing existing was re-rendered; the T9 report enrollment stays with its dedicated visit.
+
 ## Honest boundary
 
 The zeros are theorems (no-signaling holds for ANY state — including biased resources; the distinguishing property of the singlet is its maximally mixed marginal, and the tests say so explicitly). The withdrawal schedule prices reconciliation and settings exactly as retro-cache scoped it: **no adversary privacy amplification** — the Shor-Preskill-grade security statement is not claimed. h₂ endpoints q=0 (and q=1) are closed forms; the series path is honest only on the open grid.
@@ -47,6 +59,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 46/46 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, smuggling trials, coded refusals, entry guard, witness determinism
+npm test        # 57/57 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, Welch exclusion certificate, smuggling trials, coded refusals, entry guard, witness determinism
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

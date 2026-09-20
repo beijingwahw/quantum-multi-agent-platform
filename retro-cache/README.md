@@ -130,11 +130,54 @@ The CHSH-2-limited classical adversary vs the entangled withdrawal, priced:
   (0.745 → 0.167 bits) but h₂(1/4) keeps every net negative — the floor
   confiscates first; the amplifier buys margin, not refunds.
 
+## The Singleton-grade rank theorem (v0.4.0)
+
+W5 measured the sparse adversary by rank algebra cross-checked against
+brute force on a sample. The new face (`src/kernel/mds.ts`) promotes the
+rank statement to a theorem and censuses where the bound is ridden:
+
+- **Theorem A (universal, machine-executed per instance).** For every map
+  a ≠ 0 and every free mask F: **rank{trunc_k(a ⊗ eᵢ) : i ∈ F} ≥
+  max(0, |F| + k − m)**, so Eve's surviving information obeys
+  I(K; Z | a) = k − rank ≤ min(k, s) — her information about the k-bit key
+  never exceeds what she knows about the m-bit input (the data-processing
+  ceiling, executed at full generality for this family). The bound's shape
+  is the q-ary Singleton bound (Singleton-1964, on maximum q-ary codes,
+  double-source pending) read on the generator's columns; the proof is
+  dimension counting — multiplication by a is injective (the field
+  property), the truncation kernel has dim m−k, and the restricted kernel
+  cannot exceed it. The machine executes all the pieces per instance:
+  exhaustive kernel enumeration (rank + kernelDim = |F|), the inclusion,
+  and the full kernel's exact dimension (surjectivity census: all 255 maps
+  at m=8 have image exactly 2^k).
+- **Theorem B (closed form).** For every (a, F, z): the key trunc_k(a ⊗ x)
+  over all 2^|F| free completions of z is uniform on exactly 2^rank values,
+  each hit 2^(|F|−rank) times — an exact-integer coset certificate, no
+  entropy float in the claim; z-independence checked on a second z; a
+  forged rank cannot hide (k minus a forged rank disagrees with the
+  measured coset size).
+- **The census.** m = 4 and m = 8, every k and f: the minimum rank over all
+  maps AND all masks of size f EQUALS max(0, f + k − m) — the worst-case
+  Eve information is exactly min(k, s) at every sparsity: the family is
+  Singleton-optimal in the worst case, and the bound is tight everywhere it
+  can be. Per mask the census is honest data: scattered free sets (m=8,
+  k=4, F={0,7}; m=4, k=2, F={0,2}) admit no map that drops the rank to the
+  bound — strictly better privacy than the Singleton worst case on those
+  positions.
+- **Negative control.** Over the reducible ring GF(2)[x]/(x⁴+x²+1) the same
+  scan EXHIBITS a violation (rank below the dimension bound) — a zero
+  divisor breaks injectivity; over the fields on file the scan never
+  violates. The field property is load-bearing.
+- **Boundary.** Coordinate-knowledge adversary only (the smoothed BSC face
+  is W5's own); census claims bounded to the fields on file (m = 4, 8) —
+  for larger m Theorem A stands (dimension counting in any field) but no
+  census is executed here. Nothing existing was re-rendered.
+
 ## Quickstart
 
 ```
 npm ci
-npm test          # 45/45
+npm test          # 52/52
 npm run repro     # rebuilds out/reports/w1..w6 markdown; W5's exhaustive census dominates
                    # the runtime (measured 32s idle to ~11 min on a loaded box)
 ```

@@ -159,6 +159,42 @@ stay" has no referent at all. That is this repo.
 - A bounded census: no optimality claim, no metrology claim (ASH20/ASH23
   are context for the boundary, not results used).
 
+### S8 — the cascade waiting ledger: memory vs no memory (`src/kernel/cascade.ts`, v0.4.0)
+
+- Stack k postselection levels — per-level keep P_i is the FUNDED PRIOR MASS
+  of its marked set in the incoming survivor frame (on a weighted prior this
+  is not N/t; the chain rule composes the levels, S6) — and price three
+  architectures, every price in SORTER ATTEMPTS:
+  - **sequential (memory)**: E[T] = Σ 1/P_i — the stacked ledger's geometric
+    waits ADD;
+  - **fused (one sorter on the composed set)**: E[T] = 1/Π P_i — the chain
+    rule's keep, priced as one wait;
+  - **restart (no memory)**: counting attempts (not rounds!), the suffix-sum
+    law E[T] = Σ_i 1/(P_i···P_k) — Wald's identity on the extension
+    recursion E ← (E + 1)/P', cross-checked against rounds ×
+    attempts-per-round.
+- **The separation theorems, with their exact boundaries**: restart ≥ fused
+  and restart ≥ sequential ALWAYS (keeping survivors never loses to
+  re-running from scratch, at any difficulty — the termwise suffix core);
+  fused vs sequential is REGIME-BOUND: fused ≥ sequential iff
+  Σ_i Π_{j≠i} P_j ≤ 1, true in the hard regime (every P_i ≤ 1/2 — the
+  postselection regime, where the sum is ≤ k/2^(k−1) ≤ 1) and inverted for
+  easy levels (the easy pair (0.9, 0.9): one joint attempt is cheaper,
+  1.23 vs 2.22). The designed ratio (Π 1/P_i)/(Σ 1/P_i) ≥ 1 exactly on the
+  hard side of that boundary, equality at k = 1.
+- **Depth is not free**: appending level P' grows the separation ratio
+  exactly when P' < 1 − 1/S_k (S_k = Σ 1/P_i; and P' < 1 − 1/S_k + 1/N_k for
+  the restart ratio) — an easy appendage DILUTES both ratios (each side pays
+  ≥ +1 attempt, the mediant pull-down); "cascade depth always widens the
+  memory advantage" is folklore, convicted by machine on the sweep.
+- The audit **W1–W5** (`auditCascade`): the undercount (quoting the fused
+  number as the restart price), an ordering violation, and an inverted
+  regime narrative are NAMED and REJECTED; the honest ledger audits clean.
+  MC realization referees land inside 5σ with exact sigmas (DATA — never a
+  theorem claim). Renewal/Wald vocabulary: Ross-1996 shape, pending
+  double-sourcing; no cited theorem is re-proved — every identity is
+  elementary algebra executed on two paths.
+
 ## The census laws (G1-G5, `src/kernel/audit.ts`)
 
 - **G1 — both faces, always**: a rate row ships conditional AND unconditional
@@ -179,7 +215,7 @@ stay" has no referent at all. That is this repo.
 
 ```
 npm ci
-npm test          # 60/60
+npm test          # 71/71
 npm run repro     # renders out/reports/the-survivor-census.md, seconds
 ```
 

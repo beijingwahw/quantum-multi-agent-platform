@@ -86,11 +86,34 @@ Tamper controls (a σ_x→σ_y mistranscription, a 0.69 coefficient) are VALID
 processes that only the comparison rejects: the fake-equivalence smuggling
 trial has teeth.
 
+**T6 — the biased double-cone phase diagram, the silver ratio cone**
+(`src/game/phase.ts`, `test/phase.test.ts`; new in v0.4.0): bias the branch
+mix to ℐ(c1,c2) = c1·P(x=b) + c2·P(y=a) and the game grows an exact phase
+diagram on the weight quadrant. (a) The classical cap is the piecewise-linear
+max(c1+c2/2, c1/2+c2) — pinned by re-weighting the same 8,192-strategy
+exhaustion over 57 weight points (three scalings × 19 log-spaced ratios,
+plus cone-inside, cone-outside, kink and near-endpoint samples); the fake
+uniform-scaled (3/4)(c1+c2) cap is convicted off-diagonal by the sweep.
+(b) W\*'s violation region is the double cone c2/c1 ∈ (√2−1, √2+1) EXACTLY:
+the silver ratio r* = √2−1 solves (1+r)cos²(π/8) = 1 + r/2, the conjugate
+√2+1 the mirror branch; the executed Born-rule margin ties at both endpoints
+to float precision, flips sign across them, and the cone-claim adjudicator
+NAMes and REJECTS outside-cone violation claims (and undecided endpoint
+claims). The cone is the F_q optimum, not a protocol artifact — the T4
+per-branch bounds hold at every weight pair and the OCB protocol attains
+both at once. (c) The LC25 optimal-ICO face (c1+c2+√(c1²+c2²))/2 exceeds
+the cap on the WHOLE open positive quadrant with gap
+(√(c1²+c2²) − max(c1,c2))/2, asymptotically re-touching the cap toward both
+axes where W\*'s cone keeps its finite width; the unbiased game (r = 1) is
+the single point where all three faces meet. Boundaries, same line as T4:
+two-lab two-bit ICO process class; layer (c)'s optimality rides on the LC25
+citation (executed here on the attaining family), not re-proven.
+
 ## Reproduce
 
 ```
 npm install
-npm test        # 22/22
+npm test        # 33/33
 npm run repro   # ~20 s — rebuilds all five reports (exp4's sweep dominates)
 ```
 

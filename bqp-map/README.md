@@ -142,11 +142,23 @@ The atlas's P-EXACT island (sorting / assignment optimality) carried only citati
 
 The atlas entries/registry are untouched — enrolling these walls as atlas rows is left to a dedicated visit; this section ships the machinery and the trials.
 
+## The second-largest wall (v0.4.0, `src/lower/second.ts`)
+
+The comparison model's second executed theorem, on the same three mutually cross-checking legs: **finding the second largest of n distinct keys needs exactly n + ⌈log₂ n⌉ − 2 comparisons (n ≥ 2).**
+
+- **LEG A (flat sweep):** every canonical depth-q tree audited on all n! inputs for a single true (max, second) pair per reached leaf — all 27 depth-2 trees on n=3 die at the forgery depth n + ⌈log₂ n⌉ − 3, as do all 279,936 depth-3 trees on n=4; depth 3 on n=3 carries correct trees with every leaf separating the n(n−1) ordered outcomes. The weak counting gate is exact BigInt: q ≥ ⌈log₂(n(n−1))⌉ — which leaves exactly the n=5 gap (5 vs 6) that the adversary leg closes.
+- **LEG B (game DFS):** the terminal upgraded from find-max's unique maximum to "maximum AND second both determined" (a unique maximum with exactly one candidate whose only proven superior is the champion) — the exact optimum equals n + ⌈log₂ n⌉ − 2 at n = 2..6 (1, 3, 4, 6, 7).
+- **LEG C (the weight adversary, at any n):** the classical tournament argument as a machine invariant — mass starts at 1 per element; live duels go to the heavier element and transfer its mass; an undefeated element never loses to a defeated one (mass never flows into the dead), so after the n−1 eliminations the unique champion holds all n mass; since a live win at most doubles the winner's mass, the champion directly beat ≥ ⌈log₂ n⌉ distinct elements, every one a possible second. The exhaustive sweep plays every adaptive strategy of k = n + ⌈log₂ n⌉ − 3 comparisons (n=4: all 216 sequences; n=5: all 100,000) and every one leaves the second undetermined — each with two machine-verified witness total orders consistent with every answer (same champion, different seconds).
+- **Tightness, constructive:** `secondTreeWitness(n)` builds a correct flat tree at exactly the closed form's depth (the DFS oracle replayed; determined subtrees padded with already-decided pairs whose wrong branch no permutation reaches) — audited green at n = 3..5; and the balanced tournament + loser bracket played against the adversary itself determines the second at exactly n + ⌈log₂ n⌉ − 2 plays (n = 4, 6).
+- **Smuggling trials:** the king-of-the-hill tree — optimal for find-max at n−1 — is convicted BY NAME as a second-largest forgery (the leaf, the killing permutation, and the two disagreeing (max, second) pairs); degenerate inputs (self-pairs, non-canonical orientation, wrong ask length, out-of-range n) are refused with descriptive errors per house style.
+
+Honest boundary: n ≤ 6 is machine-enumerated; the all-n statement is the classical theorem carried by the machine invariant (Kislitsyn-1964 on the minimum comparisons for the second largest; Knuth-1973 *The Art of Computer Programming Vol. 3: Sorting and Searching* §5.3.3 — author-year-title keywords, awaiting dual sourcing). Deterministic comparison trees only — randomized or quantum models are other islands. The atlas entries/registry stay untouched, as with v0.3.0's walls.
+
 ## Reproduce
 
 ```
 npm install
-npm test        # 81/81 — includes re-running every machine certificate
+npm test        # 91/91 — includes re-running every machine certificate
 npm run repro   # ~4 s — rebuilds all six experiment reports + the atlas
 ```
 

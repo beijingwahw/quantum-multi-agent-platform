@@ -98,6 +98,18 @@ the world bit, identity on the cargo. Nothing else. Then, machine-witnessed:
   census with FRESH random channels every step never exceeds it); an error
   **schedule** beats the constant worst case — alternating ε_t = 0.1/0.002 prices
   at 0.1553 against 0.3077 (49.5% off the constant-worst bill).
+- **The k worlds** (AT18) — k marked bits under ONE product law (register
+  w1⊗…⊗wk⊗cargo): the mass of every "S all outside" sector obeys
+  q_S(t) = (1−γ)^{|S|·t}·c_S(0) exactly for ARBITRARY entangled starts (the
+  Heisenberg face multiplies each sector projector by its own damping factor,
+  per bit), so the joint leakage is the 2^k-term **inclusion–exclusion**
+  Σ_{∅≠S}(−1)^{|S|+1} q_S — k=1 IS AT2's geometric and k=2 IS AT16's
+  union-with-intersection, reproduced bit-level from the same sum; beyond two
+  worlds the face is genuinely multi-scale (the single-geometric counterfeit
+  drifts by 0.170 on the k=3 correlated face — SW8 generalized, certificates
+  re-derived and checked by name); the dense census runs to k=4 (32 dims),
+  the closed form holds for EVERY k (anchored by the nested-binomial identity
+  c_S = 1/2 ⟹ leak = [1−(1−(1−γ)^t)^k]/2, verified to 1.3e−14 at k=12).
 
 ## Honest boundaries
 
@@ -120,7 +132,7 @@ exact algebra bounds.
 ## Run
 
 ```bash
-npm test          # 68/68 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials)
+npm test          # 75/75 (board laws, machinery closed forms, eleven smuggling trials, render guard, kernel-boundary trials, k-world inclusion-exclusion)
 npm run typecheck # tsc --noEmit, zero errors
 npm run repro     # renders out/reports/the-stable-world.md in seconds
 ```

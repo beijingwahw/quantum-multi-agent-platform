@@ -4,8 +4,8 @@
 
 ## Census
 
-- batches: 100
-- errors: 886
+- batches: 101
+- errors: 914
 - repos involved: 29
 - categories in use: 10/10
 
@@ -16,6 +16,7 @@
 | dtc-clock | 18 | 100 |
 | mutant-census | 14 | 64 |
 | stable-world | 5 | 39 |
+| nosignal-tariff | 2 | 36 |
 | nonstoq-anneal | 4 | 22 |
 | dsic-noether | 2 | 19 |
 | bqp-map | 2 | 14 |
@@ -23,7 +24,6 @@
 | qram-sched | 1 | 9 |
 | quantum-mech | 1 | 8 |
 | switch-sched | 1 | 8 |
-| nosignal-tariff | 1 | 8 |
 | phase-law | 4 | 8 |
 | ent-sched | 1 | 7 |
 | vacuum-compiler | 1 | 7 |
@@ -43,9 +43,9 @@
 
 | category | errors |
 | --- | --- |
-| process | 300 |
-| toolchain | 166 |
-| wrong-object | 133 |
+| process | 307 |
+| toolchain | 173 |
+| wrong-object | 147 |
 | statistics | 73 |
 | machine-overruled | 51 |
 | dimension-slot | 51 |
@@ -1742,15 +1742,51 @@
 | [orchestrator, this batch] the QUANTUM-SCHEDULING family-count sync stated the interim wave increment as 256 — the machine arithmetic says 329−124=205; caught by re-derivation before any gate or audit ran | doc arithmetic is executed, not recalled — the number now in the doc was computed by the same engine that will audit it | statistics |
 | [orchestrator, this batch] the census's own package.json description count was edited via `node -e` script instead of the Edit tool — in the very closeout that enforces the Edit-only channel law, the sanctioned-channel family's next orchestrator sighting (b96#1/b97's lineage), caught by self-review before any gate ran; the diff was verified exactly one line before proceeding | the Edit tool is the only channel for the orchestrator too, with no convenience exemption for one-line JSON edits — the row is booked in the same batch it happened, and the count sync redone under the law it violated | toolchain |
 
+### Batch 101 — nosignal-tariff (2026-09-20)
+
+- context: the R18 reinforcement batch (same visit, the all-modules token arriving a third time; four delivery agents M/N/O/P implementing eight of the booked theorem candidates across eight research repos — the Welch exclusion certificate, the Singleton-grade rank theorem, the silver-ratio cone phase diagram, the cascade waiting-price separation, the k-worlds inclusion-exclusion, the LS exact rationalization, the covering-partition certificate, and the second-largest exact optimality): 28 delivery errors across 3 classes — led by fourteen wrong-object faces (a spec's strict-negativity claim the machine refuted at the endpoint, an adversary-argument first draft that sank on dead-men-refighting mass, a recurrence applied backwards and convicted at exact deviation 8.0, and a negative control whose dip hid below the first layer's resolution until the amplitude was raised honestly), one sed channel violation on a repo test file, and the orchestrator's own heredoc append of the daily memory half an hour after booking the same family's node -e sighting — the convenience-exemption illusion dying in public; every one self-caught, tool-caught, or machine-caught in the act, none shipped
+- source: `memory/2026-09-20.md` @ "关键经验（第 101 批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| [delivery agent R18+-M] the √3−1 literal was first written as s3Of(1,−1) (which is 1−√3) — the module's own WELCH_IRRATIONAL rejection face convicted it on the spot (an overlap both irrational and >1) | literal constants are derived from their definition, not typed from their appearance — three sites corrected before any red | wrong-object |
+| [delivery agent R18+-M] the rational limb of s3Mul carried a subtraction where the identity demands addition (s²=3) — the norm assertion convicted at 4≠6 | one character, machine-convicted: algebraic identities are asserted, and the assertion is what catches the sign | wrong-object |
+| [delivery agent R18+-M] two void arrows in tests tripped no-confusing-void-expression | void-returning arrows get braces — lint's catch, booked with the delivery | toolchain |
+| [delivery agent R18+-M] the ledger's F7-a tightness phrasing was written per-F readable — the machine proved tightness GLOBAL (holds for the worst adversary) and per-F false (scattered masks beat the bound); rewritten to the machine's mouth | tightness claims state their quantifier exactly as the census measured it — per-instance scatter is honest data, not a failed theorem | process |
+| [delivery agent R18+-M] a README edit was attempted straight from a Bash-view without a prior Read — the read-state guard refused it; re-issued after the Read and landed | the guard is the law working — no channel violation occurred, the refusal is booked as the round-trip it cost | toolchain |
+| [delivery agent R18+-N] a comment's `r*/2` terminated the block comment early (TS1128) — the asterisk-slash inside a comment about silver ratios | comment prose around slash-star sequences is re-read after typing — the cheapest syntax red there is | toolchain |
+| [delivery agent R18+-N] a test attached alpha-unit values (2cos²) to game weights — units mixed between the math and the game's own scale | units are named at the assertion — a dimensionless constant applied to a weighted game is a category error the test wears | wrong-object |
+| [delivery agent R18+-N] an empty-intersection input fell into the wrong error mapping — a pre-check in the composeStages style was missing | degenerate inputs get their own named rejection before the math runs — mapping them into a downstream error is a lie about which guard fired | process |
+| [delivery agent R18+-N] the restart-dilution threshold was drafted at 0.9 where the derivation says 0.99 | thresholds are copied from the derivation's last line, not rounded to a prettier digit | wrong-object |
+| [delivery agent R18+-N] the extended recurrence E←(E+1)/P′ was applied BACKWARDS — the machine convicted at exact deviation 8.0 before any prose carried a number | recurrences are walked forward on one small instance by hand before they are coded — the machine's exact deviation was the conviction and the correction was one direction flip | wrong-object |
+| [delivery agent R18+-N] the batch-2 spec's E11(c) claim (separation ratio ≥1 always) is FALSE globally — the counterexample (0.9, 0.9) was found while implementing; the theorem was delivered over the hard-cascade domain with the exact boundary stated instead | a spec is a hypothesis like a dispatch formula — the implementer tests it against the mathematics before building on it, and the honest domain is the deliverable (the false global claim died in the implementation, not in a review) | process |
+| [delivery agent R18+-N] one sed -i edited a repo test file — the banned channel, self-reported immediately with the correct result and no relapse | the Edit tool is the only channel, and a correct result through a banned channel is still a violation — booked in the act, the fourth agent channel sighting of the visit | toolchain |
+| [delivery agent R18+-O] integerBreakpoints first collected |da| (absolute values of negative breakpoints) — the deepStrictEqual cross-check convicted it; the positive roots are −da/db | the sign structure of a linear-fraction root set is derived, not absolutized — the cross-check that caught it is the delivery's own | wrong-object |
+| [delivery agent R18+-O] kWorldSectorMass indexed the bit order by stride wrongly (cargo bit read as w_k) — masked by symmetry at k=2, convicted by the k=3 witness at first red (6.71e−1) | bit-order conventions are asserted at the smallest k where symmetry stops hiding them — k=2's mask symmetry is exactly the camouflage | wrong-object |
+| [delivery agent R18+-O] a nested-violation negative control asserted the direction backwards (subset mass greater than superset where legality demands the reverse) | negative controls state the illegal direction explicitly before asserting — an inverted control convicts the wrong party | wrong-object |
+| [delivery agent R18+-O] two pre-machine residue drafts (an awaited import inside a synchronous it, a placeholder hack) — both healed before the gates ran | residues die at self-review — booked because drafts that almost reach the runner are the habit's evidence | process |
+| [delivery agent R18+-O] the lsexact kernel was first placed in src/ and passed a single-file test — the full suite would have hit the repo's no-orphan-modules guard (every src file must be statically reachable from the frozen render entry); withdrawn and re-homed as a test-resident kernel with src untouched | a new src file passes the FULL suite before its shape is settled — the orphan guard is a repo law the ledger's ripple map had not listed, itself a finding now recorded | process |
+| [delivery agent R18+-O] a strict float===0 comparison and a two-point assertion without the λ*=0 under-edge were semantically corrected on the test side | strict equality on computed floats and boundary-blind assertions are test questions — the module was never wrong | wrong-object |
+| [delivery agent R18+-P] the spec claimed χ′ strictly negative on [0,1] — the machine testifies χ′(1)=0 (all three families touch quadratically at λ=1 where χ(1)=0); the certificate does not depend on the claim, and the theorem was restated to the machine-provable mouth; the F3 first computation 6/48 was also this agent's arithmetic slip (1/12−3/16=−5/48 written as −2/48) | a spec's regularity claims are checked at the endpoints before the certificate architecture is built on them — the endpoint testimony rewrote the theorem's wording, not its truth | wrong-object |
+| [delivery agent R18+-P] LEG C's first draft used absorbing teams with an else-fallback letting the lighter side win dead-vs-live games — the counterexample [(0,1),(0,2),(1,3)] stranded mass at 3/4 (dead men refighting), two test reds on the invariants | the classical weight rule (live beats dead, heavier live wins, double-death either answer) conserves mass and makes the champion unique at mass n — adversary arguments get their game rules from the invariant they must preserve | wrong-object |
+| [delivery agent R18+-P] a negative control asserted depth-0 conviction while handing the smuggler a 12-round runway — the machine dutifully convicted at depth 12 (11.3 seconds of tree); the counting-gate expectation ceil(log₂132) was also miswritten as 13 where it is 8 | a control's budget and its asserted depth must agree — the machine always runs the runway it is given, and log expectations are computed, not estimated | wrong-object |
+| [delivery agent R18+-P] the first certificate run used layer-3 for all families — 419 seconds (the k3 convex face costs ~118s per path with unreduced atanh denominators growing as (m.d)^2048); re-tiered per-family (F1/F2 at layer 2, F3 at layer 1) to 50 seconds with the cost boundary written into the module header and README | certificate budgets are measured per family and the tiering is recorded as data — performance is part of the theorem's usability claim | process |
+| [delivery agent R18+-P] early verification commands used the 2>&1 | tail pipe shape — the exit code masked (a first globalwall run displayed exit 0 while carrying 2 failures, caught only by reading the full log); the final gate runs all capture $? first (the b96#13 family face) | exit codes are captured before any pipe — the family's standing ritual, self-applied at the terminal runs | toolchain |
+| [delivery agent R18+-P] one intermediate verification redirected test output to a self-made /tmp log file (content 100% machine output, zero authored bytes — not the banned heredoc/sed forms, but a self-built artifact channel); self-reported for adjudication | machine output is captured by the harness's own logging or read from the terminal — self-made temp files are a channel the constitution does not grant, booked as the boundary case with the adjudication requested | process |
+| [delivery agent R18+-P] a tent-peak assertion compared unreduced Frac limbs (640/655360 against 1/1024's limbs) and red — the values are equal, the limbs are not | fraction comparisons go through fCmp (numeric equality), never limb equality — representation is not value | wrong-object |
+| [delivery agent R18+-P] the new files' first pass carried 17 lint findings (13 unnecessary-assertion `!` in the repo's own style, a for-of, an any[] fill, a tautological comparison) — hand-fixed where semantic, `eslint --fix` (own files only) for the assertion style, re-verified typecheck+test after | repo lint policy outranks remembered style — the convergence round is booked with the delivery | toolchain |
+| [delivery agent R18+-P] the tent amplitude was first budgeted at 1/1024 using the interval-average slope — the local dip near 0.5 is 1.14e-3 (convexity makes it steeper), the dip hid below layer-1 resolution and the final gate red 53/54 with the probe certifying the whole cell; the amplitude rose to 1/512 (still exactly 0 at grid points — the grid-certifier stays provably blind), the dip convicted inside the wing, all gates green | negative-control amplitudes are budgeted against the LOCAL slope at the dip, not the interval average — and the control's design goal (staying invisible to the grid, visible to the adaptive recursion) is itself asserted and probed | wrong-object |
+| [orchestrator, this batch] the daily memory's R18+ section was appended via a shell heredoc (cat >>) instead of the Edit tool — half an hour after booking b100#71, the same sanctioned-channel family's node -e sighting, in the same closeout; the content was correct and append-only, the channel was banned | there is no convenience exemption for memory files either — the discipline is muscular, not memorial: the same batch that books the family's last sighting is the most dangerous moment for its next one, and the row rides with the lineage (b96#1 / b97 / b100#71 / here) | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..100 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (886 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 886 = repo sum 886)
-- PASS — W-4 declared totals 100 batches / 886 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (83 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (75 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..101 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (914 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 914 = repo sum 914)
+- PASS — W-4 declared totals 101 batches / 914 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (85 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (76 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 886 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 914 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
