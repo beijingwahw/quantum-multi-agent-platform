@@ -173,11 +173,43 @@ rank statement to a theorem and censuses where the bound is ridden:
   for larger m Theorem A stands (dimension counting in any field) but no
   census is executed here. Nothing existing was re-rendered.
 
+## The mixed-strategy convexity argument, executed (v0.5.0)
+
+W3 censused the 256 deterministic shared-randomness strategies at |CHSH| =
+2; boundary 4 carried the extension to MIXED strategies as "convex
+combinations cannot exceed the deterministic cap (standard argument,
+applied not re-proved)". The new face (`src/kernel/mixed.ts`) executes that
+argument — boundary 4 is closed by this section:
+
+- **Vertex completeness.** The deterministic strategy space is the full
+  function set {±1}⁴ × {±1}⁴ = 16 × 16 = 256, enumerated by id with all
+  256 response signatures distinct — the enumeration IS the completeness
+  certificate, cross-checked against W3's own census.
+- **Extremality.** Every vertex is extreme: the vertices are the hypercube
+  {±1}⁸, and the machine exhausts ALL 32,640 vertex pairs — u + w = 2v
+  only trivially; every nontrivial midpoint carries a 0 coordinate. No
+  sampling.
+- **The cap under mixing.** Seeded dyadic convex combinations
+  (weights c_j/2^D, exact BigInt rationals): the mixed joint tables are the
+  same mixture of vertex tables, and the CHSH value computed FROM the mixed
+  table equals the linear prediction Σ w_j S(v_j) exactly, every trial —
+  so |S_mix| ≤ max |S(v_j)| = 2: the linear functional's supremum is
+  attained at a vertex. The attained vertex value set is exactly {−2, 0, 2}.
+- **Negative control.** The PR box (CHSH = 4) is not a local vertex;
+  smuggled into the mixture at any weight w > 0 against the |S| = 2 vertex,
+  the value (1−w)·2 + w·4 > 2 — the cap convicts (w = 1/2 → 3, w = 1/8 →
+  9/4, both exact rationals). The cap's innocence depends on the vertex set
+  being exactly the local 256.
+- **Boundary.** Toy dimension (2 settings, 2 outcomes, one shared bit); the
+  general separation theorem is cited, not re-proved — CHSH69 is in the
+  book, convex analysis is standard, no new citation is claimed. Nothing
+  existing was re-rendered; W3's float census keeps running untouched.
+
 ## Quickstart
 
 ```
 npm ci
-npm test          # 52/52
+npm test          # 57/57
 npm run repro     # rebuilds out/reports/w1..w6 markdown; W5's exhaustive census dominates
                    # the runtime (measured 32s idle to ~11 min on a loaded box)
 ```

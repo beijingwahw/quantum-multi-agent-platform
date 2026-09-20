@@ -822,6 +822,63 @@ export type {
   GammaBuyoutRow,
   GammaBuyoutRefineResult,
 } from './core/gamma-spectrum-buyout.js';
+// —— R19 创新波 opt-in 模块（未接入默认调度路径，显式导入使用）——
+export { refineAnglesByGammaBetaAlternation } from './core/gamma-beta-alternating.js';
+export type {
+  GammaBetaAlternatingOptions,
+  GammaBetaAlternatingResult,
+} from './core/gamma-beta-alternating.js';
+export {
+  analyzeNonuniformSpectrum,
+  nonuniformCurveValueAt,
+  nonuniformCurveDerivativeAt,
+  buyoutGammaCurveNonuniform,
+  minimizeNonuniformGammaCurve,
+  refineGammaByNonuniformBuyout,
+} from './core/nonuniform-gamma-buyout.js';
+export type {
+  NonuniformSpectrumOptions,
+  NonuniformSpectrum,
+  NonuniformSpectrumFailure,
+  NonuniformSpectrumResult,
+  NonuniformBuyoutOptions,
+  NonuniformGammaBuyout,
+  NonuniformMinimizeOptions,
+  NonuniformMinCertificate,
+  NonuniformBuyoutRefineOptions,
+  NonuniformBuyoutRow,
+  NonuniformBuyoutRefineResult,
+} from './core/nonuniform-gamma-buyout.js';
+export {
+  buildCapabilityInvertedIndex,
+  classifyTaskIndexed,
+  classifyBucketIndexed,
+  registerIndexedAgent,
+  unregisterIndexedAgent,
+  setIndexedAgentState,
+  setIndexedAgentCapabilities,
+  snapshotIndexedAgents,
+  readIndexStats,
+  resetIndexStats,
+  mutationDirtiness,
+} from './core/capability-inverted-index.js';
+export type {
+  IndexedAgentView,
+  IndexedTaskView,
+  IndexedReachabilityClass,
+  IndexedReachabilityVerdict,
+  DirtinessLevel,
+  RegistryMutation,
+  CapabilityInvertedIndex,
+} from './core/capability-inverted-index.js';
+export { deriveMinimalGrants } from './dsh/minimal-grant-derivation.js';
+export type {
+  GrantWorkflow,
+  DerivationOptions,
+  StepProjection,
+  GrantCoverage,
+  DerivedGrantFace,
+} from './dsh/minimal-grant-derivation.js';
 export {
   LocalQuantumBackend,
   registerBackend,
@@ -912,6 +969,15 @@ export type {
   ParallelizeOptions,
   ParallelFtEstimate,
 } from './core/qpu/commutation-ft.js';
+// R19 创新波 opt-in：执行层级双画像与 Misra-Gries 分解
+export { decideExecutionTierDual } from './core/qpu/execution-tier-dual.js';
+export type {
+  ExecutionTierDualRequest,
+  ExecutionTierFtDual,
+  ExecutionTierDualDecision,
+} from './core/qpu/execution-tier-dual.js';
+export { misraGriesLayerPartition } from './core/qpu/misra-gries-partition.js';
+export type { MisraGriesPartition, MisraGriesOptions } from './core/qpu/misra-gries-partition.js';
 export { AgentManager } from './core/agent-manager.js';
 export {
   PlatformError,
@@ -1059,6 +1125,31 @@ export type {
   ExplorationFeedbackInputs,
   ExplorationCoefficient,
 } from './proactive-intelligence/evidence-gated-exploration.js';
+// R19 创新波 opt-in：联合后验 sd 探索系数与逐能力序贯雇佣审计
+export {
+  JointPosteriorExploration,
+  JointExplorationBudgetLedger,
+  sigmaJointAt,
+  certifiedEnvelope,
+  jointBudgetBound,
+  DEFAULT_JOINT_EXPLORATION_CONFIG,
+} from './proactive-intelligence/joint-posterior-exploration.js';
+export type {
+  JointGridComponent,
+  JointExplorationConfig,
+  JointFeedbackInputs,
+  JointExplorationCoefficient,
+  CertifiedEnvelopeFace,
+  JointBudgetCertificate,
+} from './proactive-intelligence/joint-posterior-exploration.js';
+export {
+  SequentialHiringAudit,
+  DEFAULT_HIRING_AUDIT_CONFIG,
+} from './proactive-intelligence/sequential-hire-audit.js';
+export type {
+  HiringAuditConfig,
+  HireAuditCellSnapshot,
+} from './proactive-intelligence/sequential-hire-audit.js';
 export { ToolCapabilityPolicy } from './tools/tool-capability-policy.js';
 export type {
   CapabilityKind,

@@ -226,8 +226,8 @@
     <p class="doc-subtitle">Quantum Multi-Agent Development &amp; Scheduling Platform</p>
     <p class="lang-note">🇬🇧 <strong>English version</strong>: <code>README.en.md</code>（图内文字为中文，图注附英文关键词）</p>
     <div class="badges">
-      <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.17.0</span></span>
-      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">1171</span></span>
+      <span class="badge"><span class="b-l">version</span><span class="b-v" style="background:#007ec6">1.18.0</span></span>
+      <span class="badge"><span class="b-l">tests</span><span class="b-v" style="background:#4c1">1297</span></span>
       <span class="badge"><span class="b-l">TypeScript</span><span class="b-v" style="background:#007ec6">5.9 strict</span></span>
       <span class="badge"><span class="b-l">node</span><span class="b-v" style="background:#97ca00">&gt;=22</span></span>
       <span class="badge"><span class="b-l">license</span><span class="b-v" style="background:#9f9f9f">MIT</span></span>
@@ -254,9 +254,9 @@
       <tr><td class="c">🧠</td><td><a href="#market-research">市场机制研究线</a></td><td>增广 WDP · DSIC · 学习曲线</td></tr>
       <tr><td class="c">📊</td><td><a href="#benchmarks">基准与性能</a></td><td>量子 5/5 · 匈牙利互证 · 23.5× 并行</td></tr>
       <tr><td class="c">🚀</td><td><a href="#quick-start">快速开始</a></td><td>十条命令 + 代码示例</td></tr>
-      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>1171 用例 · 六门禁 · 覆盖率棘轮</td></tr>
+      <tr><td class="c">🧪</td><td><a href="#testing-quality">测试与质量</a></td><td>1297 用例 · 六门禁 · 覆盖率棘轮</td></tr>
       <tr><td class="c">📁</td><td><a href="#directory-structure">目录结构</a></td><td>含图集生成器</td></tr>
-      <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.17</td></tr>
+      <tr><td class="c">🗓️</td><td><a href="#version-timeline">版本演进</a></td><td>v1.0 → v1.18</td></tr>
       <tr><td class="c">⚠️</td><td><a href="#honest-limits">诚实的边界</a></td><td>等效≠真机 · 组合爆炸 · 热路径</td></tr>
     </tbody>
   </table>
@@ -537,7 +537,7 @@
 cd quantum-multi-agent-platform
 npm install
 
-npm test                <span class="c"># 1171 用例 · 0 失败</span>
+npm test                <span class="c"># 1297 用例 · 0 失败</span>
 npm run typecheck       <span class="c"># 全仓类型检查（strict + noUncheckedIndexedAccess）</span>
 npm run lint            <span class="c"># ESLint（typescript-eslint 推荐规则集）</span>
 npm run example:basic   <span class="c"># 基础用法全链路（平台启停/调度/控制台协议）</span>
@@ -581,7 +581,7 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
 
   <!-- ══════════════ 测试与质量 ══════════════ -->
   <h2 id="testing-quality" class="pb">🧪 测试与质量</h2>
-  <p><strong>1171 用例 · 0 失败 · 104 个测试文件 / 352 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
+  <p><strong>1297 用例 · 0 失败 · 113 个测试文件 / 397 个套件</strong>（性能灵敏度用例按测量环境守卫自跳过，跳过数随机器负载浮动）；六道门禁全绿，覆盖率棘轮只升不降：</p>
 
   <figure><img src="docs/diagrams/16-quality.png" alt="质量门禁体系"></figure>
 
@@ -611,7 +611,8 @@ console.log(report.assignments.map(a =&gt; <span class="s">`${a.taskName} → ${
       <tr><td>R17 严格正向升格（r17a-d：位势流 SPFA 平价·准入精确拒绝·批组成零成本路径·Hedge 组合）</td><td class="c">51</td><td>单解墙钟 9/9 CI 含 1.0（旧 +122%）· 增量收益 4.93× 重测 · 拒绝证书四元构造性零错 · 无耦合 O(T+E+P) 零搜索 · 后悔界 ln3/η+ηT/2 三对抗流验证（一流反超 +50）</td></tr>
       <tr><td>R18 创新波批 1（r18a-d：影子价格割线·挂起可达性·噪声感知选择器·对易 FT·SPRT 门·证据门控探索·γ 谱买断）</td><td class="c">111</td><td>分段仿射 3 评估命中定理 · T1 零错杀可达性刻画 · 保持率闭式＋Beta 精确优势概率 · Kőnig 精确构造达 Δ(G⁺) 下界 · 截断混合 SPRT Ⅰ 类误差 ≤α/(1−β) · 探索预算 ≤e₀√(N+κ₀+1) 望远镜证书 · γ 段三角多项式买断（N=2M+1 DFT 精确恢复＋Lipschitz 夹逼证书）</td></tr>
       <tr><td>R18 接线与背压（r18i/j：λ 割线生产接线·挂起早失败·总线分级降质）</td><td class="c">27</td><td>secant 路径评估数 −89%（福利逐位一致） · unsatisfiable 提前失败终态与等满 TTL 逐任务相同 · 滞回分级状态机（降级永不静默，缺省字节不变）</td></tr>
-      <tr><td><strong>全套</strong></td><td class="c"><strong>1171</strong></td><td><strong>104 个测试文件 / 352 个套件 · 0 失败</strong></td></tr>
+      <tr><td>R19 第三轮创新波·平台（r19q/r/s/t：γβ 联合精修·非均匀采样买断·联合后验 sd·序贯雇佣审计·最小授权推导·执行层级双画像·Misra-Gries·倒排索引化）</td><td class="c">126</td><td>交替单调不增＋ε-不动点 · K=2R+1 非均匀可逆（7 vs 405 点域扩张） · σ_joint Lipschitz 证书 · 族误差 MC 0.0430≤0.0510 · 最小授权三定理 · 决策面逐字节冻结 · 一般图 gap∈{0,1}（First-Fit 反例 507 例分离） · 桶判定位同构＋探针 2400→20</td></tr>
+      <tr><td><strong>全套</strong></td><td class="c"><strong>1297</strong></td><td><strong>113 个测试文件 / 397 个套件 · 0 失败</strong></td></tr>
     </tbody>
   </table>
   <p class="note">（表内计数为文档对账时点一次绿色全量运行的快照；以 <code>npm test</code> 实时输出为准。）</p>
@@ -623,7 +624,7 @@ npm run lint      <span class="c"># ESLint 0 错误（类型感知 strict 集：
                   <span class="c">#   no-base-to-string/no-unsafe-* 等 18 条抓 bug 规则）</span>
 npm run coverage  <span class="c"># c8 覆盖率 94.2% 语句 / 86.2% 分支，含 92/82/92/92 防回归门槛</span>
 npm run knip      <span class="c"># 死代码/未用导出/未用依赖 0 发现</span>
-npm test          <span class="c"># 1171 用例 · 0 失败 ✅</span>
+npm test          <span class="c"># 1297 用例 · 0 失败 ✅</span>
 npm run format    <span class="c"># Prettier 统一格式</span>
 </code></pre>
 
@@ -669,7 +670,7 @@ npm run format    <span class="c"># Prettier 统一格式</span>
 │   ├── dsh/dsh-integration.ts        <span class="c"># DeepSeek Harness 集成</span>
 │   ├── proactive-intelligence/       <span class="c"># 主动智能规则引擎（三层）</span>
 │   └── types/ · tools/ · utils/ · performance/ · bench/
-├── tests/                            <span class="c"># 测试套件（104 文件 / 1171 用例）</span>
+├── tests/                            <span class="c"># 测试套件（113 文件 / 1297 用例）</span>
 ├── docs/diagrams/                    <span class="c"># 🎨 README 原理图集 + generate.py 生成器</span>
 ├── examples/
 │   ├── quantum-breakthrough-benchmark.ts  <span class="c"># 量子基准（7 部分）</span>
@@ -703,6 +704,7 @@ npm run format    <span class="c"># Prettier 统一格式</span>
     <li><strong>v1.15 ECCM</strong>——两值谱混合器的单余弦定理：三点定弦、闭式全局极小、零步长超参；4×5 基准族 11/12 实例对坐标下降双轴同时占优，帕累托点如实入账</li>
     <li><strong>v1.16 严格正向升格</strong>——四个「条件性正向」的代价面逐一消除：位势流 SPFA 平价 · 准入精确拒绝 · 批组成零成本路径 · Hedge 组合后悔界</li>
     <li><strong>v1.17 第二轮创新波</strong>——7 个 opt-in 新模块＋2 处 opt-in 接线（影子价格割线 · 挂起可达性 · 噪声感知选择器 · 对易 FT · SPRT 门 · 证据门控探索 · γ 谱买断 · λ 割线接线 · 总线分级降质），默认路径全部字节不变</li>
+    <li><strong>v1.18 第三轮创新波</strong>——平台设计稿清偿 8 项 opt-in（γβ 联合交替精修器 · 非均匀采样买断 · 联合后验 sd · 序贯雇佣审计 · 最小授权推导 · 执行层级双画像 · Misra-Gries 分解 · 倒排索引化），研究仓 7 仓 9 定理，默认路径字节不变</li>
   </ul>
 
   <hr>

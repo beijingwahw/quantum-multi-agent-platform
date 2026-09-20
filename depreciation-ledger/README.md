@@ -45,11 +45,40 @@ anchor (L3), forged and missing appeals (L5), and a malformed appeal
 manifest that must be BOOKED, never a crash — each convicted by claim id
 and law.
 
+## The restart threshold as an exact algebraic certificate (v0.4.0)
+
+W-B's bisection matched (3−√2)/4 to 1e-12; `test/restart-threshold.test.ts`
+upgrades that reading to an exact algebraic-number certificate over Q(√2),
+all in BigInt — the bisection witness keeps running, now with its closed
+form proven rather than numerically suggested:
+
+- **T1** — sin(3θ) = 3s − 4s³ derived on two independent roads (de
+  Moivre's imaginary part vs the addition formula), identical coefficient
+  vectors by machine expansion.
+- **T2** — sin²(3θ) − 2sin²(θ) = s²(16s⁴ − 24s² + 7) as a polynomial
+  identity (zero-residual coefficient expansion, a composed-vs-factored
+  rational-grid second path, and a float sin(3θ) third path).
+- **T3** — the solution set in (0, π/2): the factorization
+  16y² − 24y + 7 = 16(y − y−)(y +) verified by exact expansion in
+  Q(√2)[y], with y− = (3−√2)/4 ∈ (¼, ½) and y+ = (3+√2)/4 ∈ (1, 2) —
+  one solution in (0, 1), the W-B threshold, as an order-theoretic
+  certificate (the Q(√2) sign comparison IS √2's irrationality).
+- **Negative controls** — the forged threshold (3−√1.9)/4 convicted with
+  residual exactly −1/10 (the identity P((3−t)/4) = t² − 2, machine
+  expanded), its magnitude sized against the local-slope budget
+  4 − 2√3.8; and the interval classifier proven sharp at BOTH roots.
+
+Honest boundary: the Grover E* optimum (W-D) remains a numerical witness —
+only the threshold's closed form is certified here. One spec correction,
+recorded: the R18 spec sheet placed the complementary root in (½, 1); the
+machine shows (3+√2)/4 > 1 — outside (0,1) entirely, not even a legal
+sin² value. The classifier test pins the corrected reading.
+
 ## Quickstart
 
 ```
 npm ci
-npm test          # 15/15
+npm test          # 23/23
 npm run repro     # renders out/reports/the-ledger.md, or throws
 ```
 

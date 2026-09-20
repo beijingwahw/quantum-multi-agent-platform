@@ -20,6 +20,15 @@ This repo is that book — a one-page exchange board where every trade carries b
 
 **The parity and its asymmetry.** E1 and E2 quote the same parity — 1 ebit = 1 qubit = 2 cbits — but the coin's fate differs by direction: fuel in redemption, catalyst in quotation. The parity holds; the accounting does not. That asymmetry is this desk's contribution to the standard.
 
+## The θ-desk (v0.4.0, `src/kernel/ghztheta.ts`)
+
+The GHZ bank re-opened at an arbitrary coin angle, |GHZ_θ⟩ = (|000⟩ + e^{iθ}|111⟩)/√2 — a theorem with one direction of flow:
+
+- **The triple.** Every NUMERICAL face of the bank is θ-free: the three pairwise concurrences stay exactly 0, every 1-vs-2 cut stays exactly 1/2 negativity, and every branch probability stays exactly 1/2 — at every θ on the πk/12 grid, and structurally (the pairwise reduction's coherence cells are EXACTLY 0.0: the bit-flip symmetry cancels the phase at the bit level).
+- **The withdrawal.** C measures X and sends 1 cbit: AB receive exactly |Φ±θ⟩ = (|00⟩ ± e^{iθ}|11⟩)/√2 on the two branches (fidelity 1, concurrence 1, E_F 1, branch probabilities ½) — the angle rides INTO the coin's phase and nowhere else. The cut ledger conserves exactly (A|BC and B|AC stay ½, AB|C drops ½ → 0). θ = 0 degenerates onto the existing bank byte-for-byte (ghzThetaCoin(0) = ghzCoin()).
+- **The basis census.** No measurement basis folds θ into any population — the R18 design draft expected Y to fold it and the machine refuted that: Y folds its OWN basis phase into the coin as θ − π/2, populations stay ½. Branch concurrence = |sin 2β| at every tilt (θ-free); the standard coin is withdrawn exactly at equatorial bases and nowhere else; the coin's phase is θ − φ (the transfer direction is enumerable).
+- **Claims discipline.** The desk carries its own seven-row claims table (TH1–TH7: five HOLDS, one CENSUS, two REFUTED) with an H8-style checker that recomputes every verdict; contraband tags are convicted by name. Concurrence/E_F exactness runs two paths: the linear cell 2|ρ_{00,11}| (exact to 1e-12) and the Wootters solver (cross-path at 1e-7 — its documented ~1e-8 noise on rank-deficient pure states is a face of the solver, not of the coin).
+
 ## Laws (the checker, `src/kernel/audit.ts`)
 
 - **H1** every trade carries BOTH columns (give and get) — single-sided quotes do not ship;
@@ -31,12 +40,12 @@ This repo is that book — a one-page exchange board where every trade carries b
 - **H7** ledger honesty — every conservation row's claim must match the machine-recomputed delta (a fake conservation identity is rejected by recomputation);
 - **H8** GHZ-bank claim honesty — HOLDS/REFUTED/CENSUS tags must match the machine's recomputed verdict (a refuted wall claimed as holding is contraband).
 
-The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes twelve smuggling trials (one per law face plus the named-refusal boundary trials), the render entry guard, a test that the exported render mains really run, and the quality anchors (every kernel throw carries a named EC_ code; the report printer refuses non-finite input by name).
+The renderer refuses to print an illegal board — or an illegal yield table, ledger, or claims table; the test suite includes twelve smuggling trials (one per law face plus the named-refusal boundary trials), the theta desk's four contraband-claim trials (v0.4.0), the render entry guard, a test that the exported render mains really run, and the quality anchors (every kernel throw carries a named EC_ code; the report printer refuses non-finite input by name).
 
 ## Run
 
 ```
-npm test        # the full suite: 58 tests (machinery, witnesses, 12 smuggling trials, entry guard, render mains, quality anchors, boundary/determinism regressions)
+npm test        # the full suite: 76 tests (machinery, witnesses, 12 smuggling trials, the theta desk's 18, entry guard, render mains, quality anchors, boundary/determinism regressions)
 npm run typecheck
 npm run lint
 npm run repro   # renders out/reports/the-ent-clearing.md (board + yield table + ledger + GHZ bank + witnesses)

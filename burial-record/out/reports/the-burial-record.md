@@ -4,15 +4,15 @@
 
 ## Census
 
-- batches: 101
-- errors: 914
+- batches: 102
+- errors: 975
 - repos involved: 29
 - categories in use: 10/10
 
 | repo | batches | errors |
 | --- | --- | --- |
 | burial-record | 24 | 385 |
-| ds_extracted/ds | 7 | 116 |
+| ds_extracted/ds | 8 | 177 |
 | dtc-clock | 18 | 100 |
 | mutant-census | 14 | 64 |
 | stable-world | 5 | 39 |
@@ -43,16 +43,16 @@
 
 | category | errors |
 | --- | --- |
-| process | 307 |
-| toolchain | 173 |
-| wrong-object | 147 |
-| statistics | 73 |
-| machine-overruled | 51 |
+| process | 325 |
+| toolchain | 187 |
+| wrong-object | 169 |
+| statistics | 76 |
+| machine-overruled | 53 |
 | dimension-slot | 51 |
 | citation-drift | 49 |
 | conjugation | 29 |
-| anchor-blindspot | 21 |
-| bogus-comparison | 13 |
+| anchor-blindspot | 22 |
+| bogus-comparison | 14 |
 
 ## The batches
 
@@ -1778,15 +1778,84 @@
 | [delivery agent R18+-P] the tent amplitude was first budgeted at 1/1024 using the interval-average slope — the local dip near 0.5 is 1.14e-3 (convexity makes it steeper), the dip hid below layer-1 resolution and the final gate red 53/54 with the probe certifying the whole cell; the amplitude rose to 1/512 (still exactly 0 at grid points — the grid-certifier stays provably blind), the dip convicted inside the wing, all gates green | negative-control amplitudes are budgeted against the LOCAL slope at the dip, not the interval average — and the control's design goal (staying invisible to the grid, visible to the adaptive recursion) is itself asserted and probed | wrong-object |
 | [orchestrator, this batch] the daily memory's R18+ section was appended via a shell heredoc (cat >>) instead of the Edit tool — half an hour after booking b100#71, the same sanctioned-channel family's node -e sighting, in the same closeout; the content was correct and append-only, the channel was banned | there is no convenience exemption for memory files either — the discipline is muscular, not memorial: the same batch that books the family's last sighting is the most dangerous moment for its next one, and the row rides with the lineage (b96#1 / b97 / b100#71 / here) | toolchain |
 
+### Batch 102 — ds_extracted/ds (2026-09-21)
+
+- context: the R19 third innovation wave (visit ninety-four, the all-modules token arriving a fourth time; two batches of four agents — U/V/W/X implementing nine theorems across seven research repos, Q/R/S/T clearing the platform's design-stock remainder — plus the orchestrator): 61 delivery errors across 7 classes — the spec-is-hypothesis law's harvest wave (FIVE spec assertions machine-refuted by their own implementers: a monotonicity that is a reverse double-staircase with holes, a rationality claim that is a Q(sqrt2) irrational point, a complementary root outside the unit interval, a version premise a whole wave stale, and a loss-factor on the wrong side of the channel), six channel-family sightings in one batch (sed, node -e, python heredoc no-op, redirect temp log, empty heredoc, and the orchestrator's own node -e bulk-doc attempt caught by its own MISS guard before a byte was written), and one genuine module defect caught by a first red and folded into an honest boundary; every one self-caught, tool-caught, or machine-caught in the act, none shipped
+- source: `memory/2026-09-21.md` @ "关键经验（第 102 批"
+
+| wrong (as it stood) | right (as recorded) | category |
+| --- | --- | --- |
+| [delivery agent R19-U] two channel violations on small edits: a sed -i on a qram test import line and a node -e writeFileSync for the version double-slot — the banned channels taken for convenience on tweaks (the b82#7/b87#15 family shapes) | both immediately reverted via Edit and re-landed through the sanctioned channel; 'clean does not absolve' — the smallness of the edit is the camouflage the family rides on | toolchain |
+| [delivery agent R19-U] the U/U-dagger chirality was written backwards three times across test and diagnostic script (phi formula as U*gs instead of the row/column-conjugated form) — a 6.9e-1-level mismatch each time | the conjugation index map is written down once ('U-dagger[z][zp] = U[zp][z], z is the state, zp the index') and the trap documented in the test comments — three recurrences of one root: deriving the transpose from memory each time | process |
+| [delivery agent R19-U] the n=64 sign census first drew random bits as Math.floor(rng.next()*2**64) (53-bit doubles lose randomness), the second draft still biased with a 21-bit splice | hi/lo each drawn as nextU32() (32 random bits, representable) — and the attempt surfaced a real latent defect: mpsAmplitude's bitwise 32-bit truncation, booked as a defect report | process |
+| [delivery agent R19-U] an assertion drafted at interiorValue=-0.1 (the search's best max) — the machine returned -1.1425/-0.0809: the searched best max and the hand-posed row/max are different quantities | which optimum an assertion names is stated at the assertion — closed-form three-way derivation, not a suspicious machine | machine-overruled |
+| [delivery agent R19-U] the spec claimed closed-form monotone feasibility (unique epsilon-star by bisection) — the machine found Den(epsilon) is a reverse double-staircase with holes and feasible islands above them (n_b=6/16/20/24 all have holes; island [0.0625,0.0775] at 20) | rewritten to the machine's mouth: sup-unique plus a complete hole enumeration, the bisection probe itself convicted as the wrong method on a non-monotone function — the spec-is-hypothesis law's clearest case this wave | process |
+| [delivery agent R19-U] two more spec digits falsified in passing: 'loading = one full n_b x n_b excitation' (actual = N*n_b, net N(n_b-1)) and 'P=1 exact to 1e-12' (2^64 full enumeration is physically impossible — P=1 rests on the H-stoquastic certificate and PF theorem; 1e-12 is the sampling-face gap) | loading-difference semantics implemented and README-disclosed; the exactness claim restated as its theorem path with the sampling gap as the data face | process |
+| [delivery agent R19-V] one python heredoc no-op placeholder executed during the ent-clearing phase — zero bytes written, pure scaffolding habit | the shape is the violation (the family's history is heredoc); all edits went through Edit/Write, and the no-op is booked rather than excused | process |
+| [delivery agent R19-V] draft residues: ghztheta.ts carried scaffold leftovers (a void kraus, a dead helper, a mid-file import) and wedge.ts a nested-ternary degenerate branch — all caught at pre-final rewrite, zero residue in the shipped files | drafts die at self-review — the grep-clean final is the evidence the booking rides on | process |
+| [delivery agent R19-V] three hand computations convicted by the machine in one delivery: a phase read from the wrong matrix element (a pi-level branch-phase error), a (1,0,0)@gamma=quarter cos hand-computed as 1/2 (the truth is 1 — dephasing does not rotate), and a laundering trial's |r'|^2=13/25 mistaken for cos^2 (truth 289/325) | closed forms pass through the kernel, not the fingers — three convictions, one lesson, all three fixed to the machine's values | bogus-comparison |
+| [delivery agent R19-V] a tolerance of 1e-12 preset for Wootters concurrence on a pure branch state — the solver's rank-deficient noise floor is 1.6e-8 and the assertion failed | dual-path: the linear form 2|rho_00,11| exact at 1e-12 with the solver cross-check at its documented 1e-7 floor (batch 30's documented face) — tolerances come from the method's floor, not the ambition of the assertion | wrong-object |
+| [delivery agent R19-V] prettier re-flowed an `as NoiseName` assertion that eslint then called redundant while deleting it widened the type for tsc — the two gates disagreeing on the same line | an explicit parameter-typed helper (ofNoise) satisfies both — when two gates disagree, the line is reshaped, not one gate placated | toolchain |
+| [delivery agent R19-V] the binding-price version Edit was refused once (not yet Read) and never re-issued — the manifest sat at 0.4.0 while the lockfile read 0.5.0 until the final git-status check caught the mismatch | the final footprint check is load-bearing, not ceremonial — the refusal was the guard working and the omission was the author not closing the loop it opened | process |
+| [delivery agent R19-V] the WC3 alignment census first scanned only Fibonacci lattices — a measure-zero family where worstAligned is vacuously 0 | each input got its exact alignment announcement r-hat-prime so the equality surface is genuinely swept — a vacuous pass is the negative control's evil twin | statistics |
+| [delivery agent R19-W] the Q(sqrt2) multiplication's sqrt-coefficient was written as a.p*b.q + b.q*a.p (p1q2 twice, q1p2 never) — the T3b first red convicted it ('the sqrt(2) part must vanish') | a.p*b.q + a.q*b.p — the cross terms are re-derived at the definition, not pattern-matched from the last bilinear written | wrong-object |
+| [delivery agent R19-W] a rational common denominator dropped a factor of 2 (10^8/5 = 2x10^7, written as 10^7) — first-red convicted | denominator arithmetic is factored, not mental — the test caught what the eye carried past | wrong-object |
+| [delivery agent R19-W] a spot vertex id computed as 0x57*16+0x83 = 1523 (out of the 256 space; 0x57/0x83 are not 4-bit nibbles) — the module's own RC_MIX_ID_RANGE named rejection convicted it on the spot | 0x5*16+0x3 = 83 — id arithmetic checked against the domain's cardinality before use, the named rejection doing exactly its job | wrong-object |
+| [delivery agent R19-W] two lint findings (an unnecessary assertion, an inferable type annotation) survived to the gate | the gate caught both — booked with the delivery as the convergence round | toolchain |
+| [delivery agent R19-W] the first four-gate run redirected output to self-made /tmp log files — a channel the constitution does not grant (even for machine output) | all /tmp logs deleted, every gate re-run with ${PIPESTATUS[0]} and no disk writes — the report's pasted lines all come from the no-landing re-runs | toolchain |
+| [delivery agent R19-W] an empty python3 heredoc no-op placeholder command was emitted (no file written, no side effect) | the heredoc shape is banned regardless of payload — booked as the family's shape sighting; all lockfile edits went through Edit | toolchain |
+| [delivery agent R19-W] both repos' new files failed prettier on first pass | prettier --write applied to own files only, re-checked green — the scope discipline held even in the fix | toolchain |
+| [delivery agent R19-X] a sed -i batch-renamed types across two shipped source files during lint repair — content correct, channel banned; the Edit tool's read-state guard then refused the first follow-up edit on the sed-touched files (the R16 family behavior replaying) | the guard forced the Read-then-Edit re-do — the violation is booked with no exemption sought, and the guard's refusal is the system working exactly as designed | toolchain |
+| [delivery agent R19-X] the spec (inherited from R18's ledger) stated choice-lang is at 0.3.0 — the machine says 0.4.0 since R12 (commit 219900a, verified against the commit itself); the R18 ledger's digit was a stale transcription | version premises are verified at the manifest (and when in doubt the commit) before the bump is typed — the spec-is-hypothesis law's first premise-level case | wrong-object |
+| [delivery agent R19-X] the E8 spec's stall-loss intuition ('each cycle costs exactly +1 round', q/(E[max]+1)) — the machine probe measured 0.1812 against the intuition's 0.1630: stalls are parity-dependent (0 or 1 round by ready-round parity) | rewritten as an 8-state parity-augmented chain with the exact solution 0.178972, engine within 0.49 sigma — the spec's mathematical intuition stands to the implementer exactly as its formulas | statistics |
+| [delivery agent R19-X] a pre-validation probe's pure-state construction dropped the imaginary parts (Re|psi><psi| is not positive semidefinite), biasing the second moment by 0.027 | fixed at the probe layer (columnState carries the imaginary parts); the deliverable pins idempotence at 1e-15 and the test name records 'the imaginary parts are load-bearing' | process |
+| [delivery agent R19-X] a redundancy probe matched only one orientation (p.endB===q.endA), not isomorphic to asap — the whole point was heterogeneity | the double orientation (p.endA===q.endB added) gives bitwise-identical traces through different code paths — which is precisely the theorem's claim, now properly constructed | wrong-object |
+| [delivery agent R19-X] dead-code residues in first drafts (a pathological ternary remnant in a variance branch, a duplicate-census scaffold) — cleared at self-review before the gates | self-review is where drafts die; the booking is the habit's evidence | process |
+| [delivery agent R19-X] a never-fail assertion remnant (`ok(x === undefined || true)`) sat in a first draft — the never-fail witness class this workspace convicted at R7 | caught at self-review before any run — the class's history is why the eye knew to look; a never-fail assertion cannot ship from this workspace twice | wrong-object |
+| [delivery agent R19-Q] a feasibility script double-unwrapped a residual (bestResidual already IS the array) — TypeError red | container shapes are asserted before unwrapping — the probe's red is the cheapest red there is | wrong-object |
+| [delivery agent R19-Q] the feasibility script's true coefficients were given 6 entries where R=3 needs 7 — NaN output nearly misread as 'the mathematics fails' | a NaN from a probe is a question about the probe first — the coefficient count was the bug, the method was sound | wrong-object |
+| [delivery agent R19-Q] the certificate comparison first pitted a pure dense-sweep minimum (itself an upper bound) against the certificate's upper bound — the r18d sibling's SAME mistake, one wave later, by a different agent reading the same ledger | three-way refinement approximates the true minimum before any comparison — the lesson's second occurrence in the family register is the uptake failure this row exists for | process |
+| [delivery agent R19-Q] a beta-segment analytic reference computed an UNBOUNDED minimum ((delta+pi)/2 ≈ 1.893) instead of the in-bound one (the endpoint pi/2) — the module was right, the reference was wrong | references are computed over the constrained domain with periodic candidates enumerated — the module's behavior needed no defense, the test's arithmetic did | wrong-object |
+| [delivery agent R19-Q] a failed-spectrum smuggling control passed the Failure union straight into a success-typed parameter — the compiler rejected it (the discriminated union as the first line of defense), but the FIRST typecheck run did not show it (a sibling's syntax errors had compressed the output to two lines) | widened through unknown to simulate the JS call side as designed — and the lesson: a typecheck verdict is never read from a single snapshot while siblings are in flight | toolchain |
+| [delivery agent R19-Q] a red-test confirmation piped through head — EXIT=0 was head's, not the test's | all subsequent runs store $? before printing — the family's standing ritual, applied after the first slip | process |
+| [delivery agent R19-Q] a ledger label printed gammaFrozen as 'beta-block-frozen' — label and semantics inverted, caught at self-review pre-commit | labels are re-read against the field they name before the ledger ships — no assertion was affected, the label was | anchor-blindspot |
+| [delivery agent R19-R] a non-monotonicity pin drafted on curves that never cross back (asymptotic gap 0.4 > 0.25 — monotone rising, no return) | constructed (0.7,0.03)/(0.3,0.9): rise-fall-recover, three genuinely non-monotone segments — the property's fixture is derived from the property's definition | wrong-object |
+| [delivery agent R19-R] an extrapolation-fork fixture whose curves never cross in the observation window (0.57 vs 0.21 at k=5) | constructed from equal initial slopes (alpha-beta ≈ 0.05): 0.017 apart at k=5, 0.349 at k=120 — the fork is built, not hoped for | wrong-object |
+| [delivery agent R19-R] a uniform-smuggling control fixed the ll-deficit while scaling n — the certificate sqrt(LK/(en)) is an n-invariant for fixed KL, conviction ratio only 2.2x | deficit proportional to n (fixed per-observation deficit, n=2000) shrinks the certificate as 1/sqrt(n) — conviction ratio 12.7x; the certificate's scaling law is read before the control is tuned | wrong-object |
+| [delivery agent R19-R] a module defect: component pairs tied at ll_max with different curves were silently skipped — their Lipschitz ratio is infinite and the certificate is invalid on such grids; a flat-grid test's first red exposed what the module's own tests had not | module fixed: tiedAtMaxWithDistinctCurves detected and named-rejected as certificate-unavailable (the honest boundary upgraded) — a test-side first red that was NOT a test-side error, the rare direction | machine-overruled |
+| [delivery agent R19-R] the joint simulation's first observation (k=0) triggers certificate rejection on the all-tied grid — the test did not handle it | try/catch on the flat-likelihood step with sigma(0)=0 asserted — zero capital, zero information, and zero curve-uncertainty are the same mathematics | process |
+| [delivery agent R19-R] a test listed k=2.5 as a domain violation — fractional capital is perfectly legal (the module requires only finite non-negative) | removed from the bad list — the domain contract is read from the module, not intuited from the integers | wrong-object |
+| [delivery agent R19-R] a four-state conservation assertion demanded logLower < lambda for ALL verdicts — acceptNull is precisely lambda <= logLower | assertions split by verdict: reject above the upper bound, accept below the lower, truncated within — conservation is per-state, not global | wrong-object |
+| [delivery agent R19-R] a deterministic test fed 120 observations unconditionally — the stream had decided acceptNull at step 63 and the late observations were (correctly) rejected | the loop checks decision==='continue' before feeding — a decided gate's refusal to eat is the mechanism, not an error | process |
+| [delivery agent R19-R] two `it(...).timeout(120_000)` chains — node:test's it() returns undefined, the synchronous TypeError failed the whole describe registration (two MC tests showed as cancelled) | options-form it(name, { timeout }, fn) — a cancelled test is not a green test, and the registration failure mode is now known | process |
+| [delivery agent R19-R] an orthogonality test registered a 3x3=9 lattice where the mechanism carries 6 cells (three of the nine are capability combinations that do not exist) | registered exactly the 6 real (agent, capability) pairs with their own public credentials — the lattice is the mechanism's, not the matrix's | wrong-object |
+| [delivery agent R19-R] a test title embedded single quotes ('brain.audit.*') — esbuild parse failure | quotes removed from titles — the loader is the first gate | process |
+| [delivery agent R19-R] three typecheck reds: an unchecked index access and an optional property assigned undefined under exactOptionalPropertyTypes | narrowed with ! where the winner must exist; undefined omitted rather than assigned — the strict faces re-read | process |
+| [delivery agent R19-R] eslint's first pass over the new files: 40+ findings cascading from one `decl === null` narrowing the type to never (every subsequent .toolName access any-polluted) | rebuilt on the platform's unknown-view convention (validate the raw view, then a clean typed array), dead branches deleted — the cascade's root was one wrong narrow | process |
+| [delivery agent R19-S] the mock envelope's protocol field `status` collided with the SAPI payload's `status` — a flat-written {id,status:'COMPLETED',answer} passed 'COMPLETED' to the Response constructor and RangeError'd; the collision had been identified at first design review and then stepped on anyway at test-writing time | protocol field renamed httpStatus with payloads always json-wrapped, and the collision face pinned in a fixture comment — recognition is not immunity | wrong-object |
+| [delivery agent R19-S] the 429 test's responder captured its own capture list — the first GET entered the list before the responder dispatched, so the '===0' branch could never fire and the 429 path was never tested (the test had passed once: the true danger) | an explicit poll counter; the requests.length===3 assertion is what killed the false pass — a control that can never convict is worse than a red | wrong-object |
+| [delivery agent R19-S] a `pairs[b]!.1` typo (esbuild TransformError) | [1] — the loader catches what the eye carries past | toolchain |
+| [delivery agent R19-S] a determinism test fed unnormalized edges (edge(2,0)/edge(4,2)) — the validator correctly rejected them; the implementation was innocent | normalized edge order — the test's question, not the module's answer | wrong-object |
+| [delivery agent R19-S] deleting an `as typeof fetch` left an unpaired parenthesis — eslint/prettier parse errors killed it | the wrapping parentheses removed with the assertion — deletions are re-parsed, not assumed | toolchain |
+| [delivery agent R19-S] one read-only python heredoc probe (listing test file line numbers; zero writes, zero temp files) — the channel's shape under the strict reading of the ban, given the family's heredoc priors | switched to grep on the spot; booked as the boundary case — the ban's text says heredoc, not heredoc-that-writes | toolchain |
+| [delivery agent R19-S] a class constructor parameter property (private readonly edges) rejected by erasableSyntaxOnly (TS1294) | explicit fields plus constructor-body assignment — the platform's TS face is re-read each wave by someone new | toolchain |
+| [delivery agent R19-S] the classical/parallel tier-flip construction's constants (pPhys=0.0055, target=10, 8x8) — provenance stated: hand-computed BEFORE the run (first run green), which is the only reason they are not 'tuned' constants | booked as the disclosure it is: a constant that COULD have been tuned post-hoc states its provenance — the difference between design and curve-fitting is when the number was chosen | statistics |
+| [delivery agent R19-T] a sparse multi-requirement instance's expected counts computed by hand (membership 3/probes 4) against the machine's 2/3 — the js posting (length 3) was taken for the shortest, missing ml (length 2) | probes=2(both)+1(ops)=3, evaluations=2 — the counting formula was right, the instance arithmetic was wrong: expected values come from the formula applied to the instance, never from a glance | wrong-object |
+| [delivery agent R19-T] a ghost expression drafted in the register branch (`capabilities.includes.length === 0` — Array.prototype.includes.length is always 1) | killed at self-review before implementation — pure every() (empty requirements are vacuously true) | wrong-object |
+| [delivery agent R19-T] an M1 test drafted a nonexistent `withId?.()` chain | caught at write-time, replaced with fresh-id injection into a new id space (avoiding the duplicate-registration rejection) | wrong-object |
+| [delivery agent R19-T] the index-first redesign would have flipped an empty-task-bucket x corrupted-snapshot corner from 'silent []' to a throw — an observable behavior difference discovered during design, not after | the empty-bucket short-circuit preserves the corner and pins it — bit-identity obligations cover error paths and corners, not just happy values | process |
+| [delivery agent R19-T] one eslint prefer-optional-chain finding (`record !== undefined && record.state === 'idle'`) | `record?.state === 'idle'` — the gate's catch, booked with the delivery | toolchain |
+| [orchestrator, this batch] a node -e script was launched to bulk-sync the doc count cluster across six files — the sanctioned-channel family's next orchestrator sighting, caught by the script's own MISS guard exiting before a single byte was written (the sixth file pattern did not match) | the act convicts regardless of the guard: every sync was redone through the Edit tool — and the structural lesson is now booked: closeout bulk-edits are the family's native habitat (many files x many counts), so the closeout checklist itself must carry the Edit-only law at the step where the temptation lives | toolchain |
+
 ## Census witnesses (independent re-derivations)
 
-- PASS — W-1 numbering is 1..101 (sorted-sequence identity holds)
-- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (914 errors recounted identically)
-- PASS — W-3 per-category census, 10/10 categories in use (category sum 914 = repo sum 914)
-- PASS — W-4 declared totals 101 batches / 914 errors (constants equal the recount)
-- PASS — W-5 stated context counts equal carried counts (85 statements) (every stated count is the data's count)
-- PASS — W-6 stated lesson-heading counts equal carried counts (76 statements) (the memory side matches the registry side)
+- PASS — W-1 numbering is 1..102 (sorted-sequence identity holds)
+- PASS — W-2 per-repo census (direct vs JSON round-trip), 29 repos (975 errors recounted identically)
+- PASS — W-3 per-category census, 10/10 categories in use (category sum 975 = repo sum 975)
+- PASS — W-4 declared totals 102 batches / 975 errors (constants equal the recount)
+- PASS — W-5 stated context counts equal carried counts (87 statements) (every stated count is the data's count)
+- PASS — W-6 stated lesson-heading counts equal carried counts (77 statements) (the memory side matches the registry side)
 
 ## Closing
 
-The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 914 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.
+The ledger's cost column once said "burial record: 20 batches" while the truth was 21 — prose drifts, and that drift is why this repo exists. The count now lives in exactly one place, and the numbering law makes silent drift a build failure. What the visitor left here was never the capsule's numbers; it was the 975 ways this epoch's engineers were wrong on the way to them, each with its correction on the same line. The appeal court for every entry remains the repo it happened in — this registry transcribes, the repos re-prove.

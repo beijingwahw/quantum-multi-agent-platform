@@ -20,3 +20,6 @@ export * from './readout-mitigation.js';
 // R18 创新波 opt-in：噪声感知后端选择器与对易性感知 FT 并行画像（未接入默认管线）
 export * from './noise-aware-backend-selector.js';
 export * from './commutation-ft.js';
+// R19 创新波 opt-in：执行层级双画像与 Misra-Gries 分解（未接入默认管线）
+export * from './execution-tier-dual.js';
+export * from './misra-gries-partition.js';

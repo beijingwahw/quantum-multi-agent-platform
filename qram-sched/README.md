@@ -19,13 +19,34 @@ Quantum 9, 1922 (2025))的插入成本/机会成本论证是 EXP1-D 计量普查
 
 ```bash
 npm install          # dev deps only (tsx, typescript); runtime is zero-dependency
-npm test             # 67/67 referee tests (incl. three 走私审判 smuggling trials)
+npm test             # 77/77 referee tests (incl. three 走私审判 smuggling trials)
 npm run repro        # rebuild all six experiment reports (~30s) into out/reports/
 ```
 
 TypeScript 严格模式(`strict` + `exactOptionalPropertyTypes` + NodeNext),零运行时依赖,全随机性来自 seeded RNG——
 每个数字可由种子逐位重建。v0.3.0:全部内核拒绝路径带命名错误码(`QramError` + `code`),非法输入被点名驳回而非
 静默 NaN/伪造见证(由 test/errors.test.ts 的走私审判 #3 与"无匿名 throw"结构守卫把守)。
+v0.4.0:回本定律定理化(`src/qram/payback.ts`)——EXP1-D 的计量普查升格为精确闭式 + 不可行域 + ε 交叉律 + 审计面。
+
+## 回本定律(v0.4.0,`src/qram/payback.ts`)
+
+**定理(PB-a,精确闭式)**:装载净差 Load = N·(n_b−1)、每任务差 Den = Classical(ε) − Quantum(n_b,ε) > 0 时,
+逐任务账本 Q(T) = N·n_b + T·queries·n_b ≤ N + T·samples = C(T) 恰在整数 T ≥ T* = ⌈Load/Den⌉ 成立,且 T* 最小——
+与 EXP1-D 计量普查逐点一致(n_b=20、ε=0.01 → m*=8、queries=255、samples=18445、T*=1493 逐字段复现)。
+对称计费内嵌于模型:经典对手同享一次性装载(N),量子侧付 N·n_b 激活。
+
+**定理(PB-b,不可行域)**:回本永不发生 ⟺ samples ≤ queries·n_b(显式不等式)——此时 Q(T)−C(T) = N(n_b−1) + T(q·n_b−s)
+两项非负且首项 > 0(n_b ≥ 2),差距随 T 线性增大。显式边界 n_b†(ε) = ⌈samples/queries⌉。
+
+**定律(PB-c,机器口径)**:R18 规格的"分母单调 ⟹ 唯一交叉"被机器证伪——Den(ε) 是两个反向阶梯函数之差
+(Hoeffding ~1/ε² 下跳 vs QAE 台阶 ~1/ε 下跳),可行集**不是区间**:有限个不可行孔洞之上还有可行岛。
+成立的是:ε*(n_b) := sup{ε : Den > 0} 在 sup 意义下唯一(n_b=20 时 ≈0.0775,网格枚举),孔洞表机器完备枚举。
+
+**审计面(PB-d)**:低于 T* 的回本声明(带精确账本缺口)、不可行域内声称回本、可行域内伪造"永不回本"——三类走私
+全部具名击毙(`auditPaybackClaim`)。负对照:ε=0.01 在 n_b=6 上声称永不回本(T*=1 即时回本)被拒。
+
+诚实边界:成本模型=激活账本(EXP1-D 既有),不含纠错/相干噪声(引 Arunachalam 2015);m* ≤ 30 与 n_b ≤ 30 是
+精确 QPE 与本模型的实现域;闭式全整数精确(< 2^53)。
 
 ## 六组实验(全部精确裁判对拍)
 
@@ -75,7 +96,7 @@ Montanaro arXiv:1504.06987。经典下界: Lai-Robbins 1985;Auer et al. SICOMP 3
 src/core/     seeded RNG, LU, Jacobi            src/walk/    Szegedy 行走 + 经典命中裁判
 src/qram/     bucket-brigade 模型 + 振幅编码流   src/bandit/  UCB1/ETC/Exp3 + 量子重放调度器
 src/ae/       精确 QPE 振幅估计 + 全空间 Grover  src/online/  Dürr-Høyer 搜索 + 在线匹配 + KVV 紧实例
-src/experiments/  exp1..exp6 + run-all          test/        67 项裁判测试(含三场走私审判)
+src/experiments/  exp1..exp6 + run-all          test/        77 项裁判测试(含三场走私审判)
 ```
 
 MIT。

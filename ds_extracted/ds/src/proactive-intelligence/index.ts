@@ -74,3 +74,23 @@ export type {
   ExplorationFeedbackInputs,
   ExplorationCoefficient,
 } from './evidence-gated-exploration.js';
+
+// R19 创新波 opt-in：联合后验 sd 探索系数与逐能力序贯雇佣审计——不接入默认装配
+export {
+  JointPosteriorExploration,
+  JointExplorationBudgetLedger,
+  sigmaJointAt,
+  certifiedEnvelope,
+  jointBudgetBound,
+  DEFAULT_JOINT_EXPLORATION_CONFIG,
+} from './joint-posterior-exploration.js';
+export type {
+  JointGridComponent,
+  JointExplorationConfig,
+  JointFeedbackInputs,
+  JointExplorationCoefficient,
+  CertifiedEnvelopeFace,
+  JointBudgetCertificate,
+} from './joint-posterior-exploration.js';
+export { SequentialHiringAudit, DEFAULT_HIRING_AUDIT_CONFIG } from './sequential-hire-audit.js';
+export type { HiringAuditConfig, HireAuditCellSnapshot } from './sequential-hire-audit.js';

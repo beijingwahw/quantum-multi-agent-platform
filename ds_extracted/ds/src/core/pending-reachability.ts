@@ -77,6 +77,7 @@
  */
 
 import { SchedulingError } from '../utils/errors.js';
+import { buildCapabilityInvertedIndex, classifyTaskIndexed } from './capability-inverted-index.js';
 
 /** 判定消费的 agent 视图（全注册表快照，含全部状态） */
 export interface ReachabilityAgentView {
@@ -176,12 +177,22 @@ export function classifyPendingTask(
 }
 
 /**
- * 挂起桶的批量判定（sweep 集成面：一次快照、逐任务 O(A·R)）。
- * 输出序 = 输入任务序；每项带该任务的判定与证人集。
+ * 挂起桶的批量判定（sweep 集成面）。R19-T 内部置换：能力倒排索引
+ * 构建一次、逐任务索引驱动（最短 posting 遍历＋哈希成员检查，见
+ * capability-inverted-index.ts 的 M1/F 定理与复杂度主张）。
+ *
+ * 可观察行为位同构（公开 API 输出逐位不变的验收线）：
+ * - 输出＝逐任务 classifyPendingTask 的映射（测试对拍钉板）；
+ * - 错误面：重复 agent id / 重复需求的 SchedulingError message 逐字节
+ *   同（索引构建/任务校验内嵌同文模板）；
+ * - 空任务表短路：不触发快照校验，返回 []（既有行为——索引构建
+ *   前置会使空桶 ×损坏快照从「静默 []」变为「抛错」，此短路保持之）。
  */
 export function classifyPendingBucket(
   tasks: readonly ReachabilityTaskView[],
   agents: readonly ReachabilityAgentView[],
 ): readonly ReachabilityVerdict[] {
-  return tasks.map((task) => classifyPendingTask(task, agents));
+  if (tasks.length === 0) return [];
+  const index = buildCapabilityInvertedIndex(agents);
+  return tasks.map((task) => classifyTaskIndexed(task, index));
 }

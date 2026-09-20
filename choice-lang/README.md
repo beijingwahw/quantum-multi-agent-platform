@@ -40,10 +40,15 @@ Renderer refuses illegal models; sixteen smuggling trials; entry guard tested.
 
 Every public entry of the language boundary now rejects illegal input by **named error code** (`ChoiceLangError` — PATTERN_ARITY, BRANCH_SHAPE, ZERO_PROBABILITY, STEP_THETA, LEAF_SHAPE, LOOP_BOUND, REGISTER_ARITY, PROJECTOR_SHAPE, DATA_SHAPE, MAT_SHAPE, EMPTY_PROGRAM, PATH_OVERRUN, PATH_SHORT); previously a short pattern for `branchProduct` silently routed through u0 and a zero-probability conditioning returned silent zeros. The flat and layered execution folds (identical twins since v0.2.0) are single-sourced into one `runOnRegister`, pinned bit-identical by a test. Dead core modules never referenced by the model (`states.ts`, `channels.ts`, `measures.ts`, the Hermitian eigensolver in `cmat.ts`, the unused RNG helpers) were cleared — the capability survives byte-identical in sibling repos; the repro report is byte-identical across the cut.
 
+## v0.5.0 — two theorem faces: the set toll and the Haar adversary
+
+- **R13 — the SET face of the certification toll** (src/kernel/toll.ts): for any live pattern set A, certifying "the run landed in A" by measure-and-retry costs attempts drawn from **exactly the geometric law** with parameter W(A) = Σ_{a∈A} Π_i w_i(a_i) — E[attempts] = 1/W(A), Var = (1−W(A))/W(A)² (200k-trial MC hits both moments and the pmf legs k=1..6; the closed form and the run's own conditioning agree at 1e-15 on two input states). The set-composition law W_{P++Q}(A×B) = W_P(A)·W_Q(B) is exact, and the nested leaf-set weight is its arrival probability (partition of unity over leaf sets). R4/R9/R11 are the size-one specializations — the existing toll laws are this theorem's projections. Smuggling trials: the additive set law (T-SET-ADD) and the variance forgery (1−W)/W are named and convicted with the true law quoted; the boundary is the honest protocol only — no amplitude amplification (with it the toll scales 1/√W, outside the theorem).
+- **R14 — the Haar adversary's dimension-ratio face** (src/kernel/haar.ts): when the adversary's choose(θ, U0, U1) draws its branches i.i.d. Haar, the post-step membership charge is **d_W/d in expectation for every input and every θ** (E[U†Π_W U] = (d_W/d)·I), and for pure inputs the second moment closes: E[q²] = (c⁴+s⁴)·d_W(d_W+1)/(d(d+1)) + 2c²s²(d_W/d)². The census runs the adversary's actual step over seeded Haar draws at every (d_W, θ, input) grid point — means within 4σ, second moments within 6σ, the mixed input pinned deterministic (q = d_W/d per draw, so E[q²] = mean² — the second-moment law's pure-input boundary exhibited, not hidden). The 24-strategy bounded census (0.2439–0.7345) is positioned against the universal mean as data. Negative control: a fixed DIAGONAL adversary commutes with the world and cannot move membership at all (deviation exactly 1/2 on a world resident) — universality is the Haar family's, and min over Haar is an unattained infimum of 0.
+
 ## Reproduce
 
 ```bash
 npm ci
-npm test        # 49/49
+npm test        # 63/63
 npm run repro   # renders out/reports/the-choice-model.md (seconds)
 ```
