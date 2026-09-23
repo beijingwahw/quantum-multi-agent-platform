@@ -16,7 +16,14 @@
  * ④ 测量纪律（bench-harness ① 跨种子复现法则）：A/A 效度前置；敌对环境
  *    （漂移超限/分辨率不足）→ skip 不判；误判/未达标须跨 3 个独立种子
  *    复现才定性——单种子在敌对窗口的假差异不定罪（2026-09-09 windows
- *    runner 实测 17% 误判率，守卫对亚轮级漂移有盲区）。
+ *    runner 实测 17% 误判率，守卫对亚轮级漂移有盲区）；
+ * ⑤ 共享 runner 分级（2026-09 加）：CI 共享 runner 的均匀 CPU/带宽争用
+ *    会令 B 臂产生**与种子无关的系统性偏慢**（本机 8/20 核加压实测
+ *    1.19–1.31×，CI 4 vCPU 含噪邻只高不低）——A/A 同臂对照对称、探测不到
+ *    不对称偏斜，跨种子复现法则对它失明。本机保持全强度平价门禁；CI 上
+ *    降级为 r14a 同款「判决只记录不预设」，仅对 R14 级粗回归（该族实测
+ *    2.044–2.346×）以 1.8× 门槛硬失败——争用偏斜与真回归之间留 ~38%/
+ *    ~12% 双侧余量。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -96,6 +103,15 @@ function parityHolds(report: PairedBenchReport): boolean {
   return ciContainsOne || report.ciHigh <= 1.05;
 }
 
+/**
+ * 共享 runner 判定：CI=true（GitHub Actions 等）即视为不可控测量环境。
+ * R14 级粗回归门槛 1.8×：R14 引擎实测慢 2.044–2.346×（本文件头注留档），
+ * 均匀争用偏斜实测 ≤1.31×（2026-09-21 本机 8 核加压实测，跨 3 独立种子
+ * 复现——种子维度对环境维度失明的现场证据）。
+ */
+const SHARED_RUNNER = process.env.CI === 'true';
+const GROSS_REGRESSION_RATIO = 1.8;
+
 function logParity(report: PairedBenchReport, familyName: string): void {
   console.log(
     `[r17a ${familyName}] ratio(B/A)=${report.medianRatio.toFixed(3)} ` +
@@ -139,6 +155,9 @@ function aaGateSkipped(
  * 平价判决（跨种子复现法则）：任一种子的有效测量达平价 → 通过并留档；
  * 有效测量判未达 → 换独立种子复核，3 次全部未达才硬失败；全部不可判 →
  * skip（敌对环境，平价主张不判）。
+ * 共享 runner 分级（头注 ⑤）：CI 上「判未达」若未越过粗回归门槛，只记录
+ * 不定罪（r14a「判决只记录不预设」同款纪律）；越过 1.8× 的仍走跨种子
+ * 复现硬失败——争用偏斜与真回归的分离面。
  */
 function parityVerdictSkipped(
   t: { skip: (message: string) => void },
@@ -149,6 +168,7 @@ function parityVerdictSkipped(
   familyName: string,
 ): boolean {
   const failures: string[] = [];
+  const recorded: string[] = [];
   for (let attempt = 0; attempt < 3; attempt++) {
     const seed = baseSeed + attempt * 7919;
     const report = comparePaired(a, b, { ...opts, seed });
@@ -160,12 +180,23 @@ function parityVerdictSkipped(
       logParity(report, familyName);
       return false;
     }
-    failures.push(
+    const detail =
       `种子 ${seed}：ratio=${report.medianRatio.toFixed(3)} ` +
-        `CI [${report.ciLow.toFixed(3)}, ${report.ciHigh.toFixed(3)}]（${report.note}）`,
-    );
+      `CI [${report.ciLow.toFixed(3)}, ${report.ciHigh.toFixed(3)}]（${report.note}）`;
+    if (SHARED_RUNNER && report.ciLow < GROSS_REGRESSION_RATIO) {
+      recorded.push(detail);
+      continue;
+    }
+    failures.push(detail);
   }
   if (failures.length === 0) {
+    if (recorded.length > 0) {
+      console.log(
+        `[r17a ${familyName}] 共享 runner：平价主张只记录不判定` +
+          `（粗回归门槛 ${GROSS_REGRESSION_RATIO}× 未越过——${recorded.join('；')}）`,
+      );
+      return false;
+    }
     t.skip(`[r17a ${familyName}] 3 个独立种子全部不可判——敌对环境，平价本轮不判`);
     return true;
   }

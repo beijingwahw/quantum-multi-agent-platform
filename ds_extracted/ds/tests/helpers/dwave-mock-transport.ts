@@ -86,11 +86,18 @@ export function dwaveMockTransport(responder: (req: CapturedDWaveRequest) => DWa
     if (reply.delayMs !== undefined) await sleep(reply.delayMs);
     if (reply.hangUntilAbort === true) {
       // 挂死面：仅在调用方注入 signal 时可被中止（DWave 客户端恒带
-      // AbortSignal.timeout）；无 signal 则永不 settle——与被测挂死路径一致
+      // AbortSignal.timeout）；无 signal 则永不 settle——与被测挂死路径一致。
+      // AbortSignal.timeout 的计时器是 unref 的，不保活事件循环：Node 22 的
+      // node:test 会在事件循环空转时判 cancelledByParent（Node 24 对在飞
+      // 测试恒保活）。挂一个 ref 哨兵到 5s（覆盖所有调用方的预算量级），
+      // 真实 abort 先到则照常 settle；若 abort 失约，哨兵到期后事件循环
+      // 照旧空转、测试照样红——哨兵只借时间，不借通过。
+      const sentinel = setTimeout(() => {}, 5_000);
       return new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () =>
-          reject(new Error('This operation was aborted')),
-        );
+        init?.signal?.addEventListener('abort', () => {
+          clearTimeout(sentinel);
+          reject(new Error('This operation was aborted'));
+        });
       });
     }
     return buildResponse(reply);

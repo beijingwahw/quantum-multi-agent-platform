@@ -17,6 +17,13 @@
     "scripts/**/*.mjs"
   ],
   "ignoreExportsUsedInFile": true,
+  // src/index.ts 的 QuantumMultiAgentPlatform 同时提供 named 与 default 导出
+  // （公共 API 双形态，dist 冒烟两者都验证）。knip 6 新增的 duplicates
+  // 检查（2026-09-13 dependabot 5.x→6.34.0 引入）会盯上它——豁免该文件的
+  // 这一类 issue，豁免面最小化：不关全局 duplicates 检查。
+  "ignoreIssues": {
+    "src/index.ts": ["duplicates"]
+  },
   // 已评估并否决的 WASM f64x2 SIMD 原型：作为裁决证据保留（bench-kit 实测慢
   // 2-3×、4× ILP 慢 18.1%），.evaluated.ts 命名使其不入测试 glob；
   // 显式豁免而非删除——记录即工件。

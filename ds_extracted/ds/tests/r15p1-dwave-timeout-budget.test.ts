@@ -61,9 +61,18 @@ describe('R15-P1 · DWave 超时预算单份口径（POST 与轮询共享）', (
     const timeoutMs = 250;
     const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
       await new Promise<never>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () =>
-          reject(new Error('This operation was aborted')),
-        );
+        // AbortSignal.timeout 的计时器是 unref 的，不保活事件循环；本测试的
+        // mock 只靠 abort 才 settle，Node 22 的 node:test 会在事件循环空转时
+        // 判 cancelledByParent（Node 24 的 runner 对在飞测试恒保活——同一
+        // 套件两个主版本行为分叉的实测，2026-09-21 CI Node 22 双 OS 全红）。
+        // 挂一个 ref 哨兵到 2× 预算：真实 abort 先到则照常走断言；若 abort
+        // 失约，哨兵到期后事件循环照旧空转，测试照样红——哨兵只借时间，
+        // 不借通过。
+        const sentinel = setTimeout(() => {}, 2 * timeoutMs);
+        init?.signal?.addEventListener('abort', () => {
+          clearTimeout(sentinel);
+          reject(new Error('This operation was aborted'));
+        });
       });
     }) as unknown as typeof fetch;
 
