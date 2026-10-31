@@ -70,3 +70,118 @@
 - 平台 src 78/78 文件本人亲读；平台 tests 117/117、_x1_bench、examples、experiments、scripts、tmp、.cluster、CI、DELIVERY、py、根配置由代理全文读并经抽检。
 - 29 研究仓 src/tests/experiments/README 全文读（各代理 COVERAGE 逐文件列明）；UNREAD 仅：package-lock.json 类生成文件、out/*.json 数据 dump（结构核验）、mutant-census 25 个同源渲染卡片（生成器已审）。
 - 本人不改动任何代码（审查任务）；以上发现均附 file:line 可直接定位。
+
+---
+
+# 整改记录 — 2026-11-01（承接本报告的全量缺陷突破）
+
+方法：P1/P2/敏感项（隐私、CI、平台 src）本人亲改亲验；P3 研究仓集群由 5 个
+修复代理并行执行、每条 diff 由本人复核。每仓门禁：test / lint / typecheck /
+repro 全绿后方可入账。修复一律带 `2026-11-01 修复/勘误` 日期标注。
+
+## P1×3 — 全部修复
+1. **nonstoq exp5**：hi/lo 双字采样替换 `bits |= 1<<i`；复跑后仅 n=64/κ=1 行
+   真值改变（signP 0.8531→0.9669，negFrac 0.460→0.744）。⚠️ 诚实修正：独立
+   探针（异种子 400 样本 + 全零/全一/单翻转壳）证实 n=48/κ=1 状态**真单号**
+   （全局负号），本报告当初"~50/50 结构上不可能"的判断过悲观——该行数值
+   碰巧未受回绕影响。README/docs 的 "46-52% @ n=64" 勘误为 ~74%。
+2. **dsic quartic.ts**：`×x_j` 恢复，W₋ᵢ = (3/4)Σo⁴；新增直接锚测试（独立构
+   造期望多项式，旧代码必挂）。全部残差/报告数值不变（误差只含 o、与 s 无
+   关，恰从一切差分中抵消——这正是它当初逃过全部测试的原因）。
+3. **k-switch promise.ts**：Givens 共轭（max|U†U−I| 1.0→1.1e-15）+ 连带修
+   复审计未单列的两处：①不同随机输入态取 max（≈1 恒主导淹没诚实探针）；
+   ②`kron(u2, I2)` 对已是 4×4 的 boxes 双重提升、被 applyUnitaryToState 静默
+   截断为非幺正左上块。诚实 k=3 探针 1.000000→0.978871；exp3 (k=4) 0.999773
+   →0.999771（仅受益于 Givens 修复）。69 测试全绿。
+
+## P2×11 — 修复 10 条，撤回 1 条
+- 4 ladder（slots=1 → S₁=F₀ 恒等元早退+回归测试）、5 monogamy（det 补
+  Im(ρ01)²；CKW slack −5.90e-3→−3.12e-4，erratum 永久写入生成器）、7 chsh
+  （Alice 双方向同翻，S′=−S；singlet 一性原理回归测试）、8 kink（**新增第四
+  块**：报告内部/真类型 walled 的真对照是墙 x=0 而非 interior 外推——旧式给
+  出的是该格点增益的下界，DSIC 证书所需上界从未被评估；新块 mn/2−m²/4 严格
+  负，worstCross2=−1/64）、9 vacuum exp4（引文钉 0.4.0，repro 全绿）、10
+  globalwall（/2→/4，真一致性 4.47e-11，README 勘误+回归测试）、11 phase-law
+  PL3（改可证伪形：全局最优+全部邻居经独立 welfareOf 重打分；同仓加修 W-A 补
+  6×8 视界、census 比较器 m→n→solver）、12 benchmark 半账（统一 welfareOf；
+  复跑独立复现根 README 勘误表 2/5, 2/5, 5/5）、13 wasm-simd（WebAssembly 绑
+  定 + 快照序 + 裁决断言三修；位级等价 20 步链首次真实执行并通过）、14 dhmin
+  （for-of，bqp-map lint 首次退出 0）。
+- ⚠️ **撤回：#6 qverify cloner.ts:97 —— 本审计的假阳性**。原码
+  `im += sj*ck − cj*sk` 正是 ρ_E[j][k] = Σ_a Ψ_aj·conj(Ψ_ak)（正确环境密度
+  矩阵，Hermitian）。审计当时的"数值验证"把参照系转置了。修复代理以三独立
+  裁判（手推 + 独立 partialTrace + 逐元素转置敏感比较，worst 0.00e+0）止步
+  并回退，本人重推导确认。**教训：审计自身的裁判也必须被独立审计。**
+
+## P3 — 平台与研究仓
+- 平台：denormalizeExpectation 简并谱（max===min）NaN→min（单点收口，四路
+  径同享）+ 回归钉；r18a 夹具两处（段 2 真连续 5−0.5λ / 阶梯真边界 λ≥8）；
+  r19r 删同义反复计数器断言；r19t 补"索引探针 < 原版扫描"交叉断言；
+  wave1 背压夹具改 2 动作规则（peakBacklog 真实测得 >0）；optimizer-bus
+  couplingKey(0,4,12)→(0,5,12)（旧键同 agent 对、容量 1 下结构性惰性）；
+  execution-tier 钉死确定性 ftqc-queue。
+- 研究仓：见下方代理批次记录。
+
+## 隐私 / CI
+- `.formwork/fill.py`：姓名/手机号/邮箱/学历/专业/单位（含输出文件名中的姓
+  名）移入 gitignored `work/profile.json`，模板 `profile.example.json` 入库；
+  脚本功能不变（py_compile + profile 加载验证）。**git 历史中的旧值仍在**，
+  彻底清除需重写历史——破坏性操作，留库主决定。
+- `.github/workflows/publish.yml`：删 NODE_AUTH_TOKEN（token 必胜使 OIDC 成
+  死配置），按文件头声明的 OIDC 基线补 npm≥11.5 步骤。
+
+## 研究仓 P3 集群 — 5 修复代理 × 42 项（每 diff 本人复核）
+
+**D1（dtc-clock / letter-audit / retro-cache / stable-world，7 项）**：thermo 注释
+符号、TC15 视界勘误（实跑 X₀/Z₀/Z₁ × 6 时点）、scratch-life 打印对齐、beat δ=0
+具名守卫 E/DOMAIN + 回归；letter-audit W-D 改为整表 20736 台机器的独立重数
+（旧式恒等套套逻辑，9784+10952=20736 不变）；retro 注释 1/4→1/2（代码对）；
+stable-world banked fraction 0.01–0.95→0.00–0.37（按 W-L 重数）。
+
+**D2（mutant-census / qram-sched，8 项）**：旗舰变异体构造索引自第一性原理重推
+——联合概率在对角元 (2d,2d)（修正 5 处：MU5、b21#0、b24#2、b15#3、b14#2；
+其中 b15#3 为审计未点名的同病第 4 例；判读 9 COLLAPSES/12 ERROR/2 EQUIV/94
+UNBUILDABLE 不变，3 个已发布 worst 值诚实更正）；渲染器硬编码计数改数据内插
++ 词语声明（ALL FOUR/nine for nine/TWO SPECIES）不一致即拒印；repair.test 标题
+nine→thirteen 并补齐 3 个缺失锚。qram：bandit 同义反复断言删除（连带揪出系数
+错 20000→18800）；payback m≤30 双侧边界；exp1 公式 (2ⁿ−1)/n；exp5 标题改为与
+数据一致；dist/ 重建（补 payback/grover-bridge 模块与 int 守卫）。
+
+**D3（route-price / wukong-crossval / choice-lang / causal-ineq / vacuum，6 项）**：
+witnesses B/1!==B 死检查改可触发的 2 的幂域检查；covariance 逐行长度校验
+COVARIANCE_SHAPE；wukong band 元组按契约 [fLo,fHi] 重排并移除渲染端补偿
+（37 行双值交换，README/theory 勘误）；choice-lang 拒绝消息按实际打印量命名；
+causal-ineq q2Sign 同号象限修复（唯一调用方恒在异号象限故潜伏，4 象限回归钉）；
+vacuum spectral 开区间根计数 −rootAtA（下端点为根时不再多计 1）。
+
+**D4（ent-clearing / nosignal-tariff / ft-qaoa，7 项）**：MI 边际改列和（行和恒
+[1/4]×4 钉死 H(Y)=2bit；置换信道巧合正确，非置换回归钉 0.811278）；channels 字
+节序文档对齐（大端）；ghztheta 纯对并发度一般式 2√(det ρ_A)（|Ψ+⟩ 旧返 0）；
+audit H6 未知族名具名拒绝（不再折为 DEPOL）；nosignal 补上文档承诺的
+assertStinespring（W-A/W-H 数字不变）；ft-qaoa 分钟换算 16.67×（无已发布数字
+受累）；decoder-scheduler units<blocks 按契约铺开（cpu-bposd-1u 利用率
+1125→7875 诚实重定价，README/theory 勘误）。
+
+**D5（ent-sched / switch-sched / readout-wall / k-switch，14 项）**：policies 融合
+比较器删析取（"最小 fHi 先融合"定律恢复；ers 0.66631→0.66974 合法漂移）；theory
+F*=0.810710；物理夹具真非 Werner；markov 标题对齐。switch-sched：Weyl Z^{+b} 对
+齐文档；字节序文档；擦除信道 |+⟩ 对齐（报告位同）；exp1 d=2 循环界 bi<2；gyni
+持有公式注释重推。readout-wall：reconstruct 负谱具名拒绝
+RECONSTRUCT_NEGATIVE_EIGENVALUE（回归钉不定谱）；kswitch3/4 注释对齐机器普查
+（4 个 1/8 + 4 个 1/32）。k-switch：exp5/theory 三处 |+⟩⟨+| 勘误（数值不变）；
+dilution qNum/qDen 真约分（BigInt gcd，8/24→1/3 回归钉）；k4:354 教训注释——
+**此处审计原文方向写反**（文件写 I⊗Y、真值 Z⊗Y），代理经 4 个独立来源机器
+定向后按正确方向修复。
+
+## 收尾跨仓事项
+- letter-audit 针线重钉：ent-sched 合法漂移 0.66631→0.66974 后在引用树一侧就
+  地重钉（该仓 34/37→37/37）。
+- causal-ineq 12 条**既有** lint 红（审计未发现）：11 条自动修 + 1 条手工重构
+  （stale 三元组改提前分支），lint 首次退出 0。
+- switch-sched dist/（gitignored 编译产物）被 eslint 误 lint 常年退出 1：config
+  ignores 补 dist/，lint 首次退出 0。
+- mutant-census 29 张预检卡自 2026-09-20 起 STALE（既有）：全部重生成至当前
+  enrollment。
+- ent-sched README 测试计数 94→95（ladder 回归新增后未同步）。
+- bqp-map atlas 条目 + stoq 证词 + nonstoq designing 注释：三处对 n=64 负分量
+  的跨仓引用同步勘误为 ~74%。
