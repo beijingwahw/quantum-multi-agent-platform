@@ -47,9 +47,14 @@ jobs:
         run: npm run coverage
       - name: Knip 门禁
         run: npm run knip
+      - name: npm ≥ 11.5（OIDC trusted publishing 的最低版本）
+        # 2026-11-01 修复互斥配置：本步骤原同时携带 NODE_AUTH_TOKEN —— 有 token
+        # 时 token 认证必胜，OIDC 是死配置；token 缺失时发布必败。按本文件
+        # 头部声明的基线（classic token 已废弃、身份由 OIDC 断言承载），
+        # 移除 token env，使 OIDC 真正生效；trusted publishing 需 npm ≥ 11.5.0
+        #（node 22 自带的 npm 10.x 不支持，须显式升级）。
+        run: npm install -g npm@^11.5.0
       - name: 发布（OIDC trusted publishing + provenance）
         # --provenance 由 OIDC id-token 签名构建来源链；
         # 公共包默认开启，此处显式声明意图
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

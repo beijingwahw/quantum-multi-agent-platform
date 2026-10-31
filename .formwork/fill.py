@@ -1,16 +1,30 @@
 # -*- coding: utf-8 -*-
-"""填写“本源悟空”科研激励计划申请书——薛国轩（v2：长文本工整排版）
+"""填写“本源悟空”科研激励计划申请书（v2：长文本工整排版）
 
 一次性填表脚本：对 work/word/document.xml 中各表格单元格注入内容
 （短值单元格、长文本单元格、勾选框），写回后重新打包为 docx。
+
+2026-11-01 隐私修复：申请人姓名/手机号/邮箱/学历/专业/单位原硬编码于
+本受控脚本（含输出文件名中的姓名），已移至 gitignore 的
+work/profile.json（模板见 profile.example.json）——git 历史中旧值仍在，
+如需彻底清除须重写历史（破坏性操作，需库主明确决定）。
 """
+import json
 import os
 import re
 import zipfile
 
 WORK = os.path.join('D:', os.sep, 'multi-agent', '.formwork', 'work')
+PROFILE_PATH = os.path.join(WORK, 'profile.json')
+if not os.path.exists(PROFILE_PATH):
+    raise SystemExit(
+        f'缺少 {PROFILE_PATH}：请复制 profile.example.json 为 work/profile.json '
+        '并填入真实信息（该目录被 .gitignore 排除，个人数据不入库）')
+with open(PROFILE_PATH, encoding='utf-8') as f:
+    PROFILE = json.load(f)
+
 OUT = os.path.join('D:', os.sep, 'Data', 'Downloads',
-                   '\u201c\u672c\u6e90\u609f\u7a7a\u201d\u79d1\u7814\u6fc0\u52b1\u8ba1\u5212\u7533\u8bf7\u4e66-\u859b\u56fd\u8f69.docx')
+                   f'\u201c\u672c\u6e90\u609f\u7a7a\u201d\u79d1\u7814\u6fc0\u52b1\u8ba1\u5212\u7533\u8bf7\u4e66-{PROFILE["name"]}.docx')
 OUT_FALLBACK = OUT.replace('.docx', '-\u5b9a\u7a3f.docx')
 
 DOC = os.path.join(WORK, 'word', 'document.xml')
@@ -81,16 +95,16 @@ def check_box(row_idx: int, cell_idx: int, before_text: str, after: bool = False
     filled = cell[:idx] + checked + cell[idx + len(sym):]
     replace_once(cell, filled, f'\u884c{row_idx} \u52fe\u9009 {before_text}')
 
-# ============ 1. \u57fa\u672c\u4fe1\u606f ============
-fill_value_cell(0, 1, '\u859b\u56fd\u8f69')
-fill_value_cell(0, 3, '18049426193')
-fill_value_cell(0, 5, '2433537289@qq.com')
+# ============ 1. \u57fa\u672c\u4fe1\u606f\uff08\u81ea work/profile.json\uff0c\u4e0d\u5165\u5e93\uff09 ============
+fill_value_cell(0, 1, PROFILE['name'])
+fill_value_cell(0, 3, PROFILE['phone'])
+fill_value_cell(0, 5, PROFILE['email'])
 
 # ============ 2. \u56e2\u961f\u6210\u5458\uff08\u52171\u21924 = \u59d3\u540d/\u5b66\u5386/\u4e13\u4e1a/\u5355\u4f4d\uff0c\u52170\u4e3a\u5408\u5e76\u6807\u7b7e\u4e0d\u53ef\u586b\uff09 ============
-fill_value_cell(2, 1, '\u859b\u56fd\u8f69')
-fill_value_cell(2, 2, '\u5927\u5b66\u672c\u79d1')
-fill_value_cell(2, 3, '\u4eba\u5de5\u667a\u80fd')
-fill_value_cell(2, 4, '\u9655\u897f\u79d1\u6280\u5927\u5b66')
+fill_value_cell(2, 1, PROFILE['name'])
+fill_value_cell(2, 2, PROFILE['degree'])
+fill_value_cell(2, 3, PROFILE['major'])
+fill_value_cell(2, 4, PROFILE['affiliation'])
 
 # ============ 3. \u9879\u76ee\u540d\u79f0 ============
 fill_value_cell(6, 1,
