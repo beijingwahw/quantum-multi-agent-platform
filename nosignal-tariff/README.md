@@ -67,6 +67,6 @@ The interior theorem's precise scope: monotonicity and grid convexity are machin
 
 ```bash
 npm ci
-npm test        # 71/71 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, Welch exclusion certificate, convexity theorem (derivative series margins + binomial identity), smuggling trials, coded refusals, entry guard, witness determinism
+npm test        # 72/72 — checker, eight witnesses, correlator machinery, interior theorem, gap-free certificate, Welch exclusion certificate, convexity theorem (derivative series margins + binomial identity), smuggling trials, coded refusals, entry guard, witness determinism (+1 2026-11-01 回归：randomChannelStinespring 构建后自证等距，docstring 承诺的校验此前并未执行)
 npm run repro   # renders out/reports/the-nosignal-tariff.md (seconds)
 ```

@@ -153,7 +153,7 @@ export function detunedHeatingCensus(
   e1ClosedFormDeviation: number;
   w0ClosedForm: number;
   workSeries: readonly number[];
-  chainDrift: number; // (E_0 - E_kMax) / (J(n-1)): normalized energy paid
+  chainDrift: number; // (E_kMax - E_0) / (J(n-1)): normalized energy paid — 2026-11-01 修复：原注释符号写反（E_0 - E_kMax），代码（第180行 prev - e0）计算自 E_0 的上升，为正解
   isolatedDephasedDecay: number; // 1 - (cos 2 delta)^kMax: the dephased benchmark (TC46)
   suppression: number; // isolatedDephasedDecay / chainDrift — how much the chain resists
 } {

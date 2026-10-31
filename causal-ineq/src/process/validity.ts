@@ -44,12 +44,12 @@ export const PAULI: readonly CMat[] = [
 // products are built once, lazily, and shared. The memo holds exactly what
 // cmatKron4 would recompute — every consumer treats them as read-only kron /
 // trace operands, none mutates its inputs.
-const pauliProducts: (CMat | undefined)[] = new Array<CMat | undefined>(4 ** 4).fill(undefined);
+const pauliProducts: Array<CMat | undefined> = new Array<CMat | undefined>(4 ** 4).fill(undefined);
 
 export function pauliProduct(j: number, k: number, l: number, m: number): CMat {
   if (j >= 0 && j < 4 && k >= 0 && k < 4 && l >= 0 && l < 4 && m >= 0 && m < 4) {
     const idx = ((j * 4 + k) * 4 + l) * 4 + m;
-    const cached = pauliProducts[idx] as CMat | undefined;
+    const cached = pauliProducts[idx];
     if (cached !== undefined) return cached;
     const prod = cmatKron4(PAULI[j] as CMat, PAULI[k] as CMat, PAULI[l] as CMat, PAULI[m] as CMat);
     pauliProducts[idx] = prod;

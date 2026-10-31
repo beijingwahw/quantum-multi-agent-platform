@@ -306,13 +306,31 @@ export async function renderCensus(
   );
 
   out.push("\n## Boundaries\n");
+  // 2026-11-01 修复：下方边界面板里的 19/19、44/44、29/29、25/25、117、9、12、2、94 原为
+  // 硬编码字面量，且 S2 的散文对账不覆盖 Boundaries 段的这些短语——数据漂移时数字会
+  // 默默撒谎。现在计数从数据推导（jTally / classCount / enrollment，均为本函数的入参），
+  // 数字词语声明（ALL FOUR / nine for nine / TWO SPECIES）加显式守卫：不一致时渲染器
+  // 拒绝打印。
+  const mutKilledTotal = enrollment.filter((r) => r.tier === "MUTANT-KILLED").length;
+  const nCollapse = jTally.get("COLLAPSES") ?? 0;
+  const nEquiv = jTally.get("EQUIVALENT") ?? 0;
+  const wordClaims: ReadonlyArray<readonly [string, boolean]> = [
+    ["ALL FOUR classes", PILOT_CLASSES.length === 4],
+    ["nine for nine", nCollapse === 9 && nCollapse === mutants.length],
+    ["TWO SPECIES", nEquiv === 2],
+  ];
+  for (const [phrase, holds] of wordClaims) {
+    if (!holds) {
+      throw new Error(`the boundaries prose claims "${phrase}" but the live data disagrees — refusing to print a stated count that lies (the b36#16/b57#5 class)`);
+    }
+  }
   out.push(
       "- The mutant set is HISTORICALLY MOTIVATED, not exhaustive: nine defect classes compiled from the burial record, not a proof that no tenth class exists. Equivalent mutants are a known open problem of the field (JIA11); none are claimed away here — and the conjugation class now carries a per-error equivalence census (J-board) with one PROVEN specimen booked.\n" +
       "- The family's mAdd does NOT check shapes — by design, recorded at batch 31 ('the dimension account is always the coder's'). MU3 is killed at the COMPOSITION layer (the embedding's dimension contract), not by an adder that would break ten byte-identical members.\n" +
       "- Statistical kills are DATA-grade: they convict at 5 sigma by design of the property, not by theorem. The exact kills are exact.\n" +
       "- The W-board's unguarded-entry detector is a string-level heuristic (writeReport/writeFileSync without the guard); its misses are surfaced, not enforced — the K-board's hash census is the exact one.\n" +
       "- The registered divergences record THAT bytes differ and why they may; whether they SHOULD is each repo's appeal court (`npm test` there). This census adjudicates identity, not intent.\n" +
-      "- The E-board's MUTANT-KILLED tie is CLASS-level; the J-board has now measured the per-error question on ALL FOUR classes EXHAUSTIVELY (conjugation 19/19 at v0.8.0; wrong-object 44/44 and dimension-slot 29/29 and statistics 25/25 at v0.13.0 — the ENTIRE 117-row mutation-killed population): 9 collapses (every prototype's own history error, bit-exact — the class tie is the fixed point of per-error construction, nine for nine), 12 error-level kills (distinct faithful constructions, killed — the tie refines), 2 PROVEN equivalent mutants of TWO SPECIES (b30#0: representation-blindness — global phase unobservable at the density layer; b5#2: input-coverage blindness — the degenerate 0/0 branch lies outside the battery's input distribution, proven by a probability bound), 94 unbuildable (the defect's home is not a family member). The equivalent-mutant open problem (JIA11) is not solved — it is MEASURED on the workspace's entire mutation-killed history, and the decidable exchange is named: program equivalence is undecidable, battery-indistinguishability is decided bit-exactly.\n" +
+      `- The E-board's MUTANT-KILLED tie is CLASS-level; the J-board has now measured the per-error question on ALL FOUR classes EXHAUSTIVELY (conjugation ${classCount("conjugation")}/${classCount("conjugation")} at v0.8.0; wrong-object ${classCount("wrong-object")}/${classCount("wrong-object")} and dimension-slot ${classCount("dimension-slot")}/${classCount("dimension-slot")} and statistics ${classCount("statistics")}/${classCount("statistics")} at v0.13.0 — the ENTIRE ${mutKilledTotal}-row mutation-killed population): ${nCollapse} collapses (every prototype's own history error, bit-exact — the class tie is the fixed point of per-error construction, nine for nine), ${jTally.get("ERROR-LEVEL") ?? 0} error-level kills (distinct faithful constructions, killed — the tie refines), ${nEquiv} PROVEN equivalent mutants of TWO SPECIES (b30#0: representation-blindness — global phase unobservable at the density layer; b5#2: input-coverage blindness — the degenerate 0/0 branch lies outside the battery's input distribution, proven by a probability bound), ${jTally.get("UNBUILDABLE") ?? 0} unbuildable (the defect's home is not a family member). The equivalent-mutant open problem (JIA11) is not solved — it is MEASURED on the workspace's entire mutation-killed history, and the decidable exchange is named: program equivalence is undecidable, battery-indistinguishability is decided bit-exactly.\n` +
       "- The tier assignment is judgment recorded as data; the appeal is editing the enrollment table — and E1-E6 hold the edit to the registry, the disk and the arithmetic. BOOKED-UNENFORCEABLE is the honest boundary: lines no machine can hold, each printed with its reason above — and since v0.10.0 each REASON is itself audited data (R-board): refuted rows upgrade on cited anchors, surviving rows name their ungated face, and the audit's judgment layer is the authors' — the machine holds coverage, vocabulary and citation, not the verdicts' wisdom. Visibility is the substitute for enforcement, and it is priced as such.\n" +
       "- 'World-class frontier' priced honestly: mutation testing (DEM78, JIA11) and property-based testing (CLA00) are the field's foundations, cited; per-error regression policy is folklore ('every bug gets a test'). The contribution claimed is the executable CLOSED LOOP — a machine-audited error registry imported live by the quality gate, so no error can be buried without a machine-checkable enforcement anchor — nothing grander.\n",
   );

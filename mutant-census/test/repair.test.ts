@@ -33,7 +33,10 @@ test("the repair state: thirteen upgrades (b67#6, b70#3, b78#13 and b85#35 flipp
   assert.deepEqual(audited, expected, "the audit population must equal live booked + upgraded, exactly");
 });
 
-test("the nine upgrades sit on their exact falsifying anchors", async () => {
+// 2026-11-01 修复：标题原说 "nine"（九次升级时期的残留），但 REPAIR_AUDIT 实有 13 行
+// UPGRADED——补齐缺失的三个锚（b67#6 / b70#3 / b78#13，锚串取自 enrollment 本身，
+// 与 sibling 测试 "thirteen upgrades" 的声明一致），标题改为 thirteen
+test("the thirteen upgrades sit on their exact falsifying anchors", async () => {
   const byKey = new Map(ENROLLMENT.map((r) => [r.key, r] as const));
   const expect: Record<string, string> = {
     "b36#13": "dtc-clock/package.json :: test",
@@ -45,6 +48,9 @@ test("the nine upgrades sit on their exact falsifying anchors", async () => {
     "b56#8": "stable-world/package.json :: test",
     "b57#3": "stable-world/package.json :: typecheck",
     "b59#0": "stable-world/package.json :: typecheck",
+    "b67#6": "mutant-census/test/census.test.ts :: E7",
+    "b70#3": "burial-record/src/kernel/audit.ts :: memoryStructureViolations",
+    "b78#13": "choice-lang/src/kernel/lang.ts :: NEWEST-FIRST",
     "b85#35": "mutant-census/package.json :: derive",
   };
   for (const [key, anchor] of Object.entries(expect)) {

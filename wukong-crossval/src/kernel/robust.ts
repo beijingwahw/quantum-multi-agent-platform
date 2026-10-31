@@ -237,7 +237,9 @@ export function robustSummary(probe: ExactProbe, deltas: readonly number[], band
     minCurvature: minCurv,
     maxCurvature: maxCurv,
     p0: masses[0]!,
-    band: [exactObservedHitRate(masses, fHi), exactObservedHitRate(masses, fLo)],
+    // 2026-11-01 修复：band 此前按 [fHi, fLo] 反序组装，与接口文档 “band edges [fLo, fHi]”
+    // 相反（渲染端曾用列名悄悄补偿）—— 现按文档契约 [lo, hi] 组装，渲染端补偿已同步移除。
+    band: [exactObservedHitRate(masses, fLo), exactObservedHitRate(masses, fHi)],
     params: census.params,
   };
 }

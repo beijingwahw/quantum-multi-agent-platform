@@ -186,7 +186,7 @@ export const BOARD: readonly BoardRow[] = [
       "the WO15 tombstone, executed: the nondegenerate ground state and the thermal state are STATIONARY — every local expectation constant along e^{-iHt}; and the only beat a static Hamiltonian offers is a spent two-eigenstate battery at the Bohr frequency",
     family: "tombstone",
     price:
-      "n=5 TI chain (J=1, h=0.7), gap 0.1835: ground stationarity worst 3.7e-15, thermal 3.9e-15 over X_i, Z_i, ZZ_i at 11 times; battery amplitude 0.6508 with the Bohr period 2pi/gap exact to 1.4e-15; solver deed V diag V^T = H to 4.8e-14; two independent evolution roads (eigenbasis vs projector sums) agree to 4.4e-16",
+      "n=5 TI chain (J=1, h=0.7), gap 0.1835: ground stationarity worst 3.7e-15, thermal 3.9e-15 over X_0, Z_0, Z_1 at 6 times (t=0..7, step 1.4) — 2026-11-01 勘误：原文误作 'over X_i, Z_i, ZZ_i at 11 times'，见证实际运行 6 个时间点且平稳性普查仅取 X_0/Z_0/Z_1（无 ZZ 耦合项）；battery amplitude 0.6508 with the Bohr period 2pi/gap exact to 1.4e-15; solver deed V diag V^T = H to 4.8e-14; two independent evolution roads (eigenbasis vs projector sums) agree to 4.4e-16",
     exactness: "EXACT",
     witness: "W-E",
     anchors: [],

@@ -150,14 +150,20 @@ export function checkBoard(rows: readonly UntrustedBoardRow[] = BOARD): Violatio
 }
 
 /**
- * A YieldRow as it crosses the untrusted boundary: the tag is an
- * unvalidated string until H6 has run.
+ * A YieldRow as it crosses the untrusted boundary: the tag AND the family are
+ * unvalidated strings until H6 has run.
  */
-export type UntrustedYieldRow = Omit<YieldRow, "tag"> & { readonly tag: string };
+// 2026-11-01 修复：family 也走不可信边界（行可能被解析/篡改传入），且未知 family 名
+// 必须按词表 {WERNER, DEPOL} 点名拒绝——此前一切非 "WERNER" 的名字被静默折叠进
+// DEPOL，伪造币种永远无法被点名定罪。
+export type UntrustedYieldRow = Omit<YieldRow, "tag" | "family"> & {
+  readonly tag: string;
+  readonly family: string;
+};
 
 /** The hashing line of a row's family, for laundering detection. */
-function rowHashingLine(family: string, param: number): number {
-  return hashingLineWerner(wernerFOfFamily(family === "WERNER" ? "WERNER" : "DEPOL", param));
+function rowHashingLine(family: "WERNER" | "DEPOL", param: number): number {
+  return hashingLineWerner(wernerFOfFamily(family, param));
 }
 
 /** H6 — yield-table provenance: executed numbers must recompute, quoted lines must be quoted. */
@@ -169,6 +175,15 @@ export function checkYieldTable(rows: readonly UntrustedYieldRow[] = YIELD_TABLE
     seen.add(r.id);
     if (r.tag !== "EXECUTED" && r.tag !== "QUOTED") {
       violations.push({ row: r.id, law: "H6", detail: `illegal yield tag "${r.tag}" — the vocabulary is {EXECUTED, QUOTED}` });
+      continue;
+    }
+    // 2026-11-01 修复：未知 family 名按词表点名拒绝，不再静默折叠进 DEPOL。
+    if (r.family !== "WERNER" && r.family !== "DEPOL") {
+      violations.push({
+        row: r.id,
+        law: "H6",
+        detail: `illegal yield family "${r.family}" — the vocabulary is {WERNER, DEPOL}: a forged family is rejected by name, never folded into DEPOL`,
+      });
       continue;
     }
     if (r.tag === "EXECUTED") {

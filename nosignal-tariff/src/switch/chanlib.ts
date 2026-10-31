@@ -7,7 +7,7 @@
 import { type CMat, mat } from '../core/cmat.js';
 import type { Rng } from '../core/rng.js';
 import { refuse } from '../core/errors.js';
-import { type Stinespring, krausToStinespring } from './isometry.js';
+import { type Stinespring, assertStinespring, krausToStinespring } from './isometry.js';
 
 /**
  * Replacer channel Λ(ρ) = |v⟩⟨v| · Tr ρ for the uniform |v⟩: K_i = |v⟩⟨i|.
@@ -93,7 +93,11 @@ export function randomChannelStinespring(rng: Rng, d: number, envDim: number): S
     }
   }
   const st: Stinespring = { d, envDim, V };
-  // isometry certificate happens inside krausToStinespring-equivalent check
+  // 2026-11-01 修复：docstring 承诺“构建后由等距校验断言”，但该断言从未在此路径执行
+  // （krausToStinespring 内部的证书不会随本函数运行）。补上 assertStinespring，
+  // 使 Gram-Schmidt 共轭方向的经典静默错误在此被按名拒绝（STINESPRING_ISOMETRY_FAILED）。
+  // 校验为纯断言，不改变数值路径——W-A/W-H 的数字与报告不变。
+  assertStinespring(st);
   return st;
 }
 

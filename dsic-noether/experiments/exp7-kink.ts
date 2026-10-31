@@ -136,11 +136,14 @@ function run(): void {
     exact("WALL interior charge == -(s-t)^2/4", pSub(blocks.interior, blocks.interiorClosedForm));
     exact("WALL wall-block charge == 0 (the weak-DSIC flat)", blocks.wallBlock);
     exact("WALL cross charge == -(t-w+1)^2/4", pSub(blocks.crossBlock, blocks.crossClosedForm));
+    // 2026-11-01 新增第四块：报告内部、真类型 walled 的真对照（墙 x=0）。
+    exact("WALL cross-2 charge == (s-w+1)(t-w+1)/2 - (s-w+1)^2/4", pSub(blocks.crossBlock2, blocks.cross2ClosedForm));
     const grid = k.wallGridWitness(rat(5, 2), 8);
     require("WALL grid never positive", grid.worst.n === 0n, rStr(grid.worst));
     require("WALL grid interior off-diagonal < 0", rCmp(grid.worstInteriorOff, rat(0)) < 0, rStr(grid.worstInteriorOff));
     require("WALL grid cross < 0", rCmp(grid.worstCross, rat(0)) < 0, rStr(grid.worstCross));
-    wallRows.push(["piecewise charge on the grid (81x81)", `never > 0; interior ${rStr(grid.worstInteriorOff)}; cross ${rStr(grid.worstCross)}`, `${grid.flatPairs} wall-to-wall flat pairs (weak DSIC)`]);
+    require("WALL grid cross-2 (interior report, walled type) < 0", rCmp(grid.worstCross2, rat(0)) < 0, rStr(grid.worstCross2));
+    wallRows.push(["piecewise charge on the grid (81x81)", `never > 0; interior ${rStr(grid.worstInteriorOff)}; cross ${rStr(grid.worstCross)}; cross-2 ${rStr(grid.worstCross2)}`, `${grid.flatPairs} wall-to-wall flat pairs (weak DSIC)`]);
   }
 
   // ---------- the report ----------

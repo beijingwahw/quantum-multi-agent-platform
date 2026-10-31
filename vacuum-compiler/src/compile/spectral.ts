@@ -263,9 +263,11 @@ export function sturmCountRootsUpTo(p: RationalPoly, x: Rat): number {
 export function sturmCountRootsIn(p: RationalPoly, a: Rat, b: Rat): number {
   const atB = sturmCountRootsUpTo(p, b);
   const atA = sturmCountRootsUpTo(p, a);
-  const rootAtA = polyEval(p, a).num === 0n ? 1 : 0;
   const rootAtB = polyEval(p, b).num === 0n ? 1 : 0;
-  return atB - atA - rootAtB + rootAtA;
+  // 2026-11-01 修复：旧的 `+ rootAtA` 项是错的 —— sturmCountRootsUpTo(p, a) 已把 a 处的根
+  // 计入 (−inf, a]，差值 atB − atA 得到的 (a, b] 已经把下端点排除在外；再 +1 会在下端点
+  // 本身是根时多数一根。半开约定：count(a,b) = #(≤b) − #(≤a) − [b 是根]。
+  return atB - atA - rootAtB;
 }
 
 // ---------------------------------------------------------------------------

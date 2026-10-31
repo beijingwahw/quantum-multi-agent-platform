@@ -15,11 +15,11 @@
 | shell-template-heredoc | 14 | b64#0 (b64) | BOOKED-UNENFORCEABLE | 'this time it was harmless' is the heredoc family's survival mode, tenth enrollment: scratch files go through the Write tool, content-based exceptions do not exist |
 | count-drift | 4 | b60#7 (b60) | GATE-ENFORCED | counts follow the data at the same edit: adding a witness greps the assertion's old count in the same breath (b50#4 class, caught by the suite this time) |
 | edit-anchor | 3 | b60#6 (b60) | BOOKED-UNENFORCEABLE | the channel has now refused the same patch class four times: prose sections go through the Edit tool with no exception clause |
-| cat:citation-drift | 1 | b51#1 (b51) | GATE-ENFORCED | mathematical formulas are transcribed from the reference, never recalled — the same law as citations; the solver-free residual check is the formula's firing range |
-| cat:machine-overruled | 7 | b45#7 (b45) | GATE-ENFORCED | TC27 rewritten to carry the conviction as a finding (the odd/even dichotomy: exact forever at odd n, a long-horizon liability at even n) — the decoder's tie structure is the honest boundary, and the text follows the data |
+| cat:citation-drift | 1 | b51#1 (b51) | BOOKED-UNENFORCEABLE | mathematical formulas are transcribed from the reference, never recalled — the same law as citations; the solver-free residual check is the formula's firing range |
+| cat:machine-overruled | 7 | b45#7 (b45) | BOOKED-UNENFORCEABLE | TC27 rewritten to carry the conviction as a finding (the odd/even dichotomy: exact forever at odd n, a long-horizon liability at even n) — the decoder's tie structure is the honest boundary, and the text follows the data |
 | non-null-assert | 2 | b45#1 (b45) | GATE-ENFORCED | `out[dst] = out[dst]! + rho[src]` — one class, two instances; the reread-against-the-idiom pass now runs before the first compile, not after |
-| cat:anchor-blindspot | 1 | b45#5 (b45) | GATE-ENFORCED | long JSON strings get patched structurally via python json round-trip (load, append, dump), never by whole-block replace |
+| cat:anchor-blindspot | 1 | b45#5 (b45) | BOOKED-UNENFORCEABLE | long JSON strings get patched structurally via python json round-trip (load, append, dump), never by whole-block replace |
 | cat:conjugation | 1 | b36#7 (b36) | GATE-ENFORCED | both parts multiply the (real) observable: tre*O + i tim*O — the conjugation-side arithmetic family's fourth offense |
 | cat:dimension-slot | 1 | b36#9 (b36) | GATE-ENFORCED | build the n-factor array (qubit 0 = low-order bit = LAST tensor factor) and kronAll it; dimension bookkeeping is the coder's, never the kernel's |
 
-Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-09-13T01:38:47.755Z; src tree newest 2026-09-13T01:25:53.436Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 1 reports on disk; newest render 2026-10-31T22:42:00.169Z; src tree newest 2026-10-31T22:42:00.169Z — FRESH (the newest render postdates every source)

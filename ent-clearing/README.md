@@ -27,7 +27,8 @@ The GHZ bank re-opened at an arbitrary coin angle, |GHZ_θ⟩ = (|000⟩ + e^{i�
 - **The triple.** Every NUMERICAL face of the bank is θ-free: the three pairwise concurrences stay exactly 0, every 1-vs-2 cut stays exactly 1/2 negativity, and every branch probability stays exactly 1/2 — at every θ on the πk/12 grid, and structurally (the pairwise reduction's coherence cells are EXACTLY 0.0: the bit-flip symmetry cancels the phase at the bit level).
 - **The withdrawal.** C measures X and sends 1 cbit: AB receive exactly |Φ±θ⟩ = (|00⟩ ± e^{iθ}|11⟩)/√2 on the two branches (fidelity 1, concurrence 1, E_F 1, branch probabilities ½) — the angle rides INTO the coin's phase and nowhere else. The cut ledger conserves exactly (A|BC and B|AC stay ½, AB|C drops ½ → 0). θ = 0 degenerates onto the existing bank byte-for-byte (ghzThetaCoin(0) = ghzCoin()).
 - **The basis census.** No measurement basis folds θ into any population — the R18 design draft expected Y to fold it and the machine refuted that: Y folds its OWN basis phase into the coin as θ − π/2, populations stay ½. Branch concurrence = |sin 2β| at every tilt (θ-free); the standard coin is withdrawn exactly at equatorial bases and nowhere else; the coin's phase is θ − φ (the transfer direction is enumerable).
-- **Claims discipline.** The desk carries its own seven-row claims table (TH1–TH7: five HOLDS, one CENSUS, two REFUTED) with an H8-style checker that recomputes every verdict; contraband tags are convicted by name. Concurrence/E_F exactness runs two paths: the linear cell 2|ρ_{00,11}| (exact to 1e-12) and the Wootters solver (cross-path at 1e-7 — its documented ~1e-8 noise on rank-deficient pure states is a face of the solver, not of the coin).
+- **Claims discipline.** The desk carries its own seven-row claims table (TH1–TH7: five HOLDS, one CENSUS, two REFUTED) with an H8-style checker that recomputes every verdict; contraband tags are convicted by name. Concurrence/E_F exactness runs two paths: the general pure-pair linear route 2√(det ρ_A) (exact to 1e-12) and the Wootters solver (cross-path at 1e-7 — its documented ~1e-8 noise on rank-deficient pure states is a face of the solver, not of the coin).
+  - 2026-11-01 勘误：该线性路径此前写作 2|ρ_{00,11}| —— 该式只对 Schmidt 对角纯对成立（对 |Ψ⁺⟩ 会给出 0 而非 1）。已修正为一般纯态并发度 2√(det ρ_A)（等价于振幅式 2|ad − bc|）。本 desk 全部调用点的分支态均为 Schmidt 对角，已发布数字经重生成比对不变。
 
 ## The salvage desk (v0.5.0, `src/kernel/recycle.ts`)
 
@@ -56,7 +57,7 @@ The renderer refuses to print an illegal board — or an illegal yield table, le
 ## Run
 
 ```
-npm test        # the full suite: 94 tests (machinery, witnesses, 12 smuggling trials, the theta desk's 18, the salvage desk's 18, entry guard, render mains, quality anchors, boundary/determinism regressions)
+npm test        # the full suite: 98 tests (machinery, witnesses, 13 smuggling trials, the theta desk's 20, the salvage desk's 18, entry guard, render mains, quality anchors, boundary/determinism regressions; 2026-11-01 修复回归 +4：MI 列和边际、伪造 family 名、一般纯对线性并发度路线)
 npm run typecheck
 npm run lint
 npm run repro   # renders out/reports/the-ent-clearing.md (board + yield table + ledger + GHZ bank + witnesses)

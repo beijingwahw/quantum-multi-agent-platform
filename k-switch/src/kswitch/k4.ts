@@ -351,8 +351,11 @@ export interface MatchedPairCertificate {
  * ray as the anticommuting product ±G. Then every plain fixed order maps both
  * promise classes to the same output up to a global phase — trace distance 0
  * to the float floor, all 24 orders. (First construction attempt rotated the
- * wrong generator Z⊗X while the anticommuting product is I⊗Y — the machine
+ * wrong generator Z⊗X while the anticommuting product is Z⊗Y — the machine
  * rejected it at max T = 0.918; deriving G is the fix.)
+ * (2026-11-01 修复：本教训注释原文把该乘积误写成 I⊗Y——机器与四处独立
+ * 出处（pauliReference(orderedProduct4(anticommutingQuad(), id)) = "Z⊗Y"、
+ * k5.ts 的 gamma5、test/k5.test.ts、docs/theory.md §2/§5）均为 Z⊗Y。)
  */
 export function matchedBlindPair(psi: { re: number[]; im: number[] }): MatchedPairCertificate {
   const anti = anticommutingQuad();

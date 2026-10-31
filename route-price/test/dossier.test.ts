@@ -302,7 +302,8 @@ test("the uniform-branch toll identity: 1/P = B exact on the powers-of-two grid"
   for (const B of [2, 4, 8, 16]) {
     const P = 1 / B;
     assert.equal(1 / P, B);
-    assert.equal(B / 1, B); // the epoch-3 invoice line: N/t at t = 1
+    // 2026-11-01 修复：B/1 === B 是恒真式（镜像 witnesses.ts 中已移除的死检查），改为镜像域检查
+    assert.ok(Number.isInteger(B) && B >= 2 && (B & (B - 1)) === 0);
   }
 });
 

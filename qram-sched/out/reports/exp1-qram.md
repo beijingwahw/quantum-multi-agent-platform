@@ -56,7 +56,7 @@ One write costs 6 routing activations (one per level) versus 64 for rewriting ev
 | 0.10 | 3 | 7 | 0.52170310 | 0.52170310 | 1.9 |
 | 0.10 | 4 | 15 | 0.79410887 | 0.79410887 | 2.3 |
 
-Exposure ratio fanout/bucket grows as 1.5 -> 2.3 -> 3.8 for n = 2, 3, 4: exactly 2^n/n, exponential in address length. Formula matches exhaustive enumeration to 1e-15 (bucket, n<=6) and (fanout, n<=4).
+Exposure ratio fanout/bucket grows as 1.5 -> 2.3 -> 3.8 for n = 2, 3, 4: exactly (2^n - 1)/n, exponential in address length. Formula matches exhaustive enumeration to 1e-15 (bucket, n<=6) and (fanout, n<=4).
 
 ## D. qRAM premise audit: the query tear under its own insertion cost
 

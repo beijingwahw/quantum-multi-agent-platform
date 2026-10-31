@@ -219,6 +219,42 @@ export interface DenseQuote {
 }
 
 /**
+ * I(M;Y) of a decode matrix p[outcome | message] under uniform messages:
+ * H(Y) - H(Y|M) with 0 log 0 = 0. Exported so the marginal (the COLUMN sums
+ * over messages) can be regression-tested on NON-permutation channels — the
+ * row sums are each 1 (every row is a conditional distribution) and would pin
+ * H(Y) at log2(n) for every channel.
+ */
+// 2026-11-01 修复：px 原实现取 decode 的行和（恒为 [1/4]×4），把 H(Y) 钉死在 2 比特，
+// 仅当 decode 恰为置换矩阵（均匀信号的理想解码）时边际碰巧均匀、MI 碰巧正确；
+// 正确的边际是列和 p(Y=j) = (1/n)·Σ_k decode[k][j]。
+export function mutualInformationBits(decode: ReadonlyArray<readonly number[]>): number {
+  const n = decode.length;
+  if (n === 0) {
+    throw new Error(`EC_SHAPE: mutualInformationBits needs a non-empty decode matrix, got ${n}`);
+  }
+  for (const row of decode) {
+    if (row.length !== n) {
+      throw new Error(`EC_SHAPE: mutualInformationBits needs a square decode matrix, got ${n}x${row.length}`);
+    }
+  }
+  const px: number[] = new Array<number>(n).fill(0);
+  for (let k = 0; k < n; k++) {
+    const row = decode[k];
+    if (row === undefined) throw new Error(`EC_SHAPE: mutualInformationBits lost row ${k}`);
+    for (let j = 0; j < n; j++) px[j] = (px[j] ?? 0) + (row[j] ?? 0);
+  }
+  for (let j = 0; j < n; j++) px[j] = px[j]! / n;
+  let hy = 0;
+  for (const p of px) if (p > 1e-15) hy -= p * Math.log2(p);
+  let hyGivenM = 0;
+  for (const row of decode) {
+    for (const p of row) if (p > 1e-15) hyGivenM -= (p / n) * Math.log2(p);
+  }
+  return hy - hyGivenM;
+}
+
+/**
  * The dense-coding quote: the four corrections turn A's half of the coin into
  * four mutually orthogonal signals; the Bell measurement decodes them at
  * probability exactly 1 (2 cbits from 1 transmitted qubit), and the decode
@@ -243,14 +279,7 @@ export function denseCode(): DenseQuote {
     decode.push(row);
   }
   // I(M;Y) = H(Y) - H(Y|M) under uniform messages, with 0 log 0 = 0.
-  const px: number[] = decode.map((row) => row.reduce((a, b) => a + b, 0) / 4);
-  let hy = 0;
-  for (const p of px) if (p > 1e-15) hy -= p * Math.log2(p);
-  let hyGivenM = 0;
-  for (const row of decode) {
-    for (const p of row) if (p > 1e-15) hyGivenM -= (p / 4) * Math.log2(p);
-  }
-  const mutualInformation = hy - hyGivenM;
+  const mutualInformation = mutualInformationBits(decode);
   // Post-decode state on the correct outcome: |B_k><B_k| (p = 1)
   const coinReturned = proj[0];
   return { signals, decode, mutualInformation, coinReturned };

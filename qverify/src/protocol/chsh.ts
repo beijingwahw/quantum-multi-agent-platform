@@ -140,8 +140,21 @@ export function chshGame(
   const t = correlationT(rho);
   let dirs = [blochDir(angles[0]!, angles[1]!), blochDir(angles[2]!, angles[3]!), blochDir(angles[4]!, angles[5]!), blochDir(angles[6]!, angles[7]!)];
   // normalize the sign so S > 0 (the game value is 1/2 + S/8)
+  // 2026-11-01 修复：只翻转 a1 方向得到 S' = e00+e01−e10+e11 ≠ −S（负 S 输入
+  //   下导出的 sFromAngles 与 |S| 无关）。要取负 S 必须同时翻转一方（Alice）
+  //   的两个测量方向 a0 与 a1 —— 等价于对 Alice 两个 setting 的输出整体取
+  //   负号（局部重标记），四个关联全部反号，S' = −S。
+  // Fix: flipping only a1 gives S' = e00+e01−e10+e11 ≠ −S, so the exported
+  //   sFromAngles was wrong (unrelated to |S|) for negative-S inputs. To
+  //   negate S you must flip BOTH of Alice's observables (a0 AND a1 — a local
+  //   outcome relabeling): all four correlations flip, S' = −S.
   if (chshValue(t, dirs[0]!, dirs[1]!, dirs[2]!, dirs[3]!) < 0) {
-    dirs = [dirs[0]!, [-dirs[1]![0]!, -dirs[1]![1]!, -dirs[1]![2]!], dirs[2]!, dirs[3]!];
+    dirs = [
+      [-dirs[0]![0]!, -dirs[0]![1]!, -dirs[0]![2]!],
+      [-dirs[1]![0]!, -dirs[1]![1]!, -dirs[1]![2]!],
+      dirs[2]!,
+      dirs[3]!,
+    ];
   }
   // the four (a,b) direction pairs are fixed for the whole run, so their
   // joint outcome probabilities are loop invariants: computed once here, not

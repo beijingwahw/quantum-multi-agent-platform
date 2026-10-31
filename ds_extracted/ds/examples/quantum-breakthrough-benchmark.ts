@@ -18,6 +18,7 @@ import {
   couplingKey,
   toIsing,
   QuantumStateVector,
+  welfareOf,
 } from '../src/core/quantum-optimizer.js';
 import { buildSubspaceModel, annealSolveSubspace } from '../src/core/subspace-optimizer.js';
 import { QuantumScheduler } from '../src/core/quantum-scheduler.js';
@@ -88,8 +89,11 @@ function greedySolve(problem: AssignmentProblem): number[] {
   return assignment;
 }
 
-const welfare = (p: AssignmentProblem, a: number[]) =>
-  a.reduce((s, agent, t) => s + (agent >= 0 ? p.weights[t]![agent]! : 0), 0);
+// 2026-11-01 修复（根 README v1.11 勘误点名的同款半账缺陷）：本示例旧版
+// 私自带一个只记 weights 的 welfare，经典侧福利被低估、贪心/局部搜索的
+// gap 系统性虚高；统一改用内核的 welfareOf（含耦合加成），与量子侧和
+// bruteForceOptimum 同一把尺。
+const welfare = (p: AssignmentProblem, a: number[]) => welfareOf(p, a);
 
 // ============================================================================
 // 第一部分：分配质量竞赛（多种子统计）

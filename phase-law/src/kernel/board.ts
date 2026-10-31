@@ -48,7 +48,7 @@ export const BOARD: readonly BoardRow[] = [
       "STABILITY IS NEVER LOST: at every λ the global optimum is itself a 1-exchange local optimum — the phase transition is not about the optimum becoming unstable",
     face: "landscape",
     price:
-      "globalIsLocalOptimum true at λ ∈ {0, 0.3, 0.7, 1.5} on the COMPLETE landscapes of 3×4 (24 nodes) and 3×5 (60 nodes): the optimum is always reachable-and-stable; what changes is everything around it (PL4)",
+      "globalIsLocalOptimum true at λ ∈ {0, 0.3, 0.7, 1.5} on the COMPLETE landscapes of 3×4 (24 nodes) and 3×5 (60 nodes) — since 2026-11-01 in FALSIFIABLE form: the optimum and all its 1-exchange neighbors are re-scored by the INDEPENDENT welfareOf path (the old same-array check was a tautology): the optimum is always reachable-and-stable; what changes is everything around it (PL4)",
     exactness: "EXACT",
     witness: "W-C",
     anchors: [],

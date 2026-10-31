@@ -1,6 +1,6 @@
 import { Rng } from "../core/rng.js";
 import { randomIsing } from "../core/ising.js";
-import { mpsAmplitude } from "../tn/mps.js";
+import { amplitude64 } from "../anneal/designed-basis.js";
 import { dmrgGroundState } from "../tn/dmrg.js";
 import type { ChainHamiltonian } from "../tn/mpo.js";
 import { fmt, writeReport } from "./common.js";
@@ -52,9 +52,17 @@ export function main(): void {
       let absSum = 0;
       let negatives = 0;
       for (let k = 0; k < SAMPLES; k++) {
-        let bits = 0;
-        for (let i = 0; i < n; i++) if (rng.next() < 0.5) bits |= 1 << i;
-        const amp = mpsAmplitude(dmrg.state, bits);
+        // hi/lo 双字随机构型：单字 `bits |= 1 << i` 在 n≥32 时 int32 回绕
+        // （site≥32 别名到低位），n=48/64 的旧 signP/negFrac 行已被污染。
+        let hi = 0;
+        let lo = 0;
+        for (let i = 0; i < n; i++) {
+          if (rng.next() < 0.5) {
+            if (i < 32) lo |= 1 << i;
+            else hi |= 1 << (i - 32);
+          }
+        }
+        const amp = amplitude64(dmrg.state, hi, lo);
         sum += amp;
         absSum += Math.abs(amp);
         if (amp < 0) negatives++;

@@ -26,7 +26,7 @@
 
 ```bash
 npm install
-npm test        # 76/76
+npm test        # 78/78
 npm run repro   # 重生成 out/ 下全部 JSON+MD 报告（约 2 分钟，exp4 密度矩阵占大头）
 ```
 
@@ -50,13 +50,24 @@ npm run repro   # 重生成 out/ 下全部 JSON+MD 报告（约 2 分钟，exp4 
 
 | 场景 | 每块单元数 | 利用率 | 判定 |
 |---|---|---|---|
-| CPU BP+OSD ×1 | 1 | 1125 | backlog-grows |
+| CPU BP+OSD ×1 | 0 | 7875 | backlog-grows |
 | CPU BP+OSD ×64 | 9 | 125 | backlog-grows |
 | FPGA 100µs ×32 | 4 | 15.6 | backlog-grows |
 | FPGA 100µs ×512 | 73 | 0.856 | **realtime** |
 | FPGA 100µs ×256 | 36 | 1.736 | backlog-grows |
 | ASIC 10µs ×32 | 4 | 1.56 | backlog-grows |
 | ASIC 1µs ×16 | 2 | 0.313 | **realtime** |
+
+2026-11-01 勘误（两处已修复并回归锁定）：
+
+- **解码调度 units < blocks**：此前每块单元数被钳制为 1（等于把机队凭空放大 blocks 倍）。
+  CPU BP+OSD ×1（1 台机队对 7 个码块）原表记「每块 1 台、利用率 1125」；按契约
+  「尽量均匀铺开：部分块 1 台、其余 0 台」修正后为**每块 0 台、利用率 7875**
+  （= 1125 × blocks/units）。该场景的判定（backlog-grows）与其余全部行不变
+  （exp3 报告已重生成，仅此一行变化）。
+- **wallTimeHuman 分钟换算**：曾按 1 min = 1e9 µs（偏差 16.67 倍）换算，已修正为
+  1 min = 6e7 µs（小时阈值同步为 3.6e9 µs）。已发布报告中的全部墙钟时间均低于
+  1 分钟（最大 2.43 s），exp2 重生成后逐字节不变——无已发布数字受影响。
 
 v0.2 窗口大小策略扫参（W ∈ {1,2,4,8,16,32}）：单轮流式（W=1）对 100µs 级 FPGA 定长时延在 1µs 周期下**任何机队都积压**（FPGA×512：ρ=2.05）；最小纠错时延的可行窗口 FPGA×512 为 **W=8**、ASIC 1µs×16 为 **W=1**——批处理策略与机队规模同样是路线变量，已定价成数据。
 
@@ -113,9 +124,9 @@ src/
   ft/       codes.ts(码目录+出处) synthesis.ts(T 计数) estimate.ts(资源估算，常数单源引用)
             constants.ts(假设常数审计表+出处门禁) decoder-scheduler.ts(离散事件解码调度+窗口策略)
   experiments/  exp1-monotonic / exp2-resources(+常数审计) / exp3-decoder(+窗口策略) / exp4-noise / run-all
-test/       76 项：每个数学声称配独立实现对照（对拍）；走私审判 21 项（伪造噪声单调序列 ×2、
+test/       78 项：每个数学声称配独立实现对照（对拍）；走私审判 21 项（伪造噪声单调序列 ×2、
             伪造 shrink 间隙/恒等/定理低估/守卫 ×5、伪造常数出处 ×3、非法输入具名驳回 ×11）；
-            单源常数无漂移断言 ×1
+            单源常数无漂移断言 ×1；2026-11-01 修复回归 ×2（分钟换算、units<blocks 铺开）
 docs/       theory.md — 定理、证明、模型假设、边界、文献
 ```
 

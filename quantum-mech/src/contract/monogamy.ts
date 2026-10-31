@@ -42,7 +42,14 @@ export function concurrence(rho: CMat): number {
 function concurrenceWithRest(pureRho: CMat, dims: readonly number[], a: number): number {
   const rhoA = partialTrace(pureRho, dims, dims.map((_, i) => i).filter((i) => i !== a));
   // rhoA is a 2x2 reduced density matrix
-  const det = rhoA.re[0]! * rhoA.re[3]! - rhoA.re[1]! * rhoA.re[2]!;
+  // 2026-11-01 修复：2×2 Hermitian 行列式是 det = ρ00·ρ11 − |ρ01|² = ρ00·ρ11 −
+  //   (Re(ρ01)² + Im(ρ01)²)。原代码只减了 Re²，漏掉 Im²：Im(ρ01)≠0 时 det 偏大
+  //   → cABC/tangle 偏大（CKW 松弛量被人为压低）。
+  // Fix: the determinant of a 2x2 Hermitian is ρ00·ρ11 − |ρ01|² = ρ00·ρ11 −
+  //   (Re(ρ01)² + Im(ρ01)²). The old code subtracted only Re², dropping Im²:
+  //   det (hence cABC/tangle) was inflated whenever Im(ρ01) ≠ 0, artificially
+  //   deflating the CKW slack.
+  const det = rhoA.re[0]! * rhoA.re[3]! - rhoA.re[1]! * rhoA.re[1]! - rhoA.im[1]! * rhoA.im[1]!;
   return 2 * Math.sqrt(Math.max(0, det));
 }
 

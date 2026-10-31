@@ -205,7 +205,7 @@ export interface BasisCensusRow {
   /** Branch concurrences, machine-measured by the general solver. */
   readonly cPlus: number;
   readonly cMinus: number;
-  /** The exact linear route 2|rho_{00,11}| on each branch (pure pair). */
+  /** The exact linear route (pure-pair concurrence 2*sqrt(det rho_A)) on each branch. */
   readonly cellPlus: number;
   readonly cellMinus: number;
   /** The closed form |sin(2 beta)| both branches must equal. */
@@ -249,18 +249,28 @@ function wrapAngle(a: number): number {
   return x;
 }
 
-/** The exact concurrence route for a PURE 2-qubit pair: C = 2|rho_{00,11}|.
- *  The Wootters solver is the general path but carries ~1e-8 on rank-deficient
- *  states (the eigenvector reconstruction's documented noise — batch 30's
- *  lesson), so every exactness claim in this desk runs the linear cell and
- *  keeps the solver as the cross-check. */
+// 2026-11-01 修复：纯态并发度的一般公式是 C = 2|ad − bc|（Schmidt 形下即 2√(det ρ_A)），
+// 原实现 2|ρ_{00,11}| 只对 Schmidt 对角（仅 |00⟩/|11⟩ 支撑）的纯对成立，
+// 对一般纯对（如 |Ψ+⟩，其并发度为 1）会错误地返回 0。改为由约化矩阵的 2×2 行列式
+// 直接给出 —— 仍是不经特征求解器的精确线性路线，对本 desk 的全部调用点数值不变。
+/** The exact concurrence route for a PURE 2-qubit pair: C = 2*sqrt(det rho_A)
+ *  (the Schmidt singular values — equals 2|ad - bc| on the state's amplitudes;
+ *  the old 2|rho_{00,11}| cell held only for Schmidt-diagonal pairs and
+ *  returned 0 for |Psi+>). The Wootters solver is the general path but carries
+ *  ~1e-8 on rank-deficient states (the eigenvector reconstruction's documented
+ *  noise — batch 30's lesson), so every exactness claim in this desk runs the
+ *  linear route and keeps the solver as the cross-check. */
 export function purePairCoherence(rho: CMat): number {
   if (rho.rows !== 4 || rho.cols !== 4) {
     throw new Error(
       `EC_SHAPE: purePairCoherence is defined on 2-qubit (4x4) pairs, got ${rho.rows}x${rho.cols}`,
     );
   }
-  return 2 * Math.hypot(rho.re[0 * 4 + 3]!, rho.im[0 * 4 + 3]!);
+  const rhoA = partialTrace(rho, [2, 2], [1]);
+  // det of the 2x2 Hermitian reduction: m00*m11 − |m01|² (exact cells, no eigensolver)
+  const det =
+    rhoA.re[0]! * rhoA.re[3]! - (rhoA.re[1]! * rhoA.re[1]! + rhoA.im[1]! * rhoA.im[1]!);
+  return 2 * Math.sqrt(Math.max(0, det));
 }
 
 /** The basis census: every (beta, phi) x theta row of the withdrawal ledger. */

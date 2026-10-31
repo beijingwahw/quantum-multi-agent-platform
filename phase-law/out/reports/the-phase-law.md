@@ -9,7 +9,7 @@
 | --- | --- | --- | --- | --- | --- |
 | PL1 | the ENVELOPE THEOREM (closed form): every assignment's welfare is W_0(c) + λ·I(c) with I ∈ {0,1} — the optimal structure switches from uncoupled to coupled exactly at λ_opt* = max(0, U − C), U and C the best uncoupled/coupled linear welfares | envelope | worst switch deviation 0 (exactly) over sizes 2×3, 3×5, 6×8 × a 13-point λ grid: the closed form predicts the enumerated optimum's structure at every λ — a two-line theorem (capacity 1 makes the bonus fire exactly once per coupled assignment), machine-checked, no approximation | EXACT | W-A |
 | PL2 | the CROSS-IMPLEMENTATION ACCORD: this repo's independently written greedy / 1-exchange LS / SA reproduce the QuantumSched-Bench's record-track counts exactly — the v1.11 erratum is double-witnessed | accord | 6×8, λ=0.35, public seeds 500·k: greedy 2/5, local search 2/5, SA 3/5 — identical to the bench's independently implemented numbers (which live in the platform repo); two codebases, one referee (enumeration), zero divergence | EXACT | W-B |
-| PL3 | STABILITY IS NEVER LOST: at every λ the global optimum is itself a 1-exchange local optimum — the phase transition is not about the optimum becoming unstable | landscape | globalIsLocalOptimum true at λ ∈ {0, 0.3, 0.7, 1.5} on the COMPLETE landscapes of 3×4 (24 nodes) and 3×5 (60 nodes): the optimum is always reachable-and-stable; what changes is everything around it (PL4) | EXACT | W-C |
+| PL3 | STABILITY IS NEVER LOST: at every λ the global optimum is itself a 1-exchange local optimum — the phase transition is not about the optimum becoming unstable | landscape | globalIsLocalOptimum true at λ ∈ {0, 0.3, 0.7, 1.5} on the COMPLETE landscapes of 3×4 (24 nodes) and 3×5 (60 nodes) — since 2026-11-01 in FALSIFIABLE form: the optimum and all its 1-exchange neighbors are re-scored by the INDEPENDENT welfareOf path (the old same-array check was a tautology): the optimum is always reachable-and-stable; what changes is everything around it (PL4) | EXACT | W-C |
 | PL4 | the BASIN COLLAPSE: λ fragments the landscape — local optima multiply and the global optimum's steepest-descent basin shrinks — the transition is REACHABILITY, not stability | landscape | 3×4 seed 500: local optima 1 → 3 → 6 → 6 and global basin 100% → 75% → 29.2% → 25.0% at λ = 0 → 0.3 → 0.7 → 1.5 (exact on the enumerated 1-exchange graph); 3×5 same shape (1 → 3 → 6; 100% → 46.7% → 33.3% → 28.3%) — the mechanism under the heuristic wall, measured exactly | EXACT | W-C |
 | PL5 | the TWO-FACE LAW (census): the classical wall has two orthogonal faces — local search is COUPLING-FLAT but MATCHING-FRAGILE; simulated annealing is MATCHING-ROBUST but COUPLING-FRAGILE — they fail on different axes, and the record track sits at the axes' intersection | census | DATA, horizon: 6 sizes × 9 λ points × 20 public seeds (500·k, k=1..20), every optimum enumerated: LS hit rate at λ=0 decays with size 0.90 → 0.65 → 0.65 → 0.40 → 0.30 while its λ-response stays flat (|Δ| ≤ 0.10 at every size); SA at λ=0 stays ≥ 0.70 but crosses 50% in λ at 1.25 (4×6), 1.25 (5×7), 0.60 (6×8); greedy (coupling-blind) is flat-low everywhere. The bench's record numbers (2/5, 2/5, 3/5 at 6×8 λ=0.35) are exactly what two orthogonal failures predict | DATA | W-D |
 | PL6 | the pilot's non-monotone λ* was seed noise — the campaign resolves it (superseded by PL9) | census | DATA: at 20 seeds hit rates quantize to 0.05 and the crossings looked non-monotone (1.25, 1.25, 0.60); the 60-seed fine-grid campaign (PL9) finds them MONOTONE — this row stays as the record of the correction, not as the law | DATA | W-D |
@@ -36,10 +36,10 @@
 | 2×3 | greedy | 0.80 | 0.30 | 0.250 |
 | 2×3 | local-search | 0.80 | 0.85 | never |
 | 3×4 | anneal | 1.00 | 0.80 | never |
-| 3×5 | anneal | 1.00 | 0.50 | never |
 | 3×4 | greedy | 0.90 | 0.55 | never |
-| 3×5 | greedy | 0.65 | 0.35 | 0.050 |
 | 3×4 | local-search | 0.90 | 0.95 | never |
+| 3×5 | anneal | 1.00 | 0.50 | never |
+| 3×5 | greedy | 0.65 | 0.35 | 0.050 |
 | 3×5 | local-search | 0.65 | 0.60 | never |
 | 4×6 | anneal | 1.00 | 0.45 | 1.250 |
 | 4×6 | greedy | 0.65 | 0.25 | 0.050 |
@@ -170,7 +170,7 @@ Nothing above is reproduced or adopted as method: this repo proves only what it 
 
 ## Witnesses
 
-- **W-A**: PASS — envelope switch deviation 0 (exactly 0) over 2 sizes x 13 λ points
+- **W-A**: PASS — envelope switch deviation 0 (exactly 0) over 3 sizes x 13 λ points
 - **W-B**: PASS — accord 6x8 λ=0.35: greedy 2/5, LS 2/5, SA 3/5 — the bench's exact numbers (2/2/3); optima re-scored 5/5 against the independent scorer and the enumeration maximum
 - **W-C**: PASS — global optimum a local optimum at λ=0 and λ=1.5 (both sizes): true; basin halves or worse by λ=1.5: true
 - **W-D**: PASS — LS λ-flat true (0.60→0.70 at 3×5), LS matching-fragile true (0.60→0.40), SA coupling-fragile true (0.90→0.60 at 6×8)

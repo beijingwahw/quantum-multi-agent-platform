@@ -86,6 +86,11 @@ function main(): void {
     '',
     `Random search (${rand.samples} pure states): worst CKW slack (LHS−RHS) = ${rand.maxCkwSlack.toExponential(2)} ≤ 0 — the inequality never breaks.`,
     '',
+    // 2026-11-01 erratum: the 2×2 Hermitian determinant in concurrenceWithRest
+    // dropped Im(ρ01)², inflating C_ABC and artificially deflating the slack;
+    // the pre-fix published worst slack was −5.90e-3 (seed 7, 20000 states).
+    'Erratum 2026-11-01: the C_A(BC) determinant previously omitted Im(ρ01)², which inflated C_ABC and deflated the reported slack; the pre-fix value was −5.90e-3. All other rows are real-amplitude states and are unchanged.',
+    '',
     '## B. Double pledge: best min(C_BE1, C_BE2)',
     mdTable(
       ['method', 'best min C', 'ceiling'],

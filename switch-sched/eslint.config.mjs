@@ -3,7 +3,11 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['out/', 'node_modules/'],
+    // 2026-11-01 修复：dist/ 是 tsc 产物且已被 .gitignore 排除，但 eslint
+    // 默认不读 .gitignore —— 本地构建后 `eslint .` 会去 lint 编译产物并
+    // 常年退出 1（24 条既有红全部来自 stale dist）。编译产物不是手写代码，
+    // 进 ignores。
+    ignores: ['out/', 'node_modules/', 'dist/'],
   },
 
   // ---- 通用(所有文件):基础规则 + 环境全局 ----

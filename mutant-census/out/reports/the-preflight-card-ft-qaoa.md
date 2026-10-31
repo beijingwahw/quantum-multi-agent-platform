@@ -12,4 +12,4 @@
 | cat:statistics | 1 | b3#4 (b3) | BOOKED-UNENFORCEABLE | it is ~1e-17 — (1/sqrt(dim))^2 binary rounding; assert with 1e-12 tolerance |
 | cat:wrong-object | 1 | b3#0 (b3) | BOOKED-UNENFORCEABLE | the landscape oscillates — pure golden section locked 4/7 instances at <C> ~ 0; coarse log-grid global scan first, then local refine |
 
-Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-09-13T01:37:35.442Z; src tree newest 2026-09-13T01:35:09.259Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-10-31T22:42:00.169Z; src tree newest 2026-10-31T22:42:00.169Z — FRESH (the newest render postdates every source)

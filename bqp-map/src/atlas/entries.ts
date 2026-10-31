@@ -214,7 +214,9 @@ export const ATLAS: readonly AtlasEntry[] = [
     id: "nonstoq-anneal",
     problem: "Non-stoquastic annealing (+κ XX drivers)",
     family: "annealing",
-    classical: { cls: "NP-hard + simulation barrier", note: "sign structure blocks QMC-type classical sampling (measured: 46-52% negative amplitudes at n=64)" },
+    // 2026-11-01 勘误：nonstoq exp5 的 64 位采样修复后 n=64/κ=1 负分量 ~74%
+    //（旧 46-52% 出自 site≥32 int32 回绕的坏采样器）。
+    classical: { cls: "NP-hard + simulation barrier", note: "sign structure blocks QMC-type classical sampling (measured: ~74% negative amplitudes at n=64)" },
     quantumUpper: "annealing with genuinely quantum drivers",
     quantumLower: "verification class rises to QMA-complete families (KKR06) — and the sign barrier cuts BOTH ways: it also blocks classical simulation of the quantum dynamics",
     verdict: "VERIFICATION-GAP",

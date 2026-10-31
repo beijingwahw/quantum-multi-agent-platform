@@ -257,7 +257,10 @@ export function mutantFamily(spec: MutantSpec): Family {
         ...canon,
         conditionalOn: (rho, digit) => {
           const { conditional } = filterBasisDigit(rho, [2, 2], 0, digit);
-          const joint = rho.re[digit * 4 + 0]!; // joint element world=digit AND data=0 — the wrong denominator
+          // 2026-11-01 修复：索引原先取相干非对角元 ρ[digit][0]（digit*4+0，digit=1 时
+          // 落在 world=0 块内）；联合概率是对角元 |wd⟩⟨wd|，按埋葬记录 b21#0 的缺陷文本
+          // "the joint element P(control=g, data=0)" 从第一性原理重推：行=列=2*digit+0
+          const joint = rho.re[(2 * digit + 0) * 4 + (2 * digit + 0)]!; // joint element world=digit AND data=0 — the wrong denominator
           const out = mat(4, 4);
           for (let k = 0; k < out.re.length; k++) {
             out.re[k] = conditional.re[k]! / joint;

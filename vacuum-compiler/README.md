@@ -153,8 +153,10 @@ only; T ∈ [2,12].
   1 at every tick, TC6) and the thermodynamic certificate (TC12 zero net
   work on the ideal beat, TC14 the legislated tariff, TC17 the winner —
   the FK spectral-clock entry of that table is THIS repo's T4 static mode,
-  quoted); route-price v0.3.0 receipted it with independent cross-checks
-  (W-D/W-E, the tariff re-priced on its own netlist). This repo's own
+  quoted); route-price v0.4.0 receipted it with independent cross-checks
+  (W-D/W-E, the tariff re-priced on its own netlist; 2026-11-01 勘误：本句原引
+  route-price v0.3.0，该包已升至 v0.4.0，引文随之更正——W-E 见证人与其
+  0 < 5 < 9 < 43.02 序在 v0.4.0 中未变). This repo's own
   contribution is the third-path exact cross-check of T5 — read-only
   citations to the siblings' shipped certificates, no code import. The
   hardware face remains MI22's; no hardware claim is made here either.

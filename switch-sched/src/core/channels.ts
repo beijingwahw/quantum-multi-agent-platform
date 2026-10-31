@@ -101,7 +101,11 @@ export interface ReadoutOutcome {
 
 /**
  * Marginal distribution of the computational-basis readout of the given
- * subsystems. Outcome index is in little-endian order of `measure` as given.
+ * subsystems. Outcome index is in big-endian order of `measure` as given:
+ * measure[0] is the most significant digit, measure[last] the least.
+ * // 2026-11-01 修复：原文档写 "little-endian"，与实现相反——outStrides 给
+ * // measure 末位步长 1（最低位）、首位最大步长（最高位），例如 dims=[2,2]、
+ * // measure=[0,1] 时 |q0=0,q1=1⟩ → 概率落在下标 1（q0 为高位）。
  */
 export function marginalProbs(rho: CMat, dims: readonly number[], measure: readonly number[]): ReadoutOutcome {
   const m = dims.length;

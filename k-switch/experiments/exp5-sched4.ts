@@ -18,9 +18,11 @@ function run(): void {
   const best = Math.max(...r.fixed.map((f) => f.d));
   const dilution = r.switchD / Math.SQRT1_2;
 
-  // closed form for the switch mixture (derived in docs/theory.md §7):
-  // gamma=1 mixture = (2/3)|0><0| + (1/3)|1><1|, gamma=0 mixture = |-><-|
-  //   => T = sqrt( (1/6)^2 + (1/2)^2 ) = sqrt(10)/6
+  // closed form for the switch mixture (derived in docs/theory.md §6):
+  // 2026-11-01 修复：gamma=0 mixture 是 |+><+|（不是 |-><-|——那是 k=3 家族的
+  // 射线；|±> 射线上 X 只给相位，真正的交换者是 Z 与 Y，两交换者把 |+> 射线
+  // 换回自身）。gamma=1 mixture = (2/3)|0><0| + (1/3)|1><1|, gamma=0 = |+><+|
+  //   => T = sqrt( (1/6)^2 + (1/2)^2 ) = sqrt(10)/6 （两纯态保真度同为 1/2，值不变）
   const closed = Math.sqrt(10) / 6;
 
   const body =
@@ -46,8 +48,9 @@ function run(): void {
     `ANY definite order on scheduling primitives.\n\n` +
     `Hand-checkable: with exactly one erasure stage E and unitary writes, γ=1 branches ending in E give |0⟩⟨0|; ` +
     `branches with writes after E give the write-image of |0⟩⟨0| — the 24-order average is (2/3)|0⟩⟨0| + (1/3)|1⟩⟨1| ` +
-    `(16 of 24 branches end |0⟩), while every γ=0 branch is |−⟩⟨−| (the single Y flips |+⟩ to |−⟩ wherever it sits; ` +
-    `X/Z only phase). T(diag(2/3,1/3), |−⟩⟨−|) = √((1/6)² + (1/2)²) = √10/6 — matches the machine.\n`;
+    `(16 of 24 branches end |0⟩), while every γ=0 branch is |+⟩⟨+| (2026-11-01 勘误: 原文写 |−⟩⟨−|——射线约定 ` +
+    `写反；|±⟩ 射线上 X 只给相位，交换者是 Z 与 Y，两交换者把 |+⟩ 射线换回自身；|−⟩⟨−| 是 k=3 家族 ` +
+    `单一交换者 Z 的叙事). T(diag(2/3,1/3), |+⟩⟨+|) = √((1/6)² + (1/2)²) = √10/6 — matches the machine.\n`;
 
   if (fixedVals.size !== 1 || Math.abs(Number([...fixedVals][0]) - Math.SQRT1_2) > 1e-12) {
     throw new Error(`exp5: fixed orders not uniformly 1/sqrt(2): ${[...fixedVals].join(",")}`);

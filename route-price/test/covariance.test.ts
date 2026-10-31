@@ -297,6 +297,14 @@ test("the assembled certificate: all rows hold, ids exact, refusal face named", 
   );
   const bad2 = [E2(0, 0), E2(1, 1)] as unknown as BasisImages;
   assert.throws(() => bandViolations(bad2, "one-wire"), /COVARIANCE_SHAPE/);
+  // 2026-11-01 修复回归：锯齿内行（第 1 行短一截）此前只校验第 0 行而溜过校验，
+  // 之后在运算里抛出原始 TypeError/NaN —— 现在必须被具名拒绝
+  const jagged = [
+    [E2(0, 0), [[c(1), c(0)], [c(0)]] as unknown as Mat],
+    [E2(1, 0), E2(1, 1)],
+  ] as unknown as BasisImages;
+  assert.throws(() => applyBasisMap(jagged, E2(0, 0)), /COVARIANCE_SHAPE/);
+  assert.throws(() => bandViolations(jagged, "one-wire"), /COVARIANCE_SHAPE/);
 });
 
 test("determinism: the certificate and census are pure functions of nothing", () => {

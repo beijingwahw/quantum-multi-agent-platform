@@ -168,7 +168,8 @@ export function classicalCensus(): CensusResult {
     for (let j = 0; j < 16; j++) {
       const rB = strategyBits(j);
       const e = (ai: number, bj: number): number => {
-        // seed s uniform: E = (1/4) sum_s x(a_i,s) y(b_j,s) -> via table
+          // seed s uniform: E = (1/2) sum_{s=0,1} x(a_i,s) y(b_j,s) -> via table
+          // 2026-11-01 修复：原注释误作 1/4，代码（s/2，两个均匀种子）为正解
         let s = 0;
         for (let sd = 0; sd < 2; sd++) {
           const x = ai === 0 ? (sd === 0 ? rA[0] : rA[1]) : sd === 0 ? rA[2] : rA[3];

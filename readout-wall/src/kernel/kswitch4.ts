@@ -12,7 +12,10 @@
  * THE TASK SHEET'S FIRST READING WAS FALSIFIED (spec-as-assumption, R19 law
  * 11): T_tau is NOT a function of the conjugacy class — the 24 coefficients
  * take different values inside one class (max intra-class deviation 0.09375;
- * two 3-cycles carry a = 1/8 while three others carry 1/32). What IS true,
+ * 2026-11-01 修复：原文写 "two 3-cycles carry a = 1/8 while three others
+ * carry 1/32"——机器普查（K4_COEFFICIENTS 按类计数，测试逐项重推导）为
+ * 八个 3-循环里 **四个** a = 1/8、**四个** a = 1/32；2² 类与 4 类同样分裂
+ * （2²: 1/8 x1 / 1/32 x2；4: 1/8 x4 / 1/32 x2）。What IS true,
  * and what this module certifies:
  *
  *   THEOREM (machine, exact):

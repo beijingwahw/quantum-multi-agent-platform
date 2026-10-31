@@ -63,12 +63,16 @@ export function minimalPhaseQubits(eps: number): number {
   if (!(eps > 0 && eps < 1))
     reject("QRAM_ARG_RANGE", "eps in (0,1) for the payback model");
   let m = 3;
+  // 2026-11-01 修复：边界差一错误——原条件 m < 30 使搜索在 m=30 前停止，且出口守卫
+  // m >= 30 连"恰好在 m=30 可达"的 eps 一并拒绝；本层契约是 m ∈ [3,30] 闭区间
+  // （ampest.ts 的 AE_M_RANGE 与本函数自身的报错文案 "at m <= 30" 都确认含 30）。
+  // 改为 m <= 30（允许测试 m=30）与 m > 30（仅当 30 仍不够时才拒绝）
   while (
-    m < 30 &&
+    m <= 30 &&
     Math.max(...OFF_GRID_P_BANK.map((p) => qaeMedianError(p, m))) > eps
   )
     m++;
-  if (m >= 30)
+  if (m > 30)
     reject("QRAM_ARG_RANGE", "eps below the exact-QAE reach at m <= 30");
   return m;
 }

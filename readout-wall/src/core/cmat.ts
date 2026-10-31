@@ -481,6 +481,23 @@ export function colFrom(re: number[], im: number[]): CMat {
 
 export function reconstruct(h: CMat, values: Float64Array, vectors: CMat[]): CMat {
   const n = h.rows;
+  // 2026-11-01 修复：reconstruct 原对 λ ≤ 0 一律跳过——非正定（不定）Hermitian
+  // 输入的负谱被静默丢弃，"Σ λ vv† = H" 的重构契约悄然失真（eigHermitian 的
+  // 重构核对与 kswitch4 的本征值括号预算都建立在它之上）。现对超出容差
+  // （1e-9·谱尺度，与 eigHermitian 聚类容差同口径）的负本征值具名拒绝；
+  // 容差内的数值性微负（−1e-17 量级）仍按原样跳过。
+  let scale = 1e-30;
+  for (let m = 0; m < n; m++) scale = Math.max(scale, Math.abs(values[m]!));
+  const tol = 1e-9 * scale;
+  for (let m = 0; m < n; m++) {
+    const lam = values[m]!;
+    if (lam < -tol) {
+      refuse(
+        'RECONSTRUCT_NEGATIVE_EIGENVALUE',
+        `reconstruct: eigenvalue ${m} = ${lam.toExponential(4)} < -tol ${tol.toExponential(2)} — the spectrum is not PSD; summing only positive parts would silently break sum lam v v^dag = H`,
+      );
+    }
+  }
   const out = mat(n, n);
   for (let m = 0; m < n; m++) {
     const lam = values[m]!;

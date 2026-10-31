@@ -21,7 +21,7 @@ The calibration stage needs shot budgets before machine time. For each instance 
 
 ## The parameter-robustness census (X7)
 
-Coordinate perturbation grid (δ = 0.01/0.05/0.1/0.25 rad) around every offline optimum at the depths already used; dE± and discrete curvature (E⁺ − 2E* + E⁻)/δ² as data; the predicted degradation band is the exact observed rate at the band edges f ∈ [0.01, 0.05]. Anchors: f=0 → |ψ_opt|² exactly; f=1/2 → 1/2ⁿ exactly; agreement with the dry-run sampler within MC error (the exact expectation of X3's Monte Carlo). The band is model-conditional (synthetic flips) and labeled as such.
+Coordinate perturbation grid (δ = 0.01/0.05/0.1/0.25 rad) around every offline optimum at the depths already used; dE± and discrete curvature (E⁺ − 2E* + E⁻)/δ² as data; the predicted degradation band is the exact observed rate at the band edges f ∈ [0.01, 0.05]. Anchors: f=0 → |ψ_opt|² exactly; f=1/2 → 1/2ⁿ exactly; agreement with the dry-run sampler within MC error (the exact expectation of X3's Monte Carlo). The band is model-conditional (synthetic flips) and labeled as such. (2026-11-01 勘误：band 元组此前按 [fHi, fLo] 反序组装、与文档契约 [fLo, fHi] 相反，渲染端以列名悄悄补偿；现已修正为 [fLo, fHi]，数值不变、仅两端对调，报告已重新生成。)
 
 ## The falsifier sharpened (X8)
 

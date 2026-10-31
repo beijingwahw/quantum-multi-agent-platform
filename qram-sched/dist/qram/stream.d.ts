@@ -10,6 +10,7 @@
  * mean; the classical estimator is Monte Carlo sampling of the same stream.
  */
 import type { BucketBrigadeQram } from "./bucket.js";
+/** Amplitude-encoded stream state on address x bus (complex vector). */
 export interface StreamState {
     readonly re: Float64Array;
     readonly im: Float64Array;

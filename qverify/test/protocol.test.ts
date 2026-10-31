@@ -176,6 +176,40 @@ test('T3: game MC matches W = 1/2 + S/8 within 4σ (guards projector signs)', ()
   assert.ok(Math.abs(game.winRate - wFromS) < 4 * sigma, `win=${game.winRate} formula=${wFromS}`);
 });
 
+// 2026-11-01 修复回归：负 S 输入下 sign-normalization 必须翻转 Alice 的两
+// 个方向（a0 与 a1 一起），S' = −S；旧的只翻 a1 给出 e00+e01−e10+e11 ≠ −S。
+// Regression (2026-11-01 fix): for negative-S inputs the sign normalization must
+// flip BOTH of Alice's directions (S' = −S); flipping only a1 used to export
+// e00+e01−e10+e11, unrelated to |S| (0 instead of 2√2 for the singlet set below).
+test('T3: negative-S angle sets export |S| (sign flip negates all four correlations)', () => {
+  const singlet = fromVec(bellState('psi-'));
+  // QM correlations of the singlet, from first principles (not correlationT):
+  // ⟨σ_i ⊗ σ_j⟩ = −δ_ij ⟹ e(a,b) = −a·b
+  const eQm = (a: readonly number[], b: readonly number[]): number => -(a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!);
+  const dir = (t: number, p: number): number[] => [Math.sin(t) * Math.cos(p), Math.sin(t) * Math.sin(p), Math.cos(t)];
+  // negative-S sets: [θa0, φa0, θa1, φa1, θb0, φb0, θb1, φb1]
+  const sets: Array<{ angles: number[]; label: string }> = [
+    { label: 'optimal angles, S = −2√2', angles: [0, 0, Math.PI / 2, 0, Math.PI / 4, 0, Math.PI / 4, Math.PI] },
+    { label: 'suboptimal, S = −1', angles: [0, 0, Math.PI / 2, 0, Math.PI / 2, 0, Math.PI / 2, Math.PI / 2] },
+  ];
+  for (const { angles, label } of sets) {
+    const [a0, a1, b0, b1] = [dir(angles[0]!, angles[1]!), dir(angles[2]!, angles[3]!), dir(angles[4]!, angles[5]!), dir(angles[6]!, angles[7]!)];
+    const sQm = eQm(a0, b0) + eQm(a0, b1) + eQm(a1, b0) - eQm(a1, b1);
+    assert.ok(sQm < 0, `${label}: fixture must have negative S (got ${sQm})`);
+    const game = chshGame(singlet, angles, 40000, makeRng(0xC0FFEE));
+    assert.ok(Math.abs(game.sFromAngles - Math.abs(sQm)) < 1e-12, `${label}: exported ${game.sFromAngles} vs |S| ${Math.abs(sQm)}`);
+    assert.ok(game.sFromAngles > 0, `${label}: exported S must be positive`);
+    // the game actually realizes W = 1/2 + |S|/8 after the outcome relabeling
+    const wFromS = 0.5 + Math.abs(sQm) / 8;
+    const sigma = Math.sqrt((wFromS * (1 - wFromS)) / 40000);
+    assert.ok(Math.abs(game.winRate - wFromS) < 4 * sigma, `${label}: win=${game.winRate} formula=${wFromS}`);
+  }
+  // the discriminating anchor: for the first set the old one-angle flip
+  // exported e00+e01−e10+e11 = 0 instead of the true 2√2
+  const gameAnchor = chshGame(singlet, sets[0]!.angles, 1000, makeRng(1));
+  assert.ok(Math.abs(gameAnchor.sFromAngles - 2 * Math.SQRT2) < 1e-12, `anchor ${gameAnchor.sFromAngles} vs 2√2`);
+});
+
 test('T3: classical CHSH game optimum is exactly 3/4', () => {
   assert.ok(Math.abs(classicalGameWinRate() - 0.75) < 1e-12);
 });

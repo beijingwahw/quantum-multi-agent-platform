@@ -240,11 +240,11 @@ export function closedFormProductPayoff(coeff: WStarCoefficients, params: Strate
   let pB = 0;
   for (let a = 0; a < 2; a++) {
     const sharpA = alice.sharp[a] as number;
-    const axisZA = (alice.axis[a] as Axis)[2] as number;
-    const alphaA = (((alice.prep[a] as readonly Axis[])[0] as Axis)[2] as number) + (((alice.prep[a] as readonly Axis[])[1] as Axis)[2] as number);
+    const axisZA = (alice.axis[a] as Axis)[2];
+    const alphaA = (((alice.prep[a] as readonly Axis[])[0] as Axis)[2]) + (((alice.prep[a] as readonly Axis[])[1] as Axis)[2]);
     for (let b = 0; b < 2; b++) {
-      pA += 2 + coeff.c2 * (sharpA * (b === 0 ? 1 : -1) * axisZA) * ((bob.sharp[2 * b] as number) * ((bob.axis[2 * b] as Axis)[0] as number) * ((((bob.prep[2 * b] as readonly Axis[])[0] as Axis)[2] as number) - (((bob.prep[2 * b] as readonly Axis[])[1] as Axis)[2] as number))); // slot 2b = (b, b'=0); m_x = 1 in this family
-      pB += 2 + coeff.c1 * alphaA * ((bob.sharp[2 * b + 1] as number) * (a === 0 ? 1 : -1) * ((bob.axis[2 * b + 1] as Axis)[2] as number)); // slot 2b+1 = (b, b'=1)
+      pA += 2 + coeff.c2 * (sharpA * (b === 0 ? 1 : -1) * axisZA) * ((bob.sharp[2 * b] as number) * ((bob.axis[2 * b] as Axis)[0]) * ((((bob.prep[2 * b] as readonly Axis[])[0] as Axis)[2]) - (((bob.prep[2 * b] as readonly Axis[])[1] as Axis)[2]))); // slot 2b = (b, b'=0); m_x = 1 in this family
+      pB += 2 + coeff.c1 * alphaA * ((bob.sharp[2 * b + 1] as number) * (a === 0 ? 1 : -1) * ((bob.axis[2 * b + 1] as Axis)[2])); // slot 2b+1 = (b, b'=1)
     }
   }
   const pAlice = pA / 16;

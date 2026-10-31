@@ -128,6 +128,13 @@ export class SzegedyWalk {
     rowLen;
     sqrtP;
     flipEdge;
+    /** Per-edge swap partner (the (y,x) edge id) or -1 when x >= y — the
+     *  constructor's symmetric-support check guarantees the partner exists for
+     *  every x < y edge, so the step's Map lookup becomes an array read. */
+    swapWith;
+    /** marked.has(edgeX[e]) as a byte — markedProbability's per-edge Set probe
+     *  (first coordinate only; flipEdge stays the x-or-y oracle mask). */
+    firstMarked;
     steps = 0;
     constructor(chain, marked) {
         checkChainShape(chain);
@@ -145,6 +152,8 @@ export class SzegedyWalk {
         this.edgeY = new Int32Array(total);
         this.sqrtP = new Float64Array(total);
         this.flipEdge = new Uint8Array(total);
+        this.firstMarked = new Uint8Array(total);
+        this.swapWith = new Int32Array(total).fill(-1);
         this.edgeIdx = new Map();
         this.rowStart = new Int32Array(chain.n);
         this.rowLen = new Int32Array(chain.n);
@@ -166,9 +175,13 @@ export class SzegedyWalk {
         for (let e2 = 0; e2 < total; e2++) {
             const x = this.edgeX[e2];
             const y = this.edgeY[e2];
-            if (!this.edgeIdx.has(y * this.chain.n + x))
+            const partner = this.edgeIdx.get(y * this.chain.n + x);
+            if (partner === undefined)
                 reject("WALK_ASYMMETRIC_SUPPORT", "chain support must be symmetric");
             this.flipEdge[e2] = this.marked.has(x) || this.marked.has(y) ? 1 : 0;
+            this.firstMarked[e2] = this.marked.has(x) ? 1 : 0;
+            if (x < y)
+                this.swapWith[e2] = partner;
         }
     }
     get numEdges() {
@@ -196,12 +209,8 @@ export class SzegedyWalk {
         }
         // S: swap (x,y) <-> (y,x).
         for (let e = 0; e < this.edgeX.length; e++) {
-            const x = this.edgeX[e];
-            const y = this.edgeY[e];
-            if (x >= y)
-                continue;
-            const f = this.edgeIdx.get(y * this.chain.n + x);
-            if (f === undefined)
+            const f = this.swapWith[e];
+            if (f < 0)
                 continue;
             const tr = re[e];
             const ti = im[e];
@@ -230,7 +239,7 @@ export class SzegedyWalk {
     markedProbability(re, im) {
         let p = 0;
         for (let e = 0; e < this.edgeX.length; e++) {
-            if (this.marked.has(this.edgeX[e])) {
+            if (this.firstMarked[e] !== 0) {
                 const vr = re[e];
                 const vi = im[e];
                 p += vr * vr + vi * vi;

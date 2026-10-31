@@ -93,11 +93,13 @@ export interface DeepQaoaEstimate {
   readonly syndromeDataRateMbps: number;
 }
 
+// 2026-11-01 修复：分钟换算曾按 1 min = 1e9 us（偏差恰 16.67 倍），正确为 1 min = 6e7 us；
+// 小时阈值同步为 3.6e9 us（1 h，与小时的除数一致），秒/分钟边界为 6e7 us（1 min）。
 function humanTime(us: number): string {
   if (us < 1e3) return `${us.toFixed(1)} us`;
   if (us < 1e6) return `${(us / 1e3).toFixed(2)} ms`;
-  if (us < 1e9) return `${(us / 1e6).toFixed(2)} s`;
-  if (us < 1e12) return `${(us / 1e9).toFixed(2)} min`;
+  if (us < 6e7) return `${(us / 1e6).toFixed(2)} s`;
+  if (us < 3.6e9) return `${(us / 6e7).toFixed(2)} min`;
   return `${(us / 3.6e9).toFixed(2)} h`;
 }
 

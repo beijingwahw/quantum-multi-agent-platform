@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { matEq, mMul } from "../src/core/cmat.js";
 import { traceReal } from "../src/core/measures.js";
-import { concurrence, eF, pureFidelity } from "../src/kernel/clearing.js";
+import { makeRng } from "../src/core/rng.js";
+import { randomStateVec, vecToRho } from "../src/core/states.js";
+import { bellBasis, concurrence, eF, pureFidelity } from "../src/kernel/clearing.js";
 import {
   ghzCoin,
   withdrawToAB,
@@ -238,6 +240,35 @@ describe("T-TH2 the basis census — which bases withdraw a standard coin, and w
       worst <= 1e-12,
       `a numerical face reads theta (worst deviation ${worst})`,
     );
+  });
+});
+
+// 2026-11-01 修复回归：purePairCoherence 曾只读 Schmidt 对角元 2|ρ_{00,11}|，
+// 对一般纯对（如 |Ψ+⟩）返回 0；现在必须等于一般纯态并发度 2|ad − bc| = 2√(det ρ_A)。
+describe("T-TH2b the linear concurrence route holds for GENERAL pure pairs", () => {
+  it("|Psi+> prices concurrence 1 through the linear route (the |00><11| cell is exactly 0 there)", () => {
+    const psiPlus = vecToRho(bellBasis()[2]);
+    assert.ok(
+      Math.abs(psiPlus.re[0 * 4 + 3]!) <= 1e-15,
+      "precondition: |Psi+> has no |00><11| coherence",
+    );
+    assert.ok(Math.abs(purePairCoherence(psiPlus) - 1) <= 1e-12);
+  });
+
+  it("random general pure pairs: the linear route matches the Wootters solver at WOOT_TOL, products price 0", () => {
+    const rng = makeRng(205);
+    for (let t = 0; t < 20; t++) {
+      const rho = vecToRho(randomStateVec(rng, 4));
+      assert.ok(
+        Math.abs(purePairCoherence(rho) - concurrence(rho)) <= WOOT_TOL,
+        "linear route and Wootters solver disagree on a general pure pair",
+      );
+    }
+    const product = vecToRho(
+      // |0> (x) |1>: a pure PRODUCT pair must price exactly 0
+      { n: 4, re: Float64Array.from([0, 0, 0, 1]), im: new Float64Array(4) },
+    );
+    assert.strictEqual(purePairCoherence(product), 0);
   });
 });
 

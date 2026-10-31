@@ -1,3 +1,4 @@
+/** Complex state vector as separate real/imaginary parts. */
 export interface CxVec {
     readonly re: Float64Array;
     readonly im: Float64Array;

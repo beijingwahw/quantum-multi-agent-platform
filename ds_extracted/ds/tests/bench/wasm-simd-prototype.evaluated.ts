@@ -23,11 +23,19 @@ import { advanceCostKernel } from '../../src/core/fiber-kernel.js';
 import { mulberry32 } from '../../src/utils/rng.js';
 import { comparePaired } from './bench-kit.js';
 
-/** Node types（无 DOM lib）下的最小 WebAssembly 结构面 */
-const WA = globalThis as unknown as {
-  Module: new (bytes: Uint8Array) => unknown;
-  Instance: new (m: unknown, o: object) => { exports: Record<string, unknown> };
-};
+/** Node types（无 DOM lib）下的最小 WebAssembly 结构面。
+ * 2026-11-01 修复：旧版 `globalThis as { Module; Instance }` 是谎报形状——
+ * Node 的构造函数在 globalThis.WebAssembly 下，WA.Module 实为 undefined，
+ * 两个可执行测试全挂（WA.Module is not a constructor），本文件自评估以来
+ * 不可运行（.evaluated.ts 不进 CI glob 故无人发现）。 */
+const WA = (
+  globalThis as unknown as {
+    WebAssembly: {
+      Module: new (bytes: Uint8Array) => unknown;
+      Instance: new (m: unknown, o: object) => { exports: Record<string, unknown> };
+    };
+  }
+).WebAssembly;
 
 // ---------------------------------------------------------------------------
 // 极简 WASM 字节发射器（仅本模块所需指令）
@@ -98,11 +106,12 @@ const elemAddr = (baseParam: number, elemLocal: number): number[] => [
  * - memory pages（导出 "mem"）
  * - func advance (export "advance")：8 个 i32 参数
  *   [reOff, imOff, phReOff, phImOff, zReOff, zImOff, lo, hi]（元素单位）
- * - locals: 0=k(i32) 1=end2(i32) 2=nr(v128) 3=ni(v128)
+ * - locals: 8=k(i32) 9=end2(i32) 10=nr(v128) 11=ni(v128) 12=旧re(v128) 13=旧im(v128)
  * - 成对主循环 k=lo .. lo+2*floor((hi-lo)/2)，步长 2：
  *     nr = phRe·zRe − phIm·zIm；ni = phRe·zIm + phIm·zRe（f64x2 逐 lane）
  *     phRe←nr；phIm←ni
- *     re ← re·nr − im·ni；im ← re·ni + im·nr（re/im 重载自 L1）
+ *     旧值快照 12=re、13=im 后：re ← 旧re·nr − 旧im·ni；im ← 旧re·ni + 旧im·nr
+ *     （快照序与标量核 advanceCostKernel 的 r/iv 一致——逐位一致的前提）
  */
 export function buildAdvanceModule(pages: number): {
   bytes: Uint8Array;
@@ -125,11 +134,16 @@ export function buildAdvanceModule(pages: number): {
   const body: number[] = [];
   const stmt = (...parts: number[][]): void => parts.forEach((p) => body.push(...p));
 
-  // locals 声明：2×i32 + 2×v128
+  // locals 声明：2×i32 + 4×v128
+  // 2026-11-01 修复：新增局部 12=旧re 快照、13=旧im 快照——旧发射序在
+  // 存储 re 之后再重载 re 计算 im（im = 新re·ni + 旧im·nr），与标量核
+  // advanceCostKernel 的 r/iv 旧值快照序不同，多步递推链逐位发散（原
+  // skip 注释自认"im 公式的 re 快照序修正未完成验证"）。快照后两式
+  // 与标量核逐操作同序：re=oldRe·nr−oldIm·ni；im=oldRe·ni+oldIm·nr。
   stmt(
     vec([
       [0x02, I32],
-      [0x02, V128],
+      [0x04, V128],
     ]),
   );
   // k(局部0) = lo(参数6)
@@ -160,29 +174,28 @@ export function buildAdvanceModule(pages: number): {
     // phRe[k] = nr ; phIm[k] = ni
     stmt(elemAddr(2, 8), OP.localGet(10), OP.v128Store);
     stmt(elemAddr(3, 8), OP.localGet(11), OP.v128Store);
-    // re[k] = re[k]*nr - im[k]*ni —— v128.store 栈序 [地址, 值]：地址先行
+    // 旧值快照（对齐标量核的 const r = re[k] / const iv = im[k]）
+    stmt(elemAddr(0, 8), OP.v128Load, OP.localSet(12));
+    stmt(elemAddr(1, 8), OP.v128Load, OP.localSet(13));
+    // re[k] = oldRe·nr − oldIm·ni —— v128.store 栈序 [地址, 值]：地址先行
     stmt(
       elemAddr(0, 8),
-      elemAddr(0, 8),
-      OP.v128Load,
+      OP.localGet(12),
       OP.localGet(10),
       OP.f64x2Mul,
-      elemAddr(1, 8),
-      OP.v128Load,
+      OP.localGet(13),
       OP.localGet(11),
       OP.f64x2Mul,
       OP.f64x2Sub,
       OP.v128Store,
     );
-    // im[k] = re[k]*ni + im[k]*nr（re 重载，L1 热）
+    // im[k] = oldRe·ni + oldIm·nr（旧值快照序，与标量核逐位一致）
     stmt(
       elemAddr(1, 8),
-      elemAddr(0, 8),
-      OP.v128Load,
+      OP.localGet(12),
       OP.localGet(11),
       OP.f64x2Mul,
-      elemAddr(1, 8),
-      OP.v128Load,
+      OP.localGet(13),
       OP.localGet(10),
       OP.f64x2Mul,
       OP.f64x2Add,
@@ -263,58 +276,54 @@ describe('WASM f64x2 SIMD 原型（advanceCostKernel 数据级并行评估）', 
     assert.equal(typeof exports.advance, 'function');
   });
 
-  it(
-    '位级等价：WASM 成对推进与 TS 标量逐位一致（单步 + 20 步递推链）',
-    {
-      skip: '原型评估遗留：多步链上仍存数值分歧（im 公式的 re 快照序修正未完成验证）——但 A/B 裁决已三测一致（WASM 慢 2-3×，CI 干净），路线判定为不可采纳，等价性对采纳决策已无影响；单步诊断已证地址与执行正确。留档待后续兴趣修复。',
-    },
-    () => {
-      const dim = 16384; // 缩小诊断规模；A/B 基准仍用全量 DIM
-      const { exports } = buildAdvanceModule(Math.ceil((dim * 6 * 8) / 65536) + 1);
-      const mem = exports.mem.buffer;
-      const seg = (i: number): Float64Array => new Float64Array(mem, i * dim * 8, dim);
-      const wRe = seg(0);
-      const wIm = seg(1);
-      const wPhRe = seg(2);
-      const wPhIm = seg(3);
-      const wZRe = seg(4);
-      const wZIm = seg(5);
-      const jsRe = new Float64Array(dim);
-      const jsIm = new Float64Array(dim);
-      const jsPhRe = new Float64Array(dim);
-      const jsPhIm = new Float64Array(dim);
-      const jsZRe = new Float64Array(dim);
-      const jsZIm = new Float64Array(dim);
-      seedInto(jsRe, jsIm, jsPhRe, jsPhIm, jsZRe, jsZIm, 20260906);
-      wRe.set(jsRe);
-      wIm.set(jsIm);
-      wPhRe.set(jsPhRe);
-      wPhIm.set(jsPhIm);
-      wZRe.set(jsZRe);
-      wZIm.set(jsZIm);
+  it('位级等价：WASM 成对推进与 TS 标量逐位一致（单步 + 20 步递推链）', () => {
+    // 2026-11-01：解除 skip——发射器已改旧值快照序（局部 12/13），与标量核
+    // 的 r/iv 快照逐操作同序；本测试现在真实执行并逐位断言。
+    const dim = 16384; // 缩小诊断规模；A/B 基准仍用全量 DIM
+    const { exports } = buildAdvanceModule(Math.ceil((dim * 6 * 8) / 65536) + 1);
+    const mem = exports.mem.buffer;
+    const seg = (i: number): Float64Array => new Float64Array(mem, i * dim * 8, dim);
+    const wRe = seg(0);
+    const wIm = seg(1);
+    const wPhRe = seg(2);
+    const wPhIm = seg(3);
+    const wZRe = seg(4);
+    const wZIm = seg(5);
+    const jsRe = new Float64Array(dim);
+    const jsIm = new Float64Array(dim);
+    const jsPhRe = new Float64Array(dim);
+    const jsPhIm = new Float64Array(dim);
+    const jsZRe = new Float64Array(dim);
+    const jsZIm = new Float64Array(dim);
+    seedInto(jsRe, jsIm, jsPhRe, jsPhIm, jsZRe, jsZIm, 20260906);
+    wRe.set(jsRe);
+    wIm.set(jsIm);
+    wPhRe.set(jsPhRe);
+    wPhIm.set(jsPhIm);
+    wZRe.set(jsZRe);
+    wZIm.set(jsZIm);
 
-      for (let step = 0; step < 20; step++) {
-        exports.advance(0, dim, 2 * dim, 3 * dim, 4 * dim, 5 * dim, 0, dim);
-        advanceCostKernel(jsRe, jsIm, jsPhRe, jsPhIm, jsZRe, jsZIm, 0, dim);
+    for (let step = 0; step < 20; step++) {
+      exports.advance(0, dim, 2 * dim, 3 * dim, 4 * dim, 5 * dim, 0, dim);
+      advanceCostKernel(jsRe, jsIm, jsPhRe, jsPhIm, jsZRe, jsZIm, 0, dim);
+    }
+    // 逐元素比较（deepEqual 对大 TypedArray 是 O(n²)，16K 元素即 ~60s——
+    // 这正是本测试曾"挂起"的真相：不是 wasm 死循环，是比较器复杂度）
+    const pairs: Array<[string, Float64Array, Float64Array]> = [
+      ['re', jsRe, wRe],
+      ['im', jsIm, wIm],
+      ['phRe', jsPhRe, wPhRe],
+      ['phIm', jsPhIm, wPhIm],
+    ];
+    for (const [name, js, w] of pairs) {
+      for (let k = 0; k < js.length; k++) {
+        assert.ok(
+          js[k]! === w[k]!,
+          `WASM 与 TS 逐位一致破坏：${name}[${k}] js=${js[k]!} wasm=${w[k]!}（20 步递推链）`,
+        );
       }
-      // 逐元素比较（deepEqual 对大 TypedArray 是 O(n²)，16K 元素即 ~60s——
-      // 这正是本测试曾"挂起"的真相：不是 wasm 死循环，是比较器复杂度）
-      const pairs: Array<[string, Float64Array, Float64Array]> = [
-        ['re', jsRe, wRe],
-        ['im', jsIm, wIm],
-        ['phRe', jsPhRe, wPhRe],
-        ['phIm', jsPhIm, wPhIm],
-      ];
-      for (const [name, js, w] of pairs) {
-        for (let k = 0; k < js.length; k++) {
-          assert.ok(
-            js[k]! === w[k]!,
-            `WASM 与 TS 逐位一致破坏：${name}[${k}] js=${js[k]!} wasm=${w[k]!}（20 步递推链）`,
-          );
-        }
-      }
-    },
-  );
+    }
+  });
 
   it('A/B：WASM SIMD 对 TS 标量的内核级裁决（A/A 控制当次效度）', (t) => {
     const pages = Math.ceil((DIM * 6 * 8) / 65536) + 1;
@@ -364,12 +373,16 @@ describe('WASM f64x2 SIMD 原型（advanceCostKernel 数据级并行评估）', 
       t.skip(`测量环境敌对，本轮不判：${report.note}`);
       return;
     }
-    // 裁决如实入档：无论方向，效应与 CI 写进 note；本断言只锁定
-    // 「结果可信」——效度已由 A/A 与位级等价锚定，方向交给数据。
+    // 裁决如实入档：无论方向，效应与 CI 写进 note。2026-11-01 修复：旧
+    // 断言（verdict ∈ 三值枚举）在 inconclusive 早退后恒真、零判别力；
+    // 改为锁 note 携带可核对的量化内容（比率/CI 数字），裁决证据可审计。
     assert.ok(
-      report.verdict === 'b-faster' ||
+      (report.verdict === 'b-faster' ||
         report.verdict === 'b-slower' ||
-        report.verdict === 'no-difference',
+        report.verdict === 'no-difference') &&
+        /\d/.test(report.note) &&
+        report.note.length > 0,
+      `裁决 note 缺量化证据：verdict=${report.verdict} note=${report.note}`,
     );
     console.log(`[wasm-simd-verdict] ${report.note}`);
   });

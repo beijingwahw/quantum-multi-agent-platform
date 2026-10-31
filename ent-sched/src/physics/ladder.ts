@@ -136,7 +136,9 @@ export function saturationLadder(F0: number, slots: number): Float64Array {
 
 /**
  * Independent road for L3: the s-slot steady state simulated as the limit of
- * the champion iterating against a frozen (s−1)-slot supply level.
+ * the champion iterating against a frozen (s−1)-slot supply level. The
+ * degenerate s=1 ladder has no supply subsystem and no gaps to fuse across,
+ * so its steady state is exactly S₁ = F₀ (the composition's identity).
  */
 export function saturationLadderSim(
   F0: number,
@@ -144,6 +146,10 @@ export function saturationLadderSim(
   iterations = 5000,
 ): number {
   const closed = saturationLadder(F0, slots); // validates the arguments too
+  // 2026-11-01 修复：slots=1（校验器明示接受）时 closed[slots-2]=closed[-1] 读出
+  // undefined，NaN 击穿全部物理性比较守卫并从导出 API 静默泄漏；单槽阶梯没有
+  // (s−1) 槽供给层，稳态就是 S₁ = F₀ 本身（复合的恒等元，直接早退）。
+  if (slots === 1) return closed[0] as number;
   const supply = closed[slots - 2] as number;
   let champ = supply;
   for (let i = 0; i < iterations; i++) champ = wernerComposite(champ, supply);

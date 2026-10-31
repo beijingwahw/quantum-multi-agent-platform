@@ -24,9 +24,32 @@
 import { Rng } from "../core/rng.js";
 import { reject } from "../core/errors.js";
 import { qaeDistribution, qaeEstimate, qaeQueries } from "../ae/ampest.js";
-/** Draw one amplitude-estimation outcome for true amplitude p with m phase qubits, from the exact distribution. */
+/**
+ * Draw one amplitude-estimation outcome for true amplitude p with m phase
+ * qubits, from the exact distribution.
+ *
+ * The distribution is a pure function of (p, m), and a staged run re-asks the
+ * same (p, m) for every seed — the memo returns the identical Float64Array
+ * (read-only here; qaeDistribution itself still hands fresh arrays to direct
+ * callers), so seeds beyond the first reuse the first computation's exact
+ * doubles. Bounded: k arms x (mMax - mStart + 1) stages.
+ */
+const qaeDistCache = new Map();
+function cachedQaeDistribution(p, m) {
+    let byM = qaeDistCache.get(p);
+    if (byM === undefined) {
+        byM = new Map();
+        qaeDistCache.set(p, byM);
+    }
+    let dist = byM.get(m);
+    if (dist === undefined) {
+        dist = qaeDistribution(p, m);
+        byM.set(m, dist);
+    }
+    return dist;
+}
 export function sampleQae(p, m, rng) {
-    const dist = qaeDistribution(p, m);
+    const dist = cachedQaeDistribution(p, m);
     const u = rng.next();
     let acc = 0;
     for (let j = 0; j < dist.length; j++) {

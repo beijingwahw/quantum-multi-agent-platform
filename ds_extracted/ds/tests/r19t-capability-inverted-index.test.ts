@@ -269,6 +269,12 @@ describe('R19-T · ② 探针计数（性能主张的确定性度量，零墙钟
     assert.equal(stats.candidateProbes, 20); // 命中任务各 1（最短 posting 长 1），未命中 0
     assert.equal(stats.membershipEvaluations, 0); // R=1 → 0 次附加成员检查
     assert.equal(scanReplicaAgentVisits(tasks, agents), 40 * 60); // 原版恰 2400
+    // 2026-11-01 补：标题声称"严格少于 T·A"，旧版两条各记各数、从未交叉
+    // 断言——把"索引探针 < 原版扫描"用同一实例的两计数钉死。
+    assert.ok(
+      stats.candidateProbes < scanReplicaAgentVisits(tasks, agents),
+      `索引探针 ${stats.candidateProbes} 应严格少于原版扫描 2400`,
+    );
     // 全部命中任务判 schedulable-now（证人＝对应 agent）
     for (let i = 0; i < 20; i++) {
       assert.equal(verdicts.find((v) => v.task === `hit${i}`)?.classification, 'schedulable-now');

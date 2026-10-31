@@ -50,7 +50,11 @@ export function main(): void {
   lines.push("");
 
   // B. Random banks: ordering + ratio floors.
-  lines.push("## B. Random Erdos-Renyi banks: RANKING >= greedy, ratio floors");
+  // 2026-11-01 修复：标题原宣称 "RANKING >= greedy"，与本节数据矛盾——n=16 行
+  // (greedy 0.8721 vs RANKING 0.8542) 与 n=256 行 (0.8538 vs 0.8515) 中 RANKING
+  // 均落后，仅 n=64 微弱领先；下文 nuance 段落早已如实写明两者在随机族上
+  // 统计不可区分、逐实例排序不是定理。标题改为与数据一致的中性表述
+  lines.push("## B. Random Erdos-Renyi banks: RANKING vs greedy-uniform (statistically indistinguishable), ratio floors");
   lines.push("");
   const rowsB: string[][] = [];
   for (const n of [16, 64, 256]) {

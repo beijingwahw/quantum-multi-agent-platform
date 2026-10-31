@@ -11,6 +11,7 @@ import {
   pSub,
   pSubstRat,
   pVar,
+  pZero,
   rCmp,
   rMul,
   rStr,
@@ -35,6 +36,18 @@ describe("T9-A the chain closes on the uncoupled quartic family (v = tau^3 a - a
       const cls = q.qClassifyPayment(f, p, s0);
       assert.equal(cls.kind, "gauge", `readoff carries own-report monomials, n=${n}`);
       pAssertZero(pSub(q.qGrovesFormResidual(f, p), q.qDefaultGaugeH(f)), `[G] residual == gauge n=${n}`);
+      // Direct anchor (2026-11-01): W_-i at the efficient allocation x_j = o_j
+      // is EXACTLY (3/4) sum o^4, built here independently of qwMinusI — the
+      // old missing-×x_j bug returned sum(o^3 - o^4/4) and every downstream
+      // residual cancelled it; this pin would have caught it.
+      {
+        let expected = pZero(f.vars);
+        for (let j = 0; j < f.n - 1; j++) {
+          const oj = pVar(f.vars, 2 + j);
+          expected = pAdd(expected, pScale(pMul(pMul(oj, oj), pMul(oj, oj)), rat(3, 4)));
+        }
+        pAssertZero(pSub(q.qwMinusI(f), expected), `[W] W_-i == (3/4) sum o^4 n=${n}`);
+      }
     });
   }
 

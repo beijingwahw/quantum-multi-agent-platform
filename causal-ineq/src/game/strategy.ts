@@ -459,24 +459,28 @@ export function hillClimb(
   const cachedParams = (): StrategyParams => {
     for (let slot = 0; slot < 6; slot++) {
       const o = slot * NUMS_PER_SLOT;
-      const m = memo[slot] as SlotMemo | undefined;
-      if (
-        m === undefined ||
-        m.input[0] !== (v[o] as number) ||
-        m.input[1] !== (v[o + 1] as number) ||
-        m.input[2] !== (v[o + 2] as number) ||
-        m.input[3] !== (v[o + 3] as number) ||
-        m.input[4] !== (v[o + 4] as number) ||
-        m.input[5] !== (v[o + 5] as number) ||
-        m.input[6] !== (v[o + 6] as number) ||
-        m.input[7] !== (v[o + 7] as number) ||
-        m.input[8] !== (v[o + 8] as number) ||
-        m.input[9] !== (v[o + 9] as number)
-      ) {
+      const m = memo[slot];
+      // 2026-11-01 修复 lint：`m === undefined || m.input[0] !== …` 触发
+      // prefer-optional-chain —— 改为提前分支（语义不变：m 缺失或输入不
+      // 匹配都重算 sanitizeSlot）。
+      const stale =
+        m === undefined
+          ? true
+          : m.input[0] !== (v[o] as number) ||
+            m.input[1] !== (v[o + 1] as number) ||
+            m.input[2] !== (v[o + 2] as number) ||
+            m.input[3] !== (v[o + 3] as number) ||
+            m.input[4] !== (v[o + 4] as number) ||
+            m.input[5] !== (v[o + 5] as number) ||
+            m.input[6] !== (v[o + 6] as number) ||
+            m.input[7] !== (v[o + 7] as number) ||
+            m.input[8] !== (v[o + 8] as number) ||
+            m.input[9] !== (v[o + 9] as number);
+      if (stale) {
         memo[slot] = sanitizeSlot(v, slot);
       }
     }
-    const s = memo as SlotMemo[];
+    const s = memo;
     return {
       alice: { axis: [s[0]!.axis, s[1]!.axis], sharp: [s[0]!.sharp, s[1]!.sharp], prep: [s[0]!.prep, s[1]!.prep] },
       bob: { axis: [s[2]!.axis, s[3]!.axis, s[4]!.axis, s[5]!.axis], sharp: [s[2]!.sharp, s[3]!.sharp, s[4]!.sharp, s[5]!.sharp], prep: [s[2]!.prep, s[3]!.prep, s[4]!.prep, s[5]!.prep] },

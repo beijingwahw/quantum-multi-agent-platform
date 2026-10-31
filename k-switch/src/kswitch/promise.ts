@@ -104,27 +104,25 @@ export function interleavedDistinguishability(
   rng: Rng,
 ): number {
   const d = 4;
-  const lift = (u2: CMat): CMat => cmatKron(u2, I2); // act on system qubit 0
-  const psiA = randomState(rng, d);
-  const psiB = randomState(rng, d);
-  let a = psiA;
-  let b = psiB;
+  // 2026-11-01 修正 ×2（对齐 k=4 姊妹 interleavedDistinguishability4 的形）：
+  // (1) 同一输入、同一组 W —— 旧版对两个不同随机输入态取 max，首项（不同
+  //     输入穿过不同序）几乎恒 ≈1，把诚实的同输入探针完全淹没；
+  // (2) boxes 已是 4×4 联合系统算符（commutingTriple 等返回 kron 好的），
+  //     旧 lift = kron(u2, I2) 得 8×8，被 applyUnitaryToState 静默截断到
+  //     左上 4×4 块（非幺正）——直接作用才是被探的电路类。
+  const psi = randomState(rng, d);
   const w = [randomUnitary(rng, d), randomUnitary(rng, d), randomUnitary(rng, d), randomUnitary(rng, d)];
-  const seq = [w[0]!, lift(boxesA[order[0]]!), w[1]!, lift(boxesA[order[1]]!), w[2]!, lift(boxesA[order[2]]!), w[3]!];
-  const seqB = [w[0]!, lift(boxesB[order[0]]!), w[1]!, lift(boxesB[order[1]]!), w[2]!, lift(boxesB[order[2]]!), w[3]!];
-  // NOTE: same W's and same initial-state index structure — the distinguisher measures
-  // the output pair; optimal measurement distinguishes the two output states up to T.
-  for (const u of seq) a = applyUnitaryToState(u, a);
-  for (const u of seqB) b = applyUnitaryToState(u, b);
-  // The distinguisher may choose |psiA> freely; we give the classes their best
-  // shot by taking max over "same input" (the honest probe: outputs from the
-  // SAME input state through the two promise channels).
-  const same = randomState(rng, d);
-  let a2 = same;
-  let b2 = same;
-  for (const u of seq) a2 = applyUnitaryToState(u, a2);
-  for (const u of seqB) b2 = applyUnitaryToState(u, b2);
-  return Math.max(pureTraceDistance(a, b), pureTraceDistance(a2, b2));
+  const evolve = (boxes: readonly [CMat, CMat, CMat]): { re: number[]; im: number[] } => {
+    let s = psi;
+    s = applyUnitaryToState(w[0]!, s);
+    s = applyUnitaryToState(boxes[order[0]]!, s);
+    s = applyUnitaryToState(w[1]!, s);
+    s = applyUnitaryToState(boxes[order[1]]!, s);
+    s = applyUnitaryToState(w[2]!, s);
+    s = applyUnitaryToState(boxes[order[2]]!, s);
+    return applyUnitaryToState(w[3]!, s);
+  };
+  return pureTraceDistance(evolve(boxesA), evolve(boxesB));
 }
 
 /** Random d-dim unitary via a few Givens-like layers (sufficient randomness for spot checks). */
@@ -154,6 +152,10 @@ function givens(d: number, p: number, q: number, c: number, s: number, phi: numb
   g.re[p]![q] = -s * Math.cos(phi);
   g.im[p]![q] = -s * Math.sin(phi);
   g.re[q]![p] = s * Math.cos(phi);
-  g.im[q]![p] = s * Math.sin(phi);
+  // 2026-11-01 修复：复 Givens 须共轭配对（[[c, −s·e^{iφ}], [s·e^{−iφ}, c]]
+  // 才幺正）；旧 +s·sin(phi) 给出 s·e^{+iφ}，单层 max|U†U−I| 可达 1.0，
+  // randomUnitary 三层组合后达 2.3 —— interleavedDistinguishability 的
+  // 输出（及已发布的 exp1/exp3 "max distinguishability"）曾是非物理数。
+  g.im[q]![p] = -s * Math.sin(phi);
   return g;
 }

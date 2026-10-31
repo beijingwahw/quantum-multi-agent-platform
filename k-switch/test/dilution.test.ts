@@ -55,6 +55,10 @@ describe("T8 the dilution family law D_k (G6-b, v0.6.0)", () => {
     assert.ok(Math.abs(d4.dFloat - Math.sqrt(10) / 6) < 1e-15);
     // the k=4 dilution ratio is sqrt(5)/3, the README's constant
     assert.ok(Math.abs(d4.dFloat * Math.SQRT2 - Math.sqrt(5) / 3) < 1e-15);
+    // 2026-11-01 修复回归钉：qNum/qDen 必须是最简分数（契约 "lowest terms"）。
+    // 修复前 d3 返回未约分的 3/6、d4 返回 8/24；修复后 1/2、1/3。
+    assert.deepEqual([d3.qNum, d3.qDen], [1n, 2n]);
+    assert.deepEqual([d4.qNum, d4.qDen], [1n, 3n]);
   });
 
   it("(DL-c) the trichotomy is exact on the swept F x K grid (K cancels, F decides)", () => {

@@ -395,7 +395,7 @@
       "family": "annealing",
       "classical": {
         "cls": "NP-hard + simulation barrier",
-        "note": "sign structure blocks QMC-type classical sampling (measured: 46-52% negative amplitudes at n=64)"
+        "note": "sign structure blocks QMC-type classical sampling (measured: ~74% negative amplitudes at n=64)"
       },
       "quantumUpper": "annealing with genuinely quantum drivers",
       "quantumLower": "verification class rises to QMA-complete families (KKR06) — and the sign barrier cuts BOTH ways: it also blocks classical simulation of the quantum dynamics",

@@ -207,7 +207,12 @@ export function verifySharedRandom(weights: readonly number[]): SharedRandomVerd
 // Sampled quantum battery — pairwise Bell / Werner sharing (exact Born rule).
 // ---------------------------------------------------------------------------
 
-/** Qubit k's owner: pairs (0,1),(1,2),(2,0) on qubits 0..5; party i holds q_{2i mod 6}, q_{2i+3 mod 6}. */
+// 2026-11-01 修复：原注释公式 "party i holds q_{2i mod 6}, q_{2i+3 mod 6}" 与
+// 数据矛盾（那会给出 {0,3}/{2,5}/{4,1}，既不符 OWNERS 也不符 HELD_QUBITS）。
+// 真实布局：pair (i, i+1 mod 3) 占据量子比特 {2i, 2i+1}——party i 留 q_{2i}，
+// party i+1 留 q_{2i+1}；等价地 party i 持有 q_{2i mod 6} 与 q_{(2i+5) mod 6}
+// （= q_{(2i−1) mod 6}，即 pair (i−1, i) 的第二个比特）。OWNERS[k]=⌈k/2⌉ mod 3。
+/** Qubit k's owner: pairs (0,1),(1,2),(2,0) on qubits 0..5; party i holds q_{2i mod 6}, q_{(2i+5) mod 6}. */
 const OWNERS = [0, 1, 1, 2, 2, 0] as const;
 /** The two qubits each party measures (b_i = XOR of their outcomes). */
 const HELD_QUBITS: ReadonlyArray<readonly [number, number]> = [[0, 5], [1, 2], [3, 4]];

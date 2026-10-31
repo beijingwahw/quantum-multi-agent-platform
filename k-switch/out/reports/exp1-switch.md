@@ -8,7 +8,7 @@
 
 **D. plain fixed-order blindness is structural**: every one of the 6 orders, on both canonical instances and a random Pauli-type anticommuting triple, outputs the input up to a global phase — max trace distance 2.11e-8. Commuting triples have order-independent products; anticommuting Pauli triples have products +-c·I. The promise classes are invisible to this whole circuit class.
 
-**E. interleaved spot check** (sampling probe, NOT a proof): random unitaries interleaved between the queries, 8 seeds: max distinguishability 1.000000. The general statement — fixed-order circuits need quadratically more queries — is ARA14's theorem, cited.
+**E. interleaved spot check** (sampling probe, NOT a proof): random unitaries interleaved between the queries, 8 seeds: max distinguishability 0.978871. The general statement — fixed-order circuits need quadratically more queries — is ARA14's theorem, cited.
 
 | quantity | value | anchor |
 | --- | --- | --- |

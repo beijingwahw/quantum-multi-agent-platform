@@ -18,8 +18,8 @@
  *       family is QMA-complete (KKR06). The sign structure is precisely what
  *       lifts the verification class from StoqMA towards QMA, and it is the
  *       same sign structure that builds the classical-simulation barrier
- *       measured in nonstoq-anneal (exp5: 46-52% negative amplitudes at
- *       n=64).
+ *       measured in nonstoq-anneal (exp5: ~74% negative amplitudes at n=64;
+ *       2026-11-01 勘误——旧 46-52% 出自 site≥32 int32 回绕的坏采样器).
  *
  * Both statements are executed below as exact dense-matrix checks with
  * closed-form anchors: maxOffDiag(stoq) = -Gamma and maxOffDiag(nonstoq) =

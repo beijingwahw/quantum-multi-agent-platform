@@ -154,6 +154,16 @@ function checkShape(images: BasisImages): number {
           `basis image is ${m.length}×${m[0]?.length ?? "-"}, expected ${n}×${n}`,
         );
       }
+      // 2026-11-01 修复：锯齿内行（各内行长度不一）此前只校验第 0 行的长度，
+      // 会通过校验并在后续运算中抛出原始 TypeError 或产生 NaN —— 现逐行校验并具名报错。
+      for (let r = 0; r < m.length; r++) {
+        if ((m[r] as readonly C[]).length !== n) {
+          throw new LinAlgError(
+            "COVARIANCE_SHAPE",
+            `basis image inner row ${r} has length ${(m[r] as readonly C[]).length}, expected ${n} (jagged inner row)`,
+          );
+        }
+      }
     }
   }
   return n;

@@ -9,9 +9,9 @@
 | --- | --- | --- | --- | --- |
 | cat:conjugation | 2 | b13#4 (b13) | GATE-ENFORCED | the Kraus is |v><j| with amplitude exactly 1 — the v_j factor cut trace preservation to 2/3; every hand-built Kraus family passes a sum K+ K = I self-check |
 | cat:dimension-slot | 2 | b13#2 (b13) | GATE-ENFORCED | tensor product is kron, not matrix multiplication — both 'look runnable' at 2x2; the shape error is the only warning |
-| cat:anchor-blindspot | 1 | b13#3 (b13) | GATE-ENFORCED | the copy drops the imaginary part — d=2 Pauli (all real) is immune, d=3 complex phases expose it (batch 9 recurring); multi-dimensional anchors from the first batch |
-| cat:machine-overruled | 1 | b13#7 (b13) | GATE-ENFORCED | both wrong (T = 1/2, chi = H2(1/4) - 1/2) — fix the anchor, not the machine; three-way comparison (derivation / machine / consistency), whoever is right wins |
+| cat:anchor-blindspot | 1 | b13#3 (b13) | BOOKED-UNENFORCEABLE | the copy drops the imaginary part — d=2 Pauli (all real) is immune, d=3 complex phases expose it (batch 9 recurring); multi-dimensional anchors from the first batch |
+| cat:machine-overruled | 1 | b13#7 (b13) | BOOKED-UNENFORCEABLE | both wrong (T = 1/2, chi = H2(1/4) - 1/2) — fix the anchor, not the machine; three-way comparison (derivation / machine / consistency), whoever is right wins |
 | cat:wrong-object | 1 | b13#5 (b13) | BOOKED-UNENFORCEABLE | coherent control makes global phase visible (kickback) — each strategy class needs its own pair; (X,Z) vs (ZX,I) (equal matrix products) is the coherent class's deceiver |
 | shell-template-heredoc | 1 | b13#6 (b13) | BOOKED-UNENFORCEABLE | the double-escaped \n split strings into two lines — typecheck after every batch patch; complex patches go through the Edit tool |
 
-Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-09-12T21:22:17.670Z; src tree newest 2026-09-12T21:21:51.573Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-10-31T22:54:47.309Z; src tree newest 2026-10-31T22:42:00.200Z — FRESH (the newest render postdates every source)

@@ -32,7 +32,14 @@ test("etc replay: zero exploration regret, queries = k * N", () => {
   const run = etcRun(means, 20000, 300, 7, "replay");
   const commitArm = run.decisions[19999] as number;
   assert.equal(run.oracleReads, 4 * 300);
-  assert.ok(Math.abs(run.regret - 20000 * (0.6 - (means[commitArm] as number)) + 300 * 4 * 0) < 1e-9 || run.regret >= 0);
+  // 2026-11-01 修复：原断言 `... < 1e-9 || run.regret >= 0` 的第二析取支恒真
+  // （regret 是相对最优臂的累计差，恒 >= 0），整条断言空洞；且系数误写为
+  // 20000——replay 模式下探索的 1200 步不付 regret 也不占 plays（etcRun 的 mode
+  // 契约），提交项的步数是 T − k·N = 18800。测试要钉的正是标题声称的
+  // "zero exploration regret"：总 regret 恰等于提交项 (T − k·N)·(μ* − μ_commit)，
+  // 探索阶段贡献严格为 0（若探索开始付 regret，本 seed 下 regret 会变为
+  // 300·[(0.6-0.6)+(0.6-0.5)+(0.6-0.45)+(0.6-0.4)] = 135 ≠ 0，断言即失败）
+  assert.ok(Math.abs(run.regret - (20000 - 4 * 300) * (0.6 - (means[commitArm] as number))) < 1e-9);
   assert.equal(run.plays, 20000 - 1200);
 });
 

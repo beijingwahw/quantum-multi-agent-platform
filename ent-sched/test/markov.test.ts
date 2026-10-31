@@ -91,7 +91,10 @@ describe("exact DTMC referee vs engine (2-link, M=1, swap-asap)", () => {
     );
   });
 
-  it("DTMC sanity: rate = q·π(both full); q=0 → 0; p=1 → q/2 regime", () => {
+  // 2026-11-01 修复：原标题写 "p=1 → q/2 regime"，但断言的值是 rate=1——
+  // p=1 时补充与交换发生在同一轮（尝试→融合→交付），平稳态 π(both full)=1，
+  // 故速率 = q·1 = q（q=1 时每轮恰好一次交付），并非 q/2。标题改为与断言一致。
+  it("DTMC sanity: rate = q·π(both full); q=0 → 0; p=1 → q regime (refill and swap same round)", () => {
     const zero = twoLinkChain({ p1: 0.25, p2: 0.45, qSwap: 0, f01: 0.99, f02: 0.99 });
     ok(zero.deliveryRate === 0);
     const fast = twoLinkChain({ p1: 1, p2: 1, qSwap: 1, f01: 1, f02: 1 });

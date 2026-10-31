@@ -22,7 +22,7 @@ for (const d of [0.1, 0.2, 0.3]) {
 // TC19: chain lifetimes n=6, threshold 0.5
 const t0 = Date.now();
 const rows = chainLifetimeCensus(6, [0.1, 0.15, 0.2, 0.3, 0.4], 1500, 0.5);
-console.log(`TC19 census in ${((Date.now() - t0) / 1000).toFixed(1)}s (kMax 3000)`);
+console.log(`TC19 census in ${((Date.now() - t0) / 1000).toFixed(1)}s (kMax 1500)`); // 2026-11-01 修复：原打印误作 3000，实际运行为 1500
 for (const r of rows) {
   const sup = r.tauChain > 0 ? (r.tauChain / r.tauIso).toFixed(1) + "x" : "still-locked";
   console.log(

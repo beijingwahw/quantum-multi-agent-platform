@@ -364,3 +364,64 @@ describe("E14 — certificate divergence: the {0, ½} spectrum dies first, the v
     assert.ok(s.spectrumBroken);
   });
 });
+
+describe("E14 q2Sign regression — the same-sign norm<0 quadrant (2026-11-01)", () => {
+  it("q2Sign(1+√2) = +1 (was −1 before the fix); every quadrant agrees with the float mirror", () => {
+    // 2026-11-01 修复回归：a、b 同号且 |b|√2 > |a|（norm<0）时旧实现返回 sign(a)·sign(norm)
+    // 恰好差一个负号 —— 1+√2 ≈ 2.414 > 0 却被判为 −1。同号象限符号必为 sign(a)。
+    assert.equal(q2Sign(q2(F(1n), F(1n))), 1); // 1+√2：曾错判 −1
+    assert.equal(q2Sign(q2(F(-1n), F(-1n))), -1); // −(1+√2)
+    assert.equal(q2Sign(q2(F(2n), F(1n))), 1); // 2+√2：同号但 norm>0（旧代码碰巧也对）
+    assert.equal(q2Sign(q2(F(1n), F(-1n))), -1); // 1−√2 ≈ −0.414：异号，norm<0
+    assert.equal(q2Sign(q2(F(-1n), F(1n))), 1); // √2−1 ≈ 0.414：异号，norm<0
+    assert.equal(q2Sign(q2(F(2n), F(-1n))), 1); // 2−√2：异号，norm>0
+    assert.equal(q2Sign(q2(F(-2n), F(1n))), -1); // −2+√2：异号，norm>0
+    // 单分量端点分支不变
+    assert.equal(q2Sign(q2(F(0n), F(-3n))), -1);
+    assert.equal(q2Sign(q2(F(-5n), F(0n))), -1);
+    assert.equal(q2Sign(q2(F(0n), F(0n))), 0);
+    // 全象限与浮点镜像一致
+    for (const [a, b] of [
+      [1n, 1n],
+      [-1n, -1n],
+      [2n, 1n],
+      [1n, -1n],
+      [-1n, 1n],
+      [3n, -2n],
+      [-7n, 5n],
+      [10n, 9n],
+      [-10n, -9n],
+    ] as const) {
+      const exact = q2Sign(q2(frac(a), frac(b)));
+      const mirror = Math.sign(Number(a) + Number(b) * Math.SQRT2);
+      assert.equal(
+        exact,
+        mirror,
+        `q2Sign(${a}+(${b})√2) must match the float mirror ${mirror}`,
+      );
+    }
+  });
+
+  it("the sole production caller keeps its verdicts: p_W* - cap is opposite-sign (a<0<b) at every positive weight", () => {
+    // 验证修复未改变调用侧行为：p_W* = S/2 + (S/4)·√2（S = c1+c2），而 cap > S/2 严格成立，
+    // 故 p_W* − cap 的 a 分量 < 0、b 分量 > 0 —— 恒为异号象限，新旧实现在该象限判号一致。
+    for (const [n1, d1, n2, d2] of [
+      [1n, 1n, 1n, 1n],
+      [1n, 1n, 1n, 2n],
+      [3n, 7n, 5n, 11n],
+      [2n, 13n, 9n, 10n],
+    ] as const) {
+      const c1 = F(n1, d1);
+      const c2 = F(n2, d2);
+      const diff = q2Sub(exactWstarPayoff(c1, c2), q2(exactCap(c1, c2), F(0n)));
+      // a 分量严格为负、b 分量严格为正（异号象限）
+      assert.ok(fToNumber(diff.a) < 0, "p_W* - cap 的 a 分量必须为负");
+      assert.ok(fToNumber(diff.b) > 0, "p_W* - cap 的 b 分量必须为正");
+      assert.equal(
+        q2Sign(diff),
+        Math.sign(q2ToNumber(exactWstarPayoff(c1, c2)) - fToNumber(exactCap(c1, c2))),
+        `weights ${n1}/${d1}, ${n2}/${d2}: 判号与浮点镜像一致`,
+      );
+    }
+  });
+});

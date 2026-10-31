@@ -97,16 +97,20 @@ export function runWitnesses(): WitnessResult[] {
 
   // W-A — the envelope theorem
   {
+    // 2026-11-01 修复：PL1 的 price 文本声称 2×3, 3×5, **6×8** 三档视界，
+    // 旧证人只跑前两档 —— 补上 6×8（枚举 P(8,6)=20160 × 13 个 λ 点），
+    // 证人与告示牌同一视界。
     const sizes: Array<[number, number]> = [
       [2, 3],
       [3, 5],
+      [6, 8],
     ];
     let worst = 0;
     for (const [m, n] of sizes) worst = Math.max(worst, envelopeCheck(m, n, 1500, grid).worstSwitchDeviation);
     out.push({
       witness: "W-A",
       ok: worst === 0,
-      detail: `envelope switch deviation ${worst} (exactly 0) over 2 sizes x ${grid.length} λ points`,
+      detail: `envelope switch deviation ${worst} (exactly 0) over ${sizes.length} sizes x ${grid.length} λ points`,
     });
   }
 

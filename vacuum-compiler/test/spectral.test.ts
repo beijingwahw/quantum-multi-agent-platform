@@ -14,6 +14,7 @@ import {
   certifyTiltedSpectrum,
   isolateRoots,
   jacobiCharacteristicPoly,
+  sturmCountRootsIn,
   sturmCountRootsUpTo,
   tiltedChain,
   tiltedChainDiagonals,
@@ -180,6 +181,21 @@ describe("T8 the tilted spectrum: three-term recurrence + Sturm certificate (F16
       assert.ok(ratFloat(cert.e0) <= ratFloat(cert.sandwich.upper) + 1e-12);
       assert.ok(ratFloat(cert.e0) >= ratFloat(cert.sandwich.lower) - 1e-12);
     }
+  });
+
+  it("(SP-c 回归) open-interval counting is exact when an endpoint is itself a root (2026-11-01)", () => {
+    // 2026-11-01 修复回归：下端点是根时旧的 `+ rootAtA` 项多数一根（如 x²−1 的 (−1, 2) 得 2）。
+    // 半开约定：count(a,b) = #(≤b) − #(≤a) − [b 是根]。
+    const x2m1 = [q(-1n, 1n), q(0n, 1n), q(1n, 1n)]; // x² − 1，根 −1、1
+    assert.equal(sturmCountRootsIn(x2m1, q(-1n, 1n), q(1n, 1n)), 0); // 两端都是根
+    assert.equal(sturmCountRootsIn(x2m1, q(-1n, 1n), q(2n, 1n)), 1); // 下端点是根（曾得 2）
+    assert.equal(sturmCountRootsIn(x2m1, q(-2n, 1n), q(1n, 1n)), 1); // 上端点是根
+    assert.equal(sturmCountRootsIn(x2m1, q(-2n, 1n), q(2n, 1n)), 2); // 端点都不是根
+    const cubic = [q(6n, 1n), q(-7n, 1n), q(0n, 1n), q(1n, 1n)]; // x³ − 7x + 6，根 −3、1、2
+    assert.equal(sturmCountRootsIn(cubic, q(1n, 1n), q(2n, 1n)), 0); // 两端都是根
+    assert.equal(sturmCountRootsIn(cubic, q(1n, 1n), q(5n, 1n)), 1); // 下端点是根（曾得 2）
+    assert.equal(sturmCountRootsIn(cubic, q(-4n, 1n), q(1n, 1n)), 1); // 上端点是根
+    assert.equal(sturmCountRootsIn(cubic, q(-4n, 1n), q(5n, 1n)), 3); // 三个根全在开区间内
   });
 
   it("(SP-c) E0 strictly decreasing and the T-end capture a_T - E0 strictly decreasing across the grid", () => {

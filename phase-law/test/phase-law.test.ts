@@ -440,7 +440,10 @@ describe("determinism and the frozen artifact", () => {
     // git itself normalizes away).
     const report = readFileSync(resolve(process.cwd(), "out", "reports", "the-phase-law.md"), "utf8").replace(/\r\n/g, "\n");
     const sha = createHash("sha256").update(report).digest("hex");
-    assert.equal(sha, "4505735910191f842a07489812f5148739c3db38d0f5df8cc319f53806d4dec8");
+    // 2026-11-01 有意识重钉：PL3 price 文本改为可证伪形（独立 welfareOf 重打分）
+    // 与 census 比较器 m→n→solver 修正是刻意变更，报告已重渲染，按本测试的
+    // 规约"deliberate digit change must re-render AND consciously update this pin"。
+    assert.equal(sha, "c88eb1cf703b570ce75a147d2409af0c264154d8515cdafb267204d709c6c0a3");
     assert.ok(report.length > 10000, "the report body is present, not a stub");
   });
 });

@@ -322,13 +322,21 @@ export function wallFluxJump(): { jump: Poly; expected: Poly; ok: boolean } {
 }
 
 /** The piecewise charge: interior block -(s-t)^2/4, wall-to-wall block 0,
- * cross block (true type interior, report walled) -(t-w+1)^2/4. */
+ * cross block (true type interior, report walled) -(t-w+1)^2/4, and — since
+ * 2026-11-01 — the FOURTH block (true type WALLED, report interior)
+ * (s-w+1)(t-w+1)/2 - (s-w+1)^2/4, strictly negative off the kink: the walled
+ * type's truthful counterfactual is the WALL x=0, not the interior formula
+ * extrapolated to x_int(t)=(t-w+1)/2 (the unconstrained maximizer of Phi_t —
+ * using it UNDERSTATES the deviation gain, i.e. yields a lower bound where
+ * the DSIC certificate needs an upper bound). */
 export function wallChargeBlocks(): {
   interior: Poly;
   interiorClosedForm: Poly;
   wallBlock: Poly;
   crossBlock: Poly;
   crossClosedForm: Poly;
+  crossBlock2: Poly;
+  cross2ClosedForm: Poly;
   allOk: boolean;
 } {
   const inside = wallInteriorPatch();
@@ -344,16 +352,24 @@ export function wallChargeBlocks(): {
   const crossBlock = pSub(wallPhi(walled), pSubst(phiInside, 0, t));
   const m = pAdd(pSub(t, w), pConst(KINK_VARS, R1));
   const crossClosedForm = pScale(pMul(m, m), rat(-1, 4));
+  // 2026-11-01 新增第四块：报告内部（s > w-1）、真类型 walled（t <= w-1）。
+  // 真值对照 = Φ_walled(t)（墙 x=0 处的势），非 interior 外推。
+  const crossBlock2 = pSub(phiInside, pSubst(wallPhi(walled), 0, t));
+  const ms = pAdd(pSub(s, w), pConst(KINK_VARS, R1));
+  const cross2ClosedForm = pSub(pScale(pMul(ms, m), rat(1, 2)), pScale(pMul(ms, ms), rat(1, 4)));
   return {
     interior,
     interiorClosedForm,
     wallBlock,
     crossBlock,
     crossClosedForm,
+    crossBlock2,
+    cross2ClosedForm,
     allOk:
       pIsZero(pSub(interior, interiorClosedForm)) &&
       pIsZero(wallBlock) &&
-      pIsZero(pSub(crossBlock, crossClosedForm)),
+      pIsZero(pSub(crossBlock, crossClosedForm)) &&
+      pIsZero(pSub(crossBlock2, cross2ClosedForm)),
   };
 }
 
@@ -367,16 +383,19 @@ export function wallGridWitness(wVal: Rat, steps: number): {
   worst: Rat;
   worstInteriorOff: Rat;
   worstCross: Rat;
+  worstCross2: Rat;
   flatPairs: number;
 } {
   const blocks = wallChargeBlocks();
   const interior = blocks.interior;
   const crossBlock = blocks.crossBlock;
+  const crossBlock2 = blocks.crossBlock2;
   const walledPhi = wallPhi(wallWallPatch());
   const walledBlock = pSub(walledPhi, pSubst(walledPhi, 0, pVar(KINK_VARS, 1)));
   let worst = R0;
   let worstInteriorOff = rat(-1);
   let worstCross = rat(-1);
+  let worstCross2 = rat(-1);
   let flatPairs = 0;
   const point: Rat[] = [R0, R0, wVal];
   const width = rSub(WALL_HI, WALL_LO);
@@ -390,7 +409,15 @@ export function wallGridWitness(wVal: Rat, steps: number): {
       const sInside = rCmp(sv, sStar) > 0;
       const tInside = rCmp(tv, sStar) > 0;
       let g: Rat;
-      if (sInside) {
+      if (sInside && !tInside) {
+        // 2026-11-01 修复：报告内部、真类型 walled 的格点（如 s=2,t=1，
+        // w=5/2 的已发布网格内实际存在）旧走 interior 公式——把 walled 真
+        // 类型的对照写成 interior 外推 x_int(t)，而 x_int(t) 恰是 Φ_t 的
+        // 无约束极大点，旧值是该格点增益的**下界**；DSIC 证书所需的上界
+        // 从未被评估（该格点类被“认证”是空洞的）。改用第四块真对照
+        // Φ_walled(t)（墙 x=0）。
+        g = pEval(crossBlock2, point);
+      } else if (sInside) {
         g = pEval(interior, point);
       } else if (tInside) {
         g = pEval(crossBlock, point);
@@ -400,10 +427,11 @@ export function wallGridWitness(wVal: Rat, steps: number): {
       if (rCmp(g, worst) > 0) worst = g;
       if (sInside && tInside && i !== kk && rCmp(g, worstInteriorOff) > 0) worstInteriorOff = g;
       if (!sInside && tInside && rCmp(tv, sStar) !== 0 && rCmp(g, worstCross) > 0) worstCross = g;
+      if (sInside && !tInside && rCmp(sv, sStar) !== 0 && rCmp(g, worstCross2) > 0) worstCross2 = g;
       if (i !== kk && !sInside && !tInside && rCmp(g, R0) === 0) flatPairs++;
     }
   }
-  return { worst, worstInteriorOff, worstCross, flatPairs };
+  return { worst, worstInteriorOff, worstCross, worstCross2, flatPairs };
 }
 
 /** Interior-patch [I] readoff for the wall family: the integrand

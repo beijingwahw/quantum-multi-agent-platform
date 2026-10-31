@@ -76,10 +76,17 @@ function allocErasedKraus(eps: number): CMat[] {
   const keep = Math.sqrt(1 - eps);
   for (const K of base) kraus.push(mMul(mScale(K, keep), identity(D)));
   const erase = Math.sqrt(eps);
+  // 2026-11-01 修复：原代码把 M 擦除到 |0⟩（行 idx(0,t)），与三处文档
+  // （文件头、本函数注释、行内注释）及仓库 replacer 家族约定（擦除到均匀
+  // |v⟩，chanlib.replacerKraus）不符。现对齐为均匀 |+⟩_M = |v_{DM}⟩。
+  // 擦除目标在迹距离差中严格相消，全部断言定律（D(switch)=(1−ε)/4、ε=1
+  // 全闭合）与表数值不变（重建后逐位核对过）。
+  const amp = 1 / Math.sqrt(DM);
   for (let j = 0; j < DM; j++) {
     // E_j = |+⟩⟨j|_M ⊗ I_T — replacer Kraus, amplitude 1 (Σ_j E_j†E_j = I)
     const E = mat(D, D);
-    for (let t = 0; t < DT; t++) E.re[idx(0, t) * D + idx(j, t)] = 1;
+    for (let m = 0; m < DM; m++)
+      for (let t = 0; t < DT; t++) E.re[idx(m, t) * D + idx(j, t)] = amp;
     for (const K of base) kraus.push(mMul(mScale(E, erase), K));
   }
   return kraus;

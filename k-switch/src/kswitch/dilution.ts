@@ -280,6 +280,22 @@ function isPlaneWrite(w: string): w is PlaneWrite {
   return w === "X" || w === "Z" || w === "Y";
 }
 
+// 2026-11-01 修复：qNum/qDen 原样返回 N1/k! 未约分，违反 DilutionClosedForm
+// 契约 "q = N1/k! in lowest terms is qNum/qDen"（trichotomyCell 的 LawRow 同病：
+// 注释写 "(N1/k! reduced)"）。现以 BigInt 欧几里得 gcd 真正约到最简；所有
+// 既有消费者（测试、审计 reason 文案）均为交叉相乘或数值比较，对约分不敏感。
+/** BigInt gcd (Euclid); gcd(0, n) = n so q = 0 reduces to 0/1. */
+function bigGcd(a: bigint, b: bigint): bigint {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x;
+}
+
 /** The erasure-position sum and the closed form for a write family. */
 export function dilutionClosedForm(
   writes: readonly PlaneWrite[],
@@ -312,14 +328,17 @@ export function dilutionClosedForm(
   const dSqNum = diff * diff + kFact * kFact;
   const dSqDen = 4n * kFact * kFact;
   const q = Number(N1) / Number(kFact);
+  // 2026-11-01 修复：qNum/qDen 归约到最简（契约 "in lowest terms"）——
+  // 例：k=4 的 {X,Z,Y} 家族 N1/k! = 8/24 → 1/3，而非未约分的 8/24。
+  const g = bigGcd(N1, kFact);
   return {
     k,
     F,
     K,
     N1,
     kFact,
-    qNum: N1,
-    qDen: kFact,
+    qNum: N1 / g,
+    qDen: kFact / g,
     dSqNum,
     dSqDen,
     dFloat: Math.sqrt(0.25 + (q - 0.5) ** 2),
@@ -376,8 +395,10 @@ export function trichotomyCell(F: number, K: number): LawRow {
   return {
     F,
     K,
-    qNum: cf.N1,
-    qDen: cf.kFact,
+    // 2026-11-01 修复：与 dilutionClosedForm 同步——LawRow 契约 "(N1/k!
+    // reduced)"，qNum/qDen 取约分后的 cf.qNum/cf.qDen（交叉相乘判等不变）。
+    qNum: cf.qNum,
+    qDen: cf.qDen,
     lawNum,
     lawDen,
     agrees: cf.N1 * lawDen === lawNum * cf.kFact,

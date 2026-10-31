@@ -10,6 +10,7 @@
  * facts are cross-checked against full-space Grover simulation in the tests.
  */
 import type { Rng } from "../core/rng.js";
+/** One search outcome: the chosen index (-1 = none found) and the oracle reads charged for it. */
 export interface SearchResult {
     readonly index: number;
     readonly reads: number;

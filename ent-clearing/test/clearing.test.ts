@@ -28,6 +28,7 @@ import {
   h2,
   h2ViaLn,
   mintByGate,
+  mutualInformationBits,
   netWeakCoin,
   PHI_PLUS,
   pureFidelity,
@@ -128,6 +129,32 @@ describe("T2 the clearing machinery", () => {
       }
     }
     assert.ok(Math.abs(d.mutualInformation - 2) <= 1e-12);
+  });
+
+  // 2026-11-01 修复回归：MI 的输出边际 px 必须取 decode 的列和（对消息平均）。
+  // 旧的行和实现把 px 钉死在 [1/4]×4、H(Y) 钉死在 2 比特——置换信道（理想解码）
+  // 碰巧无恙，任何非置换解码信道都会被错误定价。
+  it("MI on a NON-permutation channel: the outcome marginal is the column sum, H(Y) is not pinned at 2 bits", () => {
+    // three noisy messages collapse onto the first two outcomes, one is clean.
+    // Row sums are each 1 (conditional distributions); the true marginal is the
+    // column sum [0.375, 0.375, 0.25, 0], so H(Y) < 2 and MI < 1.25.
+    const decode: ReadonlyArray<readonly number[]> = [
+      [0.5, 0.5, 0, 0],
+      [0.5, 0.5, 0, 0],
+      [0.5, 0.5, 0, 0],
+      [0, 0, 1, 0],
+    ];
+    const px = [0.375, 0.375, 0.25, 0];
+    const hy = px.reduce((s, p) => s - (p > 0 ? p * Math.log2(p) : 0), 0);
+    const hyGivenM = 0.75; // (1 + 1 + 1 + 0) / 4
+    const mi = mutualInformationBits(decode);
+    assert.ok(Math.abs(mi - (hy - hyGivenM)) <= 1e-12, "MI must be H(Y) - H(Y|M) of this channel");
+    assert.ok(Math.abs(mi - 0.8112781244591329) <= 1e-12, "hand-derived MI of this channel");
+    // the row-sum bug priced this channel at exactly 2 - 0.75 = 1.25 bits
+    assert.ok(Math.abs(mi - 1.25) > 1e-6, "the column-sum marginal must move MI off the pinned value");
+    // the ideal (permutation) decode still prices exactly 2 bits
+    const perm = [0, 1, 2, 3].map((k) => [0, 1, 2, 3].map((j) => (j === k ? 1 : 0)));
+    assert.ok(Math.abs(mutualInformationBits(perm) - 2) <= 1e-12);
   });
 
   it("the reverse quote returns the coin: post-decode concurrence exactly 1 (catalyst, not fuel)", () => {
@@ -480,6 +507,20 @@ describe("T8 smuggling trials round two — contraband in the new tables is reje
     }).find((v) => v.law === "H6");
     assert.ok(hit, "expected an H6 violation");
     assert.match(hit.detail, /misquoted/);
+  });
+
+  // 2026-11-01 修复回归：伪造的 family 名必须按词表点名拒绝——
+  // 此前一切非 "WERNER" 的名字被静默折叠进 DEPOL，从未被点名定罪。
+  it("H6: a forged family name is rejected by name, never silently folded into DEPOL", () => {
+    const hits = smuggleYield((rows) => {
+      yieldRow(rows, "Y-W85-4").family = "WERNER-X" as MutableYieldRow["family"];
+    });
+    const hit = hits.find((v) => v.law === "H6" && /illegal yield family/.test(v.detail));
+    assert.ok(hit, "expected a forged-family violation");
+    assert.match(hit.detail, /WERNER-X/);
+    assert.match(hit.detail, /DEPOL/);
+    // and the clean table still passes
+    assert.deepEqual(checkYieldTable(), []);
   });
 
   it("H7: a fake conservation identity is rejected by recomputation and named", () => {

@@ -93,14 +93,18 @@ export function qxOwn(f: Family): Poly {
   return pVar(f.vars, f.sIdx);
 }
 
-/** Others' welfare at the efficient allocation: sum (o^3*o - o^4/4). */
+/** Others' welfare at the efficient allocation: sum (o^3*x - x^4/4) with
+ * x_j = o_j (each other takes their own report), i.e. (3/4) sum o^4. */
 export function qwMinusI(f: Family): Poly {
   let w = pZero(f.vars);
   for (let j = 0; j < f.n - 1; j++) {
     const oj = pVar(f.vars, 2 + j);
     const oj3 = pMul(oj, pMul(oj, oj));
     const xj4 = pMul(pMul(oj, oj), pMul(oj, oj));
-    w = pAdd(w, pSub(oj3, pScale(xj4, rat(1, 4))));
+    // 2026-11-01 修复：立方项缺 ×x_j（= o_j），旧式返回 Σ(o^3 − o^4/4) 而
+    // 非所记家族的 Σ(o^4 − o^4/4) —— 误差仅含 o、与 s 无关，恰好从全部
+    // 残差与偏差增益中抵消，使 qGrovesPayment 静默错值而测试全绿。
+    w = pAdd(w, pSub(pMul(oj3, oj), pScale(xj4, rat(1, 4))));
   }
   return w;
 }

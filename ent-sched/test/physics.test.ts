@@ -150,10 +150,16 @@ describe("purification (BBPSSW) vs density-matrix referee", () => {
   });
 
   it("twirled purification: circuit referee agrees on non-Werner inputs (regression guard)", () => {
-    // the exact distribution left behind by a first purification round
-    const once = purify2to1(werner(0.85), werner(0.85)).out;
+    // 2026-11-01 修复：purify2to1 的输出恒为 twirl 后的 Werner 态，原 fixture
+    // 实际从未喂入非 Werner 输入。改用未 twirl 的第一轮纯化电路输出——误差
+    // 集中于 Z 扇区（λ₁ = 2Fw/P ≫ w′，见 docs/theory.md §2），真正非 Werner。
+    const once = refereePurify(0.85, 0.85).vec;
     ok(Math.abs(once[0]! - 0.8841) < 1e-3, `once ${once[0]!}`);
-    ok(Math.abs(once[1]! - 0.1037) > 1e-4, `non-Werner λ1 ${once[1]!}`);
+    ok(Math.abs(once[1]! - 0.1037) < 1e-3, `non-Werner λ1 ${once[1]!}`);
+    ok(
+      once[1]! - wernerWeight(once[0]!) > 1e-2,
+      `λ1 ${once[1]!} must sit far above the Werner weight ${wernerWeight(once[0]!)}`
+    );
     // without twirl this pairing regressed F 0.884 → 0.850; with the protocol
     // twirl on both sides it must improve
     const ref = refereePurifyTwirled(once, werner(0.85));

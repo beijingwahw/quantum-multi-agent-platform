@@ -85,7 +85,7 @@
   "results": [
     {
       "scenarioId": "cpu-bposd-1u",
-      "utilization": 1125,
+      "utilization": 7875,
       "maxBacklogRounds": 159856,
       "p95BacklogRounds": 151872,
       "maxEndToEndDelayUs": 163923.9375092499,
@@ -93,7 +93,7 @@
       "extrapolatedDrainUs": null,
       "simulatedWindows": 20000,
       "totalWindows": 76800,
-      "unitsPerBlock": 1,
+      "unitsPerBlock": 0,
       "servicePerWindowUs": 9000,
       "arrivalPerWindowUs": 8
     },

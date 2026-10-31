@@ -205,7 +205,11 @@ export function q2Sign(x: Q2): number {
   const norm = fSub(fMul(x.a, x.a), fMul(frac(2n), fMul(x.b, x.b)));
   const sn = fCmp(norm, ZERO);
   if (sn === 0) return 0; // unreachable for irrational √2 unless a = b = 0
-  return fCmp(x.a, ZERO) * sn;
+  // 2026-11-01 修复：a、b 同号且 norm<0（|b|√2 > |a|，如 1+√2）时旧代码返回 sign(a)·sign(norm)
+  // 得到错误符号 —— 同号时两项不会相消，符号必为 sign(a)；异号时模长大者定号：
+  // norm>0 → |a| > |b|√2 → sign(a)，norm<0 → |b|√2 > |a| → sign(b)。
+  if ((fCmp(x.a, ZERO) > 0) === (fCmp(x.b, ZERO) > 0)) return fCmp(x.a, ZERO);
+  return sn > 0 ? fCmp(x.a, ZERO) : fCmp(x.b, ZERO);
 }
 export const q2ToNumber = (x: Q2): number =>
   fToNumber(x.a) + fToNumber(x.b) * Math.SQRT2;

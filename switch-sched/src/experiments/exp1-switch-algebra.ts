@@ -92,7 +92,11 @@ export function main(): void {
   const ZX = mMul(PAULI_Z, PAULI_X);
   const I2 = identity(2);
   let worstCoherent = 0;
-  for (let bi = 0; bi < 4; bi++) {
+  // 2026-11-01 修复：d=2 时循环上界误写 4——basisRho(2, 2)/basisRho(2, 3) 的
+  // 写入下标越界被 Float64Array 静默忽略，返回零矩阵，一半试例在比较零态
+  // （平凡通过）。改为 bi < 2，全部试例为真实基输入；矩阵相等乘积的论证
+  // 不变，结论与表数值（迹距离 ~0）不变。
+  for (let bi = 0; bi < 2; bi++) {
     const rho = basisRho(2, bi);
     worstCoherent = Math.max(
       worstCoherent,

@@ -171,7 +171,10 @@ describe('执行层级路由器（三态决策）', () => {
       nisq: { maxQubits: 5640 },
     });
     // 6000 逻辑比特深 Ising：FT 预算内可行 → 排队
-    assert.equal(overflow.tier === 'ftqc-queue' || overflow.tier === 'classical', true);
+    // 2026-11-01 修复：旧析取断言同时接受 ftqc-queue/classical，注释声称的
+    // 确定性结果未被钉住——实测（seed 无关，纯算术）该请求确定性地
+    // ftqc-queue（surface-d17，3467000 物理比特，eps=8.78e-3），钉死单值。
+    assert.equal(overflow.tier, 'ftqc-queue');
     assert.ok(overflow.ftqc !== undefined);
   });
 

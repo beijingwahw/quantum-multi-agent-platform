@@ -8,7 +8,9 @@
 | GHZ | 0.000000 | 0.000000 | 1.000000 | 1.000000 |
 | W | 0.666667 | 0.666667 | 0.942809 | 0.000000 |
 
-Random search (20000 pure states): worst CKW slack (LHS−RHS) = -5.90e-3 ≤ 0 — the inequality never breaks.
+Random search (20000 pure states): worst CKW slack (LHS−RHS) = -3.12e-4 ≤ 0 — the inequality never breaks.
+
+Erratum 2026-11-01: the C_A(BC) determinant previously omitted Im(ρ01)², which inflated C_ABC and deflated the reported slack; the pre-fix value was −5.90e-3. All other rows are real-amplitude states and are unchanged.
 
 ## B. Double pledge: best min(C_BE1, C_BE2)
 | method | best min C | ceiling |

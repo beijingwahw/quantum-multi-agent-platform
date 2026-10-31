@@ -133,7 +133,10 @@ export const FRONTIER: readonly FrontierRow[] = [
     priorVerdict: "HEURISTIC",
     note: "held — delivery is real, the storage-slot price is the boundary",
     settler: null,
-    pointers: [{ repo: "ent-sched", file: "out/exp3-network.md", needle: "0.66631" }],
+    // 2026-11-01 重钉：ent-sched 修复融合比较器（§6 "最小 fHi 先融合"析取病）后
+    // ers 行合法漂移 0.66631 → 0.66974（其 README 已带勘误）；按版本钉漂移波及
+    // 规约在引用树一侧就地重钉。
+    pointers: [{ repo: "ent-sched", file: "out/exp3-network.md", needle: "0.66974" }],
   },
   {
     claimId: "#03",

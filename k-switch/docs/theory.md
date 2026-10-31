@@ -104,20 +104,27 @@ consecutive orders only.
 Chain alloc₁(X)–alloc₂(Z)–alloc₃(Y)–exec(γ), input |+⟩, distinguish γ = 1
 vs γ = 0; D = trace distance of the register.
 
-Fixed orders: every prefix of the writes keeps |+⟩ in the |±⟩ plane (X, Z
-fix both; Y exchanges them up to phase), so at the erasure the two
+Fixed orders: every prefix of the writes keeps |+⟩ in the |±⟩ plane (X
+fixes both rays; Z and Y exchange them up to phase — 2026-11-01 勘误：原文
+括号写 "X, Z fix both; Y exchanges"，Z 的作用写反), so at the erasure the two
 hypotheses hold T = T(|0⟩, |±⟩) = 1/√2, and unitary stages after it cannot
 change trace distance → **D = 1/√2 for all 24 orders exactly** (survives
 k = 3).
 
-Switch mixture: γ = 0 branches all end in |−⟩⟨−| (the single Y flips |+⟩ to
-|−⟩ wherever it sits; X/Z only phase). γ = 1 branches: E-last and E-first
+Switch mixture: γ = 0 branches all end in |+⟩⟨+|（2026-11-01 勘误：原文写
+"|−⟩⟨−|（the single Y flips |+⟩ to |−⟩ wherever it sits; X/Z only phase）"——
+射线约定写反：|±⟩ 射线上 X 只给相位（X|±⟩ = ±|±⟩），真正的射线交换者是 Z 与
+Y（Z|±⟩ = |∓⟩，Y|±⟩ = ±i|∓⟩）；γ=0 支应用全部三个写入 X、Z、Y，两个交换者
+（偶数）把 |+⟩ 射线换回自身，故每支终点是 **|+⟩⟨+|**。|−⟩⟨−| 是 k=3 家族
+（单一交换者 Z）的叙事。σ₁ = (2/3)|0⟩⟨0| + (1/3)|1⟩⟨1| 对 |+⟩/|−⟩ 的保真度
+都是 1/2，迹距离恒等，全部机器值不变——test/dilution.test.ts 已逐位钉死）。
+γ = 1 branches: E-last and E-first
 orders end |0⟩⟨0| (6 + 6); for E in the middle the suffix writes move |0⟩
 to |0⟩ or |1⟩ — counting the 24 orders gives 16 branches on |0⟩ and 8 on
 |1⟩, i.e. σ₁ = (2/3)|0⟩⟨0| + (1/3)|1⟩⟨1|. Then
 
 ```
-D(switch, k=4) = T(σ₁, |−⟩⟨−|) = √((1/6)² + (1/2)²) = √10/6 = 0.527046276695
+D(switch, k=4) = T(σ₁, |+⟩⟨+|) = √((1/6)² + (1/2)²) = √10/6 = 0.527046276695
 ```
 
 machine-checked to 1e-12. **The k = 3 halving law D(switch) = D(fixed)/√2

@@ -23,7 +23,11 @@ level — exactly n active nodes per query (Giovannetti-Lloyd-Maccone's headline
 property) — while the fanout architecture drives all 2^n - 1 switches. Under
 independent per-active-node failure with probability p, query failure is
 1 - (1-p)^(active): verified against exhaustive subset enumeration (EXP1-C). The
-exposure ratio is 2^n/n, exponential in address length.
+exposure ratio is (2^n - 1)/n, exponential in address length.
+
+<!-- 2026-11-01 勘误：原文写 "2^n/n"；真实比值为 (2^n - 1)/n（fanout 驱动
+     2^n - 1 个开关，bucket 每次查询激活 n 个），与 EXP1-C 实测的
+     1.5 -> 2.3 -> 3.8（n = 2, 3, 4）一致——2^n/n 会给出 2.0 -> 2.7 -> 4.0 -->
 
 ## 2. Szegedy search walk and the detection semantics
 

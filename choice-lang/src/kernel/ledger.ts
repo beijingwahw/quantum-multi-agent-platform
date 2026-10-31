@@ -49,7 +49,9 @@ export const LAW_REGISTRY: readonly string[] = [
 /** Known counterfeits, by name, with the true law quoted in the rejection. */
 export const KNOWN_COUNTERFEITS: Readonly<Record<string, string>> = {
   "ASSOC-PRICE":
-    "pricing associativity is FALSE — N2's counterexample: w_left(A) = cos^2(t1)*cos^2(t2) = 0.4646 off w_right(A) = cos^2(t1); denotations compose, prices do not",
+    // 2026-11-01 修复：0.4646 是价差（= cos^2(t1)*sin^2(t2)，见 QUOTED_PRICE_GAP），
+    // 原消息误把它标为 cos^2(t1)*cos^2(t2) 的值（那是 w_left(A) = 0.1204）—— 现按实际打印的量命名。
+    "pricing associativity is FALSE — N2's counterexample: w_left(A) = cos^2(t1)*cos^2(t2) = 0.1204 off w_right(A) = cos^2(t1) = 0.5850 — a 0.4646 gap (= cos^2(t1)*sin^2(t2)); denotations compose, prices do not",
   "T-ADD":
     "the toll law is MULTIPLICATIVE (T-MULT): E[attempts] = 1/(P*Q) = (1/P)*(1/Q) (23.61 vs 23.66 at 200k samples), never 1/P + 1/Q",
 };

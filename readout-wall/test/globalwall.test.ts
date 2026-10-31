@@ -159,6 +159,17 @@ describe("W7 the covering-partition certificate", () => {
       "the floor-refined partition must certify a strictly smaller minimum gap",
     );
   });
+
+  it("the per-cell citation cross-check scales the second difference by (b-a)^2/4, not /2", () => {
+    // 2026-11-01 修复回归：中点二阶差分的缩放是 χ''(m)·((b−a)/2)²=(b−a)²/4；旧的
+    // (b−a)²/2 目标大 2 倍，把真一致性 ~4.5e-11 夸大成 5.6e-6 的伪距离——若回归
+    // 到 /2 缩放，下面的 1e-9 上界立刻翻红。
+    assert.ok(
+      wall.esc18.citationMaxDist !== null &&
+        fCmp(wall.esc18.citationMaxDist, fr(1n, 1000000000n)) < 0,
+      "citation max distance must sit at true second-order consistency (~4.5e-11), not the 2x-inflated 5.6e-6",
+    );
+  });
 });
 
 describe("W8 the smuggling trials — counterfeit curves are chased and convicted by name", () => {

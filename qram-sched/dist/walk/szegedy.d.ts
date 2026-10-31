@@ -47,6 +47,13 @@ export declare class SzegedyWalk {
     readonly rowLen: Int32Array;
     readonly sqrtP: Float64Array;
     readonly flipEdge: Uint8Array;
+    /** Per-edge swap partner (the (y,x) edge id) or -1 when x >= y — the
+     *  constructor's symmetric-support check guarantees the partner exists for
+     *  every x < y edge, so the step's Map lookup becomes an array read. */
+    readonly swapWith: Int32Array;
+    /** marked.has(edgeX[e]) as a byte — markedProbability's per-edge Set probe
+     *  (first coordinate only; flipEdge stays the x-or-y oracle mask). */
+    readonly firstMarked: Uint8Array;
     steps: number;
     constructor(chain: Chain, marked: Iterable<number>);
     get numEdges(): number;

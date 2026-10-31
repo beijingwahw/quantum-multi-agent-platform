@@ -199,9 +199,13 @@ export interface ReadoutOutcome {
   measuredDims: number[];
 }
 
+// 2026-11-01 修复：docstring 曾声称 little-endian，而实现与 partialTrace 同用大端步长
+// （measure[0] 为结果指数的最高位数字）；以代码为契约，只改文档，不改已发布导出的行为。
 /**
  * Marginal distribution of the computational-basis readout of the given
- * subsystems. Outcome index is in little-endian order of `measure` as given.
+ * subsystems. Outcome index is in big-endian order of `measure` as given: the
+ * FIRST listed subsystem is the most-significant digit (the same stride
+ * convention partialTrace uses for dims).
  */
 export function marginalProbs(rho: CMat, dims: readonly number[], measure: readonly number[]): ReadoutOutcome {
   const m = dims.length;

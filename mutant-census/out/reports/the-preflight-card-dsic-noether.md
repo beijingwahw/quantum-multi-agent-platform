@@ -12,7 +12,7 @@
 | cat:toolchain | 4 | b66#10 (b66) | BOOKED-UNENFORCEABLE | void-returning calls in arrow bodies get braces — style laws are laws |
 | cat:wrong-object | 3 | b66#8 (b66) | BOOKED-UNENFORCEABLE | the kernel owns safe constructors (pFromMonomials) — mutating readonly internals from a caller is never the route, even in a leaf helper |
 | cat:dimension-slot | 2 | b18#3 (b18) | GATE-ENFORCED | ascending order yields combinations, not k-permutations — agent order matters in assignment; 'looks right' combinatorics exposed at runtime |
-| cat:machine-overruled | 1 | b18#1 (b18) | GATE-ENFORCED | SD is the classic non-manipulable rule — the machine refused to break it 40/40; second-best (one step from optimal) is the biter (25/40). Prior intuition yields to machine precedent, and corrections are recorded, not buried |
+| cat:machine-overruled | 1 | b18#1 (b18) | BOOKED-UNENFORCEABLE | SD is the classic non-manipulable rule — the machine refused to break it 40/40; second-best (one step from optimal) is the biter (25/40). Prior intuition yields to machine precedent, and corrections are recorded, not buried |
 | cat:statistics | 1 | b18#5 (b18) | BOOKED-UNENFORCEABLE | the floor is set by the largest intermediate (|q+ - q|/h terms ~56 -> ~1e-14); guard 1e-13 with provenance |
 
-Reports freshness (the repro-no-op face, v0.22.0): 7 reports on disk; newest render 2026-09-13T01:47:48.345Z; src tree newest 2026-09-13T01:47:23.918Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 7 reports on disk; newest render 2026-10-31T22:42:00.153Z; src tree newest 2026-10-31T22:42:00.169Z — STALE: sources moved after the last render (the repro-no-op face; re-run repro before closing)

@@ -12,7 +12,7 @@ Referee: exact maximum matching (Kuhn's augmenting paths) on the final graph.
 
 Deterministic greedy with lowest-index ties sits exactly at 1/2 on the cascade (machine-verified); uniform ties and RANKING sit at 3/4 on this family. The worst-case caps (greedy 1/2, RANKING 1 - 1/e, KVV 1990 optimal among randomized) are cited theorems — and since v0.2.0 the KVV tight instances themselves are executed in EXP6 (caps met exactly on D_n and the deterministic phase adversary).
 
-## B. Random Erdos-Renyi banks: RANKING >= greedy, ratio floors
+## B. Random Erdos-Renyi banks: RANKING vs greedy-uniform (statistically indistinguishable), ratio floors
 
 | n (workers = arrivals) | seeds | greedy-uniform mean ratio | RANKING mean ratio | RANKING min ratio |
 | --- | --- | --- | --- | --- |

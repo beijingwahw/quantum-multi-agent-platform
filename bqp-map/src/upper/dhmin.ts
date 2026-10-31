@@ -46,7 +46,9 @@ export function arrayValuation(vals: readonly number[]): Valuation {
 /** Sample an index from |psi|^2 given the raw amplitudes. */
 function bornSample(amps: Float64Array, rng: Rng): number {
   let total = 0;
-  for (let i = 0; i < amps.length; i++) total += amps[i]! * amps[i]!;
+  // 2026-11-01 修复：索引仅用于读取 amps[i]，改写为 for-of 以清掉仓库仅存的
+  // prefer-for-of lint 红（R21 交接中披露的遗留）；求和顺序与逐位结果不变。
+  for (const a of amps) total += a * a;
   let r = rng.next() * total;
   for (let i = 0; i < amps.length; i++) {
     r -= amps[i]! ** 2;

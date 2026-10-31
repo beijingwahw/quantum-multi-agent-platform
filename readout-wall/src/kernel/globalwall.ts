@@ -312,7 +312,7 @@ export interface FamilyWallCert {
   readonly coversGrid: boolean;
   /** min descent gap > max enclosure width — the margin is not enclosure slop */
   readonly gapDominatesWidth: boolean;
-  /** F1 only: max |midpoint second difference - citation chi''(m)*(b-a)^2/2| (DATA, exact) */
+  /** F1 only: max |midpoint second difference - citation chi''(m)*(b-a)^2/4| (DATA, exact) */
   readonly citationMaxDist: Frac | null;
 }
 
@@ -395,7 +395,7 @@ function certifyWallFamily(
   for (const g of gridPoints()) {
     if (!ptsSet.has(`${g.n}/${g.d}`)) coversGrid = false;
   }
-  // F1 citation: per cell, the midpoint second difference vs chi''(m)*(b-a)^2/2 — data only
+  // F1 citation: per cell, the midpoint second difference vs chi''(m)*(b-a)^2/4 — data only
   let citationMaxDist: Frac | null = null;
   if (citation) {
     let maxDist = F_ZERO;
@@ -405,9 +405,12 @@ function certifyWallFamily(
         iAdd(chi(cell.a, PATH_T), chi(cell.b, PATH_T)),
         iScaleNonneg(chi(m, PATH_T), fr(2)),
       );
+      // 2026-11-01 修复：中点二阶差分 χ(a)+χ(b)−2χ(m)（m 为中点，步长 h=(b−a)/2）
+      // 的缩放是 χ''(m)·h² = χ''(m)·(b−a)²/4，而非 (b−a)²/2——原 fr(2) 的比较
+      // 目标整体大 2 倍，把真一致性 ~4.5e-11 夸大成 5.6e-6 的伪距离。
       const scaled = iScaleNonneg(
         esc18SecondDerivativeIvl(m, PATH_T),
-        fDiv(fMul(fSub(cell.b, cell.a), fSub(cell.b, cell.a)), fr(2)),
+        fDiv(fMul(fSub(cell.b, cell.a), fSub(cell.b, cell.a)), fr(4)),
       );
       const dist = iDist(dd, scaled);
       if (fCmp(dist, maxDist) > 0) maxDist = dist;

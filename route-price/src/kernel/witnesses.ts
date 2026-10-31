@@ -261,7 +261,10 @@ function witnessUniformToll(): WitnessResult {
   for (const B of [2, 4, 8, 16]) {
     const P = 1 / B;
     if (1 / P !== B) gridOk = false; // powers of two: exact in floating point
-    if (B / 1 !== B) gridOk = false; // the epoch-3 invoice line: N/t with t = 1
+    // 2026-11-01 修复：B/1 !== B 在 IEEE 浮点下对任何有限 B 恒为 false，是永不可触发的死检查；
+    // 改为可触发的域检查：B 必须是 ≥2 的整数 2 的幂 —— epoch-3 发票行（N/t, t=1）的有效域，
+    // 也是上一行 “1/P = B 精确” 成立的前提。
+    if (!Number.isInteger(B) || B < 2 || (B & (B - 1)) !== 0) gridOk = false;
   }
   const B = 8;
   const P = 1 / B;

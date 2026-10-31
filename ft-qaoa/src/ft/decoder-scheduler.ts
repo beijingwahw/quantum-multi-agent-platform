@@ -35,6 +35,8 @@ export interface ScheduleResult {
   readonly extrapolatedDrainUs: number | null;
   readonly simulatedWindows: number;
   readonly totalWindows: number;
+  /** Even-spread units per block = floor(units / blocks); 0 when units < blocks
+   *  (some blocks get 1, others 0 — the fleet still owes service to every block). */
   readonly unitsPerBlock: number;
   readonly servicePerWindowUs: number;
   readonly arrivalPerWindowUs: number;
@@ -84,19 +86,29 @@ export function analyzeDecoderSchedule(
   const maxWindows = options.maxSimulatedWindows ?? 20000;
   const ceiling = options.realtimeUtilizationCeiling ?? 0.95;
 
-  const unitsPerBlock = Math.max(1, Math.floor(scenario.units / blocks));
+  // 2026-11-01 修复：units < blocks 时不再把每块单元数钳制成 1（那等于把机队凭空
+  // 放大 blocks 倍、低估利用率与积压）。按契约“尽量均匀铺开”：每块 floor(units/blocks)
+  // 台，余数台摊给部分块；units < blocks 时部分块 1 台、其余 0 台——机队要伺候全部
+  // blocks 条综合征流，利用率按 blocks/units 放大单台负载，无单元的块积压只增不减。
+  const unitsPerBlock = Math.floor(scenario.units / blocks);
+  const servedUnitsPerBlock = Math.max(1, unitsPerBlock); // 仿真取有单元的代表块
   const W = scenario.windowRounds;
   const arrivalPerWindowUs = W * cycleTimeUs;
   // One unit decodes one window: W rounds at unit throughput, plus fixed latency.
   const baseServiceUs = (W / scenario.unit.roundsPerSecond) * 1e6 + scenario.unit.latencyUs;
-  const utilization = baseServiceUs / arrivalPerWindowUs / unitsPerBlock;
+  const utilization =
+    unitsPerBlock >= 1
+      ? baseServiceUs / arrivalPerWindowUs / unitsPerBlock
+      : (baseServiceUs / arrivalPerWindowUs) * (blocks / scenario.units);
 
   const totalWindows = Math.ceil(totalRounds / W);
   const simWindows = Math.min(totalWindows, maxWindows);
 
-  // Event simulation for a single representative block stream. `waiting` holds
-  // arrival times of queued windows (FIFO); each idle unit starts the oldest.
-  const servers = new Float64Array(unitsPerBlock); // completion time of each busy unit
+  // Event simulation for a single representative block stream (a block that
+  // HOLDS units — when units < blocks some blocks get 1 and others 0).
+  // `waiting` holds arrival times of queued windows (FIFO); each idle unit
+  // starts the oldest.
+  const servers = new Float64Array(servedUnitsPerBlock); // completion time of each busy unit
   const waiting: number[] = [];
   let maxQueued = 0;
   const queueSamples: number[] = [];

@@ -236,7 +236,6 @@ describe('R19-R · 雇佣审计 · 族误差控制（定理 4）', () => {
     const bases = [0.3, 0.4, 0.5, 0.6, 0.7];
     const bound = sprtTypeOneUpperBound(AUDIT_CONFIG.familyLevel, AUDIT_CONFIG.typeTwo);
     let familyFalseRejects = 0;
-    let anyRejectTotal = 0;
     let undecidedFamilies = 0;
     for (let t = 0; t < M; t++) {
       const rng = mulberry32(10_000 + t);
@@ -256,7 +255,6 @@ describe('R19-R · 雇佣审计 · 族误差控制（定理 4）', () => {
       }
       if (familyReject) familyFalseRejects++;
       if (!allDecided) undecidedFamilies++;
-      anyRejectTotal += familyReject ? 1 : 0;
     }
     const rate = familyFalseRejects / M;
     console.log(
@@ -264,7 +262,9 @@ describe('R19-R · 雇佣审计 · 族误差控制（定理 4）', () => {
         `（5 格 × M=${M}；截断不决族 ${undecidedFamilies}）`,
     );
     assert.ok(rate <= bound, `族虚拒率 ${rate} 超界 ${bound}`);
-    assert.ok(anyRejectTotal === familyFalseRejects);
+    // 2026-11-01 删除：旧末行 `anyRejectTotal === familyFalseRejects` 是同义
+    // 反复——两个计数器在同一循环内对同一布尔 familyReject 以同一条件自
+    // 增，断言两侧来自同一事实，恒真零判别力。
   });
 
   it('虚报凭证定罪：申报 base=0.5、真值恒 0.70 的格子以高概率被拒（M=400）', () => {

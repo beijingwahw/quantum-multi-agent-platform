@@ -162,7 +162,27 @@ describe('创新升级 · 优先级感知并发池', () => {
     const plugin = new ProactiveIntelligencePlugin({
       executor: { maxConcurrentActions: 1 },
     });
-    plugin.addRule(priorityRule('slow', 50));
+    // 2026-11-01 修复：旧夹具每批恰 1 个动作且 action_started 在出队递减之后
+    // 才触发，peakBacklog 恒为 0，断言 `>= 0` 对非负计数器恒真——「背压
+    // 可观测」从未被真正测过。改为单事件命中含 2 个动作的规则：并发 1 下
+    // 第二个动作必在队列等待，首个动作执行期间 backlog = 1 > 0。
+    plugin.addRule({
+      ...priorityRule('slow', 50),
+      actions: [
+        {
+          type: 'custom',
+          name: 'act-slow-1',
+          parameters: { handler: () => new Promise((resolve) => setTimeout(resolve, 40)) },
+          timeout: 5_000,
+        },
+        {
+          type: 'custom',
+          name: 'act-slow-2',
+          parameters: { handler: () => new Promise((resolve) => setTimeout(resolve, 40)) },
+          timeout: 5_000,
+        },
+      ],
+    });
     await plugin.start();
 
     let peakBacklog = 0;
@@ -170,12 +190,12 @@ describe('创新升级 · 优先级感知并发池', () => {
       peakBacklog = Math.max(peakBacklog, plugin.getStatistics().executor.backlog);
     });
 
-    // 同一 tick 连发 3 个事件批次：每批一个动作，池深在执行期间 > 0
-    for (let i = 0; i < 3; i++) {
-      plugin.observe({ type: 'storm', source: 's', data: { value: 1 }, severity: 'info' });
-      await plugin.flush();
-    }
-    assert.ok(peakBacklog >= 0, 'backlog 指标可读（≥0 基线）');
+    plugin.observe({ type: 'storm', source: 's', data: { value: 1 }, severity: 'info' });
+    await plugin.flush();
+    assert.ok(
+      peakBacklog > 0,
+      `执行期间队列深度应 > 0（并发 1 × 2 动作），实测峰值 ${peakBacklog}`,
+    );
     assert.equal(plugin.getStatistics().executor.backlog, 0);
     await plugin.stop();
     plugin.destroy();

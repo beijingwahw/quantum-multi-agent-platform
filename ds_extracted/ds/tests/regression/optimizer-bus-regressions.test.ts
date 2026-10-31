@@ -143,7 +143,12 @@ describe('A3#1 子空间 shots-best 回退语义（argmax 对齐）', () => {
       [3, 10, 4, 2],
       [10, 4, 2, 6],
     ];
-    problem.couplings.set(couplingKey(0, 4, 12), 2); // (t0,a0)-(t1,a1) 纠缠加成
+    // 2026-11-01 修复：旧键 couplingKey(0, 4, 12) 在 n=4 下解码为
+    // (t0,a0)-(t1,a0) —— 同 agent 对，容量 1 下任何合法分配都不会同时
+    // 占用 a0，耦合从未生效（结构性惰性），注释所写的 (t0,a0)-(t1,a1)
+    // 是另一键。改为 5（q=5 → t1,a1），纠缠加成真正参与哈密顿量；
+    // 唯一最优 [2,1,0]（30）不受影响（[0,1,·] 类合法解 +2 仍远低于 30）。
+    problem.couplings.set(couplingKey(0, 5, 12), 2); // (t0,a0)-(t1,a1) 纠缠加成
     const model = buildSubspaceModel(problem);
     assert.ok(model, '3 任务 × 4 agent 必然可建子空间模型');
 

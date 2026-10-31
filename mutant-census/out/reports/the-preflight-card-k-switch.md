@@ -9,6 +9,6 @@
 | --- | --- | --- | --- | --- |
 | cat:statistics | 2 | b16#2 (b16) | BOOKED-UNENFORCEABLE | T = sqrt(1 - |<a|b>|^2) at |<a|b>| = 1-eps gives sqrt(2*eps) ~ 2e-8 — the threshold comes from the amplification formula (1e-7), provenance commented |
 | cat:conjugation | 1 | b16#0 (b16) | GATE-ENFORCED | it is M+ M — exp1 wrote the matrix square and the sign habit slipped through; self-check the algebraic object after writing it |
-| cat:machine-overruled | 1 | b16#3 (b16) | GATE-ENFORCED | the machine: all six fixed orders exactly 1/sqrt(2), the six-order switch exactly 1/2 = D/sqrt(2) — narrate and assert what the machine found, hand-verify the closed form after (X.Z|+> = -|->) |
+| cat:machine-overruled | 1 | b16#3 (b16) | BOOKED-UNENFORCEABLE | the machine: all six fixed orders exactly 1/sqrt(2), the six-order switch exactly 1/2 = D/sqrt(2) — narrate and assert what the machine found, hand-verify the closed form after (X.Z|+> = -|->) |
 
-Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-09-13T01:30:34.849Z; src tree newest 2026-09-13T01:30:21.273Z — FRESH (the newest render postdates every source)
+Reports freshness (the repro-no-op face, v0.22.0): 5 reports on disk; newest render 2026-10-31T22:42:00.169Z; src tree newest 2026-10-31T22:42:00.169Z — FRESH (the newest render postdates every source)

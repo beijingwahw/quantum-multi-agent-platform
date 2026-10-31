@@ -624,13 +624,22 @@ export function dephasedEchoMean(rng: Rng, delta: number, k: number, samples: nu
 }
 
 /** (D) the benchmark lifetime's crossing, MC-witnessed: E[m~] at tau*-1
- * must sit above theta and at tau* below it. */
+ * must sit above theta and at tau* below it. Refuses delta = 0: the echo
+ * never decays (tau* = infinity) and the sample loop would not terminate. */
 export function dephasedLifetimeCrossing(
   rng: Rng,
   delta: number,
   threshold: number,
   samples: number,
 ): { tau: number; below: number; at: number } {
+  // 2026-11-01 修复：delta=0 时 |cos 2δ|=1，tau*=∞，tau*-1=∞ 会使
+  // dephasedEchoSample 的 k 循环永不终止 —— 按名拒绝（E/DOMAIN）。
+  if (delta === 0) {
+    throw new DtcError(
+      "E/DOMAIN",
+      "dephasedLifetimeCrossing: delta must be nonzero — at delta=0 the echo never decays (tau* = infinity) and the crossing's k-loop would not terminate",
+    );
+  }
   const tau = isolatedEchoLifetime(delta, threshold);
   const below = dephasedEchoMean(rng, delta, tau - 1, samples).mean;
   const at = dephasedEchoMean(rng, delta, tau, samples).mean;

@@ -147,9 +147,12 @@ export function main(): void {
   // scaling exponent of the fanout/bucket exposure ratio
   const ns = [2, 3, 4];
   const ratios = ns.map((n) => activeNodes("fanout", n) / activeNodes("bucket-brigade", n));
+  // 2026-11-01 修复：比值是 (2^n - 1)/n（activeNodes("fanout", n) = 2^n - 1，
+  // bucket 为 n），原文写 "exactly 2^n/n" 与自己打印的 1.5 -> 2.3 -> 3.8 矛盾
+  // （2^n/n 给 2.0 -> 2.7 -> 4.0；(2^n-1)/n 才是 1.5 -> 2.3 -> 3.75）
   lines.push(
     `Exposure ratio fanout/bucket grows as ${ratios.map((r) => fmt(r, 1)).join(" -> ")} for n = ${ns.join(", ")}: ` +
-      `exactly 2^n/n, exponential in address length. Formula matches exhaustive enumeration to 1e-15 (bucket, n<=6) ` +
+      `exactly (2^n - 1)/n, exponential in address length. Formula matches exhaustive enumeration to 1e-15 (bucket, n<=6) ` +
       `and (fanout, n<=4).`,
   );
   lines.push("");

@@ -52,7 +52,7 @@ max(0, (s-w+1)/2):
 | wall patch x = 0 | [E] 0, [G] 0 | constant rule |
 | gluing at s* = w - 1 (w symbolic) | [x] = [p] = [charge] = 0 | zero polynomials |
 | charge FLUX at s* | dG/ds jumps by (t-w+1)/2 = x(t) | exact (the surface term) |
-| piecewise charge on the grid (81x81) | never > 0; interior -1/64; cross -1/64 | 20 wall-to-wall flat pairs (weak DSIC) |
+| piecewise charge on the grid (81x81) | never > 0; interior -1/64; cross -1/64; cross-2 -1/64 | 20 wall-to-wall flat pairs (weak DSIC) |
 
 Here NOTHING jumps: x, p, and the charge are continuous at the wall kink (zero
 polynomials with w symbolic). What jumps is the charge's FLUX — dG/ds breaks by exactly

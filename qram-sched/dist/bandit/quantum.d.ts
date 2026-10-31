@@ -29,7 +29,6 @@ export interface QuantumRun {
     readonly committedArm: number;
     readonly rounds: number;
 }
-/** Draw one amplitude-estimation outcome for true amplitude p with m phase qubits, from the exact distribution. */
 export declare function sampleQae(p: number, m: number, rng: Rng): number;
 /**
  * Staged QAE explore-then-commit on k Bernoulli arms, horizon T live plays after commit.

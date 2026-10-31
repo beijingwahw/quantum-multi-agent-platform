@@ -199,6 +199,10 @@ export function minMaxOf(values: Readonly<Float64Array>): { min: number; max: nu
  * QAOA 路径（scale=1）写作 x·span+min，退火路径写作 (x/scale)·span+min——
  * 代数等价但无共享函数，改动任一处都会引入跨引擎期望口径漂移。
  * scale=1 时 x/1 === x（IEEE 754 精确），与既有 QAOA 写法逐位一致。
+ * 2026-11-01 修复：简并谱（max===min，如维度 1 的子空间实例）时旧式
+ * (x/0)·0 + min = 0/0 = NaN 污染退火解的 expectation 字段——常数谱的
+ * 期望恒为 min，与归一化值/scale 无关（normalizedEnergies 对 span=0 全零，
+ * 逆映射理应回到常数）。
  */
 export function denormalizeExpectation(
   normalizedExpectation: number,
@@ -206,6 +210,7 @@ export function denormalizeExpectation(
   min: number,
   max: number,
 ): number {
+  if (max === min) return min;
   return (normalizedExpectation / scale) * (max - min) + min;
 }
 

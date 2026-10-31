@@ -625,10 +625,31 @@ export function landscapeStats(inst: CoupledInstance): LandscapeStats {
       cur = next;
     }
   }
+  // 2026-11-01 修复（PL3 的可证伪形）：旧式 `betterNeighbor[globalIdx] === -1`
+  // 恒真 —— globalIdx 是 argmax of all[].welfare，而 betterNeighbor 的增益
+  // 用的是同一数组的逐对差，全局最优按定义不可能有严格改进邻居，证人 W-C
+  // 零判别力。修复：把全局最优及其全部 1-exchange 邻居交给**独立记分器**
+  // welfareOf（逐任务累加，与 enumerateAll 的递归累加不同路径 —— 仓规
+  // “对拍”）重打分；两裁判不一致或任一邻居重打分严格超过全局，即 FAIL。
+  const globalScored = welfareOf(inst, all[globalIdx]!.assignment);
+  let stable = Math.abs(globalScored - all[globalIdx]!.welfare) < 1e-12;
+  if (stable) {
+    outer: for (let t = 0; t < inst.m; t++) {
+      for (let a2 = 0; a2 < inst.n; a2++) {
+        if (a2 === all[globalIdx]!.assignment[t] || all[globalIdx]!.assignment.includes(a2)) continue;
+        const cand = all[globalIdx]!.assignment.slice();
+        cand[t] = a2;
+        if (welfareOf(inst, cand) > globalScored + 1e-12) {
+          stable = false;
+          break outer;
+        }
+      }
+    }
+  }
   return {
     nodes: all.length,
     localOptima,
-    globalIsLocalOptimum: betterNeighbor[globalIdx] === -1,
+    globalIsLocalOptimum: stable,
     globalBasinFraction: basin / all.length,
   };
 }

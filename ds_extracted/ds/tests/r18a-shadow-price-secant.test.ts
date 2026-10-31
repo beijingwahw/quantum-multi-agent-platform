@@ -83,13 +83,15 @@ describe('R18-A · shadow-price-secant ①② 仿射结构的一步命中', () =
   }
 
   it('② 两段连续折线：命中落在理论段内且 exactHit（中点步把 lo 推进段 2 后段内一步命中）', () => {
-    // 段 1（λ<2）：P = 10 − 3λ；段 2（λ≥2）：P = 6 − 0.5λ（连续：2 处均 = 4）
-    // B = 3 ⟹ 段 2 内解 λ* = (6−3)/0.5 = 6
-    const P = (lambda: number): number => (lambda < 2 ? 10 - 3 * lambda : 6 - 0.5 * lambda);
+    // 2026-11-01 修复夹具：旧段 2 写 6−0.5λ，在 λ=2 处取 5，而段 1 在 2⁻ 处
+    // 取 4 —— 注释声称"连续：2 处均 = 4"实为向上跳变，违反被测模块的单调
+    // 不增契约（当前求解路径恰好未踩中故未暴露）。改为段 2：P = 5 − 0.5λ
+    //（λ=2 处 = 4，真连续）；B = 3 ⟹ 段 2 内解 λ* = (5−3)/0.5 = 4。
+    const P = (lambda: number): number => (lambda < 2 ? 10 - 3 * lambda : 5 - 0.5 * lambda);
     const result = solveSecant({ evaluate: P, budget: 3, lambdaMax: 12 });
     assert.equal(result.exactHit, true);
     assert.ok(Math.abs(result.payment - 3) <= 1e-9);
-    assert.ok(Math.abs(result.lambda - 6) <= 1e-9, `λ̂=${result.lambda} 应 ≈ 6`);
+    assert.ok(Math.abs(result.lambda - 4) <= 1e-9, `λ̂=${result.lambda} 应 ≈ 4`);
     assert.ok(
       result.evaluatedLambdas.length <= 12,
       `评估数 ${result.evaluatedLambdas.length} 应 ≤ 12（含中点保底步）`,
@@ -125,11 +127,15 @@ describe('R18-A · shadow-price-secant ③④ 跳降与短路', () => {
   });
 
   it('③ 多平台阶梯跳降：每平台一次收缩后仍可行返回', () => {
-    // 阶梯：λ<2→12、[2,5)→9、[5,8)→6、≥8→2.5；B=5.5 ⟹ 最小可行 λ=5
+    // 2026-11-01 修复注释与断言半边：B=5.5 时 [5,8) 上 P=6 > 5.5 仍不可行，
+    // 真最小可行 λ=8（旧注释称 5、断言只挡 P=9/12 一侧）。收紧到真边界。
     const P = (lambda: number): number => (lambda < 2 ? 12 : lambda < 5 ? 9 : lambda < 8 ? 6 : 2.5);
     const result = solveSecant({ evaluate: P, budget: 5.5, lambdaMax: 10 });
     assert.ok(result.payment <= 5.5 + TOL);
-    assert.ok(result.lambda >= 5, '返回点不得落 P=9/12 的不可行侧');
+    assert.ok(
+      result.lambda >= 8 - 1e-9,
+      `返回 λ=${result.lambda} 不得落 P=6/9/12 的不可行侧（真边界 8）`,
+    );
     assert.ok(
       result.evaluatedLambdas.length <= 16,
       `阶梯实例评估数 ${result.evaluatedLambdas.length} 应受平坦/中点混合消化`,

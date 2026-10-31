@@ -32,7 +32,12 @@ export const PERMUTATIONS: ReadonlyArray<[number, number, number]> = [
   [2, 1, 0],
 ];
 
-/** Permute the subsystem slots of a complex column: new slot perm[k] = old slot k. */
+// 2026-11-01 修复：原注释 "new slot perm[k] = old slot k" 方向写反——实现里
+// newIdx 的第 k 槽数位取 digits[perm[k]]，即 **new slot k = old slot perm[k]**
+// （等价地：old slot j 落到 new slot perm⁻¹[j]）。对合置换（如二槽交换）两种
+// 读法恰好重合，故此前未被察觉；branchIsometry3 的内部推导（"canonical slot
+// c+1 must hold channel c → old slot s"配 perm[c+1] = 3−t）一直按实现语义。
+/** Permute the subsystem slots of a complex column: new slot k = old slot perm[k]. */
 function permuteSlots(
   re: Float64Array,
   im: Float64Array,

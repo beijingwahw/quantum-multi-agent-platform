@@ -19,7 +19,8 @@ import {
   krausToStinespring,
   switchIsometry,
 } from "../src/switch/isometry.js";
-import { replacerKraus } from "../src/switch/chanlib.js";
+import { randomChannelStinespring, replacerKraus } from "../src/switch/chanlib.js";
+import { makeRng } from "../src/core/rng.js";
 
 /** Run `fn`, demand a RefusalError, return its code — the conviction is by name. */
 function codeOf(fn: () => unknown): string {
@@ -130,5 +131,29 @@ describe("regression: named refusals on degenerate and out-of-domain input (no s
     assert.equal(fDecimal(h2Closed(fr(1, 4)).hi, 30), "0.811278124459132863910666417636");
     assert.equal(fDecimal(h2Series(fr(1, 4)).lo, 30), "0.811278124459132863909472062047");
     assert.equal(fDecimal(h2Series(fr(1, 4)).hi, 30), "0.811278124459132863909699134109");
+  });
+
+  // 2026-11-01 修复回归：randomChannelStinespring 的 docstring 一直承诺“构建后由
+  // 等距校验断言”，但该断言此前从未在此路径执行（W-A/W-H 用的正是这条路径）。
+  it("randomChannelStinespring certifies its own isometry on the random path (V†V = I_d, 2026-11-01 修复回归)", () => {
+    const rng = makeRng(4242);
+    for (const [d, envDim] of [
+      [2, 3],
+      [3, 4],
+      [2, 8],
+    ] as const) {
+      const st = randomChannelStinespring(rng, d, envDim);
+      assertStinespring(st); // refuses STINESPRING_ISOMETRY_FAILED if Gram-Schmidt broke
+    }
+    // the certificate has teeth: a V with a corrupted cell is convicted by name
+    const bad = krausToStinespring(replacerKraus(2));
+    bad.V.re[2] = bad.V.re[0]! * 2; // corrupt one cell — V†V leaves I by a wide margin
+    bad.V.im[2] = 0.25;
+    assert.equal(
+      codeOf(() => {
+        assertStinespring(bad);
+      }),
+      "STINESPRING_ISOMETRY_FAILED",
+    );
   });
 });

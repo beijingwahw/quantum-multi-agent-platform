@@ -28,9 +28,15 @@ README 引用的所有数字。
 4. **多 QPU 调度（六节点梯形网，三路并发 EPR 需求）**：
    - 良性区间（T₂=∞）：swap-asap 吞吐最高（1.358/轮）——急切合并在该
      区间免费，如实报告。
-   - **严格 QoS 区间（F₀=0.97, fMin=0.975）：ERS 0.666/轮（F̄=0.979），
+   - **严格 QoS 区间（F₀=0.97, fMin=0.975）：ERS 0.670/轮（F̄=0.979），
      三个基线全部为 0**——纯化调度把其他策略结构性无法交付的 QoS 变成
      可交付（`out/exp3-network.md` C 表）。
+     > **2026-11-01 勘误**：`src/net/policies.ts` 的融合配对比较器含析取分支
+     > `fSeg < action.fSeg`，允许 fHi 更大的配对凭更低段保真度赢得融合，违反
+     > §6"改进配对里 fHi 最小的先融合"定律。修复后 exp3（ers 行）、exp4-A
+     > （slots≥4 行）、exp6-S2 表格数字小幅移动（例：本条 ERS 0.666→0.670/轮），
+     > 全部结论与硬壁（slots=2/3 零交付、0.9497 饱和墙、基线为 0）不变，
+     > out/ 报告已按 `npm run repro` 重建。
 5. **纯化阶梯的硬件下限**：F₀=0.85 → fMin=0.95 的 2⁴ 阶梯需要 **≥4
    存储槽/链路**；slots=3 时混合阶梯饱和于 0.9497 < 0.95，交付为零——
    硬件需求，不是调度器可绕的参数（`out/exp4-purify.md` A 表）。
@@ -103,7 +109,7 @@ README 引用的所有数字。
 
 ```bash
 npm install
-npm test          # 94 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层、工作守恒定理、纯化梯 IFS 相界定理、走私审判与具名错误审判
+npm test          # 95 项测试：物理裁判、引擎记账、策略、Markov 互证、传感器层、工作守恒定理、纯化梯 IFS 相界定理、走私审判与具名错误审判
 npm run repro     # ~13 分钟重建 out/*.md 全部报告
 npm run exp:physics   # 单跑某一实验（exp:chain / exp:network / exp:purify / exp:scaling / exp:robustness）
 ```

@@ -24,7 +24,11 @@
  *       stabilization at the BB step);
  *   W-B the universe counts on two paths (closed form vs iterative product);
  *   W-C the right-walker invariant (ones === steps, never halts);
- *   W-D the census bookkeeping (halted + pending = universe);
+ *   W-D the census bookkeeping, RE-COUNTED (2026-11-01: the old halted +
+ *       pending = universe check was an arithmetic tautology; the witness now
+ *       re-enumerates the whole n=2 machine table and tallies halted/pending
+ *       itself — the recount must equal the census's halted count and the two
+ *       classes must partition the universe);
  *   W-E the five abilities' anchor census (5/5 price lists exist on disk);
  *   W-F the frontier re-audit (every pointer resolves live; census recounted);
  *   W-G the sixth rung's arithmetic (tower prefix exact BigInt, the two cited
@@ -32,7 +36,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { census, machines, rightWalker, simulate, compareTowers, lit, tet, tetrate, type Census } from "./beaver.js";
+import { census, decode, machines, rightWalker, simulate, compareTowers, lit, tet, tetrate, type Census } from "./beaver.js";
 import {
   LETTER,
   QUOTED_ABILITIES,
@@ -132,9 +136,27 @@ function witnessWalker(): WitnessResult {
 }
 
 function witnessBookkeeping(c2: Census): WitnessResult {
-  const pending = machines(2) - c2.halted;
-  const ok = pending > 0 && c2.halted + pending === machines(2);
-  return { name: "W-D census bookkeeping", pass: ok, detail: `${c2.halted} halted + ${pending} pending-at-300 = ${machines(2)} machines` };
+  // 2026-11-01 修复：原检查 halted + (machines(2) - halted) === machines(2) 是
+  // 恒真的套套逻辑，永远不能失败。改为独立重数：重新枚举整个 n=2 机器表，
+  // 逐台在同一界限内模拟，直接清点 halted / pending 两类计数 —— 重数的
+  // halted 必须等于普查对象给出的计数，且两类之和必须恰好瓜分宇宙（每台
+  // 机器恰被归类一次）。和式现在是对两个独立清点值的真实约束，不再是算
+  // 术恒等；普查的直方图/前缀和/计数逻辑一旦与机器表漂移，本见证即失败。
+  let recountHalted = 0;
+  let recountPending = 0;
+  for (let code = 0; code < machines(2); code++) {
+    if (simulate(decode(2, code), c2.bound).halted) recountHalted++;
+    else recountPending++;
+  }
+  const ok =
+    recountHalted === c2.halted &&
+    recountPending > 0 &&
+    recountHalted + recountPending === machines(2);
+  return {
+    name: "W-D census bookkeeping",
+    pass: ok,
+    detail: `independent recount of all ${machines(2)} machines at bound ${c2.bound}: ${recountHalted} halted + ${recountPending} pending; recount halted === census halted (${c2.halted}): ${recountHalted === c2.halted}`,
+  };
 }
 
 function witnessAbilities(): WitnessResult {
@@ -159,7 +181,10 @@ export function runWitnesses(): WitnessResult[] {
   // census(2, 300) — the whole 20,736-machine universe at up to 300 steps —
   // is the suite's dominant computation, and W-A and W-D read the SAME
   // object (a pure function of its arguments, used read-only): computed
-  // once, shared. Value-identical to the twice-computed road.
+  // once, shared. W-D additionally re-enumerates the table itself (its
+  // recount must reproduce the shared object's counts — that is the point
+  // of the 2026-11-01 fix; the extra ~140 ms is the price of a check that
+  // can actually fail).
   const c1 = census(1, 100);
   const c2 = census(2, 300);
   return [witnessCensus(c1, c2), witnessUniverseCounts(), witnessWalker(), witnessBookkeeping(c2), witnessAbilities(), witnessFrontier(), witnessSixthRung()];

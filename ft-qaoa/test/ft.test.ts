@@ -77,6 +77,28 @@ test("estimate: selectCodes returns a feasible surface distance when one exists"
   assert.equal(gross.meetsBudget, gross.epsilonTotal <= DEFAULT_FT_ASSUMPTIONS.targetCircuitError);
 });
 
+// 2026-11-01 修复回归：humanTime 曾按 1 min = 1e9 us 换算（偏差 16.67 倍）。
+test("estimate: human wall time converts minutes at 6e7 us/min and hours at 3.6e9 us/h", () => {
+  const model = randomIsing(new Rng(51), 12);
+  const base = estimateDeepQaoa({ model, code: grossCode(), qaoaDepth: 8 });
+  // scale the cycle period so the same circuit lands at exactly 2.5 min = 1.5e8 us
+  const min = estimateDeepQaoa({
+    model,
+    code: grossCode(),
+    qaoaDepth: 8,
+    assumptions: { cycleTimeUs: 1.5e8 / base.wallTimeUs },
+  });
+  assert.match(min.wallTimeHuman, /^2\.50 min$/);
+  // 90 min = 1.5 h = 5.4e9 us must print as hours, not minutes
+  const h = estimateDeepQaoa({
+    model,
+    code: grossCode(),
+    qaoaDepth: 8,
+    assumptions: { cycleTimeUs: 5.4e9 / base.wallTimeUs },
+  });
+  assert.match(h.wallTimeHuman, /^1\.50 h$/);
+});
+
 test("decoder: utilization scales inversely with fleet size; verdicts match the ceiling", () => {
   const base = {
     unit: { latencyUs: 10, roundsPerSecond: 200000 },
@@ -89,6 +111,28 @@ test("decoder: utilization scales inversely with fleet size; verdicts match the 
   assert.ok(Math.abs(small.utilization / big.utilization - 10) < 1e-9);
   assert.equal(small.verdict, small.utilization <= 0.95 ? "realtime" : "backlog-grows");
   assert.equal(big.verdict, big.utilization <= 0.95 ? "realtime" : "backlog-grows");
+});
+
+// 2026-11-01 修复回归：units < blocks 时不得把每块单元数钳制成 1——
+// 那等于把机队凭空放大 blocks 倍、按 1 台/块 低估利用率与积压。
+// 契约是"尽量均匀铺开"：部分块 1 台、其余 0 台，机队仍欠全部 blocks 条流的服务。
+test("decoder: units < blocks spread across blocks (some blocks get 1, others 0)", () => {
+  const base = {
+    unit: { latencyUs: 10, roundsPerSecond: 200000 }, // service = 8/2e5*1e6 + 10 = 50 us
+    windowRounds: 8, // arrival = 8 us at cycle 1 us -> per-unit load 6.25
+    note: "spread test",
+  };
+  const r = analyzeDecoderSchedule(50000, 1, 7, { ...base, id: "spread", units: 3 }, new Rng(11));
+  assert.equal(r.unitsPerBlock, 0, "floor(3/7) units per block — no clamping to 1");
+  // the fleet owes all 7 block streams with 3 units: (7/3) x the per-unit load
+  assert.ok(Math.abs(r.utilization - 6.25 * (7 / 3)) < 1e-9);
+  assert.ok(r.utilization > 6.25, "must not price the undersized fleet at the per-block floor");
+  assert.equal(r.verdict, "backlog-grows");
+  assert.ok(r.maxBacklogRounds > 0, "the served-block stream must show growing backlog");
+  // units == blocks keeps the previous even-spread accounting exactly
+  const even = analyzeDecoderSchedule(50000, 1, 7, { ...base, id: "even", units: 7 }, new Rng(11));
+  assert.equal(even.unitsPerBlock, 1);
+  assert.ok(Math.abs(even.utilization - 6.25) < 1e-9);
 });
 
 test("decoder: seeded determinism and bounded backlog in the real-time regime", () => {

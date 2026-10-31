@@ -84,7 +84,9 @@ function renderPackage(insts: readonly Instance[], budget: readonly BudgetRow[],
   // ---- X7: the robustness census ----
   lines.push("\n## The parameter-robustness census (X7) — transfer robustness as data\n");
   lines.push(`Perturbation grid deltas (rad): ${CENSUS_DELTAS.join(", ")}; degradation band across f in [${CENSUS_BAND[0]}, ${CENSUS_BAND[1]}] (exact Hamming-shell convolution, model-conditional).\n`);
-  lines.push("| instance | n | p | E* | worst dE on grid | best gain (optimizer slack, as found) | min curvature | max curvature | p0 | band (f=.05 -> .01) |");
+  // 2026-11-01 修复：band 元组已按文档契约改为 [fLo, fHi]（原为反序），表头由补偿性的
+  // “f=.05 -> .01” 改为与契约一致的 “f=.01 -> .05” —— 两端现在都诚实。
+  lines.push("| instance | n | p | E* | worst dE on grid | best gain (optimizer slack, as found) | min curvature | max curvature | p0 | band (f=.01 -> .05) |");
   lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   const includedInsts = allocationScope(insts).included;
   const summaries: string[] = [];

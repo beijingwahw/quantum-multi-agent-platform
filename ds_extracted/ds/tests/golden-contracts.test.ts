@@ -50,6 +50,15 @@ describe('黄金契约 · denormalizeExpectation', () => {
       );
     }
   });
+
+  // 2026-11-01 回归钉：简并谱（max===min，如维度 1 的子空间实例）下
+  // 旧式 (0/0)·0+min = NaN 污染退火解的 expectation 字段——常数谱的
+  // 期望恒为 min，与归一化值和 scale 无关。
+  it('简并谱（max===min）期望恒为 min，不再产出 NaN', () => {
+    assert.strictEqual(denormalizeExpectation(0, 0, 3.5, 3.5), 3.5);
+    assert.strictEqual(denormalizeExpectation(0.7, 2, -4, -4), -4);
+    assert.ok(Number.isFinite(denormalizeExpectation(0, 0, 0, 0)));
+  });
 });
 
 // ----------------------------------------------------------------------------

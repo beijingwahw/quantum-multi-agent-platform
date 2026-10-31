@@ -413,11 +413,14 @@ export function ersPolicy(
               const fOut = out[0]!; // purify2to1 returns a length-4 vector
               if (fOut <= fHi + MIN_GAIN) continue; // degrading, plateau, or grazing mix
               improved = true;
+              // 2026-11-01 修复：移除析取分支 `fSeg < action.fSeg`——它允许 fHi 更大
+              // 的配对仅凭所在段保真度更低就赢得融合，违反"改进配对里 fHi 最小的
+              // 先融合"定律（§6 自底向上）。现在仅在 fHi 严格更小或（fHi 平局时）
+              // fOut 更大时替换。
               if (
                 !action ||
                 fHi < action.fHi - 1e-12 ||
-                (Math.abs(fHi - action.fHi) <= 1e-12 && fOut > action.fOut + 1e-12) ||
-                fSeg < action.fSeg
+                (Math.abs(fHi - action.fHi) <= 1e-12 && fOut > action.fOut + 1e-12)
               )
                 action = { keep: hi.id, sac: lo.id, fHi, fOut, fSeg };
             }

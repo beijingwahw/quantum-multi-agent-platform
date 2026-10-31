@@ -20,7 +20,7 @@
 | row | verdict (v0.1.0 → now) | settles/holds | the boundary it carries | live pointers (repo file · needle) |
 | --- | --- | --- | --- | --- |
 | #01 | HEURISTIC (held) | held | held — heuristic complexity class, no speedup claim; the wall is real-time qLDPC decode | `ft-qaoa/out/exp1-monotonic.md` · "Worst-case r_128 across 7 instances: 0.991166" |
-| #02 | HEURISTIC (held) | held | held — delivery is real, the storage-slot price is the boundary | `ent-sched/out/exp3-network.md` · "0.66631" |
+| #02 | HEURISTIC (held) | held | held — delivery is real, the storage-slot price is the boundary | `ent-sched/out/exp3-network.md` · "0.66974" |
 | #03 | HEURISTIC (held) | held | held — class unmoved; physical verification awaiting granted hours only | `ds_extracted/ds/README.md` · "tests-1297" |
 | #04 | HEURISTIC (held) | held | held — 'equivalent' stays subspace equivalence, never a physical 80-qubit machine | `bqp-map/out/reports/atlas.md` · "NP ⊆ BQP" |
 | #05 | HW-WAIT (held) | held | held — the capacity advantage is machine-witnessed; hardware does not ship switches at scale | `switch-sched/reports/exp2-capacity.md` · "χ_joint = 0.048795 bits" |
@@ -42,7 +42,7 @@
 - PASS — W-A Busy-Beaver census (n=1: BB=1; n=2: universe 20736, halted 9784, BB=6, census stable at BB: true)
 - PASS — W-B universe counts (two paths) (closed form vs iterative product for n=1..3: 64 / 20736 / 16777216)
 - PASS — W-C right-walker invariant (500 steps: halted=false, ones=500 === steps)
-- PASS — W-D census bookkeeping (9784 halted + 10952 pending-at-300 = 20736 machines)
+- PASS — W-D census bookkeeping (independent recount of all 20736 machines at bound 300: 9784 halted + 10952 pending; recount halted === census halted (9784): true)
 - PASS — W-E five abilities priced (5/5 abilities have on-disk price lists)
 - PASS — W-F frontier re-audit (live pointers) (17 rows / 21 pointers resolve live on disk; census 8/4/2/2/0/1 (prior 6/4/2/2/2/1); graduations: #10→dtc-clock, #15→stable-world)
 - PASS — W-G the sixth rung's arithmetic (2↑↑4 = 65536, 2↑↑5 = 2^65536 (19729 digits, monotone prefix); 2↑↑↑3 = 65536 exact; champion 2↑↑(2↑↑(2↑↑9)) vs 2↑↑↑5: strictly greater (the sources agree, the champion is the stronger bound); 2↑↑↑5 > 2↑↑↑4: true)

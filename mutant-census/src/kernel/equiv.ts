@@ -314,7 +314,10 @@ function buildPerErrorFamily(key: string, base: Family, p1: CMat): Family {
         ...base,
         conditionalOn: (rho, digit) => {
           const { conditional } = filterBasisDigit(rho, [2, 2], 0, digit);
-          const joint = rho.re[digit * 4 + 0]!; // joint element world=digit AND data=0 — the wrong denominator
+          // 2026-11-01 修复：与 family.ts 的 MU5 同步修正——索引原先取相干非对角元
+          // ρ[digit][0]（digit*4+0），联合概率 P(w=digit, d=0) 在对角元
+          // (2*digit+0, 2*digit+0)；两侧必须逐位一致，COLLAPSES 判定才有效
+          const joint = rho.re[(2 * digit + 0) * 4 + (2 * digit + 0)]!; // joint element world=digit AND data=0 — the wrong denominator
           const out = mat(4, 4);
           for (let k = 0; k < out.re.length; k++) {
             out.re[k] = conditional.re[k]! / joint;
@@ -339,13 +342,19 @@ function buildPerErrorFamily(key: string, base: Family, p1: CMat): Family {
         },
       };
     case "b24#2": // the order-bit readout reads JOINT cells as the probabilities
-      return { ...base, measureWorldQubit: (rho) => [rho.re[0 * 4 + 0]!, rho.re[2 * 4 + 1]!] };
+      // 2026-11-01 修复：第二个联合元原先写成相干非对角元 ρ[2][1]（2*4+1）；真正的
+      // 联合概率对角元是 ρ[2][2] = P(w=1, d=0)（data 被钉在 0，与 b15#3 的钉扎语义一致，
+      // 对应埋葬记录 "read the joint elements re[0]/re[3] ... as the order-bit probabilities"）
+      return { ...base, measureWorldQubit: (rho) => [rho.re[0 * 4 + 0]!, rho.re[2 * 4 + 2]!] };
     case "b15#3": // the branch marginal computed by PINNING the partner's outcome
       return {
         ...base,
         measureWorldQubit: (rho) => {
-          const pd0 = rho.re[0]! + rho.re[2]!; // P(data=0) — the pinned branch's mass
-          return [rho.re[0 * 4 + 0]! / pd0, rho.re[2 * 4 + 0]! / pd0];
+          // 2026-11-01 修复：P(d=0) 与分子原先取相干元（re[2]=ρ[0][2]、re[2*4+0]=ρ[2][0]）；
+          // 钉扎语义（埋葬记录 b15#3："pinning computes the JOINT probability"）要求
+          // P(d=0)=ρ[0][0]+ρ[2][2]，分子为联合元 P(w,d=0)=ρ[2w][2w]
+          const pd0 = rho.re[0 * 4 + 0]! + rho.re[2 * 4 + 2]!; // P(data=0) — the pinned branch's mass
+          return [rho.re[0 * 4 + 0]! / pd0, rho.re[2 * 4 + 2]! / pd0];
         },
       };
     case "b14#2": // the axis measurement as a unitary application
@@ -356,7 +365,10 @@ function buildPerErrorFamily(key: string, base: Family, p1: CMat): Family {
           sx.re[0 * 2 + 1] = 1;
           sx.re[1 * 2 + 0] = 1;
           const rot = coreApplyKraus(rho, [kron(sx, identity(2))]); // sigma_a (x) I APPLIED, not measured
-          return [rot.re[0]! + rot.re[1]!, rot.re[2]! + rot.re[3]!];
+          // 2026-11-01 修复："reads the computational diagonals" 原先实现成行和
+          // （rot.re[0]+rot.re[1]、rot.re[2]+rot.re[3]，混入非对角元）；计算基对角
+          // 的块内求和应为 ρ'[0][0]+ρ'[1][1] 与 ρ'[2][2]+ρ'[3][3]
+          return [rot.re[0 * 4 + 0]! + rot.re[1 * 4 + 1]!, rot.re[2 * 4 + 2]! + rot.re[3 * 4 + 3]!];
         },
       };
     // ---- the dimension-slot pilots (v0.13.0) ----

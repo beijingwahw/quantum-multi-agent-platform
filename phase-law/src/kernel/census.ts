@@ -126,8 +126,11 @@ export function thresholds(points: readonly CensusPoint[]): ThresholdCell[] {
       hitRateAtMax: atMax,
     });
   }
-  return cells.sort((a, b) =>
-    a.m === b.m ? a.solver.localeCompare(b.solver) : a.m - b.m || a.n - b.n,
+  // 2026-11-01 修复：旧比较器 `a.m === b.m ? solver : a.m - b.m || a.n - b.n`
+  // 中 n 决胜不可达（m 相等时先走 solver 分支），同 m 组内退化为 solver 主序。
+  // 正确的主序：m → n → solver。
+  return cells.sort(
+    (a, b) => a.m - b.m || a.n - b.n || a.solver.localeCompare(b.solver),
   );
 }
 

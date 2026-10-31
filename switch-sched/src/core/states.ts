@@ -97,7 +97,11 @@ export function rotY(theta: number): CMat {
  * and the full orbit satisfies Σ_{ab} W ρ W† = d · I · Tr ρ.
  */
 export function weyl(d: number, a: number, b: number): CMat {
-  const omega = (-2 * Math.PI * b) / d;
+  // 2026-11-01 修复：原实现 omega = −2πb/d 实为 Z^{−b}（列 j 相位 ω^{−bj}），
+  // 与本文档注释 W_{a,b} = X^a Z^b（Z|j⟩ = ω^j|j⟩, ω = e^{2πi/d}）相反。
+  // 现按文档取 Z^{b}（ω^{+bj}）。全部消费者（depolarizingKraus 全轨道等权、
+  // 测试的轨道和 Σ WρW† = d·I）对符号不敏感，行为不变。
+  const omega = (2 * Math.PI * b) / d;
   const m = mat(d, d);
   for (let j = 0; j < d; j++) {
     const row = (j + a) % d;

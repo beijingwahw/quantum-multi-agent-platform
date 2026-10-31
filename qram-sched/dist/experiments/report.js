@@ -2,18 +2,21 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 export const reportDir = resolve(import.meta.dirname, "../../out/reports");
+/** Write one markdown report file; returns the path written. */
 export function writeReport(name, body) {
     const file = resolve(reportDir, name);
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, body, "utf8");
     return file;
 }
+/** Render a markdown table with a matching separator row. */
 export function table(headers, rows) {
     const head = `| ${headers.join(" | ")} |`;
     const sep = `| ${headers.map(() => "---").join(" | ")} |`;
     const body = rows.map((r) => `| ${r.join(" | ")} |`).join("\n");
     return [head, sep, body].join("\n");
 }
+/** Least-squares slope of ys against xs (experiment scaling-law fits). */
 export function fitSlope(xs, ys) {
     const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
     const my = ys.reduce((a, b) => a + b, 0) / ys.length;
@@ -25,6 +28,7 @@ export function fitSlope(xs, ys) {
     }
     return num / den;
 }
+/** Fixed-decimal formatting for report prose (NaN/Infinity pass through as strings). */
 export function fmt(x, digits = 3) {
     if (!Number.isFinite(x))
         return String(x);

@@ -117,6 +117,18 @@ describe("E7 L3: nested saturation ladder S_{s+1} = μ(S_s) and the phase bounda
     }
   });
 
+  it("slots=1 degenerate: the single-slot steady state is S₁ = F₀, finite and physically valid", () => {
+    // 2026-11-01 修复回归：此前 closed[-1] 读出 undefined，NaN 击穿守卫，
+    // saturationLadderSim(0.85, 1) 曾静默返回 NaN。
+    const sim = saturationLadderSim(0.85, 1);
+    ok(Number.isFinite(sim), `sim must be finite, got ${sim}`);
+    ok(sim > 0.5 && sim <= 1, `sim must lie in the Werner domain, got ${sim}`);
+    strictEqual(sim, 0.85); // S₁ = F₀: no supply subsystem, nothing to fuse
+    const closed = saturationLadder(0.85, 1);
+    strictEqual(closed.length, 1);
+    strictEqual(closed[0], 0.85);
+  });
+
   it("S_s is strictly increasing in s and in F₀", () => {
     const sat = saturationLadder(0.85, 8);
     for (let s = 1; s < 8; s++)

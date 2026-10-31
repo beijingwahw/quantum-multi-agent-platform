@@ -28,6 +28,35 @@ test('CKW inequality never violated on random pure states', () => {
   }
 });
 
+// 2026-11-01 修复回归：2×2 Hermitian 行列式必须减 |ρ01|²（含 Im(ρ01)²），
+//   旧代码漏掉 Im²，Im(ρ01)≠0 时 cABC/tangle 偏大。
+// Regression (2026-11-01 fix): the 2×2 Hermitian determinant must subtract
+//   |ρ01|² (INCLUDING Im(ρ01)²); the old code dropped Im², inflating
+//   cABC/tangle for states with Im(ρ01) ≠ 0.
+test('CKW determinant pins |rho01|² (Im part included) on a complex-amplitude state', () => {
+  // ψ = (1/√2)|000⟩ + (i/2)|100⟩ + (1/2)|101⟩ — B factorizes (every term has
+  // B=0), so this is a pure AC two-qubit state tensored with |0⟩_B.
+  // Hand derivation:
+  //   ρ_A = [[1/2, −i/(2√2)], [i/(2√2), 1/2]]  (Re(ρ01)=0, Im(ρ01)=−1/(2√2))
+  //   det ρ_A = 1/2·1/2 − |ρ01|² = 1/4 − 1/8 = 1/8  ⟹  C_ABC = 2√(1/8) = 1/√2
+  //   C_AB = 0 (B product);  C_AC = 2|ad−bc| = 2·(1/√2·1/2) = 1/√2
+  //   tangle = C_ABC² − C_AB² − C_AC² = 1/2 − 0 − 1/2 = 0
+  // The dropped-Im² bug gave det = 1/4 − Re² = 1/4 ⟹ C_ABC = 1, tangle = 1/2.
+  const psi = {
+    n: 8,
+    re: Float64Array.of(Math.SQRT1_2, 0, 0, 0, 0, 0.5, 0, 0),
+    im: Float64Array.of(0, 0, 0, 0, 0.5, 0, 0, 0),
+  };
+  const rhoA = partialTrace(fromVec(psi), [2, 2, 2], [1, 2]);
+  // the discriminator premise: the off-diagonal is purely imaginary
+  assert.ok(Math.abs(rhoA.re[1]!) < 1e-15 && Math.abs(rhoA.im[1]! + 1 / (2 * Math.SQRT2)) < 1e-15, `rho01 = ${rhoA.re[1]}${rhoA.im[1]}i`);
+  const r = ckw(fromVec(psi));
+  assert.ok(Math.abs(r.cAB) < 1e-12, `cAB ${r.cAB}`);
+  assert.ok(Math.abs(r.cAC - Math.SQRT1_2) < 1e-12, `cAC ${r.cAC}`);
+  assert.ok(Math.abs(r.cABC - Math.SQRT1_2) < 1e-12, `cABC ${r.cABC} (dropped-Im² bug gives 1)`);
+  assert.ok(Math.abs(r.tangle) < 1e-12, `tangle ${r.tangle} (dropped-Im² bug gives 0.5)`);
+});
+
 test('double pledge caps at the CKW ceiling 1/sqrt(2)', () => {
   const fam = doublePledgeFamilyScan(200);
   assert.ok(Math.abs(fam.minC - Math.SQRT1_2) < 1e-9, `family minC ${fam.minC}`);

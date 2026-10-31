@@ -139,19 +139,24 @@ describe("T10 continuity regime: the capacity wall of the quadratic family (type
     assert.ok(fj.ok);
   });
 
-  it("the piecewise charge blocks: -(s-t)^2/4 interior, 0 wall-to-wall, -(t-w+1)^2/4 cross", () => {
+  it("the piecewise charge blocks: -(s-t)^2/4 interior, 0 wall-to-wall, -(t-w+1)^2/4 cross, and the fourth block (report interior / type walled) m*n/2 - m^2/4", () => {
     const b = k.wallChargeBlocks();
     pAssertZero(pSub(b.interior, b.interiorClosedForm), "interior block");
     pAssertZero(b.wallBlock, "wall-to-wall block is identically zero (the weak-DSIC flat)");
     pAssertZero(pSub(b.crossBlock, b.crossClosedForm), "cross block");
+    // 2026-11-01 新增：第四块（报告内部、真类型 walled）——真对照是墙
+    // x=0 处的势，非 interior 外推（旧 witness 把这块格点错归 interior 块，
+    // 评估的是增益下界而非 DSIC 证书所需的上界）。
+    pAssertZero(pSub(b.crossBlock2, b.cross2ClosedForm), "cross2 block (report interior, type walled)");
     assert.ok(b.allOk);
   });
 
-  it("grid witness, honest about the flat: never positive; strictly negative off-diagonal on both strict blocks; the wall-to-wall zeros are counted", () => {
+  it("grid witness, honest about the flat: never positive; strictly negative off-diagonal on both strict blocks AND the interior-report/walled-type block; the wall-to-wall zeros are counted", () => {
     const g = k.wallGridWitness(rat(5, 2), 8);
     assert.equal(rCmp(g.worst, rat(0)), 0, `worst ${rStr(g.worst)} > 0`);
     assert.ok(rCmp(g.worstInteriorOff, rat(0)) < 0, rStr(g.worstInteriorOff));
     assert.ok(rCmp(g.worstCross, rat(0)) < 0, rStr(g.worstCross));
+    assert.ok(rCmp(g.worstCross2, rat(0)) < 0, rStr(g.worstCross2));
     assert.ok(g.flatPairs > 0, "the weak-DSIC flat was not observed (witness degenerate)");
   });
 });

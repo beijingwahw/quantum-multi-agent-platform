@@ -71,8 +71,11 @@ export function ucb1Run(means, horizon, seed) {
  *  environment (classical simulator access — no regret, but each sample costs a query). */
 export function etcRun(means, horizon, samplesPerArm, seed, mode = "live") {
     checkBanditBank(means, horizon);
-    if (!Number.isInteger(samplesPerArm) || samplesPerArm < 0) {
-        reject("BANDIT_ARG_RANGE", "samplesPerArm must be an integer >= 0");
+    // a zero-exploration ETC with a live horizon has no empirical best to commit
+    // to: commit stayed -1 and the run shipped NaN regret with decisions 255
+    // (Uint8Array cast of -1) — refuse it by name
+    if (!Number.isInteger(samplesPerArm) || samplesPerArm < 1) {
+        reject("BANDIT_ARG_RANGE", "samplesPerArm must be an integer >= 1 (zero exploration leaves no empirical best to commit to)");
     }
     const k = means.length;
     const rng = new Rng(seed);
@@ -147,7 +150,12 @@ export function adversarialRun(k, horizon, seed, gamma, search) {
         }
         decisions[t] = arm;
         const r = rewards[arm * horizon + t] === 1 ? 1 : 0;
-        // importance-weighted update
+        // importance-weighted update. Overflow note: the per-win exponent
+        // (gamma/k)·(r/p) is bounded by 1 (p >= gamma/k), but it shrinks toward
+        // (gamma/k)/(1-gamma+gamma/k) as an arm comes to dominate, so cumulative
+        // log-weight stays far below the ~709 double-precision overflow line at
+        // any sane horizon (verified empirically: well-formed exploration at
+        // T = 200000, k = 8, gamma = 0.1 — pinned in test/regression-boundaries).
         weights[arm] = weights[arm] * Math.exp((gamma / k) * (r / p[arm]));
         plays++;
     }
