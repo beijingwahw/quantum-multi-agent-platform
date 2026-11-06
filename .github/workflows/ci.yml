@@ -84,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: OSV-Scanner（供应链漏洞，advisory 观察位）
-        uses: google/osv-scanner-action/osv-scanner-action@v2.6.0
+        uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
         with:
           # 仓库根递归扫描：自动发现 ds_extracted/ds/package-lock.json
           # （uses: 步骤不受本文件 defaults.run.working-directory 影响）
